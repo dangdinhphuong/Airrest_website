@@ -1,0 +1,307 @@
+import React, { useMemo, useState } from "react";
+import { createRoot } from "react-dom/client";
+import {
+  ArrowRight, BedDouble, BellRing, CalendarDays, Check, ChevronDown,
+  ChevronRight, CircleHelp, Clock3, Coffee, Compass, ExternalLink, Filter,
+  Headphones, Heart, Hotel, Info, MapPin, Menu, MoonStar, Plane,
+  PlaneLanding, Search, ShieldCheck, Sparkles, Star, Users, X, Zap
+} from "lucide-react";
+import "./styles.css";
+
+const hotels = [
+  {
+    id: 1, name: "MELIA Airport Hotel", image: "/images/hotel-2.jpg",
+    distance: "2,1 km", travel: "9 phút", price: 570000, rating: "8,8",
+    tags: ["Lễ tân 24/24", "Huỷ miễn phí", "Trả tại chỗ"], family: true, shuttle: false,
+    room: "Phòng Deluxe · 1 giường đôi"
+  },
+  {
+    id: 2, name: "88 Ehome Nội Bài", image: "/images/hotel-1.jpg",
+    distance: "1,9 km", travel: "8 phút", price: 350066, rating: "8,6",
+    tags: ["Xe đưa đón miễn phí", "Huỷ miễn phí", "Phòng gia đình"], family: true, shuttle: true,
+    room: "Phòng gia đình · 2 giường"
+  },
+  {
+    id: 3, name: "Noi Bai Horizon Hotel", image: "/images/hotel-3.jpg",
+    distance: "2,3 km", travel: "11 phút", price: 1666520, rating: "9,5",
+    tags: ["Lễ tân 24/24", "Xe đưa đón", "Huỷ miễn phí"], family: true, shuttle: true,
+    room: "Phòng Premier · Bữa sáng"
+  }
+];
+
+const money = (value) => new Intl.NumberFormat("vi-VN").format(value) + "đ";
+
+function Logo() {
+  return <div className="logo"><span className="logo-mark"><Plane size={19} /></span><span>AIRREST</span></div>;
+}
+
+function App() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchMode, setSearchMode] = useState("flight");
+  const [flight, setFlight] = useState("VN218");
+  const [date, setDate] = useState("2026-10-11");
+  const [searched, setSearched] = useState(false);
+  const [airport, setAirport] = useState("HAN");
+  const [filter, setFilter] = useState("all");
+  const [liked, setLiked] = useState([]);
+  const [booking, setBooking] = useState(null);
+  const [step, setStep] = useState(1);
+  const [supportSent, setSupportSent] = useState(false);
+  const [toast, setToast] = useState("");
+
+  const results = useMemo(() => hotels.filter((hotel) => {
+    if (filter === "cancel") return hotel.tags.includes("Huỷ miễn phí");
+    if (filter === "shuttle") return hotel.shuttle;
+    if (filter === "family") return hotel.family;
+    return true;
+  }), [filter]);
+
+  const notify = (message) => {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2600);
+  };
+
+  const runSearch = (event) => {
+    event.preventDefault();
+    setSearched(true);
+    window.setTimeout(() => document.querySelector("#flight-status")?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+  };
+
+  const openBooking = (hotel) => {
+    setBooking(hotel);
+    setStep(1);
+  };
+
+  return (
+    <div className="app">
+      <header className="nav-wrap">
+        <nav className="nav shell" aria-label="Điều hướng chính">
+          <a className="brand-link" href="#top" aria-label="AIRREST, về trang chủ"><Logo /></a>
+          <div className={`nav-links ${menuOpen ? "is-open" : ""}`}>
+            <a href="#how" onClick={() => setMenuOpen(false)}>Cách hoạt động</a>
+            <a href="#stays" onClick={() => setMenuOpen(false)}>Nơi nghỉ</a>
+            <a href="#rights" onClick={() => setMenuOpen(false)}>Quyền lợi chuyến bay</a>
+            <a href="#support" onClick={() => setMenuOpen(false)}>Trợ giúp</a>
+          </div>
+          <div className="nav-actions">
+            <button className="lang-btn">VI <ChevronDown size={14} /></button>
+            <button className="support-btn" onClick={() => document.querySelector("#support")?.scrollIntoView({behavior:"smooth"})}>
+              <Headphones size={17} /> <span>Hỗ trợ 24/7</span>
+            </button>
+            <button className="menu-btn" aria-label="Mở menu" onClick={() => setMenuOpen(!menuOpen)}>
+              {menuOpen ? <X /> : <Menu />}
+            </button>
+          </div>
+        </nav>
+      </header>
+
+      <main id="top">
+        <section className="hero">
+          <div className="hero-photo" role="img" aria-label="Hà Nội về đêm nhìn từ trên cao" />
+          <div className="hero-shade" />
+          <div className="hero-content shell">
+            <div className="hero-copy">
+              <span className="eyebrow light"><Sparkles size={15} /> Đồng hành khi hành trình đổi kế hoạch</span>
+              <h1>Chuyến bay gián đoạn.<br /><em>Giấc nghỉ thì không.</em></h1>
+              <p>AIRREST giúp bạn kiểm tra quyền lợi, tính thời gian nghỉ thực tế và tìm nơi nghỉ phù hợp gần sân bay — tất cả trong vài phút.</p>
+              <div className="hero-trust">
+                <span><ShieldCheck /> Không cần đăng nhập</span>
+                <span><Clock3 /> Quyết định nhanh</span>
+                <span><MoonStar /> Hỗ trợ xuyên đêm</span>
+              </div>
+            </div>
+
+            <form className="search-card" onSubmit={runSearch}>
+              <div className="search-head">
+                <div>
+                  <span className="section-kicker">BẮT ĐẦU TẠI ĐÂY</span>
+                  <h2>Kiểm tra chuyến bay của bạn</h2>
+                </div>
+                <span className="mock-badge">Dữ liệu mô phỏng</span>
+              </div>
+              <div className="mode-tabs" role="tablist">
+                <button type="button" className={searchMode === "flight" ? "active" : ""} onClick={() => setSearchMode("flight")}><PlaneLanding /> Có số hiệu chuyến bay</button>
+                <button type="button" className={searchMode === "airport" ? "active" : ""} onClick={() => setSearchMode("airport")}><MapPin /> Không nhớ số hiệu</button>
+              </div>
+              {searchMode === "flight" ? (
+                <div className="search-fields">
+                  <label><span>Số hiệu chuyến bay</span><div className="input-wrap"><Plane size={18} /><input value={flight} onChange={(e) => setFlight(e.target.value.toUpperCase())} placeholder="VD: VN218" required /></div></label>
+                  <label><span>Ngày bay</span><div className="input-wrap"><CalendarDays size={18} /><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></div></label>
+                </div>
+              ) : (
+                <div className="search-fields">
+                  <label><span>Sân bay hiện tại</span><div className="input-wrap"><MapPin size={18} /><select value={airport} onChange={(e) => setAirport(e.target.value)}><option value="HAN">Nội Bài (HAN)</option><option value="SGN">Tân Sơn Nhất (SGN)</option></select></div></label>
+                  <label><span>Giờ bay mới dự kiến</span><div className="input-wrap"><Clock3 size={18} /><input type="time" defaultValue="06:00" /></div></label>
+                </div>
+              )}
+              <button className="primary-btn search-submit" type="submit"><Search size={19} /> Kiểm tra ngay <ArrowRight size={18} /></button>
+              <p className="privacy-note"><ShieldCheck size={14} /> Không thu thập số điện thoại, email hoặc giấy tờ cá nhân.</p>
+            </form>
+          </div>
+        </section>
+
+        <section className="proof-strip">
+          <div className="shell proof-grid">
+            <div><span className="proof-icon blue"><Zap /></span><p><strong>Phản hồi trong 3 giây</strong><small>Tình trạng và phương án rõ ràng</small></p></div>
+            <div><span className="proof-icon green"><Hotel /></span><p><strong>70 nơi nghỉ đã đối chiếu</strong><small>Quanh Nội Bài & Tân Sơn Nhất</small></p></div>
+            <div><span className="proof-icon amber"><ShieldCheck /></span><p><strong>Minh bạch quyền lợi</strong><small>Nguồn pháp lý trên từng thông tin</small></p></div>
+          </div>
+        </section>
+
+        {searched && (
+          <section id="flight-status" className="status-section shell">
+            <div className="status-alert"><Info size={18} /><span>Giờ bay đã đổi: <strong>23:20 → 06:00</strong>. AIRREST đã tính lại thời gian nghỉ và giờ quay lại sân bay.</span><button onClick={() => setSearched(false)} aria-label="Đóng"><X size={17} /></button></div>
+            <div className="status-card">
+              <div className="status-top">
+                <div><span className="flight-number">{flight || "VN218"}</span><span className="status-pill">Chậm 6 giờ 40 phút</span></div>
+                <span className="updated"><span /> Cập nhật lúc 23:08 · Mô phỏng</span>
+              </div>
+              <div className="flight-route">
+                <div><strong>HAN</strong><span>Hà Nội</span><small>23:20 · 11/10</small></div>
+                <div className="route-line"><Plane size={20} /><span /></div>
+                <div><strong>SGN</strong><span>TP. Hồ Chí Minh</span><small className="new-time">06:00 · 12/10</small></div>
+              </div>
+              <div className="status-bottom">
+                <div className="rest-score"><span className="rest-icon"><MoonStar /></span><p><small>Thời gian nghỉ thực tế</small><strong>Khoảng 4 giờ 15 phút</strong><span>Nếu chọn nơi nghỉ trong bán kính 3 km</span></p></div>
+                <div className="status-cta"><button className="secondary-btn" onClick={() => document.querySelector("#rights")?.scrollIntoView({behavior:"smooth"})}>Xem quyền lợi</button><button className="primary-btn" onClick={() => document.querySelector("#stays")?.scrollIntoView({behavior:"smooth"})}>Tìm nơi nghỉ <ArrowRight size={17} /></button></div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section id="how" className="decision-section shell">
+          <div className="section-heading center">
+            <span className="section-kicker">GỢI Ý CHO TÌNH HUỐNG CỦA BẠN</span>
+            <h2>Chọn phương án để nghỉ tốt hơn</h2>
+            <p>Dựa trên giờ bay mới, vị trí hiện tại và thời gian di chuyển dự kiến.</p>
+          </div>
+          <div className="decision-grid">
+            <article className="decision-card featured">
+              <span className="recommend-tag"><Sparkles /> Khuyên dùng</span>
+              <div className="decision-icon"><Hotel /></div>
+              <div><h3>Đi khách sạn gần sân bay</h3><p>Bạn có đủ thời gian để nghỉ khoảng 4 giờ. AIRREST ưu tiên nơi còn nhận khách và có huỷ miễn phí.</p></div>
+              <ul><li><Check /> Đến nơi khoảng 23:25</li><li><Check /> Rời khách sạn lúc 03:30</li></ul>
+              <button className="text-link" onClick={() => document.querySelector("#stays")?.scrollIntoView({behavior:"smooth"})}>Xem nơi còn phòng <ArrowRight /></button>
+            </article>
+            <article className="decision-card">
+              <div className="decision-icon soft"><BedDouble /></div>
+              <div><h3>Nghỉ ngay trong nhà ga</h3><p>Phù hợp nếu bạn không muốn rời sân bay hoặc đã qua khu vực an ninh.</p></div>
+              <ul><li><Check /> Không mất thời gian di chuyển</li><li><Check /> Sleep pod, ghế nghỉ, phòng chờ</li></ul>
+              <button className="text-link" onClick={() => notify("Đang hiển thị tiện ích tại nhà ga T2")}>Xem tiện ích nhà ga <ArrowRight /></button>
+            </article>
+            <article className="decision-card">
+              <div className="decision-icon warm"><Coffee /></div>
+              <div><h3>Ở lại khu vực chờ</h3><p>Dành cho thời gian chờ ngắn hoặc khi giờ bay chưa được xác định.</p></div>
+              <ul><li><Check /> Điểm sạc và nước uống</li><li><Check /> Theo dõi thay đổi chuyến bay</li></ul>
+              <button className="text-link" onClick={() => notify("Đã bật theo dõi chuyến bay mỗi 30 phút")}>Bật theo dõi chuyến bay <ArrowRight /></button>
+            </article>
+          </div>
+        </section>
+
+        <section id="stays" className="stays-section">
+          <div className="shell">
+            <div className="section-heading heading-row">
+              <div><span className="section-kicker">NƠI NGHỈ GẦN NỘI BÀI</span><h2>Còn nhận khách đêm nay</h2><p>Ưu tiên theo thời gian di chuyển và khả năng nhận phòng muộn.</p></div>
+              <button className="outline-btn"><MapPin size={17} /> Xem trên bản đồ</button>
+            </div>
+            <div className="filter-row">
+              <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}><Filter /> Phù hợp nhất</button>
+              <button className={filter === "cancel" ? "active" : ""} onClick={() => setFilter("cancel")}>Huỷ miễn phí</button>
+              <button className={filter === "shuttle" ? "active" : ""} onClick={() => setFilter("shuttle")}>Có xe đưa đón</button>
+              <button className={filter === "family" ? "active" : ""} onClick={() => setFilter("family")}><Users /> Phòng gia đình</button>
+            </div>
+            <div className="hotel-grid">
+              {results.map((hotel, index) => (
+                <article className="hotel-card" key={hotel.id}>
+                  <div className="hotel-image">
+                    <img src={hotel.image} alt={`Không gian phòng tại ${hotel.name}`} />
+                    {index === 0 && <span className="closest">Gần nhất phù hợp</span>}
+                    <button className={`heart ${liked.includes(hotel.id) ? "liked" : ""}`} aria-label="Lưu nơi nghỉ" onClick={() => setLiked(liked.includes(hotel.id) ? liked.filter(id => id !== hotel.id) : [...liked, hotel.id])}><Heart /></button>
+                  </div>
+                  <div className="hotel-body">
+                    <div className="hotel-title"><div><h3>{hotel.name}</h3><span><MapPin /> {hotel.distance} từ sân bay · {hotel.travel} đi xe</span></div><span className="rating"><Star /> {hotel.rating}</span></div>
+                    <div className="tag-list">{hotel.tags.map(tag => <span key={tag}><Check /> {tag}</span>)}</div>
+                    <div className="room-line">{hotel.room}<span>Chỉ còn 1 phòng</span></div>
+                    <div className="hotel-footer"><div><small>Giá tổng / đêm</small><strong>{money(hotel.price)}</strong><span>Đã gồm thuế phí · Mô phỏng</span></div><button className="primary-btn" onClick={() => openBooking(hotel)}>Chọn phòng <ChevronRight /></button></div>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <p className="data-source"><Info /> Giá và tồn phòng là dữ liệu mô phỏng dựa trên bộ A08, cập nhật mẫu lúc 23:08 ngày 11/10/2026.</p>
+          </div>
+        </section>
+
+        <section id="rights" className="rights-section shell">
+          <div className="rights-copy">
+            <span className="section-kicker">QUYỀN LỢI CỦA BẠN</span>
+            <h2>Đừng tự xoay xở một mình.</h2>
+            <p>Với chuyến bay chậm từ 6 giờ trong khung 22h–7h, hãng có trách nhiệm bố trí chỗ ngủ, nghỉ hoặc giải pháp thay thế nếu đủ điều kiện.</p>
+            <div className="rights-list">
+              <div><span><Coffee /></span><p><strong>Nước uống và đồ ăn</strong><small>Theo thời gian chậm thực tế</small></p></div>
+              <div><span><BedDouble /></span><p><strong>Chỗ ngủ, nghỉ phù hợp</strong><small>Đặc biệt với chuyến chậm qua đêm</small></p></div>
+              <div><span><Compass /></span><p><strong>Di chuyển tới nơi nghỉ</strong><small>Khi hãng bố trí ngoài sân bay</small></p></div>
+            </div>
+            <button className="text-link dark" onClick={() => notify("Đã mở tóm tắt Điều 36, 39, 40")}>Đọc căn cứ pháp lý <ExternalLink /></button>
+          </div>
+          <div className="support-panel">
+            <span className="panel-icon"><ShieldCheck /></span>
+            <div><span className="mock-badge dark">Mô phỏng</span><h3>Đề nghị hãng hỗ trợ chỗ nghỉ</h3><p>AIRREST tạo yêu cầu, theo dõi phản hồi và luôn cho phép bạn chuyển sang tự chi trả.</p></div>
+            {supportSent ? (
+              <div className="request-status"><span><Check /></span><div><strong>Đã gửi yêu cầu AR-1028</strong><small>Trạng thái: Đang chờ hãng duyệt</small></div></div>
+            ) : (
+              <button className="white-btn" onClick={() => setSupportSent(true)}>Gửi đề nghị hỗ trợ <ArrowRight /></button>
+            )}
+            <p className="fine-print">Không gửi yêu cầu thật tới hãng hàng không.</p>
+          </div>
+        </section>
+
+        <section id="support" className="help-section">
+          <div className="shell help-inner">
+            <div><span className="help-icon"><CircleHelp /></span><div><h2>Bạn vẫn chưa biết nên làm gì?</h2><p>Trung tâm trợ giúp AIRREST luôn sẵn sàng hướng dẫn bước tiếp theo.</p></div></div>
+            <div><button className="outline-btn light-outline" onClick={() => notify("Đã mở trợ lý hướng dẫn")}>Trò chuyện ngay</button><a className="phone-btn" href="tel:19001028"><Headphones /> 1900 1028</a></div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <div className="shell footer-main">
+          <div><Logo /><p>Giúp hành khách tìm lại sự chủ động khi chuyến bay thay đổi.</p></div>
+          <div><strong>Khám phá</strong><a href="#how">Cách hoạt động</a><a href="#stays">Nơi nghỉ</a><a href="#rights">Quyền lợi</a></div>
+          <div><strong>Hỗ trợ</strong><a href="#support">Trung tâm trợ giúp</a><a href="#top">Câu hỏi thường gặp</a><a href="#top">Quyền riêng tư</a></div>
+          <div className="footer-note"><ShieldCheck /><p><strong>Prototype nghiên cứu</strong><span>Không giao dịch thật. Không thu thập dữ liệu cá nhân.</span></p></div>
+        </div>
+        <div className="shell copyright"><span>© 2026 AIRREST. Đồ án nghiên cứu UI/UX.</span><span>Nguồn dữ liệu: A08 · Cập nhật 11/10/2026</span></div>
+      </footer>
+
+      <div className="mobile-nav">
+        <a href="#top"><Plane /><span>Chuyến bay</span></a>
+        <a href="#stays"><Hotel /><span>Nơi nghỉ</span></a>
+        <a href="#rights"><ShieldCheck /><span>Quyền lợi</span></a>
+        <a href="#support"><CircleHelp /><span>Trợ giúp</span></a>
+      </div>
+
+      {booking && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Đặt phòng mô phỏng">
+          <div className="booking-modal">
+            <button className="modal-close" aria-label="Đóng" onClick={() => setBooking(null)}><X /></button>
+            {step === 1 ? (
+              <>
+                <span className="section-kicker">BƯỚC 1 / 2</span><h2>Kiểm tra lựa chọn</h2>
+                <div className="booking-hotel"><img src={booking.image} alt="" /><div><strong>{booking.name}</strong><span>{booking.room}</span><small><MapPin /> {booking.travel} từ Nội Bài</small></div></div>
+                <div className="booking-detail"><div><span>Nhận phòng dự kiến</span><strong>23:25 · 11/10</strong></div><div><span>Rời nơi nghỉ</span><strong>03:30 · 12/10</strong></div><div><span>Tổng thanh toán</span><strong>{money(booking.price)}</strong></div></div>
+                <label className="name-field"><span>Tên gọi để nhận phòng</span><input placeholder="VD: Minh Anh" /></label>
+                <button className="primary-btn full-btn" onClick={() => setStep(2)}>Xác nhận đặt chỗ mô phỏng <ArrowRight /></button>
+              </>
+            ) : (
+              <div className="success-state"><span className="success-icon"><Check /></span><span className="section-kicker">ĐÃ XÁC NHẬN · MÔ PHỎNG</span><h2>Bạn đã có chỗ nghỉ.</h2><p>Mã xác nhận <strong>AR-{booking.id}028</strong>. Hãy đến quầy lễ tân và đọc tên gọi đã đăng ký.</p><div className="leave-alert"><BellRing /><div><strong>Rời nơi nghỉ lúc 03:30</strong><span>Để có mặt tại sân bay lúc 04:00</span></div></div><button className="primary-btn full-btn" onClick={() => { setBooking(null); notify("Đã bật nhắc giờ quay lại sân bay"); }}>Bật nhắc giờ & hoàn tất</button></div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {toast && <div className="toast"><Check /> {toast}</div>}
+    </div>
+  );
+}
+
+createRoot(document.getElementById("root")).render(<App />);
