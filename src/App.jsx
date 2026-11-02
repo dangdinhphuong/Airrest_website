@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './state/store';
+import { ROLE_LABEL, usePartner } from './mock/partner';
+import { adminNav, hotelNav, resolveTab } from './lib/partnerNav';
+import { ROLE_META } from './lib/rbac';
+import { MODULES, USER_ACTIVE, USER_CRUMB, moduleOf, userNav } from './lib/shellNav';
 import { refreshFlight } from './mock/service';
-import { Footer, Header, MobileNav, Progress, Sidebar } from './components/Layout';
+import { AppNav, Breadcrumb, Footer, Header, Progress } from './components/Layout';
 import FlightStatusCard from './components/FlightStatusCard';
 import SimTools from './components/SimTools';
 import { ErrorBox, Notice } from './components/Common';
@@ -28,6 +32,11 @@ const NEEDS_FLIGHT = ['status', 'advice', 'booking', 'reminder', 'request'];
 function Shell() {
   const { state, dispatch, getProperty } = useApp();
   const { screen, flight, simNow, bannerClosedAt, reminder, browseAirport, propertyId } = state;
+  const P = usePartner();
+  // Phiên bị thu hồi (khóa, vô hiệu hóa, gán lại vai trò, thu hồi thủ công) có hiệu lực ngay (SA-FR-003, SA-FR-005).
+  useEffect(() => {
+    if (state.session && !P.sessions.some((s) => s.id === state.session.sid && !s.revoked)) dispatch({ type: 'logout' });
+  }, [P.sessions, state.session, dispatch]);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState(false);
   const refresh = async () => {
@@ -47,6 +56,25 @@ function Shell() {
   const effective = NEEDS_FLIGHT.includes(screen) && !flight ? 'home' : screen;
   const Body = SCREENS[effective] || Stays;
   const partnerScreen = ['login', 'hotel', 'admin'].includes(effective); // khu vực đối tác không có thẻ chuyến bay
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const sess = state.session;
+  const area = sess ? ROLE_META[sess.role]?.area : null;
+  const activeModule = moduleOf(effective);
+  const acc = sess ? P.accounts.find((a) => a.id === sess.id) || sess : null;
+  const ownProp = acc?.propertyId ? getProperty(acc.propertyId, simNow) : null;
+  let panel = null; let crumb = [];
+  if (activeModule === 'user') {
+    const items = userNav(!!flight, hasStay);
+    panel = { title: 'Người dùng', context: 'Người dùng cuối, không cần đăng nhập', group: 'Menu', items, cur: USER_ACTIVE[effective], onPick: (i) => onGo(i.screen) };
+    crumb = [MODULES.user.label, ...(USER_CRUMB[effective] || [])];
+  } else if (activeModule && sess && area === activeModule) {
+    const items = (activeModule === 'hotel' ? hotelNav(sess.role, !!acc.propertyId) : adminNav(sess.role)).map((i) => ({ ...i, count: i.id === 'bookings' ? P.bookings.filter((b) => b.propertyId === acc.propertyId && ['pending', 'confirmed'].includes(b.status)).length : i.id === 'pickups' ? P.pickups.filter((x) => x.propertyId === acc.propertyId && !['done', 'failed'].includes(x.status)).length : 0 }));
+    const cur = resolveTab(items, state.partnerTab);
+    if (items.length) panel = { title: `Chức năng của ${ROLE_LABEL[sess.role]}`, context: `${ROLE_LABEL[sess.role]} · ${sess.id}`, group: 'Menu', items, cur, testid: 'partner-sidebar', testPrefix: 'tab-', onPick: (i) => dispatch({ type: 'partnerTab', id: i.id }) };
+    crumb = [MODULES[activeModule].label, ...(panel ? [items.find((i) => i.id === cur)?.label] : [])];
+  } else if (activeModule) crumb = [MODULES[activeModule].label];
+  else crumb = ['Đăng nhập'];
+  const context = activeModule === 'hotel' && ownProp ? ownProp.name : activeModule ? MODULES[activeModule].label : 'Đăng nhập';
   const showCard = flight && !partnerScreen && effective !== 'home' && effective !== 'support';
 
   return (
@@ -54,19 +82,20 @@ function Shell() {
       <a className="skip" href="#main">Bỏ qua tới nội dung chính</a>
       <Header airport={airport} canChangeAirport={!flight} onAirport={(a) => dispatch({ type: 'setBrowseAirport', airport: a })}
         onHome={() => dispatch({ type: 'reset' })} onHelp={() => onGo('support')} onSearch={(code) => dispatch({ type: 'goLookup', code })}
-        session={state.session} onPartner={() => onGo(state.session ? (state.session.role === 'admin' ? 'admin' : 'hotel') : 'login')} onLogout={() => dispatch({ type: 'logout' })} />
-      <div className="frame">
-        <Sidebar screen={effective} hasFlight={!!flight} hasStay={hasStay} onGo={onGo} />
-        <main id="main" className={`feed ${effective === 'stays' ? 'feed-map' : ''}`}>
+        session={state.session} onPartner={() => onGo(state.session ? (ROLE_META[state.session.role]?.area === 'admin' ? 'admin' : 'hotel') : 'login')} onLogout={() => dispatch({ type: 'logout' })}
+        onMenu={() => setDrawerOpen((v) => !v)} menuOpen={drawerOpen} hasMenu={!!panel} context={context} />
+      <AppNav panel={panel} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <main id="main" className={`feed ${effective === 'stays' ? 'feed-map' : ''} ${panel ? 'with-panel' : ''}`}>
+        <div className="feed-in">
+          <Breadcrumb items={crumb} />
           {showCard && <Progress screen={effective} />}
           {remindDue && <Notice tone="warn" title="Đến giờ rời nơi nghỉ" role="alert">Giờ rời {fmtTime(leave)} (giờ mô phỏng) đã tới. <button type="button" className="link-btn" onClick={() => onGo('reminder')}>Xem nhắc giờ</button></Notice>}
           {showCard && <FlightStatusCard flight={flight} simNow={simNow} onRefresh={refresh} refreshing={refreshing} bannerClosedAt={bannerClosedAt} onCloseBanner={() => dispatch({ type: 'closeBanner' })} />}
           {refreshError && <ErrorBox title="Không làm mới được" onRetry={refresh}>Dịch vụ dữ liệu mô phỏng tạm thời lỗi. Dữ liệu cũ vẫn được giữ.</ErrorBox>}
           <Body />
           <Footer />
-        </main>
-      </div>
-      <MobileNav screen={effective} hasFlight={!!flight} hasStay={hasStay} onGo={onGo} />
+        </div>
+      </main>
       <SimTools simNow={simNow} hasFlight={!!flight} canChange={!!flight && flight.status !== 'cancelled'} dispatch={dispatch} />
     </div>
   );

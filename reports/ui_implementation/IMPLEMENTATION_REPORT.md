@@ -155,3 +155,39 @@ Theo chỉ đạo của chủ sản phẩm ngày 26/10/2026 (SRS v0.6, mục 3.6
 - Đăng nhập chỉ là mô phỏng, không có bảo mật thật (NFR-010 chưa có chỉ tiêu).
 - Chưa đo tương phản, Lighthouse; chưa có quét trợ năng riêng cho M10–M12.
 - Thao tác `SIM` mutable có thể ảnh hưởng mọi màn hình trong phiên (chủ ý, FR-032).
+
+## 9e. Giao diện cho gói SRS mở rộng khách sạn và quản trị (`docs/srs/extensions/hotel-admin`, Proposed)
+
+Theo phương án A đã chọn: dựng màn hình cho các yêu cầu **không Blocked** (57 yêu cầu Proposed), và hiện **thẻ “chờ quyết định”** (không bấm được, nêu OQ/D) cho 33 yêu cầu Blocked/Deferred. Tất cả là đề xuất chưa được PO, Legal, Security duyệt; không có AC chính thức.
+
+**Đã làm**
+- **8 vai trò** đăng nhập mô phỏng (quản trị, vận hành, hỗ trợ, tài chính, kiểm toán, chủ/quản lý khách sạn, nhân viên khách sạn, lái xe). Mỗi vai trò chỉ thấy tab được phép theo ma trận đề xuất (`src/lib/rbac.js`, 19 tài nguyên × 8 vai trò, deny by default); kiểm quyền và cách ly tenant cũng chạy trong lớp dữ liệu mô phỏng (`guard`), không chỉ ẩn nút.
+- **Khách sạn (M10)**, 9 tab: Tổng quan (khách đến/đi), Đặt phòng (lọc, tìm, chi tiết, xác nhận/từ chối theo danh mục lý do, lịch sử trạng thái, cảnh báo đổi giá sau khi khách gửi, báo sự cố), Phòng và giá (loại phòng, giá cơ sở và theo ngày có ghi đè và lịch sử, điều kiện lưu trú), Tồn phòng (5 đại lượng × 14 ngày, đóng/mở bán, không nhận khách, chống đặt vượt), Hồ sơ cơ sở (sửa, đổi trường quan trọng thì chờ duyệt lại, lịch sử, hồ sơ mới ở trạng thái nháp và gửi duyệt), Chất lượng, Báo cáo (xuất CSV có lý do), Đón khách (bản mô phỏng tối thiểu, chờ D-26), Chờ quyết định.
+- **Quản trị và nhân sự Airrest (M11)**, tối đa 9 tab theo vai trò: Đối tác (hàng chờ duyệt: duyệt/từ chối/yêu cầu bổ sung; tạm ngưng/khôi phục/ngừng hợp tác có lý do), Tài khoản (mời, khóa, vô hiệu hóa, đổi/thu hồi vai trò, phiên), Vai trò và quyền (ma trận, trình thử quyền, che dữ liệu), Cấu hình (cờ tính năng qua phê duyệt, phiên bản, rollback; danh mục; tham số mô phỏng), Giám sát (việc cần xử lý, tra correlation ID, sự cố hệ thống), Hỗ trợ (vòng đời ca, ghi chú nội bộ, xem rõ có lý do), Nhật ký và thống kê (lọc, phân trang, chi tiết), Báo cáo.
+- **Tác động sang người dùng cuối:** đặt phòng tạo yêu cầu cho khách sạn; tồn phòng, giá, tạm ngưng, đóng bán làm đổi danh sách; hồ sơ mới được duyệt thì xuất hiện; nút “Báo vấn đề” tạo ca hỗ trợ; cờ tính năng bật/tắt nút báo vấn đề và khối xe đón.
+
+**Kiểm thử trình duyệt thật**
+- `partner.mjs` (bộ mới cho 8 vai trò): **164/164 PASS**, gồm kiểm tra không có lỗi console và không có yêu cầu mạng ra ngoài (trừ ô OSM); 360px không cuộn ngang ở mọi tab quản trị và khách sạn đã kiểm.
+- `regress.mjs` (bộ hồi quy **ngắn**, 15 ca, luồng người dùng cuối): **15/15 PASS**.
+- **Bộ 103 ca cũ đã mất**: nó nằm trong thư mục tạm của phiên và thư mục này bị làm mới khi phiên tiếp tục, nên không chạy lại được. Vì vậy các lần thay đổi lần này chưa được chạy lại với đủ 103 ca; bộ 15 ca chỉ phủ luồng chính (xem R1–R13).
+- Ảnh `60-` đến `73-` trong `screenshots/`.
+
+**Giới hạn và lệch so với SRS**
+- **Chưa làm 2 yêu cầu Proposed:** HM-FR-041 (phản hồi/khiếu nại của khách sạn) và SA-FR-037 (hàng đợi tác vụ nền).
+- **Làm một phần:** SA-FR-002 (chỉ trạng thái và vai trò, chưa sửa thông tin tài khoản), SA-FR-006 (chỉ xem ma trận, chưa tạo vai trò tùy chỉnh), SA-FR-020 (kiểm soát thay đổi chỉ áp cho cờ tính năng; danh mục sửa trực tiếp), SA-FR-030 (che dữ liệu ở đặt phòng, ca, tra cứu; chưa quét log), SA-FR-040 (đếm theo trạng thái, chưa có chỉ số chất lượng).
+- **Không chặn tự phê duyệt** (OQ-47 chờ), không có hạn giữ chỗ hay hết hạn yêu cầu (OQ-45), nhân viên khách sạn thấy tên gọi khách đã che theo ma trận đề xuất (có thể gây bất tiện khi nhận phòng, cần PO xác nhận).
+- Đặt phòng của người dùng cuối vẫn xác nhận ngay như MVP (không chờ khách sạn); chỉ đặt phòng mẫu DC-S002 ở trạng thái chờ xác nhận để minh họa luồng xác nhận. Khác với SM-03 của gói SRS (OQ-59).
+- Dữ liệu chỉ trong bộ nhớ trang; không chia sẻ giữa các tab hay trình duyệt; đăng nhập không có bảo mật thật.
+- Chưa đo tương phản, Lighthouse, tiếp cận riêng cho các màn mới. Bản Word tổng hợp trong `docs/srs` chưa cập nhật theo phần giao diện này.
+
+**Cập nhật: menu dọc cho các vai trò.** Chức năng của khách sạn và nhân sự Airrest nằm ở thanh dọc bên trái (cùng kiểu menu người dùng cuối, màn ≥1024px) thay cho dải tab ngang; có nhãn ngắn, số đếm (đặt phòng, đón khách) và nút “Người dùng” để về trang người dùng cuối. Trên mobile (<1024px) vẫn dùng dải tab ngang vì thanh dọc không hiện ở đó. Menu và tab đang chọn lấy từ `src/lib/partnerNav.js` và store (`partnerTab`). Kiểm thử: `partner.mjs` 166/166, `regress.mjs` 15/15. Ảnh `74-`, `75-`.
+
+## 9f. Khung giao diện theo react/apps/walo-erp (cập nhật)
+
+Yêu cầu: đổi cấu trúc giao diện của mọi actor (người dùng cuối, khách sạn, quản trị...) giống `react/apps/walo-erp`, tính năng giữ nguyên. Stack vẫn là Vite + React JS + CSS thường (không chuyển TypeScript/Tailwind/@vsystem/shared); font hệ thống ưu tiên Inter, không tải font ngoài (IFR-001).
+
+- Khung: Header cao 60px; thanh module 80px (Người dùng, Khách sạn, Quản trị; đã đăng nhập chỉ thấy khu vực của vai trò); bảng tính năng 240px (thu gọn được còn 56px); breadcrumb; nội dung lề 24px, rộng tối đa 1600px.
+- Dưới 1024px bảng tính năng thành ngăn kéo (nút Menu ở Header); dưới 768px cả thanh module nằm trong ngăn kéo. Đã bỏ thanh điều hướng dưới và dải tab ngang.
+- Màu theo token walo-erp (xanh #0066B3, nền #F5F7FA, chữ #0F172A, trạng thái success/warning/error); nút, thẻ, bảng và thanh lọc theo kiểu danh sách của walo-erp (tìm kiếm bên phải).
+- Mới: `src/lib/shellNav.js`, `AppNav` và `Breadcrumb` trong `components/Layout.jsx`. Xoá `components/Tabs.jsx`. Công cụ mô phỏng chuyển xuống góc dưới bên phải.
+- Kiểm thử: partner.mjs 166/166, regress.mjs 15/15 (cập nhật selector: `rail-user` thay `partner-exit`, mở ngăn kéo trên mobile). Ảnh `80-`…`86-shell-*`.

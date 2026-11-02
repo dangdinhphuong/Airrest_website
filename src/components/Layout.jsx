@@ -1,23 +1,25 @@
 import React, { useState } from 'react';
-import { BedDouble, BellRing, Building2, ChevronDown, Compass, HelpCircle, Hotel, LogOut, MapPin, Plane, Search, ShieldCheck } from 'lucide-react';
+import { ChevronDown, ChevronRight, HelpCircle, LogOut, MapPin, Menu, Plane, Search, ShieldCheck, UserCircle } from 'lucide-react';
 import { ROLE_LABEL } from '../mock/partner';
 import { SimBadge } from './Common';
+import { FEAT_TONE } from '../lib/shellNav';
 
-// Khung trang kiểu Couppa HomePageV2: header trên cùng, thanh icon bên trái (desktop), nội dung giữa, panel chi tiết bên phải,
-// thanh điều hướng dưới (mobile). Màu, font và icon giữ nguyên bộ của Airrest.
+// Khung trang theo mẫu react/apps/walo-erp: Header cao 60px, thanh module 80px, bảng tính năng 240px, breadcrumb, vùng nội dung.
 export const AIRPORTS = [{ id: 'HAN', label: 'Nội Bài (HAN)' }, { id: 'SGN', label: 'Tân Sơn Nhất (SGN)' }];
 
-export function Header({ airport, canChangeAirport, onAirport, onHome, onHelp, onSearch, session, onPartner, onLogout }) {
+export function Header({ airport, canChangeAirport, onAirport, onHome, onHelp, onSearch, session, onPartner, onLogout, onMenu, menuOpen, hasMenu, context }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const cur = AIRPORTS.find((a) => a.id === airport) || AIRPORTS[0];
   return (
     <header className="topbar">
       <div className="topbar-in">
-        <button type="button" className="logo logo-btn" onClick={onHome} aria-label="AIRREST, về trang chủ">
+        {hasMenu && <button type="button" className="menu-btn" id="app-menu-button" onClick={onMenu} aria-label="Mở menu" aria-expanded={!!menuOpen} aria-controls="app-drawer"><Menu size={20} aria-hidden="true" /></button>}
+        <button type="button" className="logo logo-btn" onClick={onHome} aria-label="AIRREST, về trang chủ" data-testid="logo">
           <span className="logo-mark"><Plane size={19} aria-hidden="true" /></span>
           <span className="logo-text"><strong>AIRREST</strong><small>Nơi nghỉ quanh sân bay</small></span>
         </button>
+        {context && <span className="topbar-context" title={context}>{context}</span>}
         <div className="airport-pick">
           <button type="button" className="pick-btn" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)} disabled={!canChangeAirport}
             title={canChangeAirport ? 'Chọn sân bay' : 'Sân bay lấy theo chuyến bay đang theo dõi'}>
@@ -41,7 +43,7 @@ export function Header({ airport, canChangeAirport, onAirport, onHome, onHelp, o
         </form>
         <div className="topbar-right">
           <SimBadge tone="sim">Bản mô phỏng</SimBadge>
-          <button type="button" className="btn btn-ghost" onClick={onPartner} data-testid="partner-entry"><Building2 size={16} aria-hidden="true" /> <span className="hide-sm">{session ? ROLE_LABEL[session.role] : 'Đối tác'}</span></button>
+          <button type="button" className="btn btn-ghost" onClick={onPartner} data-testid="partner-entry"><UserCircle size={18} aria-hidden="true" /> <span className="hide-sm">{session ? ROLE_LABEL[session.role] : 'Đối tác'}</span></button>
           {session && <button type="button" className="btn btn-ghost" onClick={onLogout} data-testid="logout" aria-label="Đăng xuất"><LogOut size={16} aria-hidden="true" /></button>}
           <button type="button" className="btn btn-ghost" onClick={onHelp}><HelpCircle size={16} aria-hidden="true" /> <span className="hide-sm">Trợ giúp</span></button>
         </div>
@@ -50,46 +52,49 @@ export function Header({ airport, canChangeAirport, onAirport, onHome, onHelp, o
   );
 }
 
-export const navItems = (hasFlight, hasStay) => [
-  { key: 'stays', label: 'Khám phá', icon: Compass, screen: 'stays' },
-  { key: 'home', label: 'Chuyến bay', icon: Plane, screen: hasFlight ? 'status' : 'home' },
-  { key: 'advice', label: 'Gợi ý', icon: BedDouble, screen: 'advice', needFlight: true },
-  { key: 'reminder', label: 'Nhắc giờ', icon: BellRing, screen: 'reminder', needFlight: true, needStay: true },
-  { key: 'terminal', label: 'Nhà ga', icon: Hotel, screen: 'terminal' },
-  { key: 'support', label: 'Hỗ trợ', icon: HelpCircle, screen: 'support' },
-].map((i) => ({ ...i, disabled: (i.needFlight && !hasFlight) || (i.needStay && !hasStay) }));
-
-const ACTIVE = { stays: 'stays', detail: 'stays', booking: 'stays', status: 'home', home: 'home', request: 'home', advice: 'advice', reminder: 'reminder', terminal: 'terminal', support: 'support' };
-
-export function Sidebar({ screen, hasFlight, hasStay, onGo }) {
+// Thanh menu con 72px (ô icon màu, tooltip khi rê chuột). Từ 1024px luôn hiện; nhỏ hơn thì nằm trong ngăn kéo.
+export function AppNav({ panel, open, onClose }) {
+  const showPanel = !!panel;
+  const [tip, setTip] = useState(null);
+  const showTip = (e, i) => { const r = e.currentTarget.getBoundingClientRect(); setTip({ text: i.disabled ? `${i.label} (${i.hint})` : i.label, top: r.top + r.height / 2, left: r.right + 8 }); };
   return (
-    <aside className="sidebar" aria-label="Điều hướng chính">
-      <nav>
-        {navItems(hasFlight, hasStay).map((i) => {
-          const Icon = i.icon;
-          return (
-            <button key={i.key} type="button" className={`side-item ${ACTIVE[screen] === i.key ? 'on' : ''}`} disabled={i.disabled} onClick={() => onGo(i.screen)}
-              aria-current={ACTIVE[screen] === i.key ? 'page' : undefined} title={i.disabled ? 'Cần nhập chuyến bay trước' : i.label}>
-              <Icon size={20} aria-hidden="true" /><span>{i.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-    </aside>
+    <>
+      {open && <div className="drawer-mask" onClick={onClose} aria-hidden="true" />}
+      <div id="app-drawer" className={`shell-nav ${open ? 'open' : ''} ${showPanel ? '' : 'no-panel'}`}>
+        {showPanel && (
+          <nav className="panel" aria-label={panel.title} data-testid={panel.testid} onScroll={() => setTip(null)}>
+            <div className="panel-scroll">
+              <ul className="panel-list">
+                {panel.items.map((i) => {
+                  const Icon = i.icon;
+                  const on = panel.cur === i.id;
+                  return (
+                    <li key={i.id}>
+                      <button type="button" className={`feat ${on ? 'on' : ''}`} disabled={i.disabled} onClick={() => { panel.onPick(i); onClose(); }} aria-current={on ? 'page' : undefined}
+                        aria-label={i.label} onMouseEnter={(e) => showTip(e, i)} onMouseLeave={() => setTip(null)} onFocus={(e) => showTip(e, i)} onBlur={() => setTip(null)}
+                        data-testid={panel.testPrefix ? `${panel.testPrefix}${i.id}` : undefined}>
+                        <span className="feat-ico" style={{ background: FEAT_TONE[i.id] || '#475569' }}><Icon size={20} strokeWidth={2.2} aria-hidden="true" /></span>
+                        {i.count > 0 && <span className="side-count" aria-label={`${i.count} mục`}>{i.count}</span>}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </nav>
+        )}
+      </div>
+      {tip && <div className="tip" role="tooltip" style={{ top: tip.top, left: tip.left }}>{tip.text}</div>}
+    </>
   );
 }
 
-export function MobileNav({ screen, hasFlight, hasStay, onGo }) {
+// Đường dẫn vị trí: Module › Tính năng › (màn con).
+export function Breadcrumb({ items }) {
+  if (!items?.length) return null;
   return (
-    <nav className="mobile-nav" aria-label="Điều hướng nhanh">
-      {navItems(hasFlight, hasStay).filter((i) => i.key !== 'terminal').map((i) => {
-        const Icon = i.icon;
-        return (
-          <button key={i.key} type="button" className={ACTIVE[screen] === i.key ? 'on' : ''} disabled={i.disabled} onClick={() => onGo(i.screen)} aria-current={ACTIVE[screen] === i.key ? 'page' : undefined}>
-            <Icon size={20} aria-hidden="true" /><span>{i.label}</span>
-          </button>
-        );
-      })}
+    <nav className="crumb" aria-label="Đường dẫn vị trí" data-testid="breadcrumb">
+      <ol>{items.map((t, i) => <li key={t} aria-current={i === items.length - 1 ? 'page' : undefined}>{i > 0 && <ChevronRight size={14} aria-hidden="true" />}<span>{t}</span></li>)}</ol>
     </nav>
   );
 }

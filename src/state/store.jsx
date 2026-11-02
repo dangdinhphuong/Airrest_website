@@ -3,6 +3,7 @@ import { applyTimeChange } from '../lib/domain';
 import { createRequest } from '../lib/request';
 import { nextRequestCode, getProperty } from '../mock/service';
 import { BROWSE_NOW } from '../config/simulation';
+import { ROLE_META } from '../lib/rbac';
 
 // Trạng thái toàn ứng dụng. Chỉ giữ trong bộ nhớ trang: không ghi localStorage/cookie (D-18 phương án A, NFR-005).
 const initial = {
@@ -20,6 +21,7 @@ const initial = {
   reminder: { browser: 'idle', enabled: false, notifiedFor: null },
   bannerClosedAt: null,
   refreshing: false,
+  partnerTab: null,        // tab đang chọn ở khu vực khách sạn/quản trị (menu dọc bên trái)
   session: null,           // phiên của khách sạn/lái xe/quản trị (ngoài MVP, đăng nhập mô phỏng — D-25 A)
 };
 
@@ -38,8 +40,9 @@ function reducer(s, a) {
         screen: keepStay ? 'detail' : 'status', flight: a.flight, simNow: a.flight.now };
     }
     case 'reset': return { ...initial, session: s.session };
-    case 'login': return { ...s, session: a.session, screen: a.session.role === 'admin' ? 'admin' : 'hotel' };
-    case 'logout': return { ...s, session: null, screen: 'login' };
+    case 'partnerTab': return { ...s, partnerTab: a.id };
+    case 'login': return { ...s, partnerTab: null, session: a.session, screen: ROLE_META[a.session.role]?.area === 'admin' ? 'admin' : 'hotel' };
+    case 'logout': return { ...s, session: null, partnerTab: null, screen: 'login' };
     case 'advance': return { ...s, simNow: s.simNow + a.minutes };
     case 'timeChange': {
       if (!s.flight || s.flight.status === 'cancelled') return s;

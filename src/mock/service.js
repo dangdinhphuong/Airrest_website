@@ -58,7 +58,8 @@ const gone = new Set();
 // Khách sạn/quản trị (ngoài MVP) có thể đổi dữ liệu cơ sở qua ./partner; `locked` = quản trị tạm khoá (không hiển thị cho người dùng cuối).
 const withUpdated = (p, now) => {
   const m = { ...p, ...partner.override(p.id) };
-  return { ...m, updatedAt: now + m.updatedAtOffsetMin, roomsLeft: gone.has(p.id) ? 0 : m.roomsLeft, locked: partner.isLocked(p.id) };
+  const sellable = partner.sellableToday(p.id); const price = partner.priceToday(p.id); // từ mô hình tồn phòng và giá của khách sạn
+  return { ...m, price: price ?? m.price, updatedAt: now + m.updatedAtOffsetMin, roomsLeft: gone.has(p.id) ? 0 : (sellable ?? m.roomsLeft), locked: partner.isLocked(p.id) };
 };
 
 // Trả về toàn bộ cơ sở của sân bay (đã gắn “cập nhật lúc”); giao diện lọc “đang nhận khách” theo giờ mô phỏng hiện tại.

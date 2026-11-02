@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
-import { Building2, Car, LogIn, ShieldCheck } from 'lucide-react';
+import { Building2, Car, Calculator, ClipboardCheck, Headset, LogIn, Settings, ShieldCheck, Users } from 'lucide-react';
 import { useApp } from '../state/store';
-import { ROLE_LABEL, accountLabel, usePartner } from '../mock/partner';
+import { accountLabel, startSession, usePartner } from '../mock/partner';
+import { ROLE_META, ROLE_ORDER } from '../lib/rbac';
 import { Field, Notice, ScreenTitle, SimBadge } from '../components/Common';
 
-const ROLES = [
-  { id: 'manager', icon: Building2, text: 'Cập nhật hồ sơ, phòng, giá và xử lý đặt chỗ của cơ sở.' },
-  { id: 'driver', icon: Car, text: 'Nhận và cập nhật chuyến đón khách ở sân bay.' },
-  { id: 'admin', icon: ShieldCheck, text: 'Quản lý cơ sở, tài khoản, nội dung, tham số và giám sát.' },
-];
+const ICON = { admin: ShieldCheck, ops: Settings, support: Headset, finance: Calculator, auditor: ClipboardCheck, manager: Building2, staff: Users, driver: Car };
+const TEXT = {
+  admin: 'Tài khoản, vai trò, đối tác, cấu hình, audit.', ops: 'Duyệt đối tác, giám sát, sự cố, chất lượng.', support: 'Ca hỗ trợ và khiếu nại; xem thông tin đã che.',
+  finance: 'Báo cáo; đối soát đang chờ quyết định.', auditor: 'Chỉ đọc: audit log, báo cáo, cấu hình.', manager: 'Hồ sơ, phòng, giá, tồn, đặt phòng của khách sạn.',
+  staff: 'Cập nhật tồn, xử lý đặt phòng theo ủy quyền.', driver: 'Nhận và cập nhật chuyến đón khách.',
+};
+const STATUS_MSG = {
+  locked: 'Tài khoản đã bị khoá. Nhờ quản trị mở khoá hoặc chọn tài khoản khác.',
+  disabled: 'Tài khoản đã bị vô hiệu hoá và không đăng nhập được.',
+  invited: 'Tài khoản chưa được kích hoạt (đang chờ chấp nhận lời mời).',
+};
 
-// M12 — Đăng nhập mô phỏng của khách sạn, lái xe, quản trị (FR-024; ngoài MVP, Proposed; D-25 phương án A: không mật khẩu thật).
+// M12 — Đăng nhập mô phỏng của đối tác và nhân sự Airrest (SA-FR-001, FR-024; Proposed, D-25 phương án A: không mật khẩu thật).
 export default function Login() {
   const { state, dispatch } = useApp();
   const { accounts } = usePartner();
@@ -23,37 +30,44 @@ export default function Login() {
 
   const submit = (e) => {
     e.preventDefault();
-    if (!selected) { setErr('Chưa có tài khoản cho vai trò này. Nhờ quản trị tạo tài khoản.'); return; }
-    if (selected.locked) { setErr('Tài khoản đã bị quản trị khoá. Chọn tài khoản khác hoặc nhờ quản trị mở khoá.'); return; }
+    if (!selected) { setErr('Chưa có tài khoản cho vai trò này. Nhờ quản trị tạo hoặc mời tài khoản.'); return; }
+    if (selected.status !== 'active') { setErr(STATUS_MSG[selected.status]); return; }
     setErr('');
-    dispatch({ type: 'login', session: { id: selected.id, role: selected.role, propertyId: selected.propertyId } });
+    const sid = startSession(selected, state.simNow);
+    dispatch({ type: 'login', session: { id: selected.id, role: selected.role, propertyId: selected.propertyId, tenantId: selected.tenantId, sid } });
   };
-
+  const group = (title, airrest) => (
+    <div className="role-group" role="group" aria-label={title}>
+      <p className="role-group-title">{title}</p>
+      <div className="role-grid">
+        {ROLE_ORDER.filter((r) => ROLE_META[r].airrest === airrest).map((r) => {
+          const Icon = ICON[r];
+          return (
+            <button key={r} type="button" className={`role-card ${role === r ? 'on' : ''}`} aria-pressed={role === r} onClick={() => { setRole(r); setAccId(''); setErr(''); }} data-testid={`role-${r}`}>
+              <Icon size={22} aria-hidden="true" /><strong>{ROLE_META[r].label}</strong><span>{TEXT[r]}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
   return (
     <>
-      <ScreenTitle kicker="Đối tác · Mô phỏng" title="Đăng nhập khu vực đối tác">Dành cho khách sạn (gồm lái xe) và quản trị. Người dùng cuối không cần đăng nhập.</ScreenTitle>
-      <Notice tone="info" title="Đăng nhập mô phỏng">Không có mật khẩu thật và không có dữ liệu cá nhân. Dữ liệu chỉ tồn tại trong phiên này và mất khi tải lại trang. <SimBadge>Mô phỏng</SimBadge></Notice>
+      <ScreenTitle kicker="Đối tác và nhân sự Airrest · Mô phỏng" title="Đăng nhập khu vực làm việc">Dành cho khách sạn (gồm lái xe) và nhân sự Airrest. Người dùng cuối không cần đăng nhập.</ScreenTitle>
+      <Notice tone="info" title="Đăng nhập mô phỏng">Không có mật khẩu thật và không có dữ liệu cá nhân. Dữ liệu chỉ tồn tại trong phiên này và mất khi tải lại trang. Vai trò và quyền là đề xuất, chưa được PO duyệt. <SimBadge>Mô phỏng</SimBadge></Notice>
       {sess && (
-        <Notice tone="ok" title={`Đang đăng nhập: ${sess.id} (${ROLE_LABEL[sess.role]})`}>
-          <button type="button" className="link-btn" onClick={() => dispatch({ type: 'go', screen: sess.role === 'admin' ? 'admin' : 'hotel' })}>Vào khu vực làm việc</button>
+        <Notice tone="ok" title={`Đang đăng nhập: ${sess.id} (${ROLE_META[sess.role]?.label})`}>
+          <button type="button" className="link-btn" onClick={() => dispatch({ type: 'go', screen: ROLE_META[sess.role]?.area === 'admin' ? 'admin' : 'hotel' })}>Vào khu vực làm việc</button>
           {' · '}<button type="button" className="link-btn" onClick={() => dispatch({ type: 'logout' })}>Đăng xuất</button>
         </Notice>
       )}
       <form className="card" onSubmit={submit} noValidate>
         <fieldset className="radios role-pick">
           <legend>Vai trò</legend>
-          <div className="role-grid">
-            {ROLES.map((r) => {
-              const Icon = r.icon;
-              return (
-                <button key={r.id} type="button" className={`role-card ${role === r.id ? 'on' : ''}`} aria-pressed={role === r.id} onClick={() => { setRole(r.id); setAccId(''); setErr(''); }} data-testid={`role-${r.id}`}>
-                  <Icon size={22} aria-hidden="true" /><strong>{ROLE_LABEL[r.id]}</strong><span>{r.text}</span>
-                </button>
-              );
-            })}
-          </div>
+          {group('Khách sạn', false)}
+          {group('Nhân sự Airrest', true)}
         </fieldset>
-        <Field id="l-acc" label="Tài khoản" hint="Tài khoản do quản trị tạo (FR-031). Tài khoản đã khoá không đăng nhập được." error={err}>
+        <Field id="l-acc" label="Tài khoản" hint="Tài khoản do quản trị tạo hoặc mời (SA-FR-001). Tài khoản đã khoá, vô hiệu hoá hoặc chưa kích hoạt không đăng nhập được." error={err}>
           <select id="l-acc" value={selected?.id || ''} onChange={(e) => { setAccId(e.target.value); setErr(''); }} data-testid="login-account">
             {list.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
           </select>

@@ -50,3 +50,26 @@ D-02 (có mặt trước giờ bay 120 phút, ràng buộc cứng ≥ mốc đó
 ## 4. Ba tác nhân (ngoài MVP)
 
 M10, M11, M12 và khối xe đón theo chỉ đạo của chủ sản phẩm ngày 26/10/2026 (SRS 3.6). Không có hạng mục MB hay AC; dữ liệu dùng chung giữa ba tác nhân chỉ lưu trong bộ nhớ trang (D-29 = A); đăng nhập mô phỏng không có mật khẩu (D-25 = A); lái xe chỉ cập nhật trạng thái đón, không bản đồ hay định vị (D-26 = A); hãng vẫn là tác nhân mô phỏng (D-27 = A). Các giả định này chưa được PO phê duyệt.
+
+## 5. Mở rộng theo gói SRS hotel-admin (Proposed, thay thế mô tả M10 đến M12 ở mục 4)
+
+Nguồn: `docs/srs/extensions/hotel-admin/` (HM-FR, SA-FR). Quyền theo `src/lib/rbac.js`. Yêu cầu Blocked/Deferred chỉ có thẻ “chờ quyết định” (`src/config/lockedRequirements.js`).
+
+| Màn / tab | Yêu cầu đã phủ | Ghi chú |
+|---|---|---|
+| Khách sạn · Tổng quan | HM-FR-029 | khách đến/đi theo ngày |
+| Khách sạn · Đặt phòng | HM-FR-021, 022, 023, 024, 026, 028, 034 | lọc, chi tiết, lịch sử, cảnh báo đổi giá, báo sự cố |
+| Khách sạn · Phòng và giá | HM-FR-006, 007, 008, 009, 012, 014 | loại phòng, giá cơ sở/theo ngày, lịch sử giá, điều kiện lưu trú |
+| Khách sạn · Tồn phòng | HM-FR-015, 016, 017, 019 | 5 đại lượng, đóng/mở, không nhận khách, chống đặt vượt |
+| Khách sạn · Hồ sơ cơ sở | HM-FR-001, 002, 003, 005 | hồ sơ nháp, gửi duyệt, lịch sử; HM-FR-004 là thẻ khóa |
+| Khách sạn · Chất lượng, Báo cáo | HM-FR-039 (xem), 045, 046, 047, 049 | HM-FR-040, 041 chờ OQ-56/57 (041 chưa làm) |
+| Quản trị · Đối tác | SA-FR-011, 012, 013; HM-FR-039 (ghi nhận) | SA-FR-014 chờ OQ-47 |
+| Quản trị · Tài khoản | SA-FR-001, 002 (một phần), 003, 005, 007 | SA-FR-004 chờ OQ-48 |
+| Quản trị · Vai trò và quyền | SA-FR-006 (xem), 008, 009, 010 | SA-FR-029, 031, 032 chờ OQ-50 |
+| Quản trị · Cấu hình | SA-FR-015, 019, 020 (cờ) | SA-FR-016, 017, 018 chờ OQ-45/47/52 |
+| Quản trị · Giám sát | SA-FR-022, 023, 024 | SA-FR-021 chờ OQ-58; SA-FR-037 chưa làm |
+| Quản trị · Hỗ trợ | SA-FR-033, 034, 035 | SLA chờ OQ-57 |
+| Quản trị · Nhật ký | SA-FR-025, 026, 028 | SA-FR-027 chờ OQ-49 |
+| Quản trị · Báo cáo | SA-FR-039, 040 (một phần), 041 | |
+| Đăng nhập (M12) | SA-FR-001 (kích hoạt), FR-024 | 8 vai trò |
+| Người dùng cuối (M5) | SA-FR-033 (báo vấn đề), HM-FR-035 (xe đón, Blocked D-26) | điều khiển bằng cờ tính năng |
