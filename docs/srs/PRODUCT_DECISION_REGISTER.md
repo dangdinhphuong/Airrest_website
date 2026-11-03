@@ -42,6 +42,7 @@ Cách dùng: đọc phần P0 trước, rồi trả lời theo dạng `D-01 = A`
 | D-23 | P1 | Pending PO | Quy mô và quyền sử dụng dữ liệu mock (D1, D3, A08) | B |
 | D-28 | P1 | Pending PO | Phạm vi và ưu tiên chức năng của khu vực khách sạn và quản trị | A |
 | D-29 | P1 | Pending PO | Lưu trữ và chia sẻ dữ liệu của khách sạn và quản trị khi chưa có backend | A |
+| D-30 | P1 | Pending PO | Tài khoản đăng nhập và đăng ký của người dùng cuối (so với MB-16 đã loại) | A |
 | D-03* | P2 | Blocked | Nhắc nền khi trang đã đóng (Push) | A |
 | D-07 | P2 | Deferred | Chứng từ và hướng dẫn giữ hóa đơn | A |
 | D-09 | P2 | Blocked | Nguồn và độ tin cậy của dữ liệu tiện ích nhà ga | A |
@@ -407,6 +408,20 @@ Cách dùng: đọc phần P0 trước, rồi trả lời theo dạng `D-01 = A`
 - **Hậu quả nếu PO chưa quyết định:** Không rõ dữ liệu khách sạn đến được người dùng cuối thế nào; FR-034 không đặc tả được thời gian lưu.
 - **Truy vết:** OQ-42; D-18
 
+### D-30 — Tài khoản đăng nhập và đăng ký của người dùng cuối (so với MB-16 đã loại)
+
+- **Trạng thái hiện tại:** Pending PO · **Ưu tiên:** P1
+- **Vấn đề cần quyết định:** Có cung cấp trang đăng nhập và đăng ký cho người dùng cuối không, và nếu có thì thu và lưu những dữ liệu nào?
+- **Bối cảnh và căn cứ:** SRS ACT-01 và MB-07: người dùng cuối không cần tài khoản. MB-16 (tài khoản, điểm, voucher) đã loại (OOS-02). BR-002 cấm thu số điện thoại, email. D-18 phương án A: không lưu cục bộ. Chủ sản phẩm yêu cầu một trang đăng nhập và đăng ký có sẵn tài khoản demo để chọn nhanh (yêu cầu bổ sung ngày 03/11/2026).
+- **Phương án:**
+  - **A.** Đăng nhập và đăng ký mô phỏng: tên gọi và mật khẩu demo, chỉ trong bộ nhớ trang, không thu email hay SĐT, có nhãn mô phỏng; không thêm quyền hay tính năng cho người dùng cuối.
+  - **B.** Lưu tài khoản trên trình duyệt (localStorage); lệch D-18.
+  - **C.** Đăng ký thật có email hoặc SĐT, backend và cơ sở dữ liệu; cần sửa MVP (MB-16), BR-002 và rà soát Luật 91/2025.
+- **Khuyến nghị của agent (chưa phải quyết định):** phương án **A** — Đáp ứng yêu cầu trình diễn mà không đụng BR-002 và D-18; B và C cần PO sửa phạm vi MVP.
+- **Tác động:** MB-16, BR-002, NFR-005, FR-024; D-18, D-25. Không có AC.
+- **Hậu quả nếu PO chưa quyết định:** Trang đăng ký của người dùng cuối vẫn là mở rộng ngoài MVP, chưa được duyệt; mật khẩu demo `Demo@2026` chỉ để trình diễn, không phải cơ chế xác thực thật.
+- **Truy vết:** MB-16; OOS-02; D-18; D-25
+
 ## P2 — có thể trì hoãn
 
 ### D-03* — Nhắc nền khi trang đã đóng (Push)
@@ -566,6 +581,7 @@ Cách dùng: đọc phần P0 trước, rồi trả lời theo dạng `D-01 = A`
 | D-23 | P1 | A/B/C | B | |
 | D-28 | P1 | A/B/C | A | |
 | D-29 | P1 | A/B/C | A | |
+| D-30 | P1 | A/B/C | A | |
 | D-03* | P2 | A/B/C | A | |
 | D-07 | P2 | A/B/C | A | |
 | D-09 | P2 | A/B/C | A | |

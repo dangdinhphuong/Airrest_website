@@ -23,7 +23,11 @@ const initial = {
   refreshing: false,
   partnerTab: null,        // tab đang chọn ở khu vực khách sạn/quản trị (menu dọc bên trái)
   session: null,           // phiên của khách sạn/lái xe/quản trị (ngoài MVP, đăng nhập mô phỏng — D-25 A)
+  user: null,              // người dùng cuối đã đăng nhập mô phỏng ({ name }); ngoài MVP (MB-16), chưa được PO duyệt
 };
+
+// Giữ phiên đăng nhập và tên gọi khi đặt lại luồng chuyến bay.
+const keepAuth = (s) => ({ session: s.session, user: s.user, booking: { name: s.user?.name || '', method: '', result: null } });
 
 const NEEDS_FLIGHT = ['status', 'advice', 'stays', 'detail', 'booking', 'reminder', 'terminal', 'request'];
 
@@ -36,13 +40,14 @@ function reducer(s, a) {
     case 'closeProperty': return { ...s, propertyId: null };
     case 'setFlight': {
       const keepStay = s.pendingProperty && s.propertyId;
-      return { ...initial, session: s.session, browseAirport: s.browseAirport, chips: s.chips, propertyId: keepStay ? s.propertyId : null,
+      return { ...initial, ...keepAuth(s), browseAirport: s.browseAirport, chips: s.chips, propertyId: keepStay ? s.propertyId : null,
         screen: keepStay ? 'detail' : 'status', flight: a.flight, simNow: a.flight.now };
     }
-    case 'reset': return { ...initial, session: s.session };
+    case 'reset': return { ...initial, ...keepAuth(s) };
     case 'partnerTab': return { ...s, partnerTab: a.id };
-    case 'login': return { ...s, partnerTab: null, session: a.session, screen: ROLE_META[a.session.role]?.area === 'admin' ? 'admin' : 'hotel' };
-    case 'logout': return { ...s, session: null, partnerTab: null, screen: 'login' };
+    case 'login': return { ...s, partnerTab: null, session: a.session, user: null, screen: ROLE_META[a.session.role]?.area === 'admin' ? 'admin' : 'hotel' };
+    case 'userLogin': return { ...s, partnerTab: null, session: null, user: a.user, booking: { ...s.booking, name: a.user.name }, screen: 'stays' };
+    case 'logout': return { ...s, session: null, user: null, partnerTab: null, booking: { name: '', method: '', result: null }, screen: 'login' };
     case 'advance': return { ...s, simNow: s.simNow + a.minutes };
     case 'timeChange': {
       if (!s.flight || s.flight.status === 'cancelled') return s;

@@ -77,12 +77,14 @@ function Shell() {
   const context = activeModule === 'hotel' && ownProp ? ownProp.name : activeModule ? MODULES[activeModule].label : 'Đăng nhập';
   const showCard = flight && !partnerScreen && effective !== 'home' && effective !== 'support';
 
+  if (effective === 'login') return <Login />; // trang đăng nhập/đăng ký toàn trang, không dùng khung ứng dụng
+
   return (
     <div className="app">
       <a className="skip" href="#main">Bỏ qua tới nội dung chính</a>
       <Header airport={airport} canChangeAirport={!flight} onAirport={(a) => dispatch({ type: 'setBrowseAirport', airport: a })}
         onHome={() => dispatch({ type: 'reset' })} onHelp={() => onGo('support')} onSearch={(code) => dispatch({ type: 'goLookup', code })}
-        session={state.session} onPartner={() => onGo(state.session ? (ROLE_META[state.session.role]?.area === 'admin' ? 'admin' : 'hotel') : 'login')} onLogout={() => dispatch({ type: 'logout' })}
+        session={state.session} user={state.user} onPartner={() => onGo(state.session ? (ROLE_META[state.session.role]?.area === 'admin' ? 'admin' : 'hotel') : state.user ? 'stays' : 'login')} onLogout={() => dispatch({ type: 'logout' })}
         onMenu={() => setDrawerOpen((v) => !v)} menuOpen={drawerOpen} hasMenu={!!panel} context={context} />
       <AppNav panel={panel} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <main id="main" className={`feed ${effective === 'stays' ? 'feed-map' : ''} ${panel ? 'with-panel' : ''}`}>

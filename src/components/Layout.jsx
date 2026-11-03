@@ -7,7 +7,7 @@ import { FEAT_TONE } from '../lib/shellNav';
 // Khung trang theo mẫu react/apps/walo-erp: Header cao 60px, thanh module 80px, bảng tính năng 240px, breadcrumb, vùng nội dung.
 export const AIRPORTS = [{ id: 'HAN', label: 'Nội Bài (HAN)' }, { id: 'SGN', label: 'Tân Sơn Nhất (SGN)' }];
 
-export function Header({ airport, canChangeAirport, onAirport, onHome, onHelp, onSearch, session, onPartner, onLogout, onMenu, menuOpen, hasMenu, context }) {
+export function Header({ airport, canChangeAirport, onAirport, onHome, onHelp, onSearch, session, user, onPartner, onLogout, onMenu, menuOpen, hasMenu, context }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const cur = AIRPORTS.find((a) => a.id === airport) || AIRPORTS[0];
@@ -43,8 +43,8 @@ export function Header({ airport, canChangeAirport, onAirport, onHome, onHelp, o
         </form>
         <div className="topbar-right">
           <SimBadge tone="sim">Bản mô phỏng</SimBadge>
-          <button type="button" className="btn btn-ghost" onClick={onPartner} data-testid="partner-entry"><UserCircle size={18} aria-hidden="true" /> <span className="hide-sm">{session ? ROLE_LABEL[session.role] : 'Đối tác'}</span></button>
-          {session && <button type="button" className="btn btn-ghost" onClick={onLogout} data-testid="logout" aria-label="Đăng xuất"><LogOut size={16} aria-hidden="true" /></button>}
+          <button type="button" className="btn btn-ghost" onClick={onPartner} data-testid="partner-entry"><UserCircle size={18} aria-hidden="true" /> <span className="hide-sm">{session ? ROLE_LABEL[session.role] : user ? user.name : 'Đăng nhập'}</span></button>
+          {(session || user) && <button type="button" className="btn btn-ghost" onClick={onLogout} data-testid="logout" aria-label="Đăng xuất"><LogOut size={16} aria-hidden="true" /></button>}
           <button type="button" className="btn btn-ghost" onClick={onHelp}><HelpCircle size={16} aria-hidden="true" /> <span className="hide-sm">Trợ giúp</span></button>
         </div>
       </div>
