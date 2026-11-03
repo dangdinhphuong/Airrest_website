@@ -121,8 +121,7 @@ export function Progress({ screen }) {
 export function Footer() {
   return (
     <footer className="footer">
-      <ShieldCheck size={18} aria-hidden="true" />
-      <p><strong>Prototype nghiên cứu.</strong> Mọi dữ liệu chuyến bay, nơi nghỉ, giá, đặt chỗ và phản hồi của hãng/cơ sở đều là mô phỏng; không có giao dịch thật và không gửi dữ liệu tới hãng hay khách sạn. Airrest không thu thập số điện thoại, email hay giấy tờ.</p>
-    </footer>
+     <div className="shell copyright"><span>© 2026 AIRREST. Đồ án nghiên cứu UI/UX.</span><span>Nguồn dữ liệu: A08 · Cập nhật 11/10/2026</span></div>
+      </footer>
   );
 }
