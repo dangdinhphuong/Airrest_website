@@ -1,0 +1,54 @@
+# Môi trường dev đầy đủ: docker compose up -d
+#   FE  http://localhost:5174   (Vite, hot reload)
+#   API http://localhost:3000   (tsx watch, hot reload)
+#   DB  mongodb://localhost:27017/?replicaSet=rs0&directConnection=true
+services:
+  mongo:
+    image: mongo:7
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    ports: ["27017:27017"]
+    volumes: ["mongo-data:/data/db"]
+    healthcheck:
+      # Replica set 1 nút: bắt buộc cho transaction + change stream.
+      test: >
+        mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}).ok }"
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  api:
+    image: node:22-alpine
+    working_dir: /app
+    # Env truyền qua compose nên gọi tsx trực tiếp (script npm đòi file .env). Seed chạy lại an toàn (upsert).
+    command: sh -c "npm install && npx tsx src/scripts/seed.ts && npx tsx watch src/server.ts"
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      MONGO_URI: mongodb://mongo:27017/?replicaSet=rs0&directConnection=true
+      MONGO_DB: airrest
+      JWT_SECRET: dev-only-change-me-please-0123456789
+      DATA_ENC_KEY: dev-only-data-key-change-me-0123456789
+      CORS_ORIGINS: http://localhost:5174
+      SEED_PASSWORD: ChangeMe123!
+    ports: ["3000:3000"]
+    volumes:
+      - ./backend:/app
+      - api-node-modules:/app/node_modules
+    depends_on:
+      mongo: { condition: service_healthy }
+
+  web:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npx vite --host 0.0.0.0 --port 5173"
+    ports: ["5174:5173"]
+    volumes:
+      - .:/app
+      - web-node-modules:/app/node_modules
+      # Che backend để Vite không quét node_modules/dist của API.
+      - /app/backend
+
+volumes:
+  mongo-data:
+  api-node-modules:
+  web-node-modules:
