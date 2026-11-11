@@ -8,7 +8,7 @@ import { bookingFromRow, type BookingDoc, type BookingStatus, type HotelDoc, typ
 import { generateBookingCode } from '../../lib/codes';
 import { AppError, isDuplicateKey } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
-import { momoKeys, newMomoOrder } from '../../lib/momo';
+import { newVnpOrder, vnpDate, vnpKeys } from '../../lib/vnpay';
 import { actorOf, writeAudit } from '../audit';
 import { emitBookingChange } from '../events';
 import { getConfig } from '../systemConfig';
@@ -47,12 +47,12 @@ export function hotelScope(auth: AuthContext): { hotelId?: string } {
  * Tạo đơn (T1 trong docs/mongodb mục 6) — ví dụ đầy đủ của một transaction nhiều bảng:
  *  1) khóa tuần tự theo loại phòng (SELECT ... FOR UPDATE) -> hai khách tranh phòng cuối, bên đến sau chờ rồi thấy hết phòng
  *  2) đọc các đoạn đặt giao nhau + tính tồn bằng sweep-line
- *  3) ghi bookings + room_reservations (+ payments nếu MoMo) + audit cùng một transaction
- * Bản đơn giản: 1 loại phòng, theo đêm; trả tại khách sạn hoặc MoMo (đơn PENDING_PAYMENT + bản ghi payments, link tạo sau commit). Xe/chuyến bay ở task riêng.
+ *  3) ghi bookings + room_reservations (+ payments nếu VNPay) + audit cùng một transaction
+ * Bản đơn giản: 1 loại phòng, theo đêm; trả tại khách sạn hoặc VNPay (đơn PENDING_PAYMENT + bản ghi payments, link tạo sau commit). Xe/chuyến bay ở task riêng.
  */
 export async function createBooking(input: CreateBookingBody, requestId?: string): Promise<BookingDoc> {
-  if (input.paymentMethod === 'MOMO' && !env.MOMO_ENABLED) throw new AppError(409, 'MOMO_DISABLED', 'Thanh toán MoMo hiện chưa được bật');
-  const momo = input.paymentMethod === 'MOMO';
+  if (input.paymentMethod === 'VNPAY' && !env.VNPAY_ENABLED) throw new AppError(409, 'VNPAY_DISABLED', 'Thanh toán VNPay hiện chưa được bật');
+  const online = input.paymentMethod === 'VNPAY';
   const roomType = (await db.query<RoomTypeDoc>('SELECT * FROM room_types WHERE id = $1 AND hotel_id = $2 AND active', [input.roomTypeId, input.hotelId])).rows[0];
   const hotel = roomType && (await db.query<HotelDoc>("SELECT * FROM hotels WHERE id = $1 AND status = 'ACTIVE'", [input.hotelId])).rows[0];
   if (!roomType || !hotel) throw new AppError(404, 'ROOM_TYPE_NOT_FOUND', 'Không tìm thấy loại phòng');
@@ -69,7 +69,7 @@ export async function createBooking(input: CreateBookingBody, requestId?: string
   const resFrom = input.from;
   const resTo = new Date(input.to.getTime() + hotel.policy.cleaningBufferMin * 60_000);
   const needsApproval = hotel.approval.manual;
-  const holdCfg = momo ? await getConfig('booking.hold') : undefined; // P-03: thời gian giữ chỗ chờ thanh toán
+  const holdCfg = online ? await getConfig('booking.hold') : undefined; // P-03: thời gian giữ chỗ chờ thanh toán
 
   // Mã đơn ngẫu nhiên: trùng (rất hiếm) thì sinh lại và chạy lại transaction.
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -94,10 +94,10 @@ export async function createBooking(input: CreateBookingBody, requestId?: string
 
         const bookingId = randomUUID();
         const reservationId = randomUUID();
-        // MoMo: giữ chỗ chờ thanh toán trước; sau khi trả tiền mới sang CONFIRMED/PENDING (xem payments.service).
-        const status: BookingStatus = momo ? 'PENDING_PAYMENT' : needsApproval ? 'PENDING' : 'CONFIRMED';
+        // VNPay: giữ chỗ chờ thanh toán trước; sau khi trả tiền mới sang CONFIRMED/PENDING (xem payments.service).
+        const status: BookingStatus = online ? 'PENDING_PAYMENT' : needsApproval ? 'PENDING' : 'CONFIRMED';
         const holdMs = holdCfg ? holdCfg.value.holdMinutes * 60_000 : HOLD_MS;
-        const holdExpiresAt = momo || needsApproval ? new Date(now.getTime() + holdMs) : undefined;
+        const holdExpiresAt = online || needsApproval ? new Date(now.getTime() + holdMs) : undefined;
 
         const booking: BookingDoc = {
           id: bookingId,
@@ -117,7 +117,7 @@ export async function createBooking(input: CreateBookingBody, requestId?: string
             totalVnd,
             params: { configVersions: { serviceFee: feeCfg.version, ...(holdCfg && { bookingHold: holdCfg.version }) } },
           },
-          payment: { method: momo ? 'MOMO' : 'AT_HOTEL', status: 'UNPAID', paidVnd: 0, refundedVnd: 0 },
+          payment: { method: online ? 'VNPAY' : 'AT_HOTEL', status: 'UNPAID', paidVnd: 0, refundedVnd: 0 },
           shuttle: { tripType: 'NONE', legCount: 0 },
           ...(holdExpiresAt && { expiresAt: holdExpiresAt }),
           statusHistory: [{ to: status, at: now, by: { type: 'GUEST' } }],
@@ -139,14 +139,14 @@ export async function createBooking(input: CreateBookingBody, requestId?: string
         await tx.query(
           `INSERT INTO room_reservations (id, hotel_id, room_type_id, kind, booking_id, qty, starts_at, ends_at, state, hold_expires_at, created_at, updated_at)
            VALUES ($1,$2,$3,'BOOKING',$4,$5,$6,$7,$8,$9,$10,$10)`,
-          [reservationId, input.hotelId, roomType.id, bookingId, input.qty, resFrom, resTo, momo || needsApproval ? 'HOLD' : 'CONFIRMED', holdExpiresAt ?? null, now],
+          [reservationId, input.hotelId, roomType.id, bookingId, input.qty, resFrom, resTo, online || needsApproval ? 'HOLD' : 'CONFIRMED', holdExpiresAt ?? null, now],
         );
-        if (momo) {
-          const { orderId, requestId: momoRequestId } = newMomoOrder(code);
+        if (online) {
+          const { orderId, requestId: gwRequestId } = newVnpOrder(code);
           await tx.query(
-            `INSERT INTO payments (id, booking_id, hotel_id, method, amount_vnd, status, momo_order_id, momo, created_at, updated_at)
-             VALUES ($1,$2,$3,'MOMO',$4,'INITIATED',$5,$6::jsonb,$7,$7)`,
-            [randomUUID(), bookingId, input.hotelId, totalVnd, orderId, json({ partnerCode: momoKeys.partnerCode, orderId, requestId: momoRequestId }), now],
+            `INSERT INTO payments (id, booking_id, hotel_id, method, amount_vnd, status, txn_ref, gateway, created_at, updated_at)
+             VALUES ($1,$2,$3,'VNPAY',$4,'INITIATED',$5,$6::jsonb,$7,$7)`,
+            [randomUUID(), bookingId, input.hotelId, totalVnd, orderId, json({ tmnCode: vnpKeys.tmnCode, orderId, requestId: gwRequestId, createDate: vnpDate(now) }), now],
           );
         }
         await writeAudit(

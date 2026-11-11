@@ -4,7 +4,7 @@ import { CONFIG_KEYS } from '../config/configKeys';
 import { decryptJson, encryptJson } from '../lib/crypto';
 import { generateBookingCode } from '../lib/codes';
 import { canBook, isActive, maxConcurrent, serviceFee, type Interval } from '@airrest/business-logic';
-import { buildMomoIpn, momoKeys, signMomo, verifyMomoIpn } from '../lib/momo';
+import { buildVnpayIpn, signVnpay, verifyVnpay, vnpDate, vnpKeys, vnpQuery } from '../lib/vnpay';
 import { hashPassword, verifyPassword } from '../lib/password';
 import { toE164VN } from '@airrest/utils';
 
@@ -83,18 +83,22 @@ describe('cấu hình + mã hóa', () => {
   });
 });
 
-describe('MoMo: chữ ký', () => {
-  it('create: chuỗi ký xếp A→Z đúng mẫu MoMo, HMAC-SHA256 hex', () => {
-    const p = { accessKey: momoKeys.accessKey, amount: '50000', extraData: '', ipnUrl: 'https://cb/notify', orderId: 'O1', orderInfo: 'pay with MoMo', partnerCode: momoKeys.partnerCode, redirectUrl: 'https://momo.vn/return', requestId: 'O1', requestType: 'captureWallet' };
-    const raw = `accessKey=${p.accessKey}&amount=50000&extraData=&ipnUrl=https://cb/notify&orderId=O1&orderInfo=pay with MoMo&partnerCode=${p.partnerCode}&redirectUrl=https://momo.vn/return&requestId=O1&requestType=captureWallet`;
-    expect(signMomo('create', p)).toBe(createHmac('sha256', momoKeys.secretKey).update(raw).digest('hex'));
+describe('VNPay: chữ ký', () => {
+  it('query ký: xếp A→Z, bỏ giá trị rỗng, khoảng trắng thành "+", HMAC-SHA512 hex', () => {
+    const p = { vnp_TxnRef: 'O1', vnp_Amount: 5000000, vnp_OrderInfo: 'Airrest AR 1', vnp_Empty: '' };
+    expect(vnpQuery(p)).toBe('vnp_Amount=5000000&vnp_OrderInfo=Airrest+AR+1&vnp_TxnRef=O1');
+    expect(signVnpay(p)).toBe(createHmac('sha512', vnpKeys.hashSecret).update('vnp_Amount=5000000&vnp_OrderInfo=Airrest+AR+1&vnp_TxnRef=O1').digest('hex'));
   });
 
   it('IPN: gói do mình ký thì hợp lệ; sửa số tiền hoặc chữ ký thì bị từ chối', () => {
-    const ipn = buildMomoIpn({ orderId: 'O1', requestId: 'O1', amount: 836000, transId: 1, resultCode: 0 });
-    expect(verifyMomoIpn(ipn)).toBe(true);
-    expect(verifyMomoIpn({ ...ipn, amount: 1000 })).toBe(false);
-    expect(verifyMomoIpn({ ...ipn, signature: 'abc' })).toBe(false);
-    expect(verifyMomoIpn({ ...ipn, signature: undefined })).toBe(false);
+    const ipn = buildVnpayIpn({ txnRef: 'O1', amount: 836000, transId: 1, success: true });
+    expect(verifyVnpay(ipn)).toBe(true);
+    expect(verifyVnpay({ ...ipn, vnp_Amount: '1000' })).toBe(false);
+    expect(verifyVnpay({ ...ipn, vnp_SecureHash: 'abc' })).toBe(false);
+    expect(verifyVnpay({ ...ipn, vnp_SecureHash: undefined })).toBe(false);
+  });
+
+  it('vnpDate theo giờ Việt Nam (GMT+7)', () => {
+    expect(vnpDate(new Date('2026-12-01T17:30:05Z'))).toBe('20261202003005');
   });
 });

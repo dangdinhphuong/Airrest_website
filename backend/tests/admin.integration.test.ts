@@ -278,6 +278,23 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
     });
   });
 
+  describe('media R2', () => {
+    const body = { folder: 'hotels', contentType: 'image/jpeg', size: 200_000 };
+    it('có quyền quản lý khách sạn -> nhận URL PUT ký sẵn + audit; thiếu quyền -> 403', async () => {
+      const ok = await request(app).post('/v1/admin/media/upload-url').set(auth('A')).send(body);
+      expect(ok.status).toBe(201);
+      expect(ok.body.method).toBe('PUT');
+      expect(ok.body.key).toMatch(/^hotels\/\d{4}\/.+\.jpg$/);
+      expect(await count('audit_logs', "action = 'MEDIA.UPLOAD_URL'")).toBe(1);
+      expect((await request(app).post('/v1/admin/media/upload-url').set(auth('FIN')).send(body)).status).toBe(403);
+    });
+    it('validate: loại file lạ / quá 5MB / thư mục lạ -> 422', async () => {
+      for (const bad of [{ ...body, contentType: 'application/pdf' }, { ...body, size: 6 * 1024 * 1024 }, { ...body, folder: '../etc' }]) {
+        expect((await request(app).post('/v1/admin/media/upload-url').set(auth('A')).send(bad)).status).toBe(422);
+      }
+    });
+  });
+
   describe('ADM-09 tra cứu audit', () => {
     it('lọc theo action / actor / entity; quyền AUDIT_READ (OPS không có)', async () => {
       const byAction = await request(app).get('/v1/admin/audit-logs?action=HOTEL.CREATE').set(auth('SUP'));

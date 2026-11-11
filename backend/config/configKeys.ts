@@ -85,8 +85,8 @@ export const CONFIG_KEYS = {
   },
   refund: {
     // P-20
-    schema: z.object({ momoRetries: int(0, 10), claimLinkDays: int(1, 30) }),
-    default: { momoRetries: 3, claimLinkDays: 7 },
+    schema: z.object({ gatewayRetries: int(0, 10), claimLinkDays: int(1, 30) }),
+    default: { gatewayRetries: 3, claimLinkDays: 7 },
     writePerm: PERM.ADMIN_CONFIG_FINANCE,
   },
 } as const;

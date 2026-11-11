@@ -15,7 +15,7 @@ export const createBookingBody = z
     hotelId: uuid,
     roomTypeId: uuid,
     qty: z.number().int().min(1).max(5).default(1),
-    paymentMethod: z.enum(['AT_HOTEL', 'MOMO']).default('AT_HOTEL'),
+    paymentMethod: z.enum(['AT_HOTEL', 'VNPAY']).default('AT_HOTEL'),
     from: z.coerce.date(),
     to: z.coerce.date(),
     guest: z.object({

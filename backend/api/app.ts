@@ -5,6 +5,8 @@ import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { corsOrigins } from '../config/env';
 import { logger } from '../lib/logger';
+import swaggerUi from 'swagger-ui-express';
+import { openapi } from './openapi';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import { apiRateLimit } from './middleware/rateLimit';
 import { healthRouter } from './modules/health/health.router';
@@ -27,6 +29,10 @@ export function createApp() {
       },
     }),
   );
+  // Đặt trước helmet: Swagger UI dùng script inline nên sẽ bị CSP của helmet chặn.
+  app.get('/openapi.json', (_req, res) => res.json(openapi));
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapi, { customSiteTitle: 'Airrest API' }));
+
   app.use(helmet());
   app.use(cors({ origin: corsOrigins, credentials: true }));
   app.use(express.json({ limit: '100kb' }));

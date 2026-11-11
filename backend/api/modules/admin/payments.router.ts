@@ -9,7 +9,7 @@ import { requirePermission } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { reconcilePayments, retryRefund } from '../../../services/payments/payments.service';
 
-// Admin: xem giao dịch MoMo / lệnh hoàn, đối soát gọi tay, thử lại hoàn. Quyền kiểm ở từng route.
+// Admin: xem giao dịch cổng thanh toán / lệnh hoàn, đối soát gọi tay, thử lại hoàn. Quyền kiểm ở từng route.
 export const adminPaymentsRouter = Router();
 
 const listQuery = z.object({

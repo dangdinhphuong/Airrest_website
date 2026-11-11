@@ -9,7 +9,7 @@ Thiết kế nghiệp vụ gốc vẫn là [docs/mongodb/THIET_KE_MONGODB_AIRRES
 | bookings | bookings | `payment.*` tách thành cột `payment_method/payment_status/paid_vnd/refunded_vnd`; `stay_from` là bản sao của `stay.from` để index |
 | room_reservations (`from`,`to`) | room_reservations (`starts_at`,`ends_at`) | |
 | inventory_locks | — | thay bằng `SELECT … FOR UPDATE` trên dòng `room_types` trong transaction đặt phòng |
-| payments, refunds | payments, refunds | unique `momo_order_id`, `refunds.key` thay unique index Mongo |
+| payments, refunds | payments, refunds | unique `txn_ref` (trước migration 002 là `momo_order_id`; cột `momo` đổi thành `gateway`), `refunds.key` thay unique index Mongo |
 | ledger_entries | ledger_entries | chỉ thêm; `ref_type/ref_id` |
 | audit_logs | audit_logs | khóa `id` identity tăng dần dùng làm con trỏ phân trang |
 | system_configs | system_configs | `UNIQUE (key, version)` |

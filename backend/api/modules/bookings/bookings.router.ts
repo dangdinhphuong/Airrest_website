@@ -23,9 +23,9 @@ export const bookingsRouter = Router();
 // FR-BKG-07/10/11: tạo đơn. Bắt buộc Idempotency-Key để bấm lặp/mạng chập không tạo đơn thứ hai.
 bookingsRouter.post('/', validate({ body: createBookingBody }), idempotent('booking.create'), async (req, res) => {
   const booking = await createBooking(req.valid.body as CreateBookingBody, String(req.id));
-  if (booking.payment.method !== 'MOMO') return void res.status(201).json({ booking: toGuestView(booking) });
-  // MoMo lỗi thì đơn vẫn giữ chỗ (PENDING_PAYMENT); khách lấy lại link ở POST /v1/payments/momo/link.
-  const paymentLink = await startBookingPayment(booking.id, booking.code).catch((e: { code?: string }) => ({ error: e.code ?? 'MOMO_UNAVAILABLE' }));
+  if (booking.payment.method !== 'VNPAY') return void res.status(201).json({ booking: toGuestView(booking) });
+  // VNPay lỗi thì đơn vẫn giữ chỗ (PENDING_PAYMENT); khách lấy lại link ở POST /v1/payments/vnpay/link.
+  const paymentLink = await startBookingPayment(booking.id, booking.code).catch((e: { code?: string }) => ({ error: e.code ?? 'VNPAY_UNAVAILABLE' }));
   res.status(201).json({ booking: toGuestView(booking), paymentLink });
 });
 

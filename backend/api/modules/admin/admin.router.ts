@@ -4,6 +4,7 @@ import { accountsRouter } from './accounts.router';
 import { adminHotelsRouter } from './hotels.router';
 import { auditRouter } from './audit.router';
 import { configsRouter } from './configs.router';
+import { mediaRouter } from './media.router';
 import { adminPaymentsRouter } from './payments.router';
 
 // Cổng Admin: authenticate một lần ở đây; quyền kiểm ở từng route (requirePermission).
@@ -15,3 +16,4 @@ adminRouter.use(configsRouter);
 adminRouter.use(accountsRouter);
 adminRouter.use(adminHotelsRouter);
 adminRouter.use(adminPaymentsRouter);
+adminRouter.use(mediaRouter);

@@ -115,7 +115,7 @@ export interface BookingDoc {
   }>;
   pricing: { roomVnd: Money; shuttleVnd: Money; serviceFeeVnd: Money; discountVnd: Money; totalVnd: Money; params?: { configVersions: Record<string, number> } };
   // Dựng từ các cột payment_method/payment_status/paid_vnd/refunded_vnd (xem bookingFromRow).
-  payment: { method: 'MOMO' | 'AT_HOTEL'; status: string; paidVnd: Money; refundedVnd: Money };
+  payment: { method: 'VNPAY' | 'AT_HOTEL'; status: string; paidVnd: Money; refundedVnd: Money };
   shuttle: { tripType: 'NONE' | 'ONE_WAY' | 'ROUND_TRIP'; legCount: number };
   expiresAt?: Date;
   checkedInAt?: Date;
@@ -164,16 +164,16 @@ export interface PaymentDoc {
   seq: number;
   bookingId: string;
   hotelId: string;
-  method: 'MOMO';
+  method: 'VNPAY';
   amountVnd: Money;
   status: PaymentStatus;
-  momo: {
-    partnerCode: string;
-    orderId: string; // unique (cột momo_order_id)
+  gateway: {
+    tmnCode: string;
+    orderId: string; // = vnp_TxnRef, unique (cột txn_ref)
     requestId: string;
-    transId?: number;
+    createDate: string; // vnp_CreateDate (yyyyMMddHHmmss GMT+7), cần cho querydr/refund
+    transId?: number; // vnp_TransactionNo
     payUrl?: string;
-    deeplink?: string;
     resultCode?: number;
     message?: string;
   };
@@ -193,10 +193,10 @@ export interface RefundDoc {
   key: string; // unique: chống hoàn kép (BR-CXL-12)
   amountVnd: Money;
   reasonCode: 'LATE_PAYMENT' | 'DUPLICATE_PAYMENT';
-  method: 'MOMO';
+  method: 'VNPAY';
   status: RefundStatus;
   attempts: Array<{ at: Date | string; ok: boolean; code?: number; message?: string }>;
-  momo: { orderId: string; requestId: string; refundTransId?: number; resultCode?: number };
+  gateway: { orderId: string; requestId: string; refundTransId?: number; resultCode?: number };
   dueAt: Date; // lần thử kế tiếp (≤ 24h kể từ lúc tạo, BR-CXL-13)
   createdAt: Date;
   updatedAt: Date;

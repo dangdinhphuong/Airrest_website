@@ -16,7 +16,7 @@ export const PERM = {
   ADMIN_CONFIG_FINANCE: 'admin:config:finance', // P-10/11/12/20 (Kế toán)
   ADMIN_HOTEL_READ: 'admin:hotel:read', // ADM-01/08
   ADMIN_HOTEL_MANAGE: 'admin:hotel:manage', // ADM-01: tạo/sửa/duyệt/tạm ngưng, đề xuất đổi tài khoản nhận tiền
-  ADMIN_PAYMENT_READ: 'admin:payment:read', // xem giao dịch MoMo, lệnh hoàn, giao dịch bất thường
+  ADMIN_PAYMENT_READ: 'admin:payment:read', // xem giao dịch cổng thanh toán, lệnh hoàn, giao dịch bất thường
   ADMIN_PAYMENT_MANAGE: 'admin:payment:manage', // đối soát thủ công, thử lại hoàn tiền
   ADMIN_HOTEL_APPROVE_SENSITIVE: 'admin:hotel:approve-sensitive', // ADM-15: duyệt đổi tài khoản nhận tiền (four-eyes)
 } as const;

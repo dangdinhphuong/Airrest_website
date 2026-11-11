@@ -50,7 +50,7 @@
       "value": ""
     },
     {
-      "key": "momoOrderId",
+      "key": "vnpOrderId",
       "value": ""
     }
   ],
@@ -1097,7 +1097,7 @@
           }
         },
         {
-          "name": "B1'. Đề xuất ví MoMo",
+          "name": "B1'. Đề xuất ví VNPay",
           "request": {
             "method": "PUT",
             "header": [
@@ -1131,7 +1131,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"MOMO\",\n  \"accountNo\": \"0912345678\",\n  \"accountName\": \"CHU KS\"\n}",
+              "raw": "{\n  \"type\": \"VNPAY\",\n  \"accountNo\": \"0912345678\",\n  \"accountName\": \"CHU KS\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1487,10 +1487,10 @@
       ]
     },
     {
-      "name": "6. Thanh toán MoMo (mock/live)",
+      "name": "6. Thanh toán VNPay (mock/live)",
       "item": [
         {
-          "name": "Đặt phòng trả MoMo (khách)",
+          "name": "Đặt phòng trả VNPay (khách)",
           "request": {
             "method": "POST",
             "header": [
@@ -1515,7 +1515,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"hotelId\": \"{{hotelId}}\",\n  \"roomTypeId\": \"{{roomTypeId}}\",\n  \"from\": \"2026-12-01T14:00:00.000Z\",\n  \"to\": \"2026-12-02T12:00:00.000Z\",\n  \"paymentMethod\": \"MOMO\",\n  \"guest\": {\n    \"fullName\": \"Khách MoMo\",\n    \"phone\": \"0912345678\"\n  }\n}"
+              "raw": "{\n  \"hotelId\": \"{{hotelId}}\",\n  \"roomTypeId\": \"{{roomTypeId}}\",\n  \"from\": \"2026-12-01T14:00:00.000Z\",\n  \"to\": \"2026-12-02T12:00:00.000Z\",\n  \"paymentMethod\": \"VNPAY\",\n  \"guest\": {\n    \"fullName\": \"Khách VNPay\",\n    \"phone\": \"0912345678\"\n  }\n}"
             }
           },
           "event": [
@@ -1526,7 +1526,7 @@
                 "exec": [
                   "const j = pm.response.json();",
                   "pm.collectionVariables.set('bookingCode', j.booking.code);",
-                  "const u = (j.paymentLink||{}).payUrl||''; const m = u.match(/orderId=([^&]+)/); if (m) pm.collectionVariables.set('momoOrderId', m[1]);"
+                  "const u = (j.paymentLink||{}).payUrl||''; const m = u.match(/orderId=([^&]+)/); if (m) pm.collectionVariables.set('vnpOrderId', m[1]);"
                 ]
               }
             }
@@ -1543,14 +1543,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/payments/momo/link",
+              "raw": "{{baseUrl}}/v1/payments/vnpay/link",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "v1",
                 "payments",
-                "momo",
+                "vnpay",
                 "link"
               ]
             },
@@ -1561,7 +1561,7 @@
           }
         },
         {
-          "name": "[mock] Giả lập MoMo báo thành công",
+          "name": "[mock] Giả lập VNPay báo thành công",
           "request": {
             "method": "POST",
             "header": [
@@ -1571,25 +1571,25 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/payments/momo/dev-simulate",
+              "raw": "{{baseUrl}}/v1/payments/vnpay/dev-simulate",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "v1",
                 "payments",
-                "momo",
+                "vnpay",
                 "dev-simulate"
               ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"orderId\": \"{{momoOrderId}}\"\n}"
+              "raw": "{\n  \"orderId\": \"{{vnpOrderId}}\"\n}"
             }
           }
         },
         {
-          "name": "[mock] Giả lập khách hủy ở MoMo (1006)",
+          "name": "[mock] Giả lập khách hủy ở VNPay (1006)",
           "request": {
             "method": "POST",
             "header": [
@@ -1599,25 +1599,25 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/payments/momo/dev-simulate",
+              "raw": "{{baseUrl}}/v1/payments/vnpay/dev-simulate",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "v1",
                 "payments",
-                "momo",
+                "vnpay",
                 "dev-simulate"
               ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"orderId\": \"{{momoOrderId}}\",\n  \"resultCode\": 1006\n}"
+              "raw": "{\n  \"orderId\": \"{{vnpOrderId}}\",\n  \"resultCode\": 1006\n}"
             }
           }
         },
         {
-          "name": "Danh sách giao dịch MoMo",
+          "name": "Danh sách giao dịch VNPay",
           "request": {
             "method": "GET",
             "header": [],

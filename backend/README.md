@@ -3,7 +3,7 @@
 Khung Node.js cho BE API Airrest: **TypeScript + Express 5 + PostgreSQL (Supabase, driver `pg`) + Socket.io**.
 Schema: [database/migrations/](database/migrations/) ([docs/postgres/](../docs/postgres/README.md)); thiết kế gốc theo tài liệu: [docs/mongodb/THIET_KE_MONGODB_AIRREST.md](../docs/mongodb/THIET_KE_MONGODB_AIRREST.md) · Yêu cầu: [docs/srs/SRS_V2_NenTang_Airrest.md](../docs/srs/SRS_V2_NenTang_Airrest.md).
 
-> Đây là **base + ví dụ mẫu**, không phải nghiệp vụ đầy đủ. Chưa có: MoMo, dữ liệu chuyến bay, bản đồ/xe, hủy/đổi/hoàn, thông báo, job nền (xem file xlsx kế hoạch dev).
+> Đây là **base + ví dụ mẫu**, không phải nghiệp vụ đầy đủ. Chưa có: dữ liệu chuyến bay, bản đồ/xe, hủy/đổi/hoàn, thông báo, job nền (xem file xlsx kế hoạch dev).
 
 ## Chạy nhanh
 
@@ -34,7 +34,7 @@ api/
 services/              bookings/, payments/ (*.service.ts) + audit, authz (quyền nạp từ DB), systemConfig, systemRoles
 database/              pg.ts (pool + withTransaction, camelCase), migrate.ts, migrations/*.sql, types.ts, scripts/ (migrate, seed)
 config/                env (zod, fail-fast), permissions, roles, configKeys
-lib/                   errors, jwt, password(scrypt), codes, money (VND nguyên), crypto, momo, logger, zod
+lib/                   errors, jwt, password(scrypt), codes, money (VND nguyên), crypto, vnpay, logger, zod
 tests/                 unit, http (middleware), *.integration (cần DB)
 ../packages/*          @airrest/{validation,business-logic,utils,shared-types}: zod schema, tồn phòng, phí DV, SĐT, kiểu chung
 ```
@@ -51,12 +51,13 @@ tests/                 unit, http (middleware), *.integration (cần DB)
 | `POST /v1/bookings/lookup` | khách vãng lai | mã + SĐT, 404 chung khi sai, trả `guestToken` cho Socket.io |
 | `GET /v1/hotel/bookings` | quyền `booking:read` | tự khóa theo `hotelId` trong token |
 | `POST /v1/hotel/bookings/:id/check-in` | quyền `booking:checkin` | máy trạng thái bằng cập nhật có điều kiện + audit cùng transaction |
-| `POST /v1/bookings` với `paymentMethod: "MOMO"` | khách vãng lai | đơn `PENDING_PAYMENT` + giữ phòng `booking.hold.holdMinutes` phút + bản ghi `payments`; trả `paymentLink.payUrl`. Cần `MOMO_ENABLED=true` |
-| `POST /v1/payments/momo/link` | khách (mã + SĐT) | lấy lại / tạo lại link khi lần đầu lỗi hoặc link hỏng |
-| `POST /v1/payments/momo/ipn` | **MoMo** gọi | kiểm chữ ký HMAC, lệch tiền → anomaly, lặp → bỏ qua, đến muộn → hoàn 100%; trả 204 |
-| `POST /v1/payments/momo/dev-simulate` | dev (chỉ `MOMO_MODE=mock`, không production) | giả lập MoMo gọi IPN `{orderId, resultCode?, amount?}` |
-| `GET /v1/admin/payments?anomaly=true`, `GET /v1/admin/refunds` | `admin:payment:read` | giao dịch MoMo, lệnh hoàn, giao dịch bất thường |
+| `POST /v1/bookings` với `paymentMethod: "VNPAY"` | khách vãng lai | đơn `PENDING_PAYMENT` + giữ phòng `booking.hold.holdMinutes` phút + bản ghi `payments`; trả `paymentLink.payUrl`. Cần `VNPAY_ENABLED=true` |
+| `POST /v1/payments/vnpay/link` | khách (mã + SĐT) | lấy lại / tạo lại link khi lần đầu lỗi hoặc link hỏng |
+| `GET /v1/payments/vnpay/ipn` | **VNPay** gọi | kiểm `vnp_SecureHash`, lệch tiền → anomaly, lặp → bỏ qua, đến muộn → hoàn 100%; trả JSON `{RspCode, Message}` |
+| `POST /v1/payments/vnpay/dev-simulate` | dev (chỉ `VNPAY_MODE=mock`, không production) | giả lập VNPay gọi IPN `{orderId, resultCode?, amount?}` (resultCode 0 = thành công) |
+| `GET /v1/admin/payments?anomaly=true`, `GET /v1/admin/refunds` | `admin:payment:read` | giao dịch VNPay, lệnh hoàn, giao dịch bất thường |
 | `POST /v1/admin/payments/reconcile`, `POST /v1/admin/refunds/:id/retry` | `admin:payment:manage` | đối soát gọi tay (truy vấn giao dịch treo >15', hết hạn đơn, xử lý hoàn đến hạn); thử lại lệnh `MANUAL_REQUIRED` |
+| `POST /v1/admin/media/upload-url` | `admin:hotel:manage` | URL PUT ký sẵn (5 phút) để tải ảnh JPEG/PNG/WebP ≤ 5MB thẳng lên Cloudflare R2; cần `R2_*` (kiểm tra: `npm run storage:check`) |
 | `GET /v1/admin/audit-logs` | `audit:read` | **ADM-09** lọc entity/actor/action/hotel/booking/thời gian, phân trang con trỏ; chỉ đọc |
 | `GET/POST/PATCH /v1/admin/accounts`, `POST …/:id/reset-password`, `GET /v1/admin/roles` | `admin:account:manage` | **ADM-13** tài khoản Admin; chặn tự khóa, luôn còn ≥ 1 SYSADMIN |
 | `GET /v1/admin/configs`, `GET …/:key/versions`, `PUT …/:key` | đọc `admin:config:read`; ghi theo từng khóa | **ADM-12** cấu hình có phiên bản + lịch hiệu lực; đơn lưu `pricing.params.configVersions` |
@@ -98,9 +99,13 @@ Sự kiện do service phát **sau khi transaction commit** (`services/events.ts
 
 - Admin: Mật khẩu ban đầu do người tạo đặt (chưa có luồng mời qua email / đổi mật khẩu lần đầu). Mã hóa tài khoản nhận tiền là AES-GCM một khóa (`DATA_ENC_KEY`), chưa xoay khóa/KMS. Cấu hình đọc DB mỗi lần, chưa cache.
 - JWT chỉ chứa định danh (~200 byte, không phình theo số quyền); quyền nạp từ DB mỗi request, cache 30 giây/tiến trình (`lib/authz.ts`). Khóa/đổi vai trò có hiệu lực ngay trên bản API xử lý thay đổi, các bản khác chờ hết 30 giây. Chưa có refresh token/thu hồi phiên.
-- MoMo: mặc định `MOMO_MODE=mock` (không gọi mạng, khóa sandbox công khai) — mock chỉ chứng minh logic khớp tài liệu MoMo, **chưa** khớp MoMo thật. Khi có khóa: đặt `MOMO_MODE=live`, `MOMO_PARTNER_CODE/ACCESS_KEY/SECRET_KEY`, `MOMO_ENDPOINT`, `MOMO_IPN_URL` (URL công khai, dev dùng ngrok), `MOMO_REDIRECT_URL` (trang FE), rồi **chạy thử sandbox một lượt** (đặt → trả → IPN → hoàn). Chưa xác thực chữ ký phản hồi create/query/refund; chưa có scheduler (đối soát gọi tay qua `/reconcile`); chưa làm chi trả khách sạn (disbursement), thu thêm khi đổi đơn, hoàn thủ công qua ngân hàng. `MOMO_PUBLIC_KEY` chưa dùng (chỉ cần cho API chi hộ mã hóa RSA).
+- VNPay: mặc định `VNPAY_MODE=mock` (không gọi mạng) — mock chỉ chứng minh logic khớp tài liệu VNPay 2.1.0, **chưa** khớp VNPay thật. Khi có khóa sandbox/production: đặt `VNPAY_MODE=live`, `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`, `VNPAY_RETURN_URL` (trang FE), và khai báo IPN URL `https://<api>/v1/payments/vnpay/ipn` trên cổng VNPay merchant (IPN URL không gửi trong request). `VNPAY_URL`/`VNPAY_API_URL` mặc định là sandbox, đổi sang URL production khi lên thật. **Chạy thử sandbox một lượt** (đặt → trả → IPN → hoàn). Chưa xác thực chữ ký phản hồi querydr/refund, `vnp_IpAddr` đang cố định `127.0.0.1`; chưa có scheduler (đối soát gọi tay qua `/reconcile`); chưa làm chi trả khách sạn, thu thêm khi đổi đơn, hoàn một phần.
 - Realtime: sự kiện đơn chỉ phát trong một tiến trình API; chạy nhiều bản API cần Postgres LISTEN/NOTIFY hoặc Supabase Realtime (và adapter cho Socket.io). Không dùng Supabase Auth/Realtime/REST: backend nối thẳng Postgres bằng `DATABASE_URL`, xác thực bằng JWT riêng.
 - Supabase: TLS bật nhưng chưa ghim CA (`database/pg.ts`); bảng `idempotency_keys` chưa có job dọn định kỳ (chỉ dọn key hết hạn khi gặp lại); chưa bật Row Level Security (API là cửa duy nhất vào DB — hãy bật RLS deny-all cho các bảng nếu mở REST của Supabase ra ngoài).
-- `createBooking` mới hỗ trợ 1 loại phòng, theo đêm, trả tại khách sạn hoặc MoMo; giá đọc từ `system_configs`.
+- `createBooking` mới hỗ trợ 1 loại phòng, theo đêm, trả tại khách sạn hoặc VNPay; giá đọc từ `system_configs`.
 - Khóa idempotency không chặn hai request *đang chạy* cùng key với body khác ngoài trả 422/409.
 - Test tích hợp chạy trên Postgres nhúng (embedded-postgres), chưa thử trên Supabase thật; chưa có CI.
+
+## Swagger
+
+Chạy API rồi mở `http://localhost:3000/docs` (JSON: `/openapi.json`). Đăng nhập ở `POST /v1/auth/login`, bấm **Authorize**, dán token. Spec viết tay ở `api/openapi.ts`, thêm route mới thì cập nhật file đó.

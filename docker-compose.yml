@@ -30,10 +30,9 @@ services:
       DATA_ENC_KEY: dev-only-data-key-change-me-0123456789
       CORS_ORIGINS: http://localhost:5174
       SEED_PASSWORD: ChangeMe123!
-      MOMO_ENABLED: "true"
-      MOMO_MODE: mock # chuyển live + điền MOMO_PARTNER_CODE/ACCESS_KEY/SECRET_KEY khi có khóa
-      MOMO_REDIRECT_URL: http://localhost:5174/payment/result
-      MOMO_IPN_URL: http://localhost:3000/v1/payments/momo/ipn
+      VNPAY_ENABLED: "true"
+      VNPAY_MODE: mock # chuyển live + điền VNPAY_TMN_CODE/VNPAY_HASH_SECRET khi có khóa
+      VNPAY_RETURN_URL: http://localhost:5174/payment/result
     ports: ["3000:3000"]
     volumes:
       - .:/app # monorepo: API cần cả packages/*

@@ -63,3 +63,12 @@ describe('middleware HTTP', () => {
     expect(res.body.error.code).toBe('INVALID_JSON');
   });
 });
+
+describe('Swagger', () => {
+  it('phục vụ OpenAPI và trang /docs', async () => {
+    const spec = await request(createApp()).get('/openapi.json').expect(200);
+    expect(spec.body.openapi).toMatch(/^3\./);
+    expect(Object.keys(spec.body.paths)).toContain('/v1/bookings');
+    await request(createApp()).get('/docs/').expect(200);
+  });
+});

@@ -15,24 +15,30 @@ const schema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   SEED_PASSWORD: z.string().default('ChangeMe123!'),
 
-  // --- MoMo (thanh toán thu tiền + hoàn). mock = cổng giả lập cục bộ, live = gọi MoMo thật (sandbox/production).
-  // MOMO_ENABLED=false: API đặt phòng từ chối paymentMethod=MOMO (BA OQ-2-10: MoMo bật khi qua cổng pháp lý).
-  MOMO_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
-  MOMO_MODE: z.enum(['mock', 'live']).default('mock'),
-  MOMO_PARTNER_CODE: z.string().optional(),
-  MOMO_ACCESS_KEY: z.string().optional(),
-  MOMO_SECRET_KEY: z.string().optional(),
-  MOMO_PUBLIC_KEY: z.string().optional(), // chỉ cần cho API mã hóa RSA (chi hộ); thu tiền/hoàn không dùng
-  MOMO_ENDPOINT: z.string().url().default('https://test-payment.momo.vn'),
-  MOMO_REDIRECT_URL: z.string().url().default('http://localhost:5174/payment/result'), // MoMo đưa khách về trang FE này
-  MOMO_IPN_URL: z.string().url().default('http://localhost:3000/v1/payments/momo/ipn'), // phải là URL công khai khi live
+  // --- Cloudflare R2 (lưu media, tương thích S3). Thiếu thì API media trả 503, phần còn lại vẫn chạy.
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().optional(),
+  R2_PUBLIC_BASE_URL: z.string().url().optional(), // URL công khai của bucket (r2.dev hoặc domain riêng), không có dấu / cuối
+
+  // --- VNPay (thanh toán thu tiền + hoàn). mock = cổng giả lập cục bộ, live = gọi VNPay thật (sandbox/production).
+  // VNPAY_ENABLED=false: API đặt phòng từ chối paymentMethod=VNPAY.
+  VNPAY_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  VNPAY_MODE: z.enum(['mock', 'live']).default('mock'),
+  VNPAY_TMN_CODE: z.string().optional(),
+  VNPAY_HASH_SECRET: z.string().optional(),
+  VNPAY_URL: z.string().url().default('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'), // trang thanh toán
+  VNPAY_API_URL: z.string().url().default('https://sandbox.vnpayment.vn/merchant_webapi/api/transaction'), // querydr + refund
+  VNPAY_RETURN_URL: z.string().url().default('http://localhost:5174/payment/result'), // VNPay đưa khách về trang FE này
+  // IPN URL (https://<api>/v1/payments/vnpay/ipn) KHÔNG gửi trong request: khai báo trên cổng quản trị VNPay của merchant.
 });
 
 const parsed = schema
   .superRefine((e, ctx) => {
-    if (e.MOMO_MODE !== 'live') return;
-    for (const k of ['MOMO_PARTNER_CODE', 'MOMO_ACCESS_KEY', 'MOMO_SECRET_KEY'] as const) {
-      if (!e[k]) ctx.addIssue({ code: 'custom', path: [k], message: `${k} bắt buộc khi MOMO_MODE=live` });
+    if (e.VNPAY_MODE !== 'live') return;
+    for (const k of ['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET'] as const) {
+      if (!e[k]) ctx.addIssue({ code: 'custom', path: [k], message: `${k} bắt buộc khi VNPAY_MODE=live` });
     }
   })
   .parse(process.env);

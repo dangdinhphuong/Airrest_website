@@ -16,9 +16,9 @@ Airrest_website/
 │   └── api-client/          khung, chưa viết (FE chưa gọi API thật)
 ├── backend/                 xem backend/README.md
 │   ├── api/                 Express: app, server, middleware, router, Socket.io
-│   ├── services/            nghiệp vụ: bookings, payments (MoMo), audit, authz, cấu hình
+│   ├── services/            nghiệp vụ: bookings, payments (VNPay), audit, authz, cấu hình
 │   ├── database/            Postgres/Supabase: pool + transaction, migrations SQL, types, seed
-│   ├── config/  lib/        env/quyền/vai trò · tiện ích hạ tầng (jwt, crypto, momo...)
+│   ├── config/  lib/        env/quyền/vai trò · tiện ích hạ tầng (jwt, crypto, vnpay...)
 │   └── tests/
 ├── docker-compose.yml       api + web (+ Postgres local qua profile `local`)
 └── package.json             workspaces: apps/*, packages/*, backend

@@ -4,7 +4,7 @@ services:
   - type: web
     name: airrest-api
     runtime: node
-    plan: free # free: ngủ sau ~15 phút không có request -> IPN MoMo có thể trễ; dùng gói trả phí khi chạy thật
+    plan: free # free: ngủ sau ~15 phút không có request -> IPN VNPay có thể trễ; dùng gói trả phí khi chạy thật
     buildCommand: npm ci && npm run db:migrate -w @airrest/backend # áp schema mỗi lần deploy (chạy lại an toàn)
     startCommand: npm run start -w @airrest/backend
     healthCheckPath: /health
@@ -15,13 +15,17 @@ services:
       - { key: JWT_SECRET, generateValue: true }
       - { key: DATA_ENC_KEY, generateValue: true } # đừng đổi sau khi đã có dữ liệu mã hóa
       - { key: CORS_ORIGINS, sync: false } # URL của airrest-web, ví dụ https://airrest-web.onrender.com
-      - { key: MOMO_ENABLED, value: "false" }
-      - { key: MOMO_MODE, value: mock }
-      - { key: MOMO_PARTNER_CODE, sync: false }
-      - { key: MOMO_ACCESS_KEY, sync: false }
-      - { key: MOMO_SECRET_KEY, sync: false }
-      - { key: MOMO_IPN_URL, sync: false } # https://<airrest-api>.onrender.com/v1/payments/momo/ipn
-      - { key: MOMO_REDIRECT_URL, sync: false } # https://<airrest-web>.onrender.com/payment/result
+      - { key: R2_ACCOUNT_ID, sync: false }
+      - { key: R2_ACCESS_KEY_ID, sync: false }
+      - { key: R2_SECRET_ACCESS_KEY, sync: false }
+      - { key: R2_BUCKET, sync: false }
+      - { key: R2_PUBLIC_BASE_URL, sync: false }
+      - { key: VNPAY_ENABLED, value: "false" }
+      - { key: VNPAY_MODE, value: mock }
+      - { key: VNPAY_TMN_CODE, sync: false }
+      - { key: VNPAY_HASH_SECRET, sync: false }
+      - { key: VNPAY_RETURN_URL, sync: false } # https://<airrest-web>.onrender.com/payment/result
+      # IPN URL khai báo trên cổng VNPay merchant: https://<airrest-api>.onrender.com/v1/payments/vnpay/ipn
 
   - type: web
     name: airrest-web
