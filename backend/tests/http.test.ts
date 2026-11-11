@@ -1,9 +1,9 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { createApp } from '../src/app';
-import { signGuestToken } from '../src/lib/jwt';
+import { createApp } from '../api/app';
+import { signGuestToken } from '../lib/jwt';
 
-// Các test này không cần MongoDB: chỉ đi qua middleware (xác thực, quyền, validate, lỗi).
+// Các test này không cần DB: chỉ đi qua middleware (xác thực, quyền, validate, lỗi).
 const app = createApp();
 
 describe('middleware HTTP', () => {
@@ -47,8 +47,8 @@ describe('middleware HTTP', () => {
     const res = await request(app)
       .post('/v1/bookings')
       .send({
-        hotelId: '650000000000000000000001',
-        roomTypeId: '650000000000000000000002',
+        hotelId: '65000000-0000-4000-8000-000000000001',
+        roomTypeId: '65000000-0000-4000-8000-000000000002',
         from: new Date(Date.now() + 86400_000).toISOString(),
         to: new Date(Date.now() + 2 * 86400_000).toISOString(),
         guest: { fullName: 'Nguyễn Văn A', phone: '0912345678' },

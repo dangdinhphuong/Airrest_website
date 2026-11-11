@@ -3,15 +3,24 @@
     "target": "ES2022",
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "lib": ["ES2023"],
-    "outDir": "dist",
-    "rootDir": ".",
+    "lib": [
+      "ES2023"
+    ],
+    "rootDir": "..",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "sourceMap": true
+    "noEmit": true
   },
-  "include": ["src", "tests"]
+  "include": [
+    "api",
+    "services",
+    "database",
+    "config",
+    "lib",
+    "tests",
+    "../packages/*/src"
+  ]
 }

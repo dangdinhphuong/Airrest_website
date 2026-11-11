@@ -2,16 +2,18 @@
   "name": "airrest",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "backend"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build"
-  },
-  "dependencies": {
-    "leaflet": "^1.9.4",
-    "lucide-react": "^0.468.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "vite": "^6.0.5"
+    "dev:web": "npm run dev -w @airrest/web",
+    "dev:api": "npm run dev -w @airrest/backend",
+    "build:web": "npm run build -w @airrest/web",
+    "typecheck": "npm run typecheck -w @airrest/backend",
+    "test": "npm test -w @airrest/backend",
+    "test:db": "npm run test:db -w @airrest/backend",
+    "db:seed": "npm run db:seed -w @airrest/backend"
   }
 }

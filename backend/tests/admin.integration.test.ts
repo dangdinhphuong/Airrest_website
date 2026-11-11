@@ -1,17 +1,12 @@
-import { ObjectId } from 'mongodb';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createApp } from '../src/app';
-import { ADMIN_ROLES, type AdminRoleKey } from '../src/config/roles';
-import { col } from '../src/db/collections';
-import { ensureIndexes } from '../src/db/indexes';
-import { closeMongo, connectMongo, db } from '../src/db/mongo';
-import { decryptJson } from '../src/lib/crypto';
-import { signAccountToken } from '../src/lib/jwt';
-import { hashPassword } from '../src/lib/password';
-import { ensureSystemRoles } from '../src/lib/systemRoles';
+import { createApp } from '../api/app';
+import { ADMIN_ROLES, type AdminRoleKey } from '../config/roles';
+import { decryptJson } from '../lib/crypto';
+import { signAccountToken } from '../lib/jwt';
+import { closeDb, count, freshDb, mkAccount, mkRoomType, one, db, systemRoleId } from './support/db';
 
-// Cần MongoDB replica set: `npm run test:db`.
+// Cần Postgres: `npm run test:db` tự bật Postgres nhúng.
 const run = process.env.RUN_DB_TESTS ? describe : describe.skip;
 
 run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', () => {
@@ -22,13 +17,7 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
   let hotelId = '';
 
   const mkAdmin = async (k: keyof typeof tokens, role: AdminRoleKey, email: string) => {
-    const r = await col.roles().findOne({ key: role, hotelId: { $exists: false } });
-    const _id = new ObjectId();
-    await col.accounts().insertOne({
-      _id, type: 'ADMIN', email, passwordHash: await hashPassword('Pass12345678!'), fullName: `Admin ${k}`,
-      status: 'ACTIVE', adminRole: role, roleIds: [r!._id], createdAt: new Date(), updatedAt: new Date(),
-    });
-    ids[k] = _id.toHexString();
+    ids[k] = await mkAccount({ type: 'ADMIN', email, roleIds: [await systemRoleId(role)], adminRole: role });
     tokens[k] = signAccountToken({ sub: ids[k], accountType: 'ADMIN' });
   };
 
@@ -41,17 +30,14 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
   });
 
   beforeAll(async () => {
-    await connectMongo();
-    await db().dropDatabase();
-    await ensureIndexes();
-    await ensureSystemRoles();
+    await freshDb({ roles: true });
     await mkAdmin('A', 'SYSADMIN', 'a@airrest.vn');
     await mkAdmin('B', 'SYSADMIN', 'b@airrest.vn');
     await mkAdmin('FIN', 'FINANCE', 'fin@airrest.vn');
     await mkAdmin('SUP', 'SUPPORT', 'sup@airrest.vn');
     await mkAdmin('OPS', 'OPS', 'ops@airrest.vn');
   });
-  afterAll(async () => closeMongo());
+  afterAll(async () => closeDb());
 
   describe('ADM-13 tài khoản Admin', () => {
     it('thiếu quyền -> 403; không token -> 401', async () => {
@@ -69,7 +55,7 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
       expect(login.status).toBe(200);
       expect(login.body.account.permissions).toEqual(expect.arrayContaining(ADMIN_ROLES.OPS.permissions));
       expect((await request(app).post('/v1/admin/accounts').set(auth('A')).send(body)).status).toBe(409);
-      expect(await col.auditLogs().countDocuments({ action: 'ACCOUNT.CREATE' })).toBe(1);
+      expect(await count('audit_logs', "action = 'ACCOUNT.CREATE'")).toBe(1);
     });
 
     it('validate: mật khẩu ngắn / vai trò lạ -> 422', async () => {
@@ -103,8 +89,7 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
     it('đổi vai trò: roleIds theo vai trò mới; liệt kê + lọc', async () => {
       const upd = await request(app).patch(`/v1/admin/accounts/${ids.OPS}`).set(auth('A')).send({ adminRole: 'SUPPORT' });
       expect(upd.status).toBe(200);
-      const acc = await col.accounts().findOne({ _id: new ObjectId(ids.OPS) });
-      const role = await col.roles().findOne({ _id: acc!.roleIds[0] });
+      const role = await one<{ key: string }>('SELECT r.key FROM accounts a JOIN roles r ON r.id = a.role_ids[1] WHERE a.id = $1', [ids.OPS]);
       expect(role!.key).toBe('SUPPORT');
       // OPS không có audit:read, SUPPORT có -> đổi vai trò có hiệu lực ngay, không cần đăng nhập lại.
       expect((await request(app).get('/v1/admin/audit-logs').set(auth('OPS'))).status).toBe(200);
@@ -119,7 +104,7 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
       const r = await request(app).post(`/v1/admin/accounts/${ids.SUP}/reset-password`).set(auth('A')).send({ password: 'MatKhauMoi5678!' });
       expect(r.status).toBe(204);
       expect((await request(app).post('/v1/auth/login').send({ email: 'sup@airrest.vn', password: 'MatKhauMoi5678!' })).status).toBe(200);
-      const log = await col.auditLogs().findOne({ action: 'ACCOUNT.RESET_PASSWORD' });
+      const log = await one("SELECT * FROM audit_logs WHERE action = 'ACCOUNT.RESET_PASSWORD'");
       expect(JSON.stringify(log)).not.toContain('MatKhauMoi');
     });
   });
@@ -170,7 +155,7 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
       expect(res.status).toBe(201);
       expect(res.body.hotel.status).toBe('PENDING_APPROVAL');
       expect(res.body.hotel.airports[0].iata).toBe('HAN');
-      hotelId = res.body.hotel._id;
+      hotelId = res.body.hotel.id;
 
       const loginBefore = await request(app).post('/v1/auth/login').send({ email: 'chu@kstest.vn', password: 'OwnerPass12345!' });
       expect(loginBefore.status).toBe(401);
@@ -187,7 +172,7 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
       expect(dupCode.body.error.code).toBe('HOTEL_CODE_EXISTS');
       const dupMail = await request(app).post('/v1/admin/hotels').set(auth('A')).send(hotelBody('HAN-T02', 'chu@kstest.vn'));
       expect(dupMail.body.error.code).toBe('EMAIL_EXISTS');
-      expect(await col.hotels().countDocuments({ code: 'HAN-T02' })).toBe(0); // transaction hoàn tác
+      expect(await count('hotels', "code = 'HAN-T02'")).toBe(0); // transaction hoàn tác
       expect((await request(app).post('/v1/admin/hotels').set(auth('FIN')).send(hotelBody('HAN-T03', 'x@kstest.vn'))).status).toBe(403);
     });
 
@@ -228,8 +213,8 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
       expect(put.body.hotel.payoutAccount.pendingChange.labelMasked).toBe('TK ****6789');
       expect(JSON.stringify(put.body)).not.toMatch(/0123456789|detailsEnc/);
 
-      const raw = await col.hotels().findOne({ _id: new ObjectId(hotelId) });
-      const enc = raw!.payoutAccount!.pendingChange!.detailsEnc;
+      const raw = await one<{ payoutAccount: { pendingChange: { detailsEnc: string } } }>('SELECT payout_account FROM hotels WHERE id = $1', [hotelId]);
+      const enc = raw!.payoutAccount.pendingChange.detailsEnc;
       expect(enc).not.toContain('0123456789');
       expect(decryptJson(enc)).toMatchObject({ accountNo: '0123456789', bankCode: 'VCB' });
 
@@ -247,7 +232,7 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
       expect(ok.body.hotel.payoutAccount).toMatchObject({ type: 'BANK', labelMasked: 'TK ****6789' });
       expect(ok.body.hotel.payoutAccount.pendingChange).toBeUndefined();
       expect((await request(app).post(`/v1/admin/hotels/${hotelId}/payout-account/approve`).set(auth('FIN'))).body.error.code).toBe('NO_PENDING_CHANGE');
-      const logs = await col.auditLogs().find({ action: /^HOTEL\.PAYOUT/ }).toArray();
+      const logs = (await db.query<{ action: string }>("SELECT * FROM audit_logs WHERE action LIKE 'HOTEL.PAYOUT%'")).rows;
       expect(logs.map((l) => l.action).sort()).toEqual(['HOTEL.PAYOUT_ACCOUNT.CHANGE', 'HOTEL.PAYOUT_ACCOUNT.REQUEST']);
       expect(JSON.stringify(logs)).not.toContain('0123456789');
     });
@@ -263,25 +248,24 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
 
   describe('ADM-08 thống kê khách sạn + khóa giá theo cấu hình', () => {
     it('đơn dùng phí dịch vụ theo cấu hình hiện hành và lưu số phiên bản', async () => {
-      const rt = new ObjectId();
-      await col.roomTypes().insertOne({ _id: rt, hotelId: new ObjectId(hotelId), name: 'Deluxe', totalRooms: 3, pricing: { baseNightVnd: 600_000 }, active: true });
+      const rt = await mkRoomType(hotelId, 3);
       const put = await request(app).put('/v1/admin/configs/pricing.serviceFee').set(auth('A')).send({ value: { bps: 300, minVnd: 10000, roundToVnd: 1000 }, reason: 'Thử nghiệm 3%' });
       expect(put.status).toBe(201);
       const from = new Date(Date.now() + 2 * 86400_000);
       const bk = await request(app).post('/v1/bookings').set('Idempotency-Key', 'adm-stat-0001').send({
-        hotelId, roomTypeId: rt.toHexString(), from: from.toISOString(), to: new Date(from.getTime() + 86400_000).toISOString(),
+        hotelId, roomTypeId: rt, from: from.toISOString(), to: new Date(from.getTime() + 86400_000).toISOString(),
         guest: { fullName: 'Nguyễn Văn A', phone: '0912345678' },
       });
       expect(bk.status).toBe(201);
       expect(bk.body.booking.pricing.serviceFeeVnd).toBe(18_000); // 3% × 600.000
-      const saved = await col.bookings().findOne({ code: bk.body.booking.code });
+      const saved = await one<{ pricing: { params: unknown } }>('SELECT pricing FROM bookings WHERE code = $1', [bk.body.booking.code]);
       expect(saved!.pricing.params).toEqual({ configVersions: { serviceFee: put.body.version } });
 
       // Thêm một khách đang ở (CHECKED_IN) để thấy phòng có khách.
-      await col.roomReservations().insertOne({
-        _id: new ObjectId(), hotelId: new ObjectId(hotelId), roomTypeId: rt, kind: 'BOOKING', qty: 1,
-        from: new Date(Date.now() - 3600_000), to: new Date(Date.now() + 3600_000), state: 'CHECKED_IN', createdAt: new Date(), updatedAt: new Date(),
-      });
+      await db.query(
+        "INSERT INTO room_reservations (id, hotel_id, room_type_id, kind, qty, starts_at, ends_at, state) VALUES (gen_random_uuid(), $1, $2, 'BOOKING', 1, $3, $4, 'CHECKED_IN')",
+        [hotelId, rt, new Date(Date.now() - 3600_000), new Date(Date.now() + 3600_000)],
+      );
       const stats = await request(app)
         .get(`/v1/admin/hotels/${hotelId}/stats`).query({ from: new Date().toISOString(), to: new Date(Date.now() + 10 * 86400_000).toISOString() })
         .set(auth('FIN'));
@@ -311,9 +295,9 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
       const p1 = await request(app).get('/v1/admin/audit-logs?limit=5').set(auth('A'));
       expect(p1.body.items).toHaveLength(5);
       const p2 = await request(app).get(`/v1/admin/audit-logs?limit=5&cursor=${p1.body.nextCursor}`).set(auth('A'));
-      const ids1 = p1.body.items.map((i: { _id: string }) => i._id);
-      expect(p2.body.items.map((i: { _id: string }) => i._id)).toEqual(all.body.items.slice(5, 10).map((i: { _id: string }) => i._id));
-      expect(p2.body.items.some((i: { _id: string }) => ids1.includes(i._id))).toBe(false);
+      const ids1 = p1.body.items.map((i: { id: number }) => i.id);
+      expect(p2.body.items.map((i: { id: number }) => i.id)).toEqual(all.body.items.slice(5, 10).map((i: { id: number }) => i.id));
+      expect(p2.body.items.some((i: { id: number }) => ids1.includes(i.id))).toBe(false);
     });
 
     it('con trỏ hỏng / entityId thiếu entityType -> 422', async () => {

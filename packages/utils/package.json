@@ -1,0 +1,8 @@
+{
+  "name": "@airrest/utils",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Hàm tiện ích thuần, chạy được ở cả FE và BE",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}

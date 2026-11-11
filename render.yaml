@@ -1,0 +1,32 @@
+# Render Blueprint: New + -> Blueprint, chọn repo này. Giả định Airrest_website/ là GỐC của repo
+# (nếu nằm trong repo lớn hơn, đặt rootDir cho từng service).
+services:
+  - type: web
+    name: airrest-api
+    runtime: node
+    plan: free # free: ngủ sau ~15 phút không có request -> IPN MoMo có thể trễ; dùng gói trả phí khi chạy thật
+    buildCommand: npm ci && npm run db:migrate -w @airrest/backend # áp schema mỗi lần deploy (chạy lại an toàn)
+    startCommand: npm run start -w @airrest/backend
+    healthCheckPath: /health
+    envVars:
+      - { key: NODE_VERSION, value: "22" }
+      - { key: NODE_ENV, value: production }
+      - { key: DATABASE_URL, sync: false } # Supabase Session pooler, tự dán trên dashboard
+      - { key: JWT_SECRET, generateValue: true }
+      - { key: DATA_ENC_KEY, generateValue: true } # đừng đổi sau khi đã có dữ liệu mã hóa
+      - { key: CORS_ORIGINS, sync: false } # URL của airrest-web, ví dụ https://airrest-web.onrender.com
+      - { key: MOMO_ENABLED, value: "false" }
+      - { key: MOMO_MODE, value: mock }
+      - { key: MOMO_PARTNER_CODE, sync: false }
+      - { key: MOMO_ACCESS_KEY, sync: false }
+      - { key: MOMO_SECRET_KEY, sync: false }
+      - { key: MOMO_IPN_URL, sync: false } # https://<airrest-api>.onrender.com/v1/payments/momo/ipn
+      - { key: MOMO_REDIRECT_URL, sync: false } # https://<airrest-web>.onrender.com/payment/result
+
+  - type: web
+    name: airrest-web
+    runtime: static
+    buildCommand: npm ci && npm run build -w @airrest/web
+    staticPublishPath: apps/web/dist
+    routes:
+      - { type: rewrite, source: /*, destination: /index.html } # SPA

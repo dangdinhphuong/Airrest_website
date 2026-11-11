@@ -1,0 +1,67 @@
+BỘ TÀI LIỆU THỰC TẬP – CNT421
+Đề tài: Nghiên cứu và thiết kế UI/UX cho website hỗ trợ lưu trú khẩn cấp cho hành khách khi chuyến bay bị chậm hoặc huỷ
+Đơn vị: Công ty CP công nghệ và truyền thông VTC Netviet
+Soạn ngày 08/10/2026 – v1.4 (11/10/2026: sửa theo góp ý lần 2 – B02 hành trình lưu trú, A08 bộ dữ liệu 70 cơ sở HAN/SGN, B04 15 UC + DFD mức 1 tự đặt + 20 kịch bản kiểm thử, 30 nguồn cốt lõi, kế hoạch 80 trang) – chờ GVHD duyệt
+
+CẤU TRÚC THƯ MỤC
+GiaiDoan_A_KhamPha_ThuThap/
+  A02_29-09  Rà tài liệu, lập khung báo cáo      – 107 nguồn (tác giả, năm, liên kết, nội dung sử dụng, mức xác minh), khung báo cáo, 10 điểm cần kiểm chứng
+  A03_30-09  Hoàn thiện công cụ nghiên cứu        – bảng hỏi 35 câu có mã biến + rẽ nhánh (có nhánh không cần lưu trú), kịch bản PV, mẫu đồng ý; gắn RQ1–RQ2
+  A05_02-10  Phân tích sản phẩm liên quan        – ma trận 7 sản phẩm × 6 tiêu chí, 16 minh chứng có link, khoảng trống G1–G7
+  A05_chup_minh_chung.py → minh_chung_A05/     – chụp tự động 14 ảnh minh chứng web (Edge headless) + nhật ký A05_nhat_ky_chup.csv; A05_chen_anh.py chèn vào A05 mục 4.1
+  A06_03-10  Tổng hợp, chuẩn hoá số liệu thứ cấp – (file: A06_03-10_Tong-hop-chuan-hoa-so-lieu-thu-cap.docx) 23 nguồn khảo sát/số liệu thứ cấp (dữ liệu gốc + sạch n/N, KTC95%; D23 = CAA Anh 2025, N=3.500), nhật ký loại 13 nguồn; quy trình khảo sát sơ cấp (giai đoạn 2)
+  A06_lam_sach_khao_sat.py                      – script làm sạch tự động (Python 3 thuần, KHÔNG cần pandas); đọc thẳng CSV xuất từ Google Forms, ra dữ liệu sạch + nhật ký loại L1–L7 + luồng mẫu
+  A03_tao_google_form.gs                        – Google Apps Script dựng Google Form bảng hỏi A03 (dán vào script.google.com → Run)
+  A08_11-10  Bộ dữ liệu cơ sở lưu trú       – (file A08_11-10_Du-lieu-co-so-luu-tru-HAN-SGN.docx, tao_A08.py) 70 cơ sở quanh HAN/SGN, dữ liệu quan sát sơ cấp 11/10/2026: hộp minh bạch, thống kê, bảng, hàm ý
+  A07_04-10  Phân tích ca gián đoạn (thứ cấp)   – (file: A07_04-10_Phan-tich-ca-gian-doan-tu-nguon-thu-cap.docx) 16 phiếu phân tích trường hợp từ báo chí, trích dẫn nguyên văn, ma trận lặp lại chủ đề
+A03_so_ma_bien.py                               – sổ mã biến bảng hỏi A03 dùng chung cho hai script (sửa câu hỏi/phương án ở đây trước)
+GiaiDoan_B_PhanTich_YeuCau/
+  B01_06-10  Phân tích dữ liệu nghiên cứu        – thống kê n/N, 6 chủ đề + trích dẫn, tam giác hoá, nhu cầu N01–N12 đã đối chiếu, 10 tiêu chí chọn nơi nghỉ, 3 persona
+  B01_thong_ke_khao_sat.py                      – script thống kê n/N + khoảng tin cậy Wilson 95% (Python 3 thuần); ra bảng markdown dán vào B01, CSV dạng dài, bảng Likert F1, danh sách câu mở
+  B00_10-10  Biên bản chốt phạm vi             – (file B00_10-10_Bien-ban-chot-pham-vi.docx) mẫu biên bản họp chốt địa bàn, hai luồng, dữ liệu mô phỏng; chờ chữ ký GVHD
+  B02_11-10  Hành trình lưu trú khẩn cấp     – (file B02_11-10_Hanh-trinh-luu-tru-khan-cap.docx) trọng tâm mới: 4 chặng, 13 điểm bối cảnh VN, đặc thù HAN/SGN, 2 kịch bản theo giờ, hộp minh bạch dữ liệu (tao_B02.py)
+  B03_07-10  Chốt yêu cầu và MVP                 – FR-01…20, NFR-01…08 (mã, MoSCoW, Kano, căn cứ, Given–When–Then), truy vết nhu cầu → lựa chọn, MVP 9 màn hình
+  B04_10-10  Mô hình hoá hệ thống (v1.1)       – đủ 15 đặc tả UC, DFD mức 1 cho CẢ HAI luồng, sơ đồ không cắt nhau, truy vết có cột dữ liệu/API + kết quả kiểm thử, 20 kịch bản kiểm thử
+  (cũ)                    – (file B04_10-10_Mo-hinh-hoa-he-thong.docx) Use Case + 10 đặc tả, BFD 8 nhóm, DFD ngữ cảnh/mức 0/mức 1 (6.0), yêu cầu dữ liệu, ma trận truy vết (+ B04_ma_tran_truy_vet.xlsx)
+  tao_so_do_B04.py → hinh/                      – vẽ 5 sơ đồ PNG bằng matplotlib; tao_B04.py dựng B04 và B00 từ khuôn B03
+GiaiDoan_R_VietBaoCao/
+  R00_11-10  Kế hoạch 80 trang               – ngân sách trang theo chương, nội dung đưa phụ lục, việc cắt gọn
+  R01_09-10  Viết nền tảng và phương pháp        – Chương 1 + Chương 2 (bản thảo) + tài liệu tham khảo APA 7
+
+DuLieu_ThuCap/
+  CAA_AviationConsumerSurvey2025_W14_tables.xlsx – file gốc 160 bảng của UK CAA/Savanta (N=3.500, 09–10/2025) – nguồn D23
+  trich_xuat_CAA_W14.py → CAA_W14_trich_xuat.md/.csv – 14 bảng về gián đoạn, quyền lợi, kênh thông báo (n/N + KTC Wilson)
+  luu_tru/A08_luu_tru_sach.csv/.xlsx + A08_thong_ke.md – BỘ DỮ LIỆU 70 cơ sở lưu trú quanh Nội Bài & Tân Sơn Nhất (Booking.com, 11/10/2026): giá đêm, km, giờ nhận phòng, lễ tân 24/24, đưa đón, huỷ miễn phí, trả tại chỗ; nhật ký làm sạch
+  A08_thu_thap_luu_tru_v2.py, A08_bo_sung_truong.py, A08_lam_sach_luu_tru.py – script thu thập (Edge headless) và làm sạch; dữ liệu thô đã xoá, chạy lại script nếu cần thu thập mới
+  tien_ich_docx.py                               – hàm dùng chung để dựng/sửa docx (dùng bởi tao_A08.py, tao_B02.py, tao_B04.py)
+  (chờ tải) ZA8840_v1-0-0.dta                    – Eurobarometer 100.3 (N=26.587) từ GESIS; phân tích bằng GiaiDoan_B_PhanTich_YeuCau/B01_phan_tich_ZA8840.py
+
+ĐÃ SỬA THEO BÁO CÁO ĐÁNH GIÁ (10/10/2026) – P0: đổi tên/nội dung A06, A07; thuật ngữ phiếu phân tích trường hợp, mức độ lặp lại chủ đề;
+  chú thích tần suất x/13 không suy rộng; proto-persona; B03 bỏ Đà Nẵng, Nội Bài chính + TSN bổ sung, luồng hãng hỗ trợ FR-21…24 + mục 6.4,
+  nhãn dữ liệu mô phỏng, bỏ thu SĐT; R01 tách đã thực hiện / chưa thực hiện; A05 rubric 0–1–2; tên SV + trạng thái phiên bản mọi file.
+
+PHẢI LÀM TRƯỚC KHI NỘP
+1. Điền MSSV, email sinh viên, họ tên + email GVHD (A03 mục 5, trang đầu mỗi file); ghi người rà soát và kết luận duyệt.
+2. Dữ liệu người dùng trong bản này là DỮ LIỆU THỨ CẤP CÓ NGUỒN (khảo sát đã công bố + ca thực tế trên báo), đã ghi rõ trong báo cáo.
+   Khi làm khảo sát/phỏng vấn thật (giai đoạn 2):
+     python GiaiDoan_A_KhamPha_ThuThap/A06_lam_sach_khao_sat.py du_lieu_goc.csv --ngay-mo YYYY-MM-DD
+     python GiaiDoan_B_PhanTich_YeuCau/B01_thong_ke_khao_sat.py A06_du_lieu_sach.csv
+   (cả hai chỉ cần Python 3, không cần cài thêm thư viện; chạy từ thư mục BTHQUAN)
+3. A05: 14 ảnh web đã chèn (mục 4.1); chụp tay thêm Traveloka, United, KLM và ảnh trong app nếu cần.
+4. Kiểm chứng các điểm đánh dấu † (R01) / mục 6 (A02): toàn văn Nghị định 208/2026, hiệu lực Thông tư 36/2014 sau 01/7/2026.
+
+LƯU Ý PHÁP LÝ QUAN TRỌNG
+Từ 01/7/2026: Luật HKDD 2025 (130/2025/QH15), NĐ 208/2026/NĐ-CP, TT 48/2026/TT-BXD có hiệu lực; TT 81/2014, TT 14/2015 đã bị bãi bỏ.
+Từ 01/01/2026: Luật BVDLCN 91/2025/QH15 + NĐ 356/2025/NĐ-CP thay NĐ 13/2023/NĐ-CP. Không trích văn bản cũ như văn bản còn hiệu lực.
+
+CÒN LẠI THEO KẾ HOẠCH HÀNH ĐỘNG (chưa làm được bằng tài liệu):
+  P0 Pilot bảng hỏi (3 người) + 1 phỏng vấn thử; khảo sát ≥30 phản hồi (Google Form từ A03_tao_google_form.gs); phỏng vấn ≥5 phiên.
+  P0 Biên bản chốt phạm vi có chữ ký GVHD (Nội Bài chính, TSN bổ sung, dữ liệu mô phỏng).
+  P1 Ảnh minh chứng A05: ĐÃ chụp tự động 14/18 trang web (10/10/2026, mục 4.1). Còn thiếu: Traveloka (chặn bot), United (Cloudflare), KLM (không render), ảnh trong app điện thoại → SV chụp tay nếu GVHD yêu cầu.
+  ĐÃ LÀM 10/10/2026: B04 (Use Case, BFD, DFD, yêu cầu dữ liệu, truy vết); B00 biên bản chốt phạm vi (chờ ký); NĐ 208/2026 đã đối chiếu số Điều 36–40 (số khoản chờ bản có lớp chữ).
+
+GÓP Ý LẦN 2 (11/10/2026) – ĐÃ XỬ LÝ BẰNG TÀI LIỆU:
+  • Trọng tâm hành trình lưu trú + 13 điểm bối cảnh VN + đặc thù HAN/SGN → B02; A08 bộ dữ liệu 70 cơ sở (yêu cầu 30–45).
+  • 15 đặc tả Use Case; DFD mức 1 luồng tự đặt; sơ đồ vẽ lại không cắt nhau; truy vết thêm cột dữ liệu/API và kết quả kiểm thử; 20 kịch bản kiểm thử → B04 v1.1.
+  • 30 nguồn cốt lõi, gộp bài cùng sự kiện → A02 mục 3.0; hộp minh bạch dữ liệu → A06, A07, B01, B02; định vị lại → R01 1.7; kế hoạch 80 trang → R00.
+CHƯA XỬ LÝ ĐƯỢC BẰNG TÀI LIỆU (cần người thật): khảo sát 50–80 phản hồi (≥20–30 người từng bị chậm/huỷ tại VN); phỏng vấn 6–10 người; kết quả kiểm thử prototype (cột Kết quả trong truy vết để trống có chủ ý); gọi xác minh giờ lễ tân với 10 cơ sở mẫu.

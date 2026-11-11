@@ -1,0 +1,10 @@
+{
+  "description": "Streamline project bootstrapping by verifying setups and managing deployment previews, ensuring critical issues are flagged for efficient project initiation.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

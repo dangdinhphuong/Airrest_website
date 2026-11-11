@@ -1,11 +1,12 @@
+import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { CONFIG_KEYS } from '../src/config/configKeys';
-import { decryptJson, encryptJson } from '../src/lib/crypto';
-import { generateBookingCode } from '../src/lib/codes';
-import { canBook, isActive, maxConcurrent, type Interval } from '../src/lib/inventory';
-import { serviceFee } from '../src/lib/money';
-import { hashPassword, verifyPassword } from '../src/lib/password';
-import { toE164VN } from '../src/lib/phone';
+import { CONFIG_KEYS } from '../config/configKeys';
+import { decryptJson, encryptJson } from '../lib/crypto';
+import { generateBookingCode } from '../lib/codes';
+import { canBook, isActive, maxConcurrent, serviceFee, type Interval } from '@airrest/business-logic';
+import { buildMomoIpn, momoKeys, signMomo, verifyMomoIpn } from '../lib/momo';
+import { hashPassword, verifyPassword } from '../lib/password';
+import { toE164VN } from '@airrest/utils';
 
 const H = 3600_000;
 const t = (h: number) => new Date(Date.UTC(2026, 10, 10) + h * H);
@@ -39,8 +40,8 @@ describe('tồn phòng (sweep-line)', () => {
 
 describe('tiện ích', () => {
   it('phí dịch vụ: 2%, làm tròn 1.000, tối thiểu 10.000 (BA §4.2: 820.000 -> 16.000)', () => {
-    expect(serviceFee(820_000)).toBe(16_000);
-    expect(serviceFee(100_000)).toBe(10_000);
+    expect(serviceFee(820_000, CONFIG_KEYS['pricing.serviceFee'].default)).toBe(16_000);
+    expect(serviceFee(100_000, CONFIG_KEYS['pricing.serviceFee'].default)).toBe(10_000);
   });
 
   it('chuẩn hóa SĐT E.164', () => {
@@ -79,5 +80,21 @@ describe('cấu hình + mã hóa', () => {
     const tampered = Buffer.from(a, 'base64');
     tampered[tampered.length - 1] = tampered[tampered.length - 1]! ^ 1;
     expect(() => decryptJson(tampered.toString('base64'))).toThrow();
+  });
+});
+
+describe('MoMo: chữ ký', () => {
+  it('create: chuỗi ký xếp A→Z đúng mẫu MoMo, HMAC-SHA256 hex', () => {
+    const p = { accessKey: momoKeys.accessKey, amount: '50000', extraData: '', ipnUrl: 'https://cb/notify', orderId: 'O1', orderInfo: 'pay with MoMo', partnerCode: momoKeys.partnerCode, redirectUrl: 'https://momo.vn/return', requestId: 'O1', requestType: 'captureWallet' };
+    const raw = `accessKey=${p.accessKey}&amount=50000&extraData=&ipnUrl=https://cb/notify&orderId=O1&orderInfo=pay with MoMo&partnerCode=${p.partnerCode}&redirectUrl=https://momo.vn/return&requestId=O1&requestType=captureWallet`;
+    expect(signMomo('create', p)).toBe(createHmac('sha256', momoKeys.secretKey).update(raw).digest('hex'));
+  });
+
+  it('IPN: gói do mình ký thì hợp lệ; sửa số tiền hoặc chữ ký thì bị từ chối', () => {
+    const ipn = buildMomoIpn({ orderId: 'O1', requestId: 'O1', amount: 836000, transId: 1, resultCode: 0 });
+    expect(verifyMomoIpn(ipn)).toBe(true);
+    expect(verifyMomoIpn({ ...ipn, amount: 1000 })).toBe(false);
+    expect(verifyMomoIpn({ ...ipn, signature: 'abc' })).toBe(false);
+    expect(verifyMomoIpn({ ...ipn, signature: undefined })).toBe(false);
   });
 });

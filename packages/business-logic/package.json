@@ -1,0 +1,11 @@
+{
+  "name": "@airrest/business-logic",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Quy tắc nghiệp vụ thuần (tồn phòng, phí dịch vụ), không đụng DB",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@airrest/shared-types": "*"
+  }
+}

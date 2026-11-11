@@ -1,55 +1,40 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { ObjectId } from 'mongodb';
 import { io as ioClient } from 'socket.io-client';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createApp } from '../src/app';
-import { col } from '../src/db/collections';
-import { ensureIndexes } from '../src/db/indexes';
-import { closeMongo, connectMongo, db } from '../src/db/mongo';
-import { startBookingsStream } from '../src/realtime/changeStreams';
-import { initSocket } from '../src/realtime/socket';
-import { signAccountToken } from '../src/lib/jwt';
-import { hashPassword } from '../src/lib/password';
-import { PERM } from '../src/config/permissions';
+import { createApp } from '../api/app';
+import { startBookingsStream } from '../api/realtime/bookingFeed';
+import { initSocket } from '../api/realtime/socket';
+import { signAccountToken } from '../lib/jwt';
+import { PERM } from '../config/permissions';
+import { closeDb, count, db, freshDb, mkAccount, mkHotel, mkRoomType, one } from './support/db';
 
-// Cần MongoDB replica set đang chạy: `docker compose up -d` rồi `npm run test:db`.
+// Cần Postgres: `npm run test:db` tự bật Postgres nhúng (hoặc đặt TEST_DATABASE_URL tới DB local).
 const run = process.env.RUN_DB_TESTS ? describe : describe.skip;
 
-run('tích hợp: đặt phòng + realtime (cần MongoDB)', () => {
+run('tích hợp: đặt phòng + realtime (cần Postgres)', () => {
   const app = createApp();
   let server: Server;
   let url: string;
   let stop: () => Promise<void>;
-  let hotelId: ObjectId;
-  let roomTypeId: ObjectId;
+  let hotelId: string;
+  let roomTypeId: string;
   const from = new Date(Date.now() + 2 * 86400_000);
   const to = new Date(Date.now() + 3 * 86400_000);
   const body = (phone = '0912345678') => ({
-    hotelId: hotelId.toHexString(),
-    roomTypeId: roomTypeId.toHexString(),
+    hotelId,
+    roomTypeId,
     from: from.toISOString(),
     to: to.toISOString(),
     guest: { fullName: 'Nguyễn Văn A', phone },
   });
 
   beforeAll(async () => {
-    await connectMongo();
-    await db().dropDatabase();
-    await ensureIndexes();
-    const now = new Date();
-    hotelId = new ObjectId();
-    roomTypeId = new ObjectId();
-    await col.hotels().insertOne({
-      _id: hotelId, code: 'T1', name: 'KS Test', status: 'ACTIVE',
-      location: { type: 'Point', coordinates: [105.8, 21.2] },
-      airports: [{ iata: 'HAN', km: 5, minutes: 10 }], amenities: [],
-      policy: { cancellationTemplate: 'FLEXIBLE', cleaningBufferMin: 0 }, approval: { manual: false },
-      rating: { avg: 0, count: 0 }, createdAt: now, updatedAt: now,
-    });
+    await freshDb();
+    hotelId = await mkHotel({ code: 'T1', name: 'KS Test' });
     // CHỈ 1 phòng -> dùng để thử tranh chấp phòng cuối.
-    await col.roomTypes().insertOne({ _id: roomTypeId, hotelId, name: 'Deluxe', totalRooms: 1, pricing: { baseNightVnd: 600_000 }, active: true });
+    roomTypeId = await mkRoomType(hotelId, 1);
     server = createServer(app);
     initSocket(server);
     stop = startBookingsStream();
@@ -60,7 +45,7 @@ run('tích hợp: đặt phòng + realtime (cần MongoDB)', () => {
   afterAll(async () => {
     await stop?.();
     await new Promise((r) => server?.close(r));
-    await closeMongo();
+    await closeDb();
   });
 
   it('hai khách đặt đồng thời phòng cuối: đúng 1 thành công, 1 SOLD_OUT', async () => {
@@ -72,14 +57,14 @@ run('tích hợp: đặt phòng + realtime (cần MongoDB)', () => {
     expect(statuses).toEqual([201, 409]);
     const loser = a.status === 409 ? a : b;
     expect(loser.body.error.code).toBe('SOLD_OUT');
-    expect(await col.bookings().countDocuments()).toBe(1);
-    expect(await col.roomReservations().countDocuments()).toBe(1);
-    expect(await col.auditLogs().countDocuments({ action: 'BOOKING.CREATE' })).toBe(1);
+    expect(await count('bookings')).toBe(1);
+    expect(await count('room_reservations')).toBe(1);
+    expect(await count('audit_logs', "action = 'BOOKING.CREATE'")).toBe(1);
   });
 
   it('cùng Idempotency-Key + cùng body: trả lại kết quả cũ, không tạo thêm', async () => {
-    await db().collection('bookings').deleteMany({});
-    await db().collection('room_reservations').deleteMany({});
+    await db.query('DELETE FROM room_reservations');
+    await db.query('DELETE FROM bookings');
     const first = await request(app).post('/v1/bookings').set('Idempotency-Key', 'key-same-0001').send(body());
     await new Promise((r) => setTimeout(r, 200)); // chờ lưu response
     const second = await request(app).post('/v1/bookings').set('Idempotency-Key', 'key-same-0001').send(body());
@@ -87,26 +72,25 @@ run('tích hợp: đặt phòng + realtime (cần MongoDB)', () => {
     expect(second.status).toBe(201);
     expect(second.headers['idempotent-replay']).toBe('true');
     expect(second.body.booking.code).toBe(first.body.booking.code);
-    expect(await col.bookings().countDocuments()).toBe(1);
+    expect(await count('bookings')).toBe(1);
   });
 
   it('tra cứu đúng mã + SĐT; sai SĐT -> 404; giá tính ở server (phòng 600.000 + phí 12.000)', async () => {
-    const created = await col.bookings().findOne({});
-    const ok = await request(app).post('/v1/bookings/lookup').send({ code: created!.code, phone: '0912345678' });
+    const created = (await one<{ code: string }>('SELECT code FROM bookings'))!;
+    const ok = await request(app).post('/v1/bookings/lookup').send({ code: created.code, phone: '0912345678' });
     expect(ok.status).toBe(200);
     expect(ok.body.booking.pricing.totalVnd).toBe(612_000);
     expect(ok.body.guestToken).toBeTruthy();
-    const bad = await request(app).post('/v1/bookings/lookup').send({ code: created!.code, phone: '0999999999' });
+    const bad = await request(app).post('/v1/bookings/lookup').send({ code: created.code, phone: '0999999999' });
     expect(bad.status).toBe(404);
   });
 
   it('đăng nhập lễ tân -> check-in; token khách sạn khác không check-in được đơn này', async () => {
-    const roleId = new ObjectId();
-    await col.roles().insertOne({ _id: roleId, key: 'reception', name: 'LT', scope: 'HOTEL', hotelId, permissions: [PERM.BOOKING_READ, PERM.BOOKING_CHECKIN], system: true });
-    await col.accounts().insertOne({
-      _id: new ObjectId(), type: 'HOTEL', email: 'lt@test.vn', passwordHash: await hashPassword('Pass12345!'),
-      fullName: 'LT', status: 'ACTIVE', hotelId, roleIds: [roleId], createdAt: new Date(), updatedAt: new Date(),
-    });
+    const roleId = (await one<{ id: string }>(
+      "INSERT INTO roles (key, name, scope, hotel_id, permissions, system) VALUES ('reception', 'LT', 'HOTEL', $1, $2, true) RETURNING id",
+      [hotelId, [PERM.BOOKING_READ, PERM.BOOKING_CHECKIN]],
+    ))!.id;
+    await mkAccount({ type: 'HOTEL', email: 'lt@test.vn', password: 'Pass12345!', hotelId, roleIds: [roleId] });
     const login = await request(app).post('/v1/auth/login').send({ email: 'lt@test.vn', password: 'Pass12345!' });
     expect(login.status).toBe(200);
     const token = login.body.token as string;
@@ -114,15 +98,11 @@ run('tích hợp: đặt phòng + realtime (cần MongoDB)', () => {
     const list = await request(app).get('/v1/hotel/bookings').set('Authorization', `Bearer ${token}`);
     expect(list.body.items).toHaveLength(1);
 
-    const id = list.body.items[0]._id;
+    const id = list.body.items[0].id;
     // Tài khoản lễ tân của khách sạn KHÁC (cùng quyền) -> không thấy đơn của khách sạn này.
-    const otherHotel = new ObjectId();
-    const otherId = new ObjectId();
-    await col.accounts().insertOne({
-      _id: otherId, type: 'HOTEL', email: 'lt2@test.vn', passwordHash: 'x', fullName: 'LT2', status: 'ACTIVE',
-      hotelId: otherHotel, roleIds: [roleId], createdAt: new Date(), updatedAt: new Date(),
-    });
-    const other = signAccountToken({ sub: otherId.toHexString(), accountType: 'HOTEL' });
+    const otherHotel = await mkHotel({ code: 'T2' });
+    const otherId = await mkAccount({ type: 'HOTEL', email: 'lt2@test.vn', hotelId: otherHotel, roleIds: [roleId] });
+    const other = signAccountToken({ sub: otherId, accountType: 'HOTEL' });
     const denied = await request(app).post(`/v1/hotel/bookings/${id}/check-in`).set('Authorization', `Bearer ${other}`);
     expect(denied.status).toBe(409); // không thấy đơn của khách sạn khác
 
@@ -133,9 +113,9 @@ run('tích hợp: đặt phòng + realtime (cần MongoDB)', () => {
     expect(again.status).toBe(409);
   });
 
-  it('Socket.io: khách nhận booking:updated qua change stream; không token thì bị từ chối', async () => {
-    const created = await col.bookings().findOne({});
-    const lookup = await request(app).post('/v1/bookings/lookup').send({ code: created!.code, phone: '0912345678' });
+  it('Socket.io: khách nhận booking:updated khi đơn đổi trạng thái; không token thì bị từ chối', async () => {
+    const created = (await one<{ code: string }>('SELECT code FROM bookings'))!;
+    const lookup = await request(app).post('/v1/bookings/lookup').send({ code: created.code, phone: '0912345678' });
 
     const noAuth = ioClient(url, { reconnection: false });
     await new Promise<void>((resolve) => noAuth.on('connect_error', (e) => { expect(e.message).toBe('UNAUTHENTICATED'); resolve(); }));
@@ -144,13 +124,17 @@ run('tích hợp: đặt phòng + realtime (cần MongoDB)', () => {
     const sock = ioClient(url, { auth: { token: lookup.body.guestToken }, reconnection: false });
     await new Promise<void>((r) => sock.on('connect', () => r()));
     const rooms = await new Promise<string[]>((r) => sock.emit('rooms:list', r));
-    expect(rooms).toEqual([`booking:${created!.code}`]);
+    expect(rooms).toEqual([`booking:${created.code}`]);
 
     const got = new Promise<{ code: string; status: string }>((r) => sock.on('booking:updated', r));
-    await new Promise((r) => setTimeout(r, 500)); // chờ change stream sẵn sàng
-    await col.bookings().updateOne({ _id: created!._id }, { $set: { status: 'CHECKED_OUT', updatedAt: new Date() } });
+    // Check-in đơn qua API -> service phát sự kiện sau commit -> khách nhận realtime.
+    const staff = signAccountToken({ sub: (await one<{ id: string }>("SELECT id FROM accounts WHERE email = 'lt@test.vn'"))!.id, accountType: 'HOTEL' });
+    const bid = (await one<{ id: string }>('SELECT id FROM bookings'))!.id;
+    expect((await request(app).post(`/v1/hotel/bookings/${bid}/check-in`).set('Authorization', `Bearer ${staff}`)).status).toBe(409); // đã check-in ở test trước
+    await db.query("UPDATE bookings SET status = 'CONFIRMED' WHERE id = $1", [bid]);
+    expect((await request(app).post(`/v1/hotel/bookings/${bid}/check-in`).set('Authorization', `Bearer ${staff}`)).status).toBe(200);
     const ev = await got;
-    expect(ev).toMatchObject({ code: created!.code, status: 'CHECKED_OUT' });
+    expect(ev).toMatchObject({ code: created.code, status: 'CHECKED_IN' });
     expect(ev).not.toHaveProperty('guest');
     sock.close();
   });

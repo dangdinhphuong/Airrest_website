@@ -1,0 +1,8 @@
+{
+  "name": "@airrest/shared-types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Kiểu dùng chung FE/BE (trạng thái, enum), không phụ thuộc thư viện",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}
