@@ -20,3 +20,9 @@ export interface Actor {
   type: ActorType;
   id?: string;
 }
+
+export type ChangeRequestType = 'CANCEL' | 'CHANGE';
+export type ChangeRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
+export type ShuttleStatus = 'REQUESTED' | 'ASSIGNED' | 'DONE' | 'CANCELLED';
+export * from './flights';

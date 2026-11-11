@@ -7,6 +7,7 @@ import { newVnpOrder } from '../../lib/vnpay';
 import { actorOf, writeAudit } from '../audit';
 import { emitBookingChange } from '../events';
 import { hotelScope } from '../scope';
+import { cancelShuttlesForBooking } from '../shuttle/cascade';
 import { suggestAlternatives } from './alternatives';
 
 const SYSTEM: Actor = { type: 'SYSTEM' };
@@ -52,6 +53,7 @@ export async function expireOne(tx: Db, bookingId: string, actor: Actor, now: Da
   const b = bookingFromRow(row);
   await tx.query("UPDATE room_reservations SET state = 'RELEASED', updated_at = $2 WHERE booking_id = $1 AND state = 'HOLD'", [bookingId, now]);
   await upsertDecision(tx, bookingId, 'EXPIRED', actor);
+  await cancelShuttlesForBooking(tx, bookingId, actor, 'Đơn hết hạn chờ xác nhận', requestId);
   await writeAudit({ actor, action: 'BOOKING.EXPIRE', entity: { type: 'booking', id: bookingId }, hotelId: b.hotelId, bookingId, before: { status: 'PENDING' }, after: { status: 'EXPIRED' }, reasonCode: 'HOLD_EXPIRED', requestId }, tx);
   await createDecisionRefund(tx, b, 'HOTEL_NO_RESPONSE', now, requestId);
   return { code: b.code, status: 'EXPIRED', hotelId: b.hotelId, updatedAt: now };
@@ -117,6 +119,7 @@ async function decide(auth: AuthContext, bookingId: string, mode: 'CONFIRM' | 'R
       // Tính SAU khi nhả phòng để gợi ý không tự loại khách sạn vừa từ chối.
       alternatives = await suggestAlternatives(tx, { hotelId: cur.hotelId, from: new Date(cur.stay.from), to: new Date(cur.stay.to), qty: cur.lines.reduce((s, l) => s + l.qty, 0), now });
       await upsertDecision(tx, bookingId, 'REJECTED', actor, reason, alternatives);
+      await cancelShuttlesForBooking(tx, bookingId, actor, 'Đơn bị khách sạn từ chối', requestId);
       await writeAudit({ actor, action: 'BOOKING.REJECT', entity: { type: 'booking', id: bookingId }, hotelId: cur.hotelId, bookingId, before: { status: 'PENDING' }, after: { status: 'REJECTED' }, reasonCode: 'HOTEL_REJECTED', reasonNote: reason, requestId }, tx);
       await createDecisionRefund(tx, cur, 'HOTEL_REJECTED', now, requestId);
     }

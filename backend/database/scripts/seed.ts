@@ -3,6 +3,7 @@ import { PERM } from '../../config/permissions';
 import { runMigrations } from '../migrate';
 import { closeDb, connectDb, db, json } from '../pg';
 import { hashPassword } from '../../lib/password';
+import { seedFlights } from '../../services/flights/flightSeed';
 import { ensureSystemRoles } from '../../services/systemRoles';
 
 // Dữ liệu mẫu để chạy thử API. Chạy lại nhiều lần an toàn (upsert theo khóa tự nhiên). Tự áp migration trước.
@@ -57,6 +58,7 @@ const HOTEL_ID = '65000000-0000-4000-8000-000000000001';
     [pw, [sysadmin.id]],
   );
 
+  console.log(`Chuyến bay mô phỏng: chèn mới ${await seedFlights(db)}`);
   console.log(`Seed xong. Hotel ${hotel.id}, tài khoản: letan@demo.airrest.vn / admin@demo.airrest.vn (mật khẩu: SEED_PASSWORD)`);
   await closeDb();
 })().catch((e) => {

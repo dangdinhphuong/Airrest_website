@@ -123,6 +123,108 @@ export interface BookingDecisionDoc {
   alternatives: Alternative[];
 }
 
+export interface ChangeRequestDoc {
+  id: string;
+  seq: number;
+  bookingId: string;
+  hotelId: string;
+  type: 'CANCEL' | 'CHANGE';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reasonCode: string;
+  reasonNote?: string;
+  newFrom?: Date;
+  newTo?: Date;
+  quote: Record<string, any>;
+  requestedBy: Actor;
+  decidedBy?: Actor;
+  decidedAt?: Date;
+  decisionNote?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SupportTicketDoc {
+  id: string;
+  seq: number;
+  code: string;
+  bookingId?: string;
+  hotelId?: string;
+  contact: { fullName?: string; phone: string; email?: string };
+  subject: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
+  assigneeId?: string;
+  resolvedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SupportMessageDoc {
+  id: string;
+  seq: number;
+  ticketId: string;
+  author: Actor & { name?: string };
+  body: string;
+  internal: boolean;
+  createdAt: Date;
+}
+
+export interface ShuttleRequestDoc {
+  id: string;
+  seq: number;
+  bookingId: string;
+  hotelId: string;
+  direction: 'TO_HOTEL' | 'TO_AIRPORT';
+  airportIata: string;
+  distanceKm: number;
+  pickupAt: Date;
+  location?: string;
+  note?: string;
+  priceVnd: number;
+  configVersion: number;
+  status: 'REQUESTED' | 'ASSIGNED' | 'DONE' | 'CANCELLED';
+  driver?: { name: string; phone: string };
+  assignedAt?: Date;
+  completedAt?: Date;
+  cancelledAt?: Date;
+  cancelNote?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FlightDoc {
+  id: string;
+  seq: number;
+  code: string;
+  airline: string;
+  origin: string;
+  dest?: string;
+  schedDep: Date;
+  flightDate: string; // YYYY-MM-DD giờ VN (đọc qua to_char)
+  newDep?: Date;
+  status: 'ONTIME' | 'DELAYED' | 'CANCELLED';
+  cause: 'AIRLINE' | 'FORCE' | 'UNKNOWN';
+  cancelledAt?: Date;
+  distanceKm?: number;
+  simScenario: 'approve' | 'reject' | 'hotelfull' | 'noreply';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FlightChangeDoc {
+  id: string;
+  seq: number;
+  flightId: string;
+  fromDep?: Date;
+  toDep?: Date;
+  statusBefore: string;
+  statusAfter: string;
+  causeBefore: string;
+  causeAfter: string;
+  reason: string;
+  changedBy: Actor;
+  createdAt: Date;
+}
+
 export interface RoomReservationDoc {
   id: string;
   hotelId: string;
@@ -235,7 +337,7 @@ export interface RefundDoc {
   paymentId: string;
   key: string; // unique: chống hoàn kép (BR-CXL-12)
   amountVnd: Money;
-  reasonCode: 'LATE_PAYMENT' | 'DUPLICATE_PAYMENT' | 'HOTEL_REJECTED' | 'HOTEL_NO_RESPONSE';
+  reasonCode: 'LATE_PAYMENT' | 'DUPLICATE_PAYMENT' | 'HOTEL_REJECTED' | 'HOTEL_NO_RESPONSE' | 'CANCEL_APPROVED' | 'CHANGE_DOWNSIZE';
   method: 'VNPAY';
   status: RefundStatus;
   attempts: Array<{ at: Date | string; ok: boolean; code?: number; message?: string }>;

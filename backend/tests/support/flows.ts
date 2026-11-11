@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
-import { db, json, one } from './db';
+import { db, one } from './db';
 
 type App = Parameters<typeof request>[0];
 const DAY = 86400_000;
@@ -43,4 +43,3 @@ export async function payBooking(app: App, code: string) {
   if (res.status !== 200) throw new Error(`payBooking ${res.status}`);
 }
 
-export const jsonb = json;

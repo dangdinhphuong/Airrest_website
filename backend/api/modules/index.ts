@@ -4,6 +4,11 @@ import { authRouter } from './auth/auth.router';
 import { bookingsRouter, hotelBookingsRouter } from './bookings/bookings.router';
 import { paymentsRouter } from './payments/payments.router';
 import { hotelsRouter } from './hotels/hotels.router';
+import { guestShuttleRouter, hotelShuttleRouter } from './shuttle/shuttle.router';
+import { flightsRouter } from './flights/flights.router';
+import { hotelStatsRouter } from './hotelStats/hotelStats.router';
+import { supportRouter } from './support/support.router';
+import { guestChangeRequestsRouter, hotelChangeRequestsRouter } from './changeRequests/changeRequests.router';
 import { roomBlocksRouter, roomTypesRouter } from './rooms/rooms.router';
 
 // Gắn mọi module vào /v1. Thêm module mới: tạo thư mục modules/<ten>/ rồi thêm 1 dòng ở đây.
@@ -14,5 +19,12 @@ v1Router.use('/bookings', bookingsRouter);
 v1Router.use('/hotel/bookings', hotelBookingsRouter);
 v1Router.use('/hotel/room-types', roomTypesRouter);
 v1Router.use('/hotel/room-blocks', roomBlocksRouter);
+v1Router.use('/change-requests', guestChangeRequestsRouter);
+v1Router.use('/support', supportRouter);
+v1Router.use('/flights', flightsRouter);
+v1Router.use('/hotel/stats', hotelStatsRouter);
+v1Router.use('/shuttle-requests', guestShuttleRouter);
+v1Router.use('/hotel/shuttle-requests', hotelShuttleRouter);
+v1Router.use('/hotel/change-requests', hotelChangeRequestsRouter);
 v1Router.use('/payments', paymentsRouter);
 v1Router.use('/admin', adminRouter);

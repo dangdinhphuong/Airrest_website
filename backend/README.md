@@ -67,6 +67,20 @@ tests/                 unit, http (middleware), *.integration (cần DB)
 
 Lỗi luôn có dạng `{ "error": { "code", "message", "details?", "requestId" } }` — FE rẽ nhánh theo `code`.
 
+### API đã làm thêm (xem Swagger `/docs` để biết chi tiết từng route)
+
+| Nhóm | Route chính | Quyền |
+|---|---|---|
+| Loại phòng + tồn + khóa phòng | `/v1/hotel/room-types`, `/:id/inventory`, `/v1/hotel/room-blocks` | `booking:read` / `room:manage` |
+| Xác nhận / từ chối booking | `POST /v1/hotel/bookings/:id/confirm`, `/reject`; `GET /v1/hotel/bookings/:id` | `booking:decide` |
+| Admin xem booking, dashboard | `/v1/admin/bookings`, `/v1/admin/dashboard`; khách sạn: `GET /v1/hotel/stats` | `admin:booking:read`, `admin:dashboard:read` |
+| Đổi/hủy | khách `/v1/change-requests{,/quote,/lookup}`; nhân sự `/v1/hotel/change-requests` | `request:handle` |
+| Hỗ trợ | khách `/v1/support{,/lookup,/reply}`; admin `/v1/admin/support` | `support:handle` |
+| Xe đưa đón | khách `/v1/shuttle-requests`; nhân sự `/v1/hotel/shuttle-requests` | `shuttle:handle` |
+| Chuyến bay (mô phỏng) | `GET /v1/flights/:code?date=`; admin `/v1/admin/flights` | `flight:manage` |
+
+Booking mới của khách sạn bật duyệt tay vào `PENDING`, lễ tân xác nhận hoặc từ chối; đơn quá hạn chờ tự `EXPIRED` (quét mỗi `BOOKING_EXPIRY_SWEEP_SEC` giây, mặc định 60, `0` = tắt). Lệnh hoàn tiền phát sinh từ từ chối/hủy/đổi chỉ được GHI (`PENDING`, `due_at = infinity`), chưa thực thi vì luồng thanh toán tạm dừng.
+
 ## Socket.io
 
 Kết nối với `auth: { token }` (JWT tài khoản hoặc `guestToken`). Server tự cho vào phòng theo quyền (client không tự chọn):

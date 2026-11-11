@@ -8,7 +8,7 @@ import type { HotelDoc, PayoutAccountData } from '../../../database/types';
 import { actorOf, writeAudit } from '../../../services/audit';
 import { encryptJson } from '../../../lib/crypto';
 import { AppError, duplicateConstraint, isDuplicateKey } from '../../../lib/errors';
-import { isActive } from '@airrest/business-logic';
+import { getHotelStats } from '../../../services/dashboard/hotelStats';
 import { hashPassword } from '../../../lib/password';
 import { getConfig } from '../../../services/systemConfig';
 import { escapeLike, idParams, limitQuery, seqCursor } from '../../../lib/zod';
@@ -321,56 +321,8 @@ adminHotelsRouter.post('/hotels/:id/payout-account/reject', approveSensitive, va
   res.json({ hotel: pub(await loadHotel(id)) });
 });
 
-// FR-ADM-08: phòng tồn/đang có khách + doanh thu theo đơn. Phần khách sạn nhận = phòng + xe (không gồm phí dịch vụ, BR-PAY-02).
+// FR-ADM-08: thống kê khách sạn (logic ở services/dashboard/hotelStats.ts).
 adminHotelsRouter.get('/hotels/:id/stats', read, validate({ params: idParams, query: statsQuery }), async (req, res) => {
   const { id } = req.valid.params as z.infer<typeof idParams>;
-  const q = req.valid.query as z.infer<typeof statsQuery>;
-  const hotel = await loadHotel(id);
-  const now = new Date();
-  const to = q.to ?? now;
-  const from = q.from ?? new Date(to.getTime() - 30 * DAY_MS);
-  if (from >= to) throw new AppError(422, 'INVALID_RANGE', 'Khoảng thời gian không hợp lệ');
-
-  const [types, reservations, blocksNow, grouped] = await Promise.all([
-    db.query<{ totalRooms: number }>('SELECT total_rooms FROM room_types WHERE hotel_id = $1 AND active', [hotel.id]),
-    db.query<{ kind: 'BOOKING' | 'BLOCK'; qty: number; state: 'HOLD' | 'CONFIRMED' | 'CHECKED_IN'; holdExpiresAt?: Date; from: Date; to: Date }>(
-      `SELECT kind, qty, state, hold_expires_at, starts_at AS "from", ends_at AS "to" FROM room_reservations
-       WHERE hotel_id = $1 AND state IN ('HOLD','CONFIRMED','CHECKED_IN') AND starts_at <= $2 AND ends_at > $2`,
-      [hotel.id, now],
-    ),
-    db.query<{ n: number }>('SELECT COALESCE(sum(qty), 0) AS n FROM room_blocks WHERE hotel_id = $1 AND released_at IS NULL AND starts_at <= $2 AND ends_at > $2', [hotel.id, now]),
-    db.query<{ id: string; count: number; hotelShareVnd: number; serviceFeeVnd: number }>(
-      `SELECT status AS id, count(*) AS count,
-         sum(COALESCE((pricing->>'roomVnd')::bigint, 0) + COALESCE((pricing->>'shuttleVnd')::bigint, 0)) AS hotel_share_vnd,
-         sum(COALESCE((pricing->>'serviceFeeVnd')::bigint, 0)) AS service_fee_vnd
-       FROM bookings WHERE hotel_id = $1 AND stay_from >= $2 AND stay_from < $3 GROUP BY status`,
-      [hotel.id, from, to],
-    ),
-  ]);
-
-  const live = reservations.rows.filter((r) => isActive(r, now));
-  const sum = (f: (r: (typeof live)[number]) => boolean) => live.filter(f).reduce((s, r) => s + r.qty, 0);
-  const totalSellable = types.rows.reduce((s, t) => s + t.totalRooms, 0);
-  const byStatus = Object.fromEntries(grouped.rows.map((g) => [g.id, { count: g.count, hotelShareVnd: g.hotelShareVnd, serviceFeeVnd: g.serviceFeeVnd }]));
-  const money = (statuses: string[], f: 'hotelShareVnd' | 'serviceFeeVnd') => statuses.reduce((s, st) => s + (byStatus[st]?.[f] ?? 0), 0);
-
-  res.json({
-    hotelId: hotel.id,
-    asOf: now,
-    rooms: {
-      totalSellable,
-      occupiedNow: sum((r) => r.state === 'CHECKED_IN'),
-      reservedNow: sum((r) => r.state !== 'CHECKED_IN' && r.kind === 'BOOKING'),
-      blockedNow: sum((r) => r.kind === 'BLOCK') + blocksNow.rows[0]!.n,
-      availableNow: Math.max(0, totalSellable - live.reduce((s, r) => s + r.qty, 0) - blocksNow.rows[0]!.n),
-    },
-    revenue: {
-      from,
-      to,
-      // Đã thực hiện = khách đã trả phòng; dự kiến = đã xác nhận/đang ở (chưa trả phòng).
-      realized: { hotelShareVnd: money(['CHECKED_OUT'], 'hotelShareVnd'), serviceFeeVnd: money(['CHECKED_OUT'], 'serviceFeeVnd') },
-      expected: { hotelShareVnd: money(['CONFIRMED', 'CHECKED_IN'], 'hotelShareVnd'), serviceFeeVnd: money(['CONFIRMED', 'CHECKED_IN'], 'serviceFeeVnd') },
-      byStatus,
-    },
-  });
+  res.json(await getHotelStats(id, req.valid.query as z.infer<typeof statsQuery>));
 });

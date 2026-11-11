@@ -5,6 +5,8 @@
 > Trạng thái: **Có** = đã có BE chạy được · **Một phần** = còn thiếu chức năng · **Thiếu** = chưa có bảng/route.
 > FE hiện vẫn dùng dữ liệu mock, chưa nối API (áp dụng cho mọi dòng "Frontend").
 
+> **Cập nhật 2026-11-11:** các luồng thiếu bên dưới đã được làm ở mức API (không FE) theo `docs/superpowers/plans/`: phòng, xác nhận/từ chối booking, admin xem booking, đổi/hủy, hỗ trợ, xe, chuyến bay (mô phỏng), dashboard. Bảng gốc giữ nguyên làm lịch sử; FE vẫn dùng mock, thanh toán VNPay tạm dừng.
+
 ## 1. Bảng đối chiếu
 
 | # | Task | BE | Module SRS | Ghi chú |

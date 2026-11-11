@@ -59,6 +59,18 @@ export const openapi = {
     { name: 'Admin · Thanh toán' },
     { name: 'Admin · Nhật ký' },
     { name: 'Admin · Media' },
+    { name: 'Rooms (khách sạn)' },
+    { name: 'Requests (khách)' },
+    { name: 'Requests (nhân sự)' },
+    { name: 'Support (khách)' },
+    { name: 'Admin · Support' },
+    { name: 'Shuttle (khách)' },
+    { name: 'Shuttle (nhân sự)' },
+    { name: 'Flights' },
+    { name: 'Admin · Booking' },
+    { name: 'Admin · Chuyến bay' },
+    { name: 'Admin · Dashboard' },
+    { name: 'Hotel · Thống kê' },
   ],
   components: {
     securitySchemes: { bearer: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } },
@@ -223,6 +235,62 @@ export const openapi = {
         params: [param('action', 'query'), param('entityType', 'query'), param('entityId', 'query'), param('from', 'query'), param('to', 'query'), limit, cursor],
       }),
     },
+
+    '/v1/hotel/room-types': {
+      get: op({ tag: 'Rooms (khách sạn)', summary: 'Danh sách loại phòng', perm: 'booking:read', params: [param('hotelId', 'query', uuid, false), param('includeRetired', 'query', { type: 'boolean' })] }),
+      post: op({ tag: 'Rooms (khách sạn)', summary: 'Tạo loại phòng', perm: 'room:manage', body: body(obj({ code: str, name: str, capacity: int, beds: int, areaM2: int, totalRooms: int, baseNightVnd: int }, ['code', 'name', 'capacity', 'beds', 'totalRooms', 'baseNightVnd'])), extra: { 409: err('Mã trùng') } }),
+    },
+    '/v1/hotel/room-types/{id}': {
+      patch: op({ tag: 'Rooms (khách sạn)', summary: 'Sửa loại phòng (hạ số phòng dưới số đang giữ -> 409)', perm: 'room:manage', params: [idParam], body: body({ type: 'object' }, { totalRooms: 5 }) }),
+      delete: op({ tag: 'Rooms (khách sạn)', summary: 'Ngừng dùng loại phòng (mềm)', perm: 'room:manage', params: [idParam] }),
+    },
+    '/v1/hotel/room-types/{id}/inventory': { get: op({ tag: 'Rooms (khách sạn)', summary: 'Tồn phòng theo ngày (giờ VN, tối đa 62 ngày)', perm: 'booking:read', params: [idParam, param('from', 'query'), param('to', 'query')] }) },
+    '/v1/hotel/room-blocks': {
+      get: op({ tag: 'Rooms (khách sạn)', summary: 'Danh sách khóa/bảo trì phòng', perm: 'booking:read', params: [param('roomTypeId', 'query', uuid, false), limit, cursor] }),
+      post: op({ tag: 'Rooms (khách sạn)', summary: 'Khóa/bảo trì phòng (không nêu qty = đóng bán phần còn trống)', perm: 'room:manage', body: body(obj({ roomTypeId: uuid, kind: { type: 'string', enum: ['LOCK', 'MAINTENANCE'] }, qty: int, from: { type: 'string', format: 'date-time' }, to: { type: 'string', format: 'date-time' }, reason: str }, ['roomTypeId', 'kind', 'from', 'to', 'reason'])), extra: { 409: err('BLOCK_CONFLICT / NOTHING_TO_BLOCK') } }),
+    },
+    '/v1/hotel/room-blocks/{id}': { delete: op({ tag: 'Rooms (khách sạn)', summary: 'Gỡ khóa phòng', perm: 'room:manage', params: [idParam] }) },
+
+    '/v1/hotel/bookings/{id}': { get: op({ tag: 'Bookings (lễ tân)', summary: 'Chi tiết booking kèm lịch sử + quyết định', perm: 'booking:read', params: [idParam], extra: { 404: err('Không tìm thấy') } }) },
+    '/v1/hotel/bookings/{id}/confirm': { post: op({ tag: 'Bookings (lễ tân)', summary: 'Xác nhận đơn chờ khách sạn', perm: 'booking:decide', params: [idParam], extra: { 409: err('INVALID_STATE / BOOKING_EXPIRED') } }) },
+    '/v1/hotel/bookings/{id}/reject': { post: op({ tag: 'Bookings (lễ tân)', summary: 'Từ chối đơn (lý do bắt buộc, trả tối đa 3 khách sạn thay thế)', perm: 'booking:decide', params: [idParam], body: reason, extra: { 409: err('INVALID_STATE / BOOKING_EXPIRED') } }) },
+    '/v1/hotel/stats': { get: op({ tag: 'Hotel · Thống kê', summary: 'Thống kê của khách sạn trong token', perm: 'booking:read', params: [param('from', 'query'), param('to', 'query')] }) },
+    '/v1/admin/bookings': { get: op({ tag: 'Admin · Booking', summary: 'Booking mọi khách sạn (lọc, phân trang)', perm: 'admin:booking:read', params: [param('hotelId', 'query', uuid, false), param('status', 'query'), param('code', 'query'), param('from', 'query'), param('to', 'query'), limit, cursor] }) },
+    '/v1/admin/bookings/{id}': { get: op({ tag: 'Admin · Booking', summary: 'Chi tiết booking', perm: 'admin:booking:read', params: [idParam] }) },
+
+    '/v1/change-requests/quote': { post: op({ tag: 'Requests (khách)', summary: 'Báo giá hủy (phí theo gói chính sách)', public: true, body: body(ref('Lookup')) }) },
+    '/v1/change-requests': {
+      post: op({ tag: 'Requests (khách)', summary: 'Gửi yêu cầu hủy hoặc đổi ngày', public: true, params: [{ ...param('Idempotency-Key', 'header'), required: true }], body: body(obj({ code: str, phone: str, type: { type: 'string', enum: ['CANCEL', 'CHANGE'] }, reasonCode: { type: 'string', enum: ['CHANGE_OF_PLAN', 'FLIGHT_CANCELLED', 'FLIGHT_RESCHEDULED', 'HEALTH', 'OTHER'] }, reasonNote: str, newFrom: { type: 'string', format: 'date-time' }, newTo: { type: 'string', format: 'date-time' } }, ['code', 'phone', 'type', 'reasonCode'])), extra: { 201: ok('Đã tạo'), 409: err('REQUEST_ALREADY_PENDING / BOOKING_NOT_CANCELLABLE') } }),
+    },
+    '/v1/change-requests/lookup': { post: op({ tag: 'Requests (khách)', summary: 'Tra cứu yêu cầu của booking', public: true, body: body(ref('Lookup')) }) },
+    '/v1/hotel/change-requests': { get: op({ tag: 'Requests (nhân sự)', summary: 'Danh sách yêu cầu đổi/hủy', perm: 'request:handle', params: [param('status', 'query'), limit, cursor] }) },
+    '/v1/hotel/change-requests/{id}/approve': { post: op({ tag: 'Requests (nhân sự)', summary: 'Duyệt yêu cầu (hủy: nhả phòng + lệnh hoàn PENDING; đổi ngày: kiểm tồn lại)', perm: 'request:handle', params: [idParam], body: body(obj({ note: str })) }) },
+    '/v1/hotel/change-requests/{id}/reject': { post: op({ tag: 'Requests (nhân sự)', summary: 'Từ chối yêu cầu', perm: 'request:handle', params: [idParam], body: body(obj({ note: str }, ['note'])) }) },
+
+    '/v1/support': { post: op({ tag: 'Support (khách)', summary: 'Gửi yêu cầu hỗ trợ', public: true, params: [{ ...param('Idempotency-Key', 'header'), required: true }], body: body(obj({ bookingCode: str, phone: str, fullName: str, email: str, subject: str, message: str }, ['phone', 'subject', 'message'])), extra: { 201: ok('Đã tạo') } }) },
+    '/v1/support/lookup': { post: op({ tag: 'Support (khách)', summary: 'Xem ticket bằng mã + SĐT', public: true, body: body(obj({ code: str, phone: str }, ['code', 'phone'])) }) },
+    '/v1/support/reply': { post: op({ tag: 'Support (khách)', summary: 'Khách trả lời ticket', public: true, params: [{ ...param('Idempotency-Key', 'header'), required: true }], body: body(obj({ code: str, phone: str, message: str }, ['code', 'phone', 'message'])), extra: { 201: ok('Đã gửi') } }) },
+    '/v1/admin/support': { get: op({ tag: 'Admin · Support', summary: 'Hàng đợi ticket', perm: 'support:handle', params: [param('status', 'query'), param('assignee', 'query'), limit, cursor] }) },
+    '/v1/admin/support/{id}': {
+      get: op({ tag: 'Admin · Support', summary: 'Chi tiết ticket kèm ghi chú nội bộ', perm: 'support:handle', params: [idParam] }),
+      patch: op({ tag: 'Admin · Support', summary: 'Đổi trạng thái (OPEN→IN_PROGRESS→RESOLVED) / gán người xử lý', perm: 'support:handle', params: [idParam], body: body(obj({ status: { type: 'string', enum: ['IN_PROGRESS', 'RESOLVED'] }, assigneeId: uuid })) }),
+    },
+    '/v1/admin/support/{id}/messages': { post: op({ tag: 'Admin · Support', summary: 'Trả lời công khai hoặc ghi chú nội bộ', perm: 'support:handle', params: [idParam], body: body(obj({ message: str, internal: { type: 'boolean' } }, ['message'])) }) },
+
+    '/v1/shuttle-requests/quote': { post: op({ tag: 'Shuttle (khách)', summary: 'Báo giá xe đưa đón', public: true, body: body(obj({ code: str, phone: str, direction: { type: 'string', enum: ['TO_HOTEL', 'TO_AIRPORT'] }, airport: str, pickupAt: { type: 'string', format: 'date-time' } }, ['code', 'phone', 'direction', 'airport', 'pickupAt'])) }) },
+    '/v1/shuttle-requests': { post: op({ tag: 'Shuttle (khách)', summary: 'Yêu cầu xe đưa đón (gắn booking)', public: true, params: [{ ...param('Idempotency-Key', 'header'), required: true }], body: body(obj({ code: str, phone: str, direction: { type: 'string', enum: ['TO_HOTEL', 'TO_AIRPORT'] }, airport: str, pickupAt: { type: 'string', format: 'date-time' }, location: str, note: str }, ['code', 'phone', 'direction', 'airport', 'pickupAt'])), extra: { 201: ok('Đã tạo') } }) },
+    '/v1/shuttle-requests/lookup': { post: op({ tag: 'Shuttle (khách)', summary: 'Xe của booking', public: true, body: body(ref('Lookup')) }) },
+    '/v1/shuttle-requests/{id}/cancel': { post: op({ tag: 'Shuttle (khách)', summary: 'Khách hủy yêu cầu xe', public: true, params: [idParam], body: body(ref('Lookup')) }) },
+    '/v1/hotel/shuttle-requests': { get: op({ tag: 'Shuttle (nhân sự)', summary: 'Danh sách yêu cầu xe', perm: 'shuttle:handle', params: [param('status', 'query'), limit, cursor] }) },
+    '/v1/hotel/shuttle-requests/{id}/assign': { post: op({ tag: 'Shuttle (nhân sự)', summary: 'Gán tài xế (nhập tay)', perm: 'shuttle:handle', params: [idParam], body: body(obj({ driverName: str, driverPhone: str }, ['driverName', 'driverPhone'])) }) },
+    '/v1/hotel/shuttle-requests/{id}/complete': { post: op({ tag: 'Shuttle (nhân sự)', summary: 'Hoàn tất chuyến xe', perm: 'shuttle:handle', params: [idParam] }) },
+    '/v1/hotel/shuttle-requests/{id}/cancel': { post: op({ tag: 'Shuttle (nhân sự)', summary: 'Hủy yêu cầu xe', perm: 'shuttle:handle', params: [idParam], body: body(obj({ note: str }, ['note'])) }) },
+
+    '/v1/flights/{code}': { get: op({ tag: 'Flights', summary: 'Tra chuyến bay (MÔ PHỎNG, simulated: true)', public: true, params: [param('code', 'path'), param('date', 'query', str, false)], extra: { 404: err('FLIGHT_NOT_FOUND') } }) },
+    '/v1/admin/flights': { get: op({ tag: 'Admin · Chuyến bay', summary: 'Danh sách chuyến bay mô phỏng', perm: 'flight:manage', params: [param('code', 'query'), param('date', 'query'), param('status', 'query'), limit, cursor] }) },
+    '/v1/admin/flights/{id}': { patch: op({ tag: 'Admin · Chuyến bay', summary: 'Đổi giờ/trạng thái (kèm lý do, có lịch sử)', perm: 'flight:manage', params: [idParam], body: body(obj({ status: { type: 'string', enum: ['ONTIME', 'DELAYED', 'CANCELLED'] }, newDepartureAt: { type: 'string', format: 'date-time' }, cause: str, reason: str }, ['status', 'reason'])), extra: { 409: err('FLIGHT_UNCHANGED') } }) },
+    '/v1/admin/flights/{id}/changes': { get: op({ tag: 'Admin · Chuyến bay', summary: 'Lịch sử đổi giờ', perm: 'flight:manage', params: [idParam, limit, cursor] }) },
+    '/v1/admin/dashboard': { get: op({ tag: 'Admin · Dashboard', summary: 'Dashboard toàn hệ thống (khoảng tối đa 92 ngày)', perm: 'admin:dashboard:read', params: [param('from', 'query'), param('to', 'query')] }) },
 
     '/v1/admin/media/upload-url': {
       post: op({

@@ -8,6 +8,8 @@ export const PERM = {
   REQUEST_HANDLE: 'request:handle', // duyệt/từ chối yêu cầu đổi/hủy
   SUPPORT_HANDLE: 'support:handle', // xử lý ticket hỗ trợ
   SHUTTLE_HANDLE: 'shuttle:handle', // vận hành xe đưa đón
+  FLIGHT_MANAGE: 'flight:manage', // chỉnh giờ/trạng thái chuyến bay mô phỏng
+  ADMIN_DASHBOARD_READ: 'admin:dashboard:read',
   ADMIN_BOOKING_READ: 'admin:booking:read', // admin xem booking của mọi khách sạn (chỉ đọc)
   AUDIT_READ: 'audit:read',
   ADMIN_ALERTS: 'admin:alerts',
