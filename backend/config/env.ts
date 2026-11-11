@@ -14,6 +14,8 @@ const schema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   SEED_PASSWORD: z.string().default('ChangeMe123!'),
+  // Chu kỳ quét đơn chờ khách sạn xác nhận quá hạn (giây). 0 = tắt (khi đó chỉ đối soát tay /reconcile và tra cứu mới làm hết hạn đơn).
+  BOOKING_EXPIRY_SWEEP_SEC: z.coerce.number().int().min(0).default(60),
 
   // --- Cloudflare R2 (lưu media, tương thích S3). Thiếu thì API media trả 503, phần còn lại vẫn chạy.
   R2_ACCOUNT_ID: z.string().optional(),

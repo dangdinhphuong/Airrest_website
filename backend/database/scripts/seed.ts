@@ -15,8 +15,8 @@ const HOTEL_ID = '65000000-0000-4000-8000-000000000001';
 
   await db.query(
     `INSERT INTO hotels (id, code, name, status, location, airports, amenities, policy, approval, rating)
-     VALUES ($1, 'HAN-DEMO-01', 'Khách sạn Demo Nội Bài', 'ACTIVE', $2::jsonb, $3::jsonb, $4, $5::jsonb, '{"manual":false}', '{"avg":4.5,"count":12}')
-     ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, airports = EXCLUDED.airports, updated_at = now()`,
+     VALUES ($1, 'HAN-DEMO-01', 'Khách sạn Demo Nội Bài', 'ACTIVE', $2::jsonb, $3::jsonb, $4, $5::jsonb, '{"manual":true}', '{"avg":4.5,"count":12}')
+     ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, airports = EXCLUDED.airports, approval = EXCLUDED.approval, updated_at = now()`,
     [
       HOTEL_ID,
       json({ type: 'Point', coordinates: [105.8, 21.2] }),
@@ -36,8 +36,8 @@ const HOTEL_ID = '65000000-0000-4000-8000-000000000001';
   const reception = (
     await db.query<{ id: string }>(
       `INSERT INTO roles (key, name, scope, hotel_id, permissions, system) VALUES ('reception', 'Lễ tân', 'HOTEL', $1, $2, true)
-       ON CONFLICT (hotel_id, key) WHERE hotel_id IS NOT NULL DO UPDATE SET name = roles.name RETURNING id`,
-      [hotel.id, [PERM.BOOKING_READ, PERM.BOOKING_CHECKIN]],
+       ON CONFLICT (hotel_id, key) WHERE hotel_id IS NOT NULL DO UPDATE SET permissions = EXCLUDED.permissions RETURNING id`,
+      [hotel.id, [PERM.BOOKING_READ, PERM.BOOKING_CHECKIN, PERM.BOOKING_DECIDE, PERM.REQUEST_HANDLE, PERM.SHUTTLE_HANDLE]],
     )
   ).rows[0]!;
 

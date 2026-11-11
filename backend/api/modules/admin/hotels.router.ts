@@ -134,7 +134,7 @@ adminHotelsRouter.post('/hotels', manage, validate({ body: createBody }), async 
       const created = (
         await tx.query<HotelDoc>(
           `INSERT INTO hotels (id, code, name, slug, status, owner_account_id, description, address, location, airports, amenities, contact, policy, approval, rating, incident_score)
-           VALUES ($1,$2,$3,$4,'PENDING_APPROVAL',$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10,$11::jsonb,$12::jsonb,'{"manual":false}','{"avg":0,"count":0}',0) RETURNING *`,
+           VALUES ($1,$2,$3,$4,'PENDING_APPROVAL',$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10,$11::jsonb,$12::jsonb,'{"manual":true}','{"avg":0,"count":0}',0) RETURNING *`,
           [hotelId, b.code, b.name, b.code.toLowerCase(), ownerId, b.description ?? null, json(b.address), json({ type: 'Point', coordinates: [b.location.lng, b.location.lat] }), json(b.airports), b.amenities, json(b.contact), json(b.policy)],
         )
       ).rows[0]!;
@@ -331,13 +331,14 @@ adminHotelsRouter.get('/hotels/:id/stats', read, validate({ params: idParams, qu
   const from = q.from ?? new Date(to.getTime() - 30 * DAY_MS);
   if (from >= to) throw new AppError(422, 'INVALID_RANGE', 'Khoảng thời gian không hợp lệ');
 
-  const [types, reservations, grouped] = await Promise.all([
+  const [types, reservations, blocksNow, grouped] = await Promise.all([
     db.query<{ totalRooms: number }>('SELECT total_rooms FROM room_types WHERE hotel_id = $1 AND active', [hotel.id]),
     db.query<{ kind: 'BOOKING' | 'BLOCK'; qty: number; state: 'HOLD' | 'CONFIRMED' | 'CHECKED_IN'; holdExpiresAt?: Date; from: Date; to: Date }>(
       `SELECT kind, qty, state, hold_expires_at, starts_at AS "from", ends_at AS "to" FROM room_reservations
        WHERE hotel_id = $1 AND state IN ('HOLD','CONFIRMED','CHECKED_IN') AND starts_at <= $2 AND ends_at > $2`,
       [hotel.id, now],
     ),
+    db.query<{ n: number }>('SELECT COALESCE(sum(qty), 0) AS n FROM room_blocks WHERE hotel_id = $1 AND released_at IS NULL AND starts_at <= $2 AND ends_at > $2', [hotel.id, now]),
     db.query<{ id: string; count: number; hotelShareVnd: number; serviceFeeVnd: number }>(
       `SELECT status AS id, count(*) AS count,
          sum(COALESCE((pricing->>'roomVnd')::bigint, 0) + COALESCE((pricing->>'shuttleVnd')::bigint, 0)) AS hotel_share_vnd,
@@ -360,8 +361,8 @@ adminHotelsRouter.get('/hotels/:id/stats', read, validate({ params: idParams, qu
       totalSellable,
       occupiedNow: sum((r) => r.state === 'CHECKED_IN'),
       reservedNow: sum((r) => r.state !== 'CHECKED_IN' && r.kind === 'BOOKING'),
-      blockedNow: sum((r) => r.kind === 'BLOCK'),
-      availableNow: Math.max(0, totalSellable - live.reduce((s, r) => s + r.qty, 0)),
+      blockedNow: sum((r) => r.kind === 'BLOCK') + blocksNow.rows[0]!.n,
+      availableNow: Math.max(0, totalSellable - live.reduce((s, r) => s + r.qty, 0) - blocksNow.rows[0]!.n),
     },
     revenue: {
       from,

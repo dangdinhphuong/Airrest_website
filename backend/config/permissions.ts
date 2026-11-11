@@ -3,6 +3,12 @@
 export const PERM = {
   BOOKING_READ: 'booking:read',
   BOOKING_CHECKIN: 'booking:checkin',
+  ROOM_MANAGE: 'room:manage', // loại phòng + khóa/bảo trì phòng
+  BOOKING_DECIDE: 'booking:decide', // xác nhận / từ chối đơn chờ khách sạn
+  REQUEST_HANDLE: 'request:handle', // duyệt/từ chối yêu cầu đổi/hủy
+  SUPPORT_HANDLE: 'support:handle', // xử lý ticket hỗ trợ
+  SHUTTLE_HANDLE: 'shuttle:handle', // vận hành xe đưa đón
+  ADMIN_BOOKING_READ: 'admin:booking:read', // admin xem booking của mọi khách sạn (chỉ đọc)
   AUDIT_READ: 'audit:read',
   ADMIN_ALERTS: 'admin:alerts',
   // Quyền xem dữ liệu mọi khách sạn (Admin). Tài khoản khách sạn luôn bị khóa theo hotelId của chính nó.

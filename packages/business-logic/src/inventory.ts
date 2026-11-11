@@ -45,3 +45,44 @@ export const remainingRooms = (total: number, existing: Interval[], window: { fr
 
 export const canBook = (total: number, existing: Interval[], req: Interval): boolean =>
   req.qty <= remainingRooms(total, existing, req);
+
+// ---- Tồn theo ngày (giờ Việt Nam, GMT+7) ----
+const VN_OFFSET_MS = 7 * 3600_000;
+const DAY_MS = 24 * 3600_000;
+
+/** `YYYY-MM-DD` (ngày VN) -> [00:00+07:00, 00:00+07:00 hôm sau). Ném lỗi nếu sai định dạng hoặc ngày không tồn tại. */
+export function dayWindow(date: string): { from: Date; to: Date } {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) throw new Error(`Ngày không hợp lệ: ${date}`);
+  const [y, mo, d] = [Number(m[1]), Number(m[2]) - 1, Number(m[3])];
+  const utc = new Date(Date.UTC(y, mo, d));
+  if (utc.getUTCMonth() !== mo || utc.getUTCDate() !== d) throw new Error(`Ngày không tồn tại: ${date}`);
+  const from = new Date(utc.getTime() - VN_OFFSET_MS);
+  return { from, to: new Date(from.getTime() + DAY_MS) };
+}
+
+export interface DayAvailability {
+  date: string;
+  physical: number;
+  held: number;
+  booked: number;
+  blocked: number;
+  sellable: number;
+}
+
+/** Mỗi ngày: đỉnh đồng thời của từng loại; `sellable` dùng đỉnh chung của mọi đoạn (không cộng ba cột). */
+export function dailyAvailability(total: number, reservations: ReservationLike[], blocks: Interval[], dates: string[], now: Date): DayAvailability[] {
+  const active = reservations.filter((r) => isActive(r, now));
+  return dates.map((date) => {
+    const w = dayWindow(date);
+    const peak = (xs: Interval[]) => maxConcurrent(xs, w);
+    return {
+      date,
+      physical: total,
+      held: peak(active.filter((r) => r.state === 'HOLD')),
+      booked: peak(active.filter((r) => r.state !== 'HOLD')),
+      blocked: peak(blocks),
+      sellable: Math.max(0, total - peak([...active, ...blocks])),
+    };
+  });
+}

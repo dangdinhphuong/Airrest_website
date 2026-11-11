@@ -4,20 +4,25 @@ import type { CreateBookingBody, StaffListQuery } from '@airrest/validation';
 import { PERM } from '../../config/permissions';
 import { env } from '../../config/env';
 import { db, json, withTransaction } from '../../database/pg';
-import { bookingFromRow, type BookingDoc, type BookingStatus, type HotelDoc, type RoomTypeDoc } from '../../database/types';
+import { bookingFromRow, type BookingDecisionDoc, type BookingDoc, type BookingStatus, type HotelDoc, type RoomTypeDoc } from '../../database/types';
 import { generateBookingCode } from '../../lib/codes';
 import { AppError, isDuplicateKey } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
+import { escapeLike } from '../../lib/zod';
+import { intervalsForCheck, loadActiveIntervals } from '../rooms/availability';
 import { newVnpOrder, vnpDate, vnpKeys } from '../../lib/vnpay';
 import { actorOf, writeAudit } from '../audit';
+import { hotelScope } from '../scope';
+import { getDecision, lazyExpire } from './decisions';
 import { emitBookingChange } from '../events';
 import { getConfig } from '../systemConfig';
 
 const DAY_MS = 24 * 3600 * 1000;
+export const approvalHoldMs = async (): Promise<number> => (await getConfig('booking.hold')).value.approvalExpireMin * 60_000;
 export const HOLD_MS = 20 * 60_000; // đơn chờ khách sạn duyệt: giữ phòng 20 phút (BA §3.3, P-04)
 
 // Khách vãng lai chỉ thấy các trường này (không lộ hotelId nội bộ, lịch sử người thao tác...).
-export const toGuestView = (b: BookingDoc) => ({
+export const toGuestView = (b: BookingDoc, decision?: BookingDecisionDoc) => ({
   code: b.code,
   status: b.status,
   hotel: b.hotelSnapshot,
@@ -33,15 +38,10 @@ export const toGuestView = (b: BookingDoc) => ({
   payment: { method: b.payment.method, status: b.payment.status },
   expiresAt: b.expiresAt,
   timeline: b.statusHistory.map(({ to, at }) => ({ to, at })),
+  ...(decision && { decision: { status: decision.decision, reason: decision.reason, decidedAt: decision.decidedAt, alternatives: decision.alternatives } }), // không lộ decidedBy
 });
 
-// Phạm vi dữ liệu: tài khoản khách sạn CHỈ thấy hotelId của chính nó (lấy từ token, không từ tham số);
-// chỉ quyền HOTEL_SCOPE_ALL (Admin) mới xem mọi khách sạn.
-export function hotelScope(auth: AuthContext): { hotelId?: string } {
-  if (auth.permissions.includes(PERM.HOTEL_SCOPE_ALL)) return {};
-  if (!auth.hotelId) throw new AppError(403, 'FORBIDDEN', 'Tài khoản không gắn với khách sạn nào');
-  return { hotelId: auth.hotelId };
-}
+export { hotelScope };
 
 /**
  * Tạo đơn (T1 trong docs/mongodb mục 6) — ví dụ đầy đủ của một transaction nhiều bảng:
@@ -69,6 +69,7 @@ export async function createBooking(input: CreateBookingBody, requestId?: string
   const resFrom = input.from;
   const resTo = new Date(input.to.getTime() + hotel.policy.cleaningBufferMin * 60_000);
   const needsApproval = hotel.approval.manual;
+  const approvalMs = await approvalHoldMs();
   const holdCfg = online ? await getConfig('booking.hold') : undefined; // P-03: thời gian giữ chỗ chờ thanh toán
 
   // Mã đơn ngẫu nhiên: trùng (rất hiếm) thì sinh lại và chạy lại transaction.
@@ -79,15 +80,7 @@ export async function createBooking(input: CreateBookingBody, requestId?: string
         const now = new Date();
         await tx.query('SELECT 1 FROM room_types WHERE id = $1 FOR UPDATE', [roomType.id]);
 
-        const overlapping = (
-          await tx.query<{ from: Date; to: Date; qty: number; state: 'HOLD' | 'CONFIRMED' | 'CHECKED_IN'; holdExpiresAt?: Date }>(
-            `SELECT starts_at AS "from", ends_at AS "to", qty, state, hold_expires_at FROM room_reservations
-             WHERE room_type_id = $1 AND starts_at < $3 AND ends_at > $2
-               AND (state IN ('CONFIRMED','CHECKED_IN') OR (state = 'HOLD' AND hold_expires_at > $4))`,
-            [roomType.id, resFrom, resTo, now],
-          )
-        ).rows;
-        const active = overlapping.filter((r) => isActive(r, now));
+        const active = intervalsForCheck(await loadActiveIntervals(tx, roomType.id, resFrom, resTo, now), now);
         if (!canBook(roomType.totalRooms, active, { from: resFrom, to: resTo, qty: input.qty })) {
           throw new AppError(409, 'SOLD_OUT', 'Loại phòng này đã hết trong khoảng thời gian bạn chọn');
         }
@@ -96,7 +89,7 @@ export async function createBooking(input: CreateBookingBody, requestId?: string
         const reservationId = randomUUID();
         // VNPay: giữ chỗ chờ thanh toán trước; sau khi trả tiền mới sang CONFIRMED/PENDING (xem payments.service).
         const status: BookingStatus = online ? 'PENDING_PAYMENT' : needsApproval ? 'PENDING' : 'CONFIRMED';
-        const holdMs = holdCfg ? holdCfg.value.holdMinutes * 60_000 : HOLD_MS;
+        const holdMs = holdCfg ? holdCfg.value.holdMinutes * 60_000 : approvalMs;
         const holdExpiresAt = online || needsApproval ? new Date(now.getTime() + holdMs) : undefined;
 
         const booking: BookingDoc = {
@@ -166,20 +159,29 @@ export async function createBooking(input: CreateBookingBody, requestId?: string
 }
 
 // Tra cứu đơn của khách vãng lai: phải khớp CẢ mã lẫn SĐT; sai thì cùng một lỗi 404 (không lộ mã nào tồn tại).
+export { getDecision };
 export async function lookupBooking(code: string, phone: string): Promise<BookingDoc> {
   const row = (await db.query("SELECT * FROM bookings WHERE code = $1 AND guest->>'phone' = $2", [code, phone])).rows[0];
   if (!row) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Không tìm thấy đơn với thông tin đã nhập');
-  return bookingFromRow(row);
+  const b = bookingFromRow(row);
+  if (b.status === 'PENDING' && b.expiresAt && b.expiresAt <= new Date()) {
+    await lazyExpire(b.id); // job quét có thể chưa chạy: khách vẫn thấy EXPIRED ngay
+    return bookingFromRow((await db.query('SELECT * FROM bookings WHERE id = $1', [b.id])).rows[0]!);
+  }
+  return b;
 }
 
-// Danh sách đơn cho khách sạn (keyset pagination theo seq, mới nhất trước).
-export async function listHotelBookings(auth: AuthContext, q: StaffListQuery) {
-  const scope = hotelScope(auth);
+// Danh sách đơn (keyset pagination theo seq, mới nhất trước). `scope.hotelId` rỗng = mọi khách sạn (admin); `q.hotelId` chỉ lọc thêm khi scope rỗng.
+export async function listBookings(scope: { hotelId?: string }, q: StaffListQuery & { hotelId?: string }) {
   const where: string[] = [];
   const params: unknown[] = [];
   const add = (sql: string, v: unknown) => where.push(sql.replace('?', `$${params.push(v)}`));
-  if (scope.hotelId) add('hotel_id = ?', scope.hotelId);
+  const hotelId = scope.hotelId ?? q.hotelId;
+  if (hotelId) add('hotel_id = ?', hotelId);
   if (q.status) add('status = ?', q.status);
+  if (q.code) add("code ILIKE ? || '%'", escapeLike(q.code));
+  if (q.from) add('stay_from >= ?', q.from);
+  if (q.to) add('stay_from < ?', q.to);
   if (q.cursor !== undefined) add('seq < ?', q.cursor);
   const rows = (
     await db.query(`SELECT * FROM bookings ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY seq DESC LIMIT ${q.limit + 1}`, params)
@@ -187,6 +189,16 @@ export async function listHotelBookings(auth: AuthContext, q: StaffListQuery) {
   const hasMore = rows.length > q.limit;
   const items = hasMore ? rows.slice(0, q.limit) : rows;
   return { items, nextCursor: hasMore ? items[items.length - 1]?.seq : null };
+}
+
+// Lễ tân: luôn khóa theo khách sạn trong token (tham số hotelId bị bỏ qua).
+export const listHotelBookings = (auth: AuthContext, q: StaffListQuery) => listBookings(hotelScope(auth), q);
+
+// Chi tiết một đơn kèm lịch sử trạng thái + quyết định; ngoài phạm vi thì cùng lỗi 404.
+export async function getBookingDetail(scope: { hotelId?: string }, id: string): Promise<{ booking: BookingDoc; decision?: BookingDecisionDoc }> {
+  const row = (await db.query('SELECT * FROM bookings WHERE id = $1 AND ($2::uuid IS NULL OR hotel_id = $2)', [id, scope.hotelId ?? null])).rows[0];
+  if (!row) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Không tìm thấy đơn');
+  return { booking: bookingFromRow(row), decision: await getDecision(id) };
 }
 
 // Đổi trạng thái có điều kiện (máy trạng thái): chỉ CONFIRMED -> CHECKED_IN.

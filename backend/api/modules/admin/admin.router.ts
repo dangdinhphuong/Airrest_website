@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth';
 import { accountsRouter } from './accounts.router';
+import { adminBookingsRouter } from './bookings.router';
 import { adminHotelsRouter } from './hotels.router';
 import { auditRouter } from './audit.router';
 import { configsRouter } from './configs.router';
@@ -17,3 +18,4 @@ adminRouter.use(accountsRouter);
 adminRouter.use(adminHotelsRouter);
 adminRouter.use(adminPaymentsRouter);
 adminRouter.use(mediaRouter);
+adminRouter.use(adminBookingsRouter);

@@ -35,11 +35,24 @@ export const lookupBody = z.object({
 });
 export type LookupBody = z.infer<typeof lookupBody>;
 
+export const rejectBookingBody = z.object({ reason: z.string().trim().min(3).max(500) });
+export type RejectBookingBody = z.infer<typeof rejectBookingBody>;
+
 export const idParams = z.object({ id: uuid });
 
-export const staffListQuery = z.object({
-  status: z.enum(['PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW']).optional(),
+const BOOKING_STATUS = z.enum(['PENDING_PAYMENT', 'PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'REJECTED', 'EXPIRED', 'NO_SHOW']);
+const listBase = z.object({
+  status: BOOKING_STATUS.optional(),
+  code: z.string().trim().toUpperCase().min(2).max(12).optional(), // tiền tố mã đặt phòng
+  from: z.coerce.date().optional(), // lọc theo ngày nhận phòng: from <= stay_from < to
+  to: z.coerce.date().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(30),
   cursor: z.coerce.number().int().min(0).optional(), // seq của phần tử cuối trang trước
 });
+const validRange = (q: { from?: Date; to?: Date }) => !q.from || !q.to || q.to > q.from;
+const rangeMsg = { message: '`to` phải sau `from`', path: ['to'] };
+
+export const staffListQuery = listBase.refine(validRange, rangeMsg);
+export const adminBookingListQuery = listBase.extend({ hotelId: uuid.optional() }).refine(validRange, rangeMsg);
+export type AdminBookingListQuery = z.infer<typeof adminBookingListQuery>;
 export type StaffListQuery = z.infer<typeof staffListQuery>;

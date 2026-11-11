@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CONFIG_KEYS } from '../config/configKeys';
 import { decryptJson, encryptJson } from '../lib/crypto';
 import { generateBookingCode } from '../lib/codes';
-import { canBook, isActive, maxConcurrent, serviceFee, type Interval } from '@airrest/business-logic';
+import { canBook, dailyAvailability, dayWindow, isActive, maxConcurrent, serviceFee, type Interval, type ReservationLike } from '@airrest/business-logic';
 import { buildVnpayIpn, signVnpay, verifyVnpay, vnpDate, vnpKeys, vnpQuery } from '../lib/vnpay';
 import { hashPassword, verifyPassword } from '../lib/password';
 import { toE164VN } from '@airrest/utils';
@@ -100,5 +100,39 @@ describe('VNPay: chữ ký', () => {
 
   it('vnpDate theo giờ Việt Nam (GMT+7)', () => {
     expect(vnpDate(new Date('2026-12-01T17:30:05Z'))).toBe('20261202003005');
+  });
+});
+
+describe('tồn phòng theo ngày', () => {
+  // t(h) = 00:00 UTC ngày 10/11 + h; ngày VN 10/11 bắt đầu tại t(-7). 14:00 VN ngày 10 = t(7).
+  const res = (from: number, to: number, state: ReservationLike['state'] = 'CONFIRMED', extra: Partial<ReservationLike> = {}): ReservationLike => ({ ...iv(from, to), state, ...extra });
+  const now = t(0);
+
+  it('dayWindow: ngày theo giờ Việt Nam; sai định dạng/ngày không tồn tại thì ném lỗi', () => {
+    const w = dayWindow('2026-11-10');
+    expect(w.from.toISOString()).toBe('2026-11-09T17:00:00.000Z');
+    expect(w.to.toISOString()).toBe('2026-11-10T17:00:00.000Z');
+    expect(() => dayWindow('2026-02-30')).toThrow();
+    expect(() => dayWindow('10/11/2026')).toThrow();
+  });
+
+  it('đơn CONFIRMED 14:00 ngày 10 -> 12:00 ngày 11 (VN), total 2', () => {
+    const d = dailyAvailability(2, [res(7, 29)], [], ['2026-11-10', '2026-11-11', '2026-11-12'], now);
+    expect(d.map((x) => [x.booked, x.sellable])).toEqual([[1, 1], [1, 1], [0, 2]]);
+  });
+
+  it('HOLD hết hạn không được đếm', () => {
+    const d = dailyAvailability(2, [res(7, 29, 'HOLD', { holdExpiresAt: t(-1) })], [], ['2026-11-10'], now);
+    expect(d[0]).toMatchObject({ held: 0, sellable: 2, physical: 2 });
+  });
+
+  it('khóa qty 2 trên total 2 -> blocked 2, sellable 0; đơn + khóa chồng nhau không làm sellable âm', () => {
+    expect(dailyAvailability(2, [], [iv(-7, 17, 2)], ['2026-11-10'], now)[0]).toMatchObject({ blocked: 2, sellable: 0 });
+    expect(dailyAvailability(1, [res(-7, 17)], [iv(-7, 17)], ['2026-11-10'], now)[0]!.sellable).toBe(0);
+  });
+
+  it('đơn 14:00-18:00 và khóa 20:00-23:00, total 1: đỉnh đồng thời là 1 -> sellable 0', () => {
+    const d = dailyAvailability(1, [res(7, 11)], [iv(13, 16)], ['2026-11-10'], now)[0]!;
+    expect(d).toMatchObject({ booked: 1, blocked: 1, sellable: 0 });
   });
 });

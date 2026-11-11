@@ -5,6 +5,14 @@ import { PERM } from './permissions';
 // Mỗi khóa: schema giá trị + mặc định (dùng khi chưa có phiên bản nào) + quyền được sửa ("Ai sửa" ở BA §10).
 const int = (min: number, max: number) => z.number().int().min(min).max(max);
 
+const tier = z.object({
+  freeHours: int(0, 720).nullable(),
+  partialHours: int(0, 720).nullable(),
+  partialBps: int(0, 10_000),
+  lateBps: int(0, 10_000),
+  base: z.enum(['FIRST_NIGHT', 'ALL_NIGHTS']),
+});
+
 export const CONFIG_KEYS = {
   'pricing.serviceFee': {
     // P-07: 2% = 200 bps (phần vạn), tối thiểu 10.000 đ, làm tròn 1.000 đ.
@@ -40,6 +48,18 @@ export const CONFIG_KEYS = {
       noShowGraceMin: int(0, 600),
     }),
     default: { holdMinutes: 10, approvalRemindMin: 10, approvalAlertMin: 15, approvalExpireMin: 20, noShowGraceMin: 60 },
+    writePerm: PERM.ADMIN_CONFIG_WRITE,
+  },
+  'cancellation.fee': {
+    // Phí hủy theo gói chính sách (BA §5, chờ PO xác nhận). null = không có cửa sổ đó.
+    // freeHours: còn >= số giờ này trước check-in thì miễn phí; partialHours: còn >= số giờ này thì giữ partialBps; còn lại giữ lateBps.
+    // base: tính trên đêm đầu hay mọi đêm. Phí dịch vụ không hoàn khi hủy có phạt (BR-CXL-06).
+    schema: z.object({ FLEXIBLE: z.lazy(() => tier), STANDARD: z.lazy(() => tier), NON_REFUNDABLE: z.lazy(() => tier) }),
+    default: {
+      FLEXIBLE: { freeHours: 2, partialHours: null, partialBps: 0, lateBps: 10000, base: 'FIRST_NIGHT' },
+      STANDARD: { freeHours: 24, partialHours: 2, partialBps: 5000, lateBps: 10000, base: 'FIRST_NIGHT' },
+      NON_REFUNDABLE: { freeHours: null, partialHours: null, partialBps: 10000, lateBps: 10000, base: 'ALL_NIGHTS' },
+    },
     writePerm: PERM.ADMIN_CONFIG_WRITE,
   },
   'cancellation.limits': {

@@ -78,6 +78,49 @@ export interface RoomTypeDoc {
   totalRooms: number;
   pricing: { baseNightVnd: Money };
   active: boolean;
+  code?: string;
+  capacity: number;
+  beds: number;
+  areaM2: number;
+  retiredAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RoomBlockDoc {
+  id: string;
+  seq: number;
+  hotelId: string;
+  roomTypeId: string;
+  kind: 'LOCK' | 'MAINTENANCE';
+  qty: number;
+  startsAt: Date;
+  endsAt: Date;
+  reason: string;
+  createdBy: Actor;
+  releasedAt?: Date;
+  releasedBy?: Actor;
+  createdAt: Date;
+}
+
+// Khách sạn thay thế gợi ý khi từ chối đơn (tối đa 3).
+export interface Alternative {
+  hotelId: string;
+  hotelName: string;
+  roomTypeId: string;
+  roomTypeName: string;
+  baseNightVnd: number;
+  airport: string;
+  km: number;
+}
+
+export interface BookingDecisionDoc {
+  bookingId: string;
+  decision: 'CONFIRMED' | 'REJECTED' | 'EXPIRED';
+  reason?: string;
+  decidedBy: Actor;
+  decidedAt: Date;
+  alternatives: Alternative[];
 }
 
 export interface RoomReservationDoc {
@@ -192,7 +235,7 @@ export interface RefundDoc {
   paymentId: string;
   key: string; // unique: chống hoàn kép (BR-CXL-12)
   amountVnd: Money;
-  reasonCode: 'LATE_PAYMENT' | 'DUPLICATE_PAYMENT';
+  reasonCode: 'LATE_PAYMENT' | 'DUPLICATE_PAYMENT' | 'HOTEL_REJECTED' | 'HOTEL_NO_RESPONSE';
   method: 'VNPAY';
   status: RefundStatus;
   attempts: Array<{ at: Date | string; ok: boolean; code?: number; message?: string }>;

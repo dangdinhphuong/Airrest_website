@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { resetDatabaseForTest } from '../../database/migrate';
 import { closeDb, connectDb, db, json } from '../../database/pg';
+import { signAccountToken } from '../../lib/jwt';
 import { hashPassword } from '../../lib/password';
 import { ensureSystemRoles } from '../../services/systemRoles';
 
@@ -31,9 +32,11 @@ export async function mkHotel(o: { code?: string; name?: string; manual?: boolea
   return id;
 }
 
-export async function mkRoomType(hotelId: string, totalRooms: number, baseNightVnd = 600_000): Promise<string> {
+export async function mkRoomType(hotelId: string, totalRooms: number, baseNightVnd = 600_000, o: { code?: string; name?: string; active?: boolean } = {}): Promise<string> {
   const id = randomUUID();
-  await db.query("INSERT INTO room_types (id, hotel_id, name, total_rooms, pricing, active) VALUES ($1,$2,'Deluxe',$3,$4::jsonb,true)", [id, hotelId, totalRooms, json({ baseNightVnd })]);
+  await db.query('INSERT INTO room_types (id, hotel_id, name, code, total_rooms, pricing, active) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7)', [
+    id, hotelId, o.name ?? 'Deluxe', o.code ?? id.replace(/-/g, '').slice(0, 6).toUpperCase(), totalRooms, json({ baseNightVnd }), o.active ?? true,
+  ]);
   return id;
 }
 
@@ -47,3 +50,19 @@ export async function mkAccount(o: { type: 'HOTEL' | 'ADMIN'; email: string; pas
 }
 
 export const systemRoleId = async (key: string): Promise<string> => (await one<{ id: string }>('SELECT id FROM roles WHERE key = $1 AND hotel_id IS NULL', [key]))!.id;
+
+// Tài khoản khách sạn có đúng các quyền cho trước (vai trò riêng của khách sạn) + token.
+export async function mkStaff(hotelId: string, permissions: string[], email = `staff-${randomUUID().slice(0, 8)}@airrest.vn`): Promise<{ id: string; token: string }> {
+  const roleId = randomUUID();
+  await db.query("INSERT INTO roles (id, key, name, scope, hotel_id, permissions) VALUES ($1,$2,'Test','HOTEL',$3,$4::text[])", [roleId, `t-${roleId.slice(0, 8)}`, hotelId, permissions]);
+  const id = await mkAccount({ type: 'HOTEL', email, hotelId, roleIds: [roleId] });
+  return { id, token: signAccountToken({ sub: id, accountType: 'HOTEL' }) };
+}
+
+// Tài khoản Admin có đúng các quyền cho trước (vai trò hệ thống riêng) + token.
+export async function mkAdmin(permissions: string[], email = `admin-${randomUUID().slice(0, 8)}@airrest.vn`): Promise<{ id: string; token: string }> {
+  const roleId = randomUUID();
+  await db.query("INSERT INTO roles (id, key, name, scope, permissions) VALUES ($1,$2,'Test','SYSTEM',$3::text[])", [roleId, `t-${roleId.slice(0, 8)}`, permissions]);
+  const id = await mkAccount({ type: 'ADMIN', email, roleIds: [roleId] });
+  return { id, token: signAccountToken({ sub: id, accountType: 'ADMIN' }) };
+}

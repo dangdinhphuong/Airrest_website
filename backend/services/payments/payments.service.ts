@@ -7,7 +7,8 @@ import { logger } from '../../lib/logger';
 import { newVnpOrder, verifyVnpay, vnpDate, vnpKeys, vnpayGateway } from '../../lib/vnpay';
 import { writeAudit } from '../audit';
 import { emitBookingChange } from '../events';
-import { HOLD_MS } from '../bookings/bookings.service';
+import { approvalHoldMs } from '../bookings/bookings.service';
+import { expireOverdueBookings } from '../bookings/decisions';
 import { getConfig } from '../systemConfig';
 
 const SYSTEM: Actor = { type: 'SYSTEM' };
@@ -162,7 +163,7 @@ async function settleSuccess(paymentId: string, transId: number, cb: { at: Date;
       const hotel = (await tx.query<{ approval: { manual: boolean } }>('SELECT approval FROM hotels WHERE id = $1', [b.hotelId])).rows[0];
       const manual = !!hotel?.approval.manual;
       const next = manual ? 'PENDING' : 'CONFIRMED';
-      const holdUntil = new Date(now.getTime() + HOLD_MS);
+      const holdUntil = new Date(now.getTime() + (await approvalHoldMs()));
       await tx.query(
         `UPDATE bookings SET status = $2, payment_status = 'PAID', paid_vnd = $3, updated_at = $4, expires_at = $5,
            status_history = status_history || $6::jsonb, v = v + 1 WHERE id = $1`,
@@ -308,6 +309,8 @@ export async function reconcilePayments(actor: Actor, requestId?: string) {
       notify(expired);
     }
   }
+
+  out.expiredBookings += (await expireOverdueBookings(actor, requestId, now)).expired; // đơn chờ khách sạn xác nhận quá hạn
 
   const refunds = (await db.query<{ id: string }>("SELECT id FROM refunds WHERE status = 'PENDING' AND due_at <= $1 ORDER BY due_at LIMIT 50", [now])).rows;
   for (const r of refunds) {
