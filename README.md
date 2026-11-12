@@ -1,5 +1,4 @@
 # Airrest
-
 Monorepo (npm workspaces). Tài liệu nghiệp vụ & thiết kế: [docs/](docs/).
 
 
