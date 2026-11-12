@@ -11,6 +11,12 @@ export const getBooking = (id) => api.get(`${H}/bookings/${id}`);
 export const confirmBooking = (id) => post(`/bookings/${id}/confirm`);
 export const rejectBooking = (id, reason) => post(`/bookings/${id}/reject`, { reason });
 export const checkInBooking = (id) => post(`/bookings/${id}/check-in`);
+export const checkOutBooking = (id) => post(`/bookings/${id}/check-out`);
+export const noShowBooking = (id) => post(`/bookings/${id}/no-show`);
+
+export const getProfile = () => api.get(`${H}/profile`);
+export const patchProfile = (body) => api.patch(`${H}/profile`, body);
+export const requestUploadUrl = (body) => post('/media/upload-url', body);
 
 export const listRoomTypes = (includeRetired) => api.get(`${H}/room-types`, { query: { includeRetired } });
 export const createRoomType = (body) => post('/room-types', body);

@@ -4,7 +4,7 @@ import { env } from '../config/env';
 export interface AuthContext {
   kind: 'ACCOUNT' | 'GUEST';
   sub: string;
-  accountType?: 'HOTEL' | 'DRIVER' | 'ADMIN';
+  accountType?: 'HOTEL' | 'DRIVER' | 'ADMIN' | 'PASSENGER';
   hotelId?: string;
   permissions: string[];
   bookingCode?: string; // chỉ với kind = GUEST

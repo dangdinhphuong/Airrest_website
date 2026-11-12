@@ -6,6 +6,7 @@ import { AppError } from '../../../lib/errors';
 import { seqCursor, uuid } from '../../../lib/zod';
 import { validate } from '../../middleware/validate';
 import { hotelFeatures, publicRooms } from '../../../services/hotels/catalog';
+import { imageViews } from '../../../services/hotels/profile';
 
 export const hotelsRouter = Router();
 
@@ -31,10 +32,10 @@ function windowOf(q: { from?: Date; to?: Date }) {
 const idParams = z.object({ id: uuid });
 
 // Chỉ trả trường công khai. Không bao giờ trả payoutAccount, contact nội bộ, incidentScore.
-const PUBLIC_COLS = 'id, seq, name, code, location, airports, amenities, rating, policy, address, description';
+const PUBLIC_COLS = 'id, seq, name, code, location, airports, amenities, rating, policy, address, description, images';
 
 // `policy` chỉ để suy ra cờ tính năng, không trả nguyên văn.
-const toPublic = ({ policy, ...h }: HotelDoc) => ({ ...h, features: hotelFeatures({ amenities: h.amenities, policy }) });
+const toPublic = ({ policy, ...h }: HotelDoc) => ({ ...h, images: imageViews(h.images), features: hotelFeatures({ amenities: h.amenities, policy }) });
 
 // Công khai: danh sách khách sạn theo sân bay, phân trang kiểu keyset (ổn định khi dữ liệu thay đổi).
 // Bản đầy đủ (lọc giá, tồn phòng theo giờ) = FR-SRC-01/02.

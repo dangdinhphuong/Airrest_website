@@ -38,3 +38,8 @@ export function parseTrack(text) {
 
 // Cuộn mượt tới một khu vực (không dùng href="#id" vì ứng dụng đang dùng hash cho định tuyến).
 export const scrollToId = (id, block = 'start') => window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block }), 40);
+
+// Truyền "AR-XXXXXXXX [SĐT]" từ trang tài khoản sang trang Theo dõi (đọc một lần).
+let trackPrefill = '';
+export const setTrackPrefill = (q) => { trackPrefill = q; };
+export const takeTrackPrefill = () => { const q = trackPrefill; trackPrefill = ''; return q; };

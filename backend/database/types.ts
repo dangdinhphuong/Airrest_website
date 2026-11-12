@@ -10,8 +10,9 @@ export type Money = number;
 export interface AccountDoc {
   id: string;
   seq: number;
-  type: 'HOTEL' | 'DRIVER' | 'ADMIN';
-  email: string;
+  type: 'HOTEL' | 'DRIVER' | 'ADMIN' | 'PASSENGER';
+  email?: string; // null với PASSENGER (đăng nhập bằng username)
+  username?: string; // chỉ PASSENGER
   passwordHash: string;
   fullName: string;
   status: 'INVITED' | 'ACTIVE' | 'LOCKED';
@@ -32,6 +33,10 @@ export interface RoleDoc {
   hotelId?: string;
   permissions: string[];
   system: boolean;
+  description?: string;
+  createdBy?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 // Tài khoản nhận tiền của khách sạn. Chi tiết (số TK...) luôn mã hóa, không bao giờ trả ra API; chỉ trả labelMasked.
@@ -63,6 +68,7 @@ export interface HotelDoc {
   description?: string;
   address?: { line: string; ward?: string; district?: string; city: string; country: string };
   contact?: { phone: string; email?: string };
+  images?: string[]; // khóa object R2
   payoutAccount?: PayoutAccount;
   incidentScore: number;
   createdAt: Date;
@@ -274,7 +280,7 @@ export interface BookingDoc {
 
 // Hàng bookings thô -> BookingDoc: gom 4 cột thanh toán thành `payment`, bỏ cột phụ trợ stayFrom.
 export function bookingFromRow(r: Record<string, any>): BookingDoc {
-  const { paymentMethod, paymentStatus, paidVnd, refundedVnd, stayFrom: _stayFrom, ...rest } = r;
+  const { paymentMethod, paymentStatus, paidVnd, refundedVnd, stayFrom: _stayFrom, accountId: _accountId, ...rest } = r;
   return { ...rest, payment: { method: paymentMethod, status: paymentStatus, paidVnd, refundedVnd } } as BookingDoc;
 }
 

@@ -139,4 +139,41 @@ run('tích hợp: CRUD loại phòng', () => {
     expect((await one<any>('SELECT status FROM bookings WHERE code = $1', [b.body.booking.code]))!.status).toBe('CONFIRMED');
     expect((await bookRoom(H, rt, 6)).status).toBe(404);
   });
+
+  it('mở bán lại loại đã ngừng dùng: PATCH active:true xóa retiredAt + audit; khách sạn khác 404; đổi giá khi retire vẫn 409', async () => {
+    const H = await mkHotel({ code: 'H7' });
+    const t = (await mkStaff(H, [PERM.BOOKING_READ, PERM.ROOM_MANAGE])).token;
+    const other = (await mkStaff(await mkHotel({ code: 'H8' }), [PERM.BOOKING_READ, PERM.ROOM_MANAGE])).token;
+    const rt = (await create(t, { code: 'RA' })).body.roomType.id as string;
+    await request(app).delete(`/v1/hotel/room-types/${rt}`).set(auth(t));
+    const patch = (tok: string, b: Record<string, unknown>) => request(app).patch(`/v1/hotel/room-types/${rt}`).set(auth(tok)).send(b);
+    expect((await patch(t, { baseNightVnd: 900000 })).body.error.code).toBe('ROOM_TYPE_RETIRED');
+    expect((await patch(t, { active: true, totalRooms: 9 })).body.error.code).toBe('ROOM_TYPE_RETIRED');
+    expect((await patch(other, { active: true })).status).toBe(404);
+    const ok = await patch(t, { active: true });
+    expect(ok.status).toBe(200);
+    expect(ok.body.roomType).toMatchObject({ active: true });
+    expect(ok.body.roomType.retiredAt ?? null).toBeNull();
+    expect(await count('audit_logs', "action = 'ROOM_TYPE.REACTIVATE'")).toBe(1);
+    expect((await request(app).get('/v1/hotel/room-types').set(auth(t))).body.items.map((x: any) => x.id)).toContain(rt);
+    expect((await bookRoom(H, rt, 3)).status).toBe(201);
+  });
+
+  it('mở bán lại: mã bị loại đang hoạt động khác dùng -> 409 ROOM_TYPE_CODE_EXISTS', async () => {
+    const H = await mkHotel({ code: 'H9' });
+    const t = (await mkStaff(H, [PERM.BOOKING_READ, PERM.ROOM_MANAGE])).token;
+    const rt = (await create(t, { code: 'RB' })).body.roomType.id as string;
+    await request(app).delete(`/v1/hotel/room-types/${rt}`).set(auth(t));
+    // Chỉ mục unique (hotel_id, code) hiện chặn trùng cả loại đã retire; gỡ tạm để dựng tình huống xung đột.
+    await db.query('DROP INDEX room_types_hotel_code');
+    try {
+      await create(t, { code: 'RB' });
+      const res = await request(app).patch(`/v1/hotel/room-types/${rt}`).set(auth(t)).send({ active: true });
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('ROOM_TYPE_CODE_EXISTS');
+    } finally {
+      await db.query('DELETE FROM room_types WHERE hotel_id = $1 AND retired_at IS NULL AND code = $2', [H, 'RB']);
+      await db.query('CREATE UNIQUE INDEX room_types_hotel_code ON room_types (hotel_id, code) WHERE code IS NOT NULL');
+    }
+  });
 });

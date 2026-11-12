@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Headphones, Hotel, Menu, Plane, Search, ShieldCheck, UserRound, X } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Headphones, Hotel, Plane, Search, ShieldCheck, UserRound } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useApp } from '../../state/store';
@@ -24,11 +24,10 @@ const BOTTOM = 'tw:flex tw:min-h-16 tw:flex-col tw:items-center tw:justify-cente
 // Khung trang người dùng: header, footer và thanh điều hướng dưới (mobile) của AIRREST.
 export default function UserSite({ page, children }) {
   const { state, dispatch } = useApp();
-  const [menuOpen, setMenuOpen] = useState(false);
   const root = useRef(null);
 
-  const go = (screen) => { setMenuOpen(false); dispatch({ type: 'go', screen }); window.scrollTo({ top: 0 }); };
-  const goSection = (id) => { setMenuOpen(false); if (page !== 'home') dispatch({ type: 'go', screen: 'home' }); scrollToId(id); };
+  const go = (screen) => { dispatch({ type: 'go', screen }); window.scrollTo({ top: 0 }); };
+  const goSection = (id) => { if (page !== 'home') dispatch({ type: 'go', screen: 'home' }); scrollToId(id); };
   const goPartner = () => go(state.session ? (areasOf(state.session)[0] ?? 'login') : 'login');
 
   // Hiệu ứng vào trang: chỉ opacity/transform, bỏ qua khi người dùng yêu cầu giảm chuyển động.
@@ -45,13 +44,11 @@ export default function UserSite({ page, children }) {
       <header className="tw:sticky tw:top-0 tw:z-50 tw:border-b tw:border-slate-200/80 tw:bg-white/95 tw:backdrop-blur-xl">
         <nav className="tw:mx-auto tw:flex tw:h-[72px] tw:max-w-[1180px] tw:items-center tw:justify-between tw:px-5" aria-label="Điều hướng chính">
           <button type="button" onClick={() => go('home')} aria-label="AIRREST, về trang chủ"><Logo /></button>
-          <div className={`${menuOpen ? 'tw:flex' : 'tw:hidden'} tw:absolute tw:inset-x-0 tw:top-[72px] tw:flex-col tw:gap-1 tw:border-b tw:border-slate-200 tw:bg-white tw:p-4 tw:shadow-xl tw:md:static tw:md:flex tw:md:flex-row tw:md:border-0 tw:md:bg-transparent tw:md:p-0 tw:md:shadow-none`}>
+          <div className="tw:hidden tw:md:flex tw:md:flex-row tw:md:gap-1">
             <button type="button" className={NAV} onClick={() => goSection('how')}>Cách hoạt động</button>
             <button type="button" className={NAV} onClick={() => goSection('stays')}>Nơi nghỉ</button>
             <button type="button" className={NAV} onClick={() => go('track')}>Theo dõi booking</button>
             <button type="button" className={NAV} onClick={() => go('support')}>Trợ giúp</button>
-            {state.user && <button type="button" className={`${NAV} tw:md:hidden`} onClick={() => go('account')}>Tài khoản ({state.user.name})</button>}
-            {!state.user && !state.session && <button type="button" className={`${NAV} tw:md:hidden`} onClick={() => go('login')}>Đăng nhập</button>}
           </div>
           <div className="tw:flex tw:items-center tw:gap-2">
             <button type="button" onClick={() => go('track')} className="tw:hidden tw:items-center tw:gap-2 tw:rounded-xl tw:bg-[#1262e8] tw:px-4 tw:py-3 tw:text-xs tw:font-bold tw:text-white tw:lg:flex"><Search size={16} /> Tra cứu</button>
@@ -63,7 +60,6 @@ export default function UserSite({ page, children }) {
               <button type="button" onClick={() => go('login')} className="tw:hidden tw:rounded-xl tw:border tw:border-slate-300 tw:px-4 tw:py-3 tw:text-xs tw:font-bold tw:text-slate-700 tw:hover:bg-slate-50 tw:md:block">Đăng nhập</button>
             )}
             <button type="button" onClick={() => go(state.user ? 'account' : 'login')} aria-label={state.user ? 'Tài khoản' : 'Đăng nhập'} className="tw:grid tw:size-11 tw:place-items-center tw:rounded-xl tw:bg-slate-100 tw:md:hidden"><UserRound /></button>
-            <button type="button" className="tw:grid tw:size-11 tw:place-items-center tw:rounded-xl tw:bg-slate-100 tw:md:hidden" onClick={() => setMenuOpen(!menuOpen)} aria-label="Mở menu" aria-expanded={menuOpen}>{menuOpen ? <X /> : <Menu />}</button>
           </div>
         </nav>
       </header>
@@ -73,14 +69,14 @@ export default function UserSite({ page, children }) {
       <footer className="tw:bg-[#071a38] tw:py-12 tw:text-white">
         <div className="tw:mx-auto tw:grid tw:max-w-[1180px] tw:gap-9 tw:px-5 tw:sm:grid-cols-2 tw:lg:grid-cols-4">
           <div><Logo tone="tw:text-white" /><p className="tw:mt-4 tw:text-xs tw:leading-6 tw:text-slate-400">Giúp hành khách tìm lại sự chủ động khi chuyến bay thay đổi.</p></div>
-          <div className="tw:grid tw:content-start tw:justify-items-start tw:gap-3 tw:text-xs tw:text-slate-400">
+          <div className="tw:grid tw:content-start tw:justify-items-start tw:gap-1 tw:text-xs tw:[&_button]:py-2 tw:text-slate-400">
             <strong className="tw:text-white">Hành khách</strong>
             <button type="button" onClick={() => goSection('stays')}>Tìm nơi nghỉ</button>
             <button type="button" onClick={() => go('track')}>Theo dõi booking</button>
             <button type="button" onClick={() => go('support')}>Hỗ trợ</button>
             <button type="button" onClick={() => go(state.user ? 'account' : 'login')}>{state.user ? 'Tài khoản' : 'Đăng nhập'}</button>
           </div>
-          <div className="tw:grid tw:content-start tw:justify-items-start tw:gap-3 tw:text-xs tw:text-slate-400"><strong className="tw:text-white">Vận hành</strong><button type="button" onClick={goPartner}>Cổng quản trị & đối tác</button><span>22 sân bay thương mại Việt Nam</span></div>
+          <div className="tw:grid tw:content-start tw:justify-items-start tw:gap-1 tw:text-xs tw:[&_button]:py-2 tw:text-slate-400"><strong className="tw:text-white">Vận hành</strong><button type="button" onClick={goPartner}>Cổng quản trị & đối tác</button><span>22 sân bay thương mại Việt Nam</span></div>
           <div className="tw:rounded-xl tw:border tw:border-white/10 tw:p-4"><ShieldCheck className="tw:text-blue-300" /><p className="tw:mt-3 tw:text-[10px] tw:leading-5 tw:text-slate-400">MVP nghiên cứu. Không tích hợp thanh toán thật, hãng bay thật hoặc tồn phòng thời gian thực.</p></div>
         </div>
       </footer>

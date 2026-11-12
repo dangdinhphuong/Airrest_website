@@ -23,7 +23,7 @@ export default function Payments() {
   const doRetry = async (id) => { const r = await run(() => retryRefund(id), 'Đã gửi thử lại lệnh hoàn.'); if (r.ok) p.reload(); return r; };
   return (
     <>
-      <ScreenTitle title="Thanh toán" kicker="Giao dịch cổng thanh toán và lệnh hoàn" />
+      <ScreenTitle title="Thanh toán">Giao dịch cổng thanh toán và lệnh hoàn</ScreenTitle>
       <SubTabs label="Loại" value={tab} onChange={setTab} tabs={[['payments', 'Giao dịch'], ['anomaly', 'Bất thường'], ['refunds', 'Lệnh hoàn']]} />
       {canManage && <p><Act label="Đối soát ngay" confirm="Chạy đối soát: truy vấn giao dịch treo, hết hạn đơn chưa trả, xử lý lệnh hoàn đến hạn?" onDo={doReconcile} testid="reconcile" /></p>}
       {result && <p className="muted" data-testid="reconcile-result">Kết quả: truy vấn {result.queried}, ghi nhận thành công {result.settled}, thất bại {result.failed}, đơn hết hạn {result.expiredBookings}, lệnh hoàn xử lý {result.refundsProcessed}.</p>}

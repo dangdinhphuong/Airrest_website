@@ -1,16 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ArrowRight, BedDouble, CalendarDays, Check, ChevronRight, CircleHelp, Clock3, Filter, Heart, Hotel, Info, MapPin,
-  MoonStar, Plane, PlaneLanding, Search, ShieldCheck, Sparkles, Star, Users, X,
+  ArrowRight, BedDouble, CalendarDays, Check, ChevronRight, CircleHelp, Clock3, Heart, Hotel, Info, MapPin,
+  MoonStar, Plane, PlaneLanding, ScanBarcode, Search, ShieldCheck, Sparkles, Star, Users, X,
 } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useApp } from '../../state/store';
 import { newIdempotencyKey } from '@airrest/api-client';
-import { airportCity, createBooking, listAirports, listHotels, lookupFlight } from '../../data/user';
-import { describeError } from '../../lib/api';
+import { airportCity, createBooking, describeApiError, listAirports, listHotels, lookupFlight } from '../../data/user';
 import { fmtDuration, isoDate, money } from '../../lib/time';
 import { CHIPS, scrollToId, statusCopy } from './data';
+import ScanTicket from './ScanTicket';
 
 gsap.registerPlugin(useGSAP);
 
@@ -18,6 +18,8 @@ const today = isoDate(0);
 const tomorrow = isoDate(1);
 const LABEL = 'tw:text-[10px] tw:font-extrabold tw:uppercase tw:tracking-[.16em] tw:text-blue-600';
 const DISTANCES = [3, 5, 7];
+const dmy = (iso) => iso.split('-').reverse().join('/'); // yyyy-mm-dd -> dd/mm/yyyy
+const SORT_LABEL = { distance: 'Gần sân bay nhất', price: 'Giá thấp nhất', rating: 'Đánh giá cao nhất' };
 const CHIP_ON = 'tw:border-blue-600 tw:bg-blue-600 tw:text-white';
 const CHIP_OFF = 'tw:border-slate-200 tw:bg-white tw:text-slate-600';
 const PAY = [
@@ -38,6 +40,7 @@ export default function Home() {
 
   const [mode, setMode] = useState('flight');
   const [flight, setFlight] = useState('VN218');
+  const [scanning, setScanning] = useState(false);
   const [date, setDate] = useState(today);
   const [airport, setAirport] = useState('HAN');
   const [airports, setAirports] = useState([]);
@@ -58,26 +61,31 @@ export default function Home() {
   const [hotels, setHotels] = useState([]);
   const [hState, setHState] = useState('loading'); // loading | ok | error
   const [hError, setHError] = useState('');
+  const [sort, setSort] = useState('distance'); // distance | price | rating
 
   // Nơi nghỉ theo sân bay từ API (giá, số phòng còn, cờ tính năng do backend tính).
   useEffect(() => {
     const ctl = new AbortController();
     setHState('loading');
-    listHotels(airport, ctl.signal).then((h) => { setHotels(h); setHState('ok'); }).catch((e) => { if (!ctl.signal.aborted) { setHError(describeError(e)); setHState('error'); } });
+    listHotels(airport, ctl.signal).then((h) => { setHotels(h); setHState('ok'); }).catch((e) => { if (!ctl.signal.aborted) { setHError(describeApiError(e)); setHState('error'); } });
     return () => ctl.abort();
   }, [airport, tick]);
   const available = hotels.filter((h) => h.room.availableRooms > 0);
   const filtered = available.filter((h) => chips.every((id) => CHIPS.find((c) => c.id === id).test(h)) && (!maxKm || h.distanceKm <= Number(maxKm)));
+  const hasRating = available.some((h) => h.rating != null);
+  const SORTS = { distance: (a, b) => a.distanceKm - b.distanceKm || a.travelMinutes - b.travelMinutes, price: (a, b) => a.room.price - b.room.price, rating: (a, b) => Number(b.rating ?? -1) - Number(a.rating ?? -1) || a.distanceKm - b.distanceKm };
+  const shown = [...filtered].sort(SORTS[sort === 'rating' && !hasRating ? 'distance' : sort]);
   const toggleChip = (id) => setChips((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
   const clearFilters = () => { setChips([]); setMaxKm(''); };
   const filtering = chips.length > 0 || !!maxKm;
 
-  const searchFlight = async (e) => {
-    e.preventDefault();
+  const runFlightSearch = async (code, day) => {
     setResult({ s: 'loading' });
-    try { setResult({ s: 'found', f: await lookupFlight(flight.trim().toUpperCase(), date) }); }
+    try { setResult({ s: 'found', f: await lookupFlight(code, day) }); }
     catch (err) { setResult({ s: err.status === 404 ? 'notfound' : 'error' }); }
   };
+  const searchFlight = (e) => { e.preventDefault(); runFlightSearch(flight.trim().toUpperCase(), date); };
+  const onScanned = ({ flight: code, date: day }) => { setScanning(false); setFlight(code); setDate(day); runFlightSearch(code, day); };
   useEffect(() => { if (result.s === 'found' || result.s === 'notfound' || result.s === 'error') scrollToId('flight-status', 'center'); }, [result.s]);
 
   const openBooking = (hotel) => { setSelected(hotel); setStep(1); setBookingData(null); setBookingResult(null); setFormError(''); setActionError(''); };
@@ -93,6 +101,7 @@ export default function Home() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const d = Object.fromEntries(form.entries());
+    if (d.checkIn < today) { setFormError('Ngày nhận phòng không được ở quá khứ.'); return; }
     if (d.checkOut <= d.checkIn) { setFormError('Ngày trả phòng phải sau ngày nhận phòng.'); return; }
     setFormError('');
     setBookingData({ ...d, passengerName: d.passengerName.trim(), paymentMethod: 'AT_HOTEL', idempotencyKey: newIdempotencyKey() });
@@ -106,11 +115,11 @@ export default function Home() {
         hotelId: selected.id, roomTypeId: selected.room.id, checkIn: bookingData.checkIn, checkOut: bookingData.checkOut, paymentMethod: bookingData.paymentMethod, idempotencyKey: bookingData.idempotencyKey,
         guest: { fullName: bookingData.passengerName, phone: bookingData.phone, ...(bookingData.email && { email: bookingData.email }) },
       });
-      setBookingResult({ code: r.code, status: r.status, method: r.payment.method, payUrl: r.paymentLink?.payUrl, payError: r.paymentLink?.error });
+      setBookingResult({ pricing: r.pricing, code: r.code, status: r.status, method: r.payment.method, payUrl: r.paymentLink?.payUrl, payError: r.paymentLink?.error });
       setStep(3);
       setTick((t) => t + 1); // số phòng còn đã đổi
     } catch (err) {
-      setActionError(describeError(err));
+      setActionError(describeApiError(err));
       if (err.status === 409) setTick((t) => t + 1); // hết phòng/không còn bán: tải lại danh sách
     } finally { setPending(false); }
   };
@@ -153,6 +162,7 @@ export default function Home() {
     return () => mm.revert();
   }, { scope: root, dependencies: [selected?.id, step] });
 
+  const nights = bookingData ? Math.max(1, Math.round((new Date(bookingData.checkOut) - new Date(bookingData.checkIn)) / 86400000)) : 1;
   const f = result.f;
   const [chipText, chipTone] = f ? flightChip(f) : [];
   const toStays = (ap) => { if (ap) setAirport(ap); scrollToId('stays'); };
@@ -162,12 +172,12 @@ export default function Home() {
       <section id="top" className="tw:relative tw:overflow-hidden tw:bg-[#062253]">
         <img src="/images/hanoi-night.jpg" alt="Hà Nội về đêm nhìn từ trên cao" fetchPriority="high" className="tw:absolute tw:inset-0 tw:size-full tw:object-cover tw:object-center tw:opacity-40" />
         <div className="tw:absolute tw:inset-0 tw:bg-gradient-to-r tw:from-[#031534] tw:via-[#042e70]/90 tw:to-[#031838]/30" />
-        <div className="tw:relative tw:mx-auto tw:grid tw:min-h-[650px] tw:max-w-[1180px] tw:items-center tw:gap-12 tw:px-5 tw:py-14 tw:lg:grid-cols-[.95fr_1.05fr]">
+        <div className="tw:relative tw:mx-auto tw:grid tw:md:min-h-[650px] tw:max-w-[1180px] tw:items-center tw:gap-8 tw:px-5 tw:py-8 tw:md:gap-12 tw:md:py-14 tw:lg:grid-cols-[.95fr_1.05fr]">
           <div className="tw:max-w-2xl tw:text-white">
             <span data-hero className="tw:inline-flex tw:items-center tw:gap-2 tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-[.16em] tw:text-blue-200"><Sparkles size={15} /> Đồng hành khi hành trình đổi kế hoạch</span>
-            <h1 data-hero className="tw:mt-5 tw:text-4xl tw:font-bold tw:leading-[1.05] tw:tracking-[-.055em] tw:sm:text-5xl tw:lg:text-6xl">Chuyến bay gián đoạn.<br /><em className="tw:not-italic tw:text-[#70a9ff]">Giấc nghỉ thì không.</em></h1>
-            <p data-hero className="tw:mt-6 tw:max-w-xl tw:text-sm tw:leading-7 tw:text-blue-100 tw:sm:text-base">Kiểm tra chuyến bay, tìm phòng còn trống gần 22 sân bay thương mại trên cả nước và gửi yêu cầu đặt chỗ mà không cần tạo tài khoản.</p>
-            <div data-hero className="tw:mt-7 tw:flex tw:flex-wrap tw:gap-4 tw:text-xs tw:text-blue-100"><span className="tw:flex tw:items-center tw:gap-2"><ShieldCheck size={16} /> Không cần đăng nhập</span><span className="tw:flex tw:items-center tw:gap-2"><Clock3 size={16} /> Xử lý nhanh</span><span className="tw:flex tw:items-center tw:gap-2"><MoonStar size={16} /> Hỗ trợ xuyên đêm</span></div>
+            <h1 data-hero className="tw:mt-3 tw:text-3xl tw:font-bold tw:leading-[1.05] tw:md:mt-5 tw:md:text-4xl tw:tracking-[-.055em] tw:sm:text-5xl tw:lg:text-6xl">Chuyến bay gián đoạn.<br /><em className="tw:not-italic tw:text-[#70a9ff]">Giấc nghỉ thì không.</em></h1>
+            <p data-hero className="tw:mt-4 tw:max-w-xl tw:md:mt-6 tw:text-sm tw:leading-7 tw:text-blue-100 tw:sm:text-base">Kiểm tra chuyến bay, tìm phòng còn trống gần 22 sân bay thương mại trên cả nước và gửi yêu cầu đặt chỗ mà không cần tạo tài khoản.</p>
+            <div data-hero className="tw:mt-7 tw:hidden tw:sm:flex tw:flex-wrap tw:gap-4 tw:text-xs tw:text-blue-100"><span className="tw:flex tw:items-center tw:gap-2"><ShieldCheck size={16} /> Không cần đăng nhập</span><span className="tw:flex tw:items-center tw:gap-2"><Clock3 size={16} /> Xử lý nhanh</span><span className="tw:flex tw:items-center tw:gap-2"><MoonStar size={16} /> Hỗ trợ xuyên đêm</span></div>
           </div>
 
           <form data-hero onSubmit={searchFlight} className="tw:w-full tw:rounded-[28px] tw:bg-white tw:p-5 tw:shadow-2xl tw:sm:p-7">
@@ -183,6 +193,7 @@ export default function Home() {
               <div className="tw:mt-5 tw:grid tw:gap-3 tw:sm:grid-cols-2">
                 <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Số hiệu chuyến bay<span className="ui-box"><Plane size={18} className="tw:text-slate-400" /><input className="ui-bare" value={flight} onChange={(e) => setFlight(e.target.value.toUpperCase())} required /></span></label>
                 <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Ngày bay<span className="ui-box"><CalendarDays size={18} className="tw:text-slate-400" /><input className="ui-bare" type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></span></label>
+                <button type="button" onClick={() => setScanning(true)} className="tw:flex tw:min-h-11 tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:border tw:border-dashed tw:border-blue-300 tw:bg-blue-50/60 tw:px-4 tw:text-sm tw:font-bold tw:text-blue-700 tw:hover:bg-blue-50 tw:sm:col-span-2"><ScanBarcode size={18} /> Quét mã thẻ lên tàu</button>
               </div>
             ) : (
               <div className="tw:mt-5 tw:grid tw:gap-3 tw:sm:grid-cols-2">
@@ -227,11 +238,10 @@ export default function Home() {
         <div className="tw:mx-auto tw:max-w-[1180px] tw:px-5">
           <div className="tw:flex tw:flex-col tw:justify-between tw:gap-5 tw:sm:flex-row tw:sm:items-end"><div><span className={LABEL}>Nơi nghỉ gần sân bay</span><h2 className="tw:mt-2 tw:text-3xl tw:font-bold tw:tracking-tight">Phòng đang mở nhận yêu cầu</h2><p className="tw:mt-2 tw:text-sm tw:text-slate-500">Giá và tồn phòng mô phỏng, không phải dữ liệu thời gian thực.</p></div><select aria-label="Sân bay" value={airport} onChange={(e) => setAirport(e.target.value)}>{airportOptions}</select></div>
           <div className="tw:mt-7 tw:flex tw:items-center tw:gap-2 tw:overflow-x-auto tw:pb-2 tw:md:flex-wrap tw:md:overflow-visible">
-            <button type="button" onClick={clearFilters} aria-pressed={!filtering} className={`tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:rounded-full tw:border tw:px-4 tw:py-2.5 tw:text-xs tw:font-bold ${!filtering ? CHIP_ON : CHIP_OFF}`}><Filter size={14} /> Phù hợp nhất</button>
             {CHIPS.map((c) => <button type="button" key={c.id} onClick={() => toggleChip(c.id)} aria-pressed={chips.includes(c.id)} className={`tw:shrink-0 tw:rounded-full tw:border tw:px-4 tw:py-2.5 tw:text-xs tw:font-bold ${chips.includes(c.id) ? CHIP_ON : CHIP_OFF}`}>{c.label}</button>)}
             <select aria-label="Khoảng cách tới sân bay" value={maxKm} onChange={(e) => setMaxKm(e.target.value)} className={`tw:h-10 tw:shrink-0 tw:rounded-full tw:border tw:px-4 tw:text-xs tw:font-bold ${maxKm ? CHIP_ON : CHIP_OFF}`}><option value="">Mọi khoảng cách</option>{DISTANCES.map((km) => <option key={km} value={km}>Trong {km} km</option>)}</select>
-            {filtering && <button type="button" onClick={clearFilters} className="tw:shrink-0 tw:px-2 tw:text-xs tw:font-bold tw:text-blue-600 tw:underline">Xóa bộ lọc</button>}
           </div>
+          <div className="tw:mt-3 tw:flex tw:items-center tw:gap-3"><label className="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:text-xs tw:font-bold tw:text-slate-600 tw:sm:flex-none">Sắp xếp<select aria-label="Sắp xếp danh sách" value={sort} onChange={(e) => setSort(e.target.value)} className="tw:h-10 tw:min-w-0 tw:flex-1 tw:rounded-lg tw:border tw:border-slate-200 tw:bg-white tw:px-3 tw:text-xs tw:font-bold"><option value="distance">{SORT_LABEL.distance}</option><option value="price">{SORT_LABEL.price}</option>{hasRating && <option value="rating">{SORT_LABEL.rating}</option>}</select></label>{filtering && <button type="button" onClick={clearFilters} className="tw:shrink-0 tw:px-2 tw:text-xs tw:font-bold tw:text-blue-600 tw:underline">Xóa bộ lọc</button>}</div>
           <p className="tw:mt-3 tw:text-[10px] tw:text-slate-500" aria-live="polite">{filtered.length}/{available.length} nơi nghỉ phù hợp</p>
           {hState === 'loading' ? (
             <p className="tw:mt-6 tw:rounded-2xl tw:border tw:border-slate-200 tw:bg-white tw:p-10 tw:text-center tw:text-sm tw:text-slate-500" aria-live="polite">Đang tải nơi nghỉ…</p>
@@ -239,7 +249,7 @@ export default function Home() {
             <div role="alert" className="tw:mt-6 tw:rounded-2xl tw:border tw:border-rose-200 tw:bg-rose-50 tw:p-8 tw:text-center"><h3 className="tw:font-bold">Không tải được danh sách nơi nghỉ</h3><p className="tw:mt-2 tw:text-xs tw:text-slate-600">{hError}</p><button type="button" onClick={() => setTick((t) => t + 1)} className="tw:mt-4 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Thử lại</button></div>
           ) : filtered.length ? (
             <div className="tw:mt-5 tw:grid tw:gap-5 tw:md:grid-cols-2 tw:xl:grid-cols-3">
-              {filtered.map((hotel) => (
+              {shown.map((hotel) => (
                 <article data-card key={hotel.id} className="tw:overflow-hidden tw:rounded-2xl tw:border tw:border-slate-200 tw:bg-white tw:shadow-sm tw:transition tw:hover:-translate-y-1 tw:hover:shadow-xl">
                   <div className="tw:relative tw:h-52 tw:overflow-hidden"><img src={hotel.image} alt={`Không gian tại ${hotel.name}`} loading="lazy" className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /><button type="button" onClick={() => setLiked(liked.includes(hotel.id) ? liked.filter((id) => id !== hotel.id) : [...liked, hotel.id])} aria-label="Lưu khách sạn" aria-pressed={liked.includes(hotel.id)} className="tw:absolute tw:right-3 tw:top-3 tw:grid tw:size-10 tw:place-items-center tw:rounded-full tw:bg-white/95 tw:text-slate-600"><Heart size={18} className={liked.includes(hotel.id) ? 'fill-rose-500 text-rose-500' : ''} /></button></div>
                   <div className="tw:p-5">
@@ -247,7 +257,7 @@ export default function Home() {
                     <div className="tw:my-4 tw:flex tw:flex-wrap tw:gap-1.5">{hotel.amenities.slice(0, 3).map((item) => <span key={item} className="tw:rounded-md tw:bg-slate-100 tw:px-2 tw:py-1.5 tw:text-[9px] tw:text-slate-600">{item}</span>)}</div>
                     <div className="tw:border-y tw:border-slate-100 tw:py-3 tw:text-xs tw:text-slate-600"><strong className="tw:text-slate-800">{hotel.room.name}</strong><span className="tw:float-right tw:text-[10px] tw:font-bold tw:text-rose-600">Còn {hotel.room.availableRooms} phòng</span></div>
                     <div className="tw:flex tw:items-end tw:justify-between tw:gap-3 tw:pt-4"><div><small className="tw:text-[9px] tw:text-slate-500">Từ / đêm</small><p className="tw:text-lg tw:font-extrabold">{money(hotel.room.price)}</p></div><button type="button" onClick={() => openBooking(hotel)} className="tw:flex tw:items-center tw:gap-2 tw:rounded-xl tw:bg-blue-600 tw:px-4 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Chọn phòng <ChevronRight size={15} /></button></div>
-                    <button type="button" onClick={() => { dispatch({ type: 'openProperty', id: hotel.id }); window.scrollTo({ top: 0 }); }} className="tw:mt-4 tw:block tw:w-full tw:text-center tw:text-[10px] tw:font-bold tw:text-blue-600">Xem chi tiết khách sạn</button>
+                    <button type="button" onClick={() => { dispatch({ type: 'openProperty', id: hotel.id }); window.scrollTo({ top: 0 }); }} className="tw:mt-2 tw:block tw:w-full tw:py-2.5 tw:text-center tw:text-[11px] tw:font-bold tw:text-blue-600">Xem chi tiết khách sạn</button>
                   </div>
                 </article>
               ))}
@@ -272,11 +282,11 @@ export default function Home() {
                 <span className={LABEL}>Bước 1 / 3</span><h2 className="tw:mt-2 tw:text-2xl tw:font-bold">Thông tin đặt phòng</h2>
                 <div className="tw:mt-5 tw:flex tw:gap-3 tw:rounded-xl tw:border tw:border-slate-200 tw:p-3"><div className="tw:relative tw:h-20 tw:w-24 tw:shrink-0 tw:overflow-hidden tw:rounded-lg"><img src={selected.image} alt="" className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /></div><div><strong className="tw:text-sm">{selected.name}</strong><p className="tw:mt-1 tw:text-xs tw:text-slate-500">{selected.room.name}</p><p className="tw:mt-2 tw:text-xs tw:font-bold tw:text-blue-600">{money(selected.room.price)} / đêm</p></div></div>
                 <div className="tw:mt-5 tw:grid tw:gap-4 tw:sm:grid-cols-2">
-                  <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Họ và tên<input name="passengerName" required maxLength={80} autoComplete="name" placeholder="Nguyễn Minh Anh" /></label>
-                  <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Số điện thoại<input name="phone" type="tel" inputMode="tel" required pattern="[0-9+ ]{9,15}" title="Từ 9 đến 15 chữ số" autoComplete="tel" placeholder="0912345678" /></label>
-                  <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700 tw:sm:col-span-2">Email<input name="email" type="email" required autoComplete="email" placeholder="ban@example.com" /></label>
-                  <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Nhận phòng<input name="checkIn" type="date" min={today} defaultValue={today} required /></label>
-                  <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Trả phòng<input name="checkOut" type="date" min={tomorrow} defaultValue={tomorrow} required /></label>
+                  <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Họ và tên<input name="passengerName" defaultValue={bookingData?.passengerName} required maxLength={80} autoComplete="name" placeholder="Nguyễn Minh Anh" /></label>
+                  <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Số điện thoại<input name="phone" defaultValue={bookingData?.phone} type="tel" inputMode="tel" required pattern="[0-9+ ]{9,15}" title="Từ 9 đến 15 chữ số" autoComplete="tel" placeholder="0912345678" /></label>
+                  <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700 tw:sm:col-span-2">Email<input name="email" defaultValue={bookingData?.email} type="email" required autoComplete="email" placeholder="ban@example.com" /></label>
+                  <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Nhận phòng<input name="checkIn" type="date" min={today} defaultValue={bookingData?.checkIn ?? today} required /></label>
+                  <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Trả phòng<input name="checkOut" type="date" min={tomorrow} defaultValue={bookingData?.checkOut ?? tomorrow} required /></label>
                 </div>
                 <p className="tw:mt-4 tw:text-[10px] tw:leading-5 tw:text-slate-500">Thông tin liên hệ chỉ dùng để xử lý và xác minh booking. Không cần tạo tài khoản.</p>
                 {formError && <p role="alert" className="tw:mt-4 tw:rounded-xl tw:bg-rose-50 tw:p-3 tw:text-xs tw:font-semibold tw:text-rose-700">{formError}</p>}
@@ -286,7 +296,7 @@ export default function Home() {
             {step === 2 && bookingData && (
               <div>
                 <span className={LABEL}>Bước 2 / 3</span><h2 className="tw:mt-2 tw:text-2xl tw:font-bold">Xác nhận yêu cầu</h2>
-                <div className="tw:mt-5 tw:divide-y tw:divide-slate-100 tw:rounded-xl tw:border tw:border-slate-200 tw:px-4 tw:text-xs">{[['Khách sạn', selected.name], ['Loại phòng', selected.room.name], ['Hành khách', bookingData.passengerName], ['Liên hệ', `${bookingData.phone} · ${bookingData.email}`], ['Thời gian', `${bookingData.checkIn} → ${bookingData.checkOut}`], ['Giá ước tính / đêm', money(selected.room.price)], ['Thanh toán', bookingData.paymentMethod === 'VNPAY' ? 'VNPay (online)' : 'Tại khách sạn']].map(([label, value]) => <div key={label} className="tw:flex tw:justify-between tw:gap-5 tw:py-3"><span className="tw:text-slate-500">{label}</span><strong className="tw:text-right">{value}</strong></div>)}</div>
+                <div className="tw:mt-5 tw:divide-y tw:divide-slate-100 tw:rounded-xl tw:border tw:border-slate-200 tw:px-4 tw:text-xs">{[['Khách sạn', selected.name], ['Loại phòng', selected.room.name], ['Hành khách', bookingData.passengerName], ['Liên hệ', `${bookingData.phone} · ${bookingData.email}`], ['Thời gian', `${dmy(bookingData.checkIn)} → ${dmy(bookingData.checkOut)} (${nights} đêm)`], ['Giá phòng / đêm', money(selected.room.price)], ['Tiền phòng ước tính', money(selected.room.price * nights)], ['Phí dịch vụ', 'Tính khi gửi yêu cầu, cộng vào tổng tiền'], ['Thanh toán', bookingData.paymentMethod === 'VNPAY' ? 'VNPay (online)' : 'Tại khách sạn']].map(([label, value]) => <div key={label} className="tw:flex tw:justify-between tw:gap-5 tw:py-3"><span className="tw:text-slate-500">{label}</span><strong className="tw:text-right">{value}</strong></div>)}</div>
                 <fieldset className="tw:mt-4"><legend className="tw:text-xs tw:font-bold">Hình thức thanh toán</legend><div className="tw:mt-2 tw:grid tw:gap-2">{PAY.map(([id, label, hint]) => <label key={id} className={`tw:flex tw:cursor-pointer tw:items-start tw:gap-3 tw:rounded-xl tw:border tw:p-3 tw:text-xs ${bookingData.paymentMethod === id ? 'tw:border-blue-600 tw:bg-blue-50' : 'tw:border-slate-200'}`}><input type="radio" name="paymentMethod" value={id} checked={bookingData.paymentMethod === id} onChange={() => setBookingData({ ...bookingData, paymentMethod: id })} className="tw:mt-0.5" /><span><strong className="tw:block">{label}</strong><span className="tw:text-slate-500">{hint}</span></span></label>)}</div></fieldset>
                 <div className="tw:mt-4 tw:rounded-xl tw:bg-amber-50 tw:p-4 tw:text-xs tw:leading-5 tw:text-amber-900"><strong>Đây là yêu cầu đặt phòng.</strong> Khách sạn có thể cần xác nhận; hãy theo dõi bằng mã booking và số điện thoại.</div>
                 {actionError && <p role="alert" className="tw:mt-4 tw:rounded-xl tw:bg-rose-50 tw:p-3 tw:text-xs tw:font-semibold tw:text-rose-700">{actionError}</p>}
@@ -294,7 +304,7 @@ export default function Home() {
               </div>
             )}
             {step === 3 && bookingResult && (
-              <div className="tw:py-4 tw:text-center"><span className="tw:mx-auto tw:grid tw:size-16 tw:place-items-center tw:rounded-full tw:bg-emerald-50 tw:text-emerald-600"><Check size={30} /></span><span className="tw:mt-5 tw:block tw:text-[10px] tw:font-extrabold tw:uppercase tw:tracking-[.16em] tw:text-emerald-600">Đã gửi thành công</span><h2 className="tw:mt-2 tw:text-2xl tw:font-bold">Yêu cầu đã được ghi nhận</h2><p className="tw:mx-auto tw:mt-3 tw:max-w-md tw:text-xs tw:leading-6 tw:text-slate-500">Lưu mã booking và dùng đúng số điện thoại đã nhập để theo dõi trạng thái.</p><div className="tw:my-6 tw:rounded-2xl tw:bg-blue-50 tw:p-5"><small className="tw:text-slate-500">Mã booking</small><p className="tw:mt-2 tw:text-2xl tw:font-extrabold tw:tracking-wider tw:text-blue-700">{bookingResult.code}</p><span className="tw:mt-3 tw:inline-block tw:rounded-full tw:bg-amber-100 tw:px-3 tw:py-1.5 tw:text-[10px] tw:font-bold tw:text-amber-800">{statusCopy(bookingResult.status)}</span></div>
+              <div className="tw:py-4 tw:text-center"><span className="tw:mx-auto tw:grid tw:size-16 tw:place-items-center tw:rounded-full tw:bg-emerald-50 tw:text-emerald-600"><Check size={30} /></span><span className="tw:mt-5 tw:block tw:text-[10px] tw:font-extrabold tw:uppercase tw:tracking-[.16em] tw:text-emerald-600">Đã gửi thành công</span><h2 className="tw:mt-2 tw:text-2xl tw:font-bold">Yêu cầu đã được ghi nhận</h2><p className="tw:mx-auto tw:mt-3 tw:max-w-md tw:text-xs tw:leading-6 tw:text-slate-500">Lưu mã booking và dùng đúng số điện thoại đã nhập để theo dõi trạng thái.</p><div className="tw:my-6 tw:rounded-2xl tw:bg-blue-50 tw:p-5"><small className="tw:text-slate-500">Mã booking</small><p className="tw:mt-2 tw:text-2xl tw:font-extrabold tw:tracking-wider tw:text-blue-700">{bookingResult.code}</p><span className="tw:mt-3 tw:inline-block tw:rounded-full tw:bg-amber-100 tw:px-3 tw:py-1.5 tw:text-[10px] tw:font-bold tw:text-amber-800">{statusCopy(bookingResult.status)}</span>{bookingResult.pricing && <dl className="tw:mt-4 tw:space-y-1 tw:text-left tw:text-xs"><div className="tw:flex tw:justify-between"><dt className="tw:text-slate-500">Tiền phòng</dt><dd>{money(bookingResult.pricing.roomVnd)}</dd></div><div className="tw:flex tw:justify-between"><dt className="tw:text-slate-500">Phí dịch vụ</dt><dd>{money(bookingResult.pricing.serviceFeeVnd)}</dd></div><div className="tw:flex tw:justify-between tw:font-bold"><dt>Tổng tiền</dt><dd>{money(bookingResult.pricing.totalVnd)}</dd></div></dl>}</div>
                 {bookingResult.method === 'VNPAY' && (bookingResult.payUrl
                   ? <button type="button" onClick={() => window.location.assign(bookingResult.payUrl)} className="tw:mb-3 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-emerald-600 tw:text-sm tw:font-bold tw:text-white">Thanh toán qua VNPay <ArrowRight size={17} /></button>
                   : <p role="alert" className="tw:mb-3 tw:rounded-xl tw:bg-rose-50 tw:p-3 tw:text-xs tw:font-semibold tw:text-rose-700">Chưa tạo được link thanh toán. Vào “Theo dõi booking” để lấy lại link.</p>)}
@@ -303,6 +313,7 @@ export default function Home() {
           </div>
         </div>
       )}
+      {scanning && <ScanTicket onResult={onScanned} onClose={() => setScanning(false)} />}
     </div>
   );
 }

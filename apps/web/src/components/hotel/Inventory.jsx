@@ -68,7 +68,7 @@ export default function Inventory() {
   const name = (id) => items.find((t) => t.id === id)?.code || '?';
   return (
     <>
-      <ScreenTitle title="Tồn phòng" kicker="Khách sạn">Số phòng bán được theo ngày và các đợt khóa/bảo trì.</ScreenTitle>
+      <ScreenTitle title="Tồn phòng">Số phòng bán được theo ngày và các đợt khóa/bảo trì.</ScreenTitle>
       {types.loading && <Loading />}
       {types.err && <ErrorBox onRetry={types.reload}>{describeError(types.err)}</ErrorBox>}
       {types.data && !items.length && <p className="muted" data-testid="empty">Chưa có loại phòng nào.</p>}

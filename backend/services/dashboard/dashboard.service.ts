@@ -18,12 +18,12 @@ export function resolveRange(q: { from?: Date; to?: Date }, now = new Date()): D
 
 const filterHotel = (hotelId: string | undefined, params: unknown[]) => (hotelId ? ` AND hotel_id = $${params.push(hotelId)}` : '');
 
-/** Số đơn + tổng tiền theo trạng thái, lọc theo ngày tạo; đủ mọi trạng thái (không có thì 0). */
+/** Số đơn + tổng tiền theo trạng thái, lọc theo NGÀY NHẬN PHÒNG (stay_from), cùng mốc với doanh thu; đủ mọi trạng thái (không có thì 0). */
 export async function bookingCountsByStatus(tx: Db, r: DateRange, hotelId?: string): Promise<Record<BookingStatus, { count: number; totalVnd: number }>> {
   const params: unknown[] = [r.from, r.to];
   const rows = (
     await tx.query<{ status: BookingStatus; count: number; totalVnd: number }>(
-      `SELECT status, count(*) AS count, COALESCE(sum((pricing->>'totalVnd')::bigint), 0) AS total_vnd FROM bookings WHERE created_at >= $1 AND created_at < $2${filterHotel(hotelId, params)} GROUP BY status`,
+      `SELECT status, count(*) AS count, COALESCE(sum((pricing->>'totalVnd')::bigint), 0) AS total_vnd FROM bookings WHERE stay_from >= $1 AND stay_from < $2${filterHotel(hotelId, params)} GROUP BY status`,
       params,
     )
   ).rows;
@@ -53,7 +53,7 @@ export async function bookingMoneyByStatus(tx: Db, r: DateRange, hotelId?: strin
   };
 }
 
-/** Số đơn tạo mỗi ngày (giờ VN), ngày không có đơn = 0. */
+/** Số đơn theo ngày nhận phòng (giờ VN), ngày không có đơn = 0. */
 export async function bookingTrend(tx: Db, r: DateRange, hotelId?: string): Promise<Array<{ date: string; count: number }>> {
   const params: unknown[] = [r.from, r.to];
   const hotel = hotelId ? ` AND b.hotel_id = $${params.push(hotelId)}` : '';
@@ -61,7 +61,7 @@ export async function bookingTrend(tx: Db, r: DateRange, hotelId?: string): Prom
     await tx.query<{ date: string; count: number }>(
       `SELECT to_char(d::date, 'YYYY-MM-DD') AS date, count(b.id) AS count
        FROM generate_series(($1::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, (($2::timestamptz - interval '1 millisecond') AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, interval '1 day') d
-       LEFT JOIN bookings b ON (b.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = d::date AND b.created_at >= $1 AND b.created_at < $2${hotel}
+       LEFT JOIN bookings b ON (b.stay_from AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = d::date AND b.stay_from >= $1 AND b.stay_from < $2${hotel}
        GROUP BY d ORDER BY d`,
       params,
     )

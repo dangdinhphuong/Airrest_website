@@ -15,7 +15,7 @@ export default function Changes() {
   const go = async (fn, ok) => { if (await act.run(fn, ok)) list.reload(); };
   return (
     <>
-      <ScreenTitle title="Hủy / đổi ngày" kicker="Khách sạn">Yêu cầu hủy hoặc đổi ngày của khách.</ScreenTitle>
+      <ScreenTitle title="Hủy / đổi ngày">Yêu cầu hủy hoặc đổi ngày của khách.</ScreenTitle>
       <div className="filter-bar">
         <select aria-label="Trạng thái" value={status} onChange={(e) => setStatus(e.target.value)} data-testid="ch-status">
           <option value="">Tất cả</option><option value="PENDING">Chờ xử lý</option><option value="APPROVED">Đã duyệt</option><option value="REJECTED">Đã từ chối</option>

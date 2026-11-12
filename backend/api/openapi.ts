@@ -106,7 +106,38 @@ export const openapi = {
         extra: { 401: err('Sai email hoặc mật khẩu') },
       }),
     },
-    '/v1/auth/me': { get: op({ tag: 'Auth', summary: 'Thông tin tài khoản hiện tại' }) },
+    '/v1/auth/me': { get: op({ tag: 'Auth', summary: 'Thông tin tài khoản hiện tại (auth: claims + quyền; user: id, type, fullName, username/email)' }) },
+
+    '/v1/auth/passenger/register': {
+      post: op({
+        tag: 'Khách (tài khoản)',
+        summary: 'Đăng ký tài khoản khách bằng tên đăng nhập, trả token (đăng nhập luôn)',
+        public: true,
+        body: body(obj({ username: { type: 'string', maxLength: 50, description: 'Không chứa "@" hoặc dãy >= 6 chữ số (BR-002); không phân biệt hoa/thường' }, password: { type: 'string', minLength: 8 }, fullName: { type: 'string', maxLength: 100 } }, ['username', 'password']), { username: 'lananh', password: 'MatKhau123' }),
+        extra: { 201: ok('Đã tạo: {token, user:{id,type:"PASSENGER",username,fullName,permissions:[]}}'), 409: err('USERNAME_TAKEN'), 422: err('Tên đăng nhập / mật khẩu không hợp lệ') },
+      }),
+    },
+    '/v1/auth/passenger/login': {
+      post: op({
+        tag: 'Khách (tài khoản)',
+        summary: 'Đăng nhập khách bằng tên đăng nhập, trả {token, user}',
+        public: true,
+        body: body(obj({ username: str, password: str }, ['username', 'password']), { username: 'lananh', password: 'MatKhau123' }),
+        extra: { 401: err('INVALID_CREDENTIALS (sai tên/mật khẩu hoặc tài khoản khóa; không phân biệt)') },
+      }),
+    },
+    '/v1/me/password': {
+      patch: op({
+        tag: 'Khách (tài khoản)',
+        summary: 'Đổi mật khẩu (chỉ tài khoản khách)',
+        body: body(obj({ currentPassword: str, newPassword: { type: 'string', minLength: 8 } }, ['currentPassword', 'newPassword'])),
+        res: { description: 'Xong (204)' },
+        extra: { 400: err('WRONG_CURRENT_PASSWORD'), 422: err('Mật khẩu mới ngắn hoặc trùng mật khẩu cũ (SAME_PASSWORD)') },
+      }),
+    },
+    '/v1/me/bookings': {
+      get: op({ tag: 'Khách (tài khoản)', summary: 'Đơn của tài khoản khách (mới nhất trước; cursor = nextCursor trang trước)', params: [param('status', 'query'), limit, cursor] }),
+    },
 
     '/v1/airports': { get: op({ tag: 'Airports (công khai)', summary: 'Danh mục sân bay thương mại Việt Nam', public: true }) },
 
@@ -123,7 +154,7 @@ export const openapi = {
     '/v1/bookings': {
       post: op({
         tag: 'Bookings (khách)',
-        summary: 'Đặt phòng không cần tài khoản',
+        summary: 'Đặt phòng không cần tài khoản (kèm Bearer token khách hợp lệ thì đơn gắn vào tài khoản đó)',
         public: true,
         params: [{ ...param('Idempotency-Key', 'header'), required: true, description: 'Chuỗi duy nhất mỗi lần đặt, gửi lại cùng key sẽ trả kết quả cũ' }],
         body: body(ref('CreateBooking')),
@@ -139,6 +170,26 @@ export const openapi = {
     },
     '/v1/hotel/bookings/{id}/check-in': {
       post: op({ tag: 'Bookings (lễ tân)', summary: 'Check-in', perm: 'booking:checkin', params: [idParam], extra: { 404: err('Không tìm thấy'), 409: err('Trạng thái không hợp lệ') } }),
+    },
+
+    '/v1/hotel/bookings/{id}/check-out': {
+      post: op({ tag: 'Bookings (lễ tân)', summary: 'Check-out (CHECKED_IN -> CHECKED_OUT); trả { booking }', perm: 'booking:checkin', params: [idParam], extra: { 404: err('BOOKING_NOT_FOUND (kể cả khách sạn khác)'), 409: err('INVALID_STATE') } }),
+    },
+    '/v1/hotel/bookings/{id}/no-show': {
+      post: op({ tag: 'Bookings (lễ tân)', summary: 'Khách không đến (CONFIRMED, đã tới/qua ngày nhận phòng giờ VN -> NO_SHOW); không đụng tiền; trả { booking }', perm: 'booking:checkin', params: [idParam], extra: { 404: err('BOOKING_NOT_FOUND'), 409: err('INVALID_STATE hoặc NO_SHOW_NOT_DUE') } }),
+    },
+    '/v1/hotel/profile': {
+      get: op({ tag: 'Hồ sơ khách sạn (lễ tân)', summary: 'Hồ sơ khách sạn của token: { profile } (không có tài khoản nhận tiền)', perm: 'room:manage' }),
+      patch: op({
+        tag: 'Hồ sơ khách sạn (lễ tân)', summary: 'Sửa trường an toàn; ít nhất 1 trường; trả { profile }', perm: 'room:manage',
+        body: body(obj({ description: str, phone: str, receptionCloseHour: { type: 'integer', nullable: true, description: '0-26, null = bỏ' }, cancellationTemplate: { type: 'string', enum: ['FLEXIBLE', 'STANDARD', 'NON_REFUNDABLE'] }, amenities: { type: 'array', items: str }, images: { type: 'array', items: str, description: 'Khóa R2 (từ upload-url), tối đa 10; thay toàn bộ danh sách' } })),
+      }),
+    },
+    '/v1/hotel/media/upload-url': {
+      post: op({
+        tag: 'Hồ sơ khách sạn (lễ tân)', summary: 'URL ký sẵn tải ảnh lên R2 (503 STORAGE_NOT_CONFIGURED nếu chưa có R2)', perm: 'room:manage',
+        body: body(obj({ folder: { type: 'string', enum: ['hotels', 'rooms'] }, contentType: { type: 'string', example: 'image/jpeg' }, size: { type: 'integer' } }, ['contentType', 'size'])),
+      }),
     },
 
     '/v1/payments/vnpay/ipn': {
@@ -162,15 +213,43 @@ export const openapi = {
       }),
     },
 
-    '/v1/admin/roles': { get: op({ tag: 'Admin · Tài khoản', summary: 'Danh sách vai trò admin', perm: 'admin:account:manage' }) },
+    '/v1/admin/permissions': { get: op({ tag: 'Admin · Vai trò', summary: 'Danh mục quyền (key, group, description, sensitive)', perm: 'admin:account:manage' }) },
+    '/v1/admin/roles': {
+      get: op({ tag: 'Admin · Vai trò', summary: 'Vai trò hệ thống + tùy chỉnh, kèm số tài khoản đang dùng', perm: 'admin:account:manage' }),
+      post: op({
+        tag: 'Admin · Vai trò',
+        summary: 'Tạo vai trò tùy chỉnh',
+        perm: 'admin:account:manage',
+        body: body(obj({ name: str, description: str, permissions: { type: 'array', items: str, minItems: 1 } }, ['name', 'permissions']), { name: 'Kiểm duyệt', permissions: ['audit:read'] }),
+        extra: { 201: ok('Đã tạo: {role}'), 403: err('PERMISSION_ESCALATION: gán quyền mình không có'), 409: err('ROLE_NAME_TAKEN'), 422: err('UNKNOWN_PERMISSION / dữ liệu sai') },
+      }),
+    },
+    '/v1/admin/roles/{id}': {
+      patch: op({
+        tag: 'Admin · Vai trò',
+        summary: 'Sửa tên/mô tả/quyền vai trò tùy chỉnh (có hiệu lực ngay)',
+        perm: 'admin:account:manage',
+        params: [idParam],
+        body: body(obj({ name: str, description: str, permissions: { type: 'array', items: str } })),
+        extra: { 403: err('PERMISSION_ESCALATION'), 404: err('ROLE_NOT_FOUND'), 409: err('ROLE_SYSTEM_IMMUTABLE / CANNOT_MODIFY_SELF / ROLE_NAME_TAKEN'), 422: err('UNKNOWN_PERMISSION') },
+      }),
+      delete: op({
+        tag: 'Admin · Vai trò',
+        summary: 'Xóa vai trò tùy chỉnh chưa có tài khoản dùng',
+        perm: 'admin:account:manage',
+        params: [idParam],
+        res: { description: 'Xong (204)' },
+        extra: { 404: err('ROLE_NOT_FOUND'), 409: err('ROLE_IN_USE / ROLE_SYSTEM_IMMUTABLE / CANNOT_MODIFY_SELF') },
+      }),
+    },
     '/v1/admin/accounts': {
-      get: op({ tag: 'Admin · Tài khoản', summary: 'Danh sách tài khoản admin', perm: 'admin:account:manage', params: [param('status', 'query'), param('adminRole', 'query'), param('q', 'query'), limit, param('after', 'query', int)] }),
+      get: op({ tag: 'Admin · Tài khoản', summary: 'Danh sách tài khoản admin', perm: 'admin:account:manage', params: [param('status', 'query'), param('adminRole', 'query'), param('roleId', 'query', uuid), param('q', 'query'), limit, param('after', 'query', int)] }),
       post: op({
         tag: 'Admin · Tài khoản',
         summary: 'Tạo tài khoản admin',
         perm: 'admin:account:manage',
-        body: body(obj({ email: str, fullName: str, adminRole: { type: 'string', enum: ['OPS', 'SUPPORT', 'FINANCE', 'SYSADMIN'] }, password: { type: 'string', minLength: 12 } }, ['email', 'fullName', 'adminRole', 'password'])),
-        extra: { 409: err('Email đã được dùng') },
+        body: body(obj({ email: str, fullName: str, adminRole: { type: 'string', enum: ['OPS', 'SUPPORT', 'FINANCE', 'SYSADMIN'], description: 'Hoặc dùng roleId (đúng một trong hai)' }, roleId: uuid, password: { type: 'string', minLength: 12 } }, ['email', 'fullName', 'password'])),
+        extra: { 403: err('PERMISSION_ESCALATION'), 404: err('ROLE_NOT_FOUND'), 409: err('Email đã được dùng') },
       }),
     },
     '/v1/admin/accounts/{id}': {
@@ -179,8 +258,8 @@ export const openapi = {
         summary: 'Đổi tên, vai trò hoặc khóa/mở',
         perm: 'admin:account:manage',
         params: [idParam],
-        body: body(obj({ fullName: str, adminRole: str, status: { type: 'string', enum: ['ACTIVE', 'LOCKED'] } })),
-        extra: { 404: err('Không tìm thấy'), 409: err('Tự sửa mình hoặc xóa SYSADMIN cuối cùng') },
+        body: body(obj({ fullName: str, adminRole: str, roleId: uuid, status: { type: 'string', enum: ['ACTIVE', 'LOCKED'] } })),
+        extra: { 403: err('PERMISSION_ESCALATION (tài khoản/vai trò cao hơn mình)'), 404: err('Không tìm thấy'), 409: err('Tự sửa mình hoặc xóa SYSADMIN cuối cùng') },
       }),
     },
     '/v1/admin/accounts/{id}/reset-password': {
@@ -243,7 +322,7 @@ export const openapi = {
       post: op({ tag: 'Rooms (khách sạn)', summary: 'Tạo loại phòng', perm: 'room:manage', body: body(obj({ code: str, name: str, capacity: int, beds: int, areaM2: int, totalRooms: int, baseNightVnd: int }, ['code', 'name', 'capacity', 'beds', 'totalRooms', 'baseNightVnd'])), extra: { 409: err('Mã trùng') } }),
     },
     '/v1/hotel/room-types/{id}': {
-      patch: op({ tag: 'Rooms (khách sạn)', summary: 'Sửa loại phòng (hạ số phòng dưới số đang giữ -> 409)', perm: 'room:manage', params: [idParam], body: body({ type: 'object' }, { totalRooms: 5 }) }),
+      patch: op({ tag: 'Rooms (khách sạn)', summary: 'Sửa loại phòng (hạ số phòng dưới số đang giữ -> 409). Loại đã ngừng dùng: chỉ nhận { active: true } để mở bán lại (xóa retiredAt, audit ROOM_TYPE.REACTIVATE; 409 ROOM_TYPE_CODE_EXISTS nếu mã bị loại đang hoạt động dùng); sửa khác -> 409 ROOM_TYPE_RETIRED', perm: 'room:manage', params: [idParam], body: body({ type: 'object' }, { totalRooms: 5 }) }),
       delete: op({ tag: 'Rooms (khách sạn)', summary: 'Ngừng dùng loại phòng (mềm)', perm: 'room:manage', params: [idParam] }),
     },
     '/v1/hotel/room-types/{id}/inventory': { get: op({ tag: 'Rooms (khách sạn)', summary: 'Tồn phòng theo ngày (giờ VN, tối đa 62 ngày)', perm: 'booking:read', params: [idParam, param('from', 'query'), param('to', 'query')] }) },
@@ -289,8 +368,15 @@ export const openapi = {
     '/v1/hotel/shuttle-requests/{id}/cancel': { post: op({ tag: 'Shuttle (nhân sự)', summary: 'Hủy yêu cầu xe', perm: 'shuttle:handle', params: [idParam], body: body(obj({ note: str }, ['note'])) }) },
 
     '/v1/flights/{code}': { get: op({ tag: 'Flights', summary: 'Tra chuyến bay (MÔ PHỎNG, simulated: true)', public: true, params: [param('code', 'path'), param('date', 'query', str, false)], extra: { 404: err('FLIGHT_NOT_FOUND') } }) },
-    '/v1/admin/flights': { get: op({ tag: 'Admin · Chuyến bay', summary: 'Danh sách chuyến bay mô phỏng', perm: 'flight:manage', params: [param('code', 'query'), param('date', 'query'), param('status', 'query'), limit, cursor] }) },
-    '/v1/admin/flights/{id}': { patch: op({ tag: 'Admin · Chuyến bay', summary: 'Đổi giờ/trạng thái (kèm lý do, có lịch sử)', perm: 'flight:manage', params: [idParam], body: body(obj({ status: { type: 'string', enum: ['ONTIME', 'DELAYED', 'CANCELLED'] }, newDepartureAt: { type: 'string', format: 'date-time' }, cause: str, reason: str }, ['status', 'reason'])), extra: { 409: err('FLIGHT_UNCHANGED') } }) },
+    '/v1/admin/flights': {
+      get: op({ tag: 'Admin · Chuyến bay', summary: 'Danh sách chuyến bay mô phỏng', perm: 'flight:manage', params: [param('code', 'query'), param('date', 'query'), param('status', 'query'), limit, cursor] }),
+      post: op({
+        tag: 'Admin · Chuyến bay', summary: 'Tạo chuyến mô phỏng (ONTIME); 201 { flight }', perm: 'flight:manage',
+        body: body(obj({ code: str, airline: str, origin: str, dest: str, scheduledDepartureAt: { type: 'string', format: 'date-time' }, distanceKm: int, simScenario: { type: 'string', enum: ['approve', 'reject', 'hotelfull', 'noreply'] }, reason: str }, ['code', 'origin', 'scheduledDepartureAt', 'reason'])),
+        extra: { 409: err('FLIGHT_EXISTS'), 422: err('AIRPORT_UNKNOWN / VALIDATION_ERROR') },
+      }),
+    },
+    '/v1/admin/flights/{id}': { delete: op({ tag: 'Admin · Chuyến bay', summary: 'Xóa chuyến chưa có lịch sử thay đổi; 204', perm: 'flight:manage', params: [idParam], extra: { 404: err('FLIGHT_NOT_FOUND'), 409: err('FLIGHT_IN_USE') } }), patch: op({ tag: 'Admin · Chuyến bay', summary: 'Đổi giờ/trạng thái (kèm lý do, có lịch sử)', perm: 'flight:manage', params: [idParam], body: body(obj({ status: { type: 'string', enum: ['ONTIME', 'DELAYED', 'CANCELLED'] }, newDepartureAt: { type: 'string', format: 'date-time' }, cause: str, reason: str }, ['status', 'reason'])), extra: { 409: err('FLIGHT_UNCHANGED') } }) },
     '/v1/admin/flights/{id}/changes': { get: op({ tag: 'Admin · Chuyến bay', summary: 'Lịch sử đổi giờ', perm: 'flight:manage', params: [idParam, limit, cursor] }) },
     '/v1/admin/dashboard': { get: op({ tag: 'Admin · Dashboard', summary: 'Dashboard toàn hệ thống (khoảng tối đa 92 ngày)', perm: 'admin:dashboard:read', params: [param('from', 'query'), param('to', 'query')] }) },
 

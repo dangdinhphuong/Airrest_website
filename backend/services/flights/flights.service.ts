@@ -1,8 +1,9 @@
 import type { FlightDto } from '@airrest/shared-types';
-import type { UpdateFlightBody } from '@airrest/validation';
+import type { CreateFlightBody, UpdateFlightBody } from '@airrest/validation';
+import { airportByIata } from '../../data/airports';
 import { db, withTransaction } from '../../database/pg';
 import type { FlightChangeDoc, FlightDoc } from '../../database/types';
-import { AppError } from '../../lib/errors';
+import { AppError, isDuplicateKey } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
 import { actorOf, writeAudit } from '../audit';
 import { getConfig } from '../systemConfig';
@@ -103,4 +104,42 @@ export async function updateFlight(auth: AuthContext, id: string, body: UpdateFl
   });
   const cfg = await getConfig('flight.thresholds', out.now);
   return { flight: toFlightDto(out.next, { delayHours: cfg.value.delayHours, lastChange: await lastChangeOf(id), now: out.now }), change: changeView(out.change) };
+}
+
+/** Tạo chuyến mô phỏng (ONTIME). (code, ngày bay theo giờ VN) phải duy nhất -> 409 FLIGHT_EXISTS. */
+export async function createFlight(auth: AuthContext, body: CreateFlightBody, requestId?: string) {
+  if (!airportByIata(body.origin)) throw new AppError(422, 'AIRPORT_UNKNOWN', `Mã sân bay đi "${body.origin}" không có trong danh mục`);
+  if (body.dest && !airportByIata(body.dest)) throw new AppError(422, 'AIRPORT_UNKNOWN', `Mã sân bay đến "${body.dest}" không có trong danh mục`);
+  if (body.dest && body.dest === body.origin) throw new AppError(422, 'FLIGHT_ROUTE_INVALID', 'Sân bay đi và đến phải khác nhau');
+  const now = new Date();
+  try {
+    const row = await withTransaction(async (tx) => {
+      const created = (
+        await tx.query<FlightDoc>(
+          `INSERT INTO flights (code, airline, origin, dest, sched_dep, status, cause, distance_km, sim_scenario, updated_at)
+           VALUES ($1,$2,$3,$4,$5,'ONTIME','UNKNOWN',$6,$7,$8) RETURNING ${FLIGHT_COLS}`,
+          [body.code, body.airline, body.origin, body.dest ?? null, new Date(body.scheduledDepartureAt), body.distanceKm ?? null, body.simScenario, now],
+        )
+      ).rows[0]!;
+      await writeAudit({ actor: actorOf(auth), action: 'FLIGHT.CREATE', entity: { type: 'flight', id: created.id }, after: { code: created.code, flightDate: created.flightDate, origin: created.origin, dest: created.dest ?? null }, reasonNote: body.reason, requestId }, tx);
+      return created;
+    });
+    const cfg = await getConfig('flight.thresholds', now);
+    return { flight: toFlightDto(row, { delayHours: cfg.value.delayHours, lastChange: null, now }) };
+  } catch (e) {
+    if (isDuplicateKey(e)) throw new AppError(409, 'FLIGHT_EXISTS', 'Chuyến bay này đã tồn tại trong ngày (mã + ngày khởi hành)');
+    throw e;
+  }
+}
+
+/** Xóa chuyến chưa có tham chiếu (chưa có lịch sử đổi giờ/trạng thái); đã có -> 409 FLIGHT_IN_USE. */
+export async function deleteFlight(auth: AuthContext, id: string, requestId?: string): Promise<void> {
+  await withTransaction(async (tx) => {
+    const f = (await tx.query<FlightDoc>(`SELECT ${FLIGHT_COLS} FROM flights WHERE id = $1 FOR UPDATE`, [id])).rows[0];
+    if (!f) throw new AppError(404, 'FLIGHT_NOT_FOUND', 'Không tìm thấy chuyến bay');
+    const refs = (await tx.query<{ n: number }>('SELECT count(*) AS n FROM flight_changes WHERE flight_id = $1', [id])).rows[0]!.n;
+    if (refs > 0) throw new AppError(409, 'FLIGHT_IN_USE', 'Chuyến bay đã có lịch sử thay đổi nên không thể xóa');
+    await tx.query('DELETE FROM flights WHERE id = $1', [id]);
+    await writeAudit({ actor: actorOf(auth), action: 'FLIGHT.DELETE', entity: { type: 'flight', id }, before: { code: f.code, flightDate: f.flightDate, status: f.status }, requestId }, tx);
+  });
 }

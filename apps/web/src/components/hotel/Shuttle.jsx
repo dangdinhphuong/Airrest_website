@@ -30,7 +30,7 @@ export default function Shuttle() {
   const go = async (fn, ok) => { const r = await act.run(fn, ok); if (r) list.reload(); return r; };
   return (
     <>
-      <ScreenTitle title="Xe đưa đón" kicker="Khách sạn">Yêu cầu xe của khách đã đặt phòng.</ScreenTitle>
+      <ScreenTitle title="Xe đưa đón">Yêu cầu xe của khách đã đặt phòng.</ScreenTitle>
       <div className="filter-bar">
         <select aria-label="Trạng thái" value={status} onChange={(e) => setStatus(e.target.value)} data-testid="sh-status">
           <option value="">Mọi trạng thái</option><option value="REQUESTED">Chờ phân xe</option><option value="ASSIGNED">Đã phân xe</option><option value="DONE">Hoàn tất</option><option value="CANCELLED">Đã hủy</option>

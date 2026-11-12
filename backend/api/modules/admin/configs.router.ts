@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { CONFIG_KEYS, isConfigKey, type ConfigKey } from '../../../config/configKeys';
 import { PERM } from '../../../config/permissions';
@@ -67,8 +67,18 @@ configsRouter.get('/configs/:key/versions', requirePermission(PERM.ADMIN_CONFIG_
   });
 });
 
+// Kiểm quyền TRƯỚC validate (403 trước 422). Khóa lạ: chỉ người có ít nhất một quyền ghi cấu hình mới biết là 404.
+const canWriteKey: RequestHandler = (req, _res, next) => {
+  const auth = req.auth;
+  const key = String(req.params.key ?? '');
+  const writePerms = Object.values(CONFIG_KEYS).map((c) => c.writePerm);
+  const allowed = auth?.kind === 'ACCOUNT' && (isConfigKey(key) ? auth.permissions.includes(CONFIG_KEYS[key].writePerm) : writePerms.some((p) => auth.permissions.includes(p)));
+  if (!allowed) throw new AppError(auth ? 403 : 401, auth ? 'FORBIDDEN' : 'UNAUTHENTICATED', auth ? 'Không đủ quyền thực hiện thao tác này' : 'Chưa đăng nhập');
+  next();
+};
+
 // Mỗi khóa có quyền ghi riêng (BA §10 "Ai sửa"): Quản trị HT / Điều phối / Kế toán.
-configsRouter.put('/configs/:key', validate({ params: keyParams, body: putBody }), async (req, res) => {
+configsRouter.put('/configs/:key', canWriteKey, validate({ params: keyParams, body: putBody }), async (req, res) => {
   const key = knownKey((req.valid.params as z.infer<typeof keyParams>).key);
   const body = req.valid.body as z.infer<typeof putBody>;
   const need = CONFIG_KEYS[key].writePerm;

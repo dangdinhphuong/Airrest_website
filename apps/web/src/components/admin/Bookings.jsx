@@ -44,7 +44,7 @@ export default function Bookings() {
   if (sel) return <><ScreenTitle title="Đơn đặt phòng" /><Detail id={sel} onBack={() => setSel(null)} /></>;
   return (
     <>
-      <ScreenTitle title="Đơn đặt phòng" kicker="Mọi khách sạn, chỉ đọc" />
+      <ScreenTitle title="Đơn đặt phòng">Mọi khách sạn, chỉ đọc</ScreenTitle>
       <Filters fields={[['status', 'Trạng thái', 'text', Object.entries(BOOKING_LABEL)], ['code', 'Mã đơn (tiền tố)'], ['hotelId', 'Mã khách sạn (UUID)'], ['from', 'Nhận phòng từ', 'date'], ['to', 'Đến', 'date']]} onApply={setQ} />
       <PagedView p={p} empty="Không có đơn nào khớp bộ lọc.">
         <Table rows={p.items} cols={[['Mã', (b) => <button type="button" className="link-btn" onClick={() => setSel(b.id)} data-testid="open-booking">{b.code}</button>], ['Trạng thái', (b) => <St s={b.status} />], ['Khách sạn', (b) => b.hotelSnapshot?.name], ['Khách', (b) => b.guest?.fullName], ['Nhận phòng', (b) => dt(b.stay?.from)], ['Tổng', (b) => money(b.pricing?.totalVnd ?? 0)], ['Thanh toán', (b) => b.payment?.status || '—']]} />

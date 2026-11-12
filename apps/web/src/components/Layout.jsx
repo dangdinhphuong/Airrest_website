@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, LogOut, Menu, Plane, ShieldCheck, UserCircle } from 'lucide-react';
+import { ChevronRight, LogOut, Menu, Plane, UserCircle } from 'lucide-react';
 
 // Khung cổng nhân sự (khách sạn/quản trị): header chỉ có logo, khu vực đang làm việc, tài khoản và đăng xuất.
 export function Header({ onHome, session, user, onPartner, onLogout, onMenu, menuOpen, hasMenu, context }) {
@@ -67,53 +67,17 @@ export function Breadcrumb({ items }) {
   );
 }
 
-const STEPS = [
-  ['status', 'Chuyến bay'], ['advice', 'Gợi ý'], ['stays', 'Nơi nghỉ'], ['booking', 'Đặt chỗ'], ['reminder', 'Nhắc giờ'],
-];
-export function Footer({ onGo }) {
+// Chân trang cổng nhân sự: chỉ thương hiệu và tên cổng đang làm việc.
+export function Footer({ portal }) {
   return (
-    <footer className="airrest-dark-footer">
-      <div className="shell">
-        <div className="airrest-footer-grid">
-          <div className="footer-col">
-            <div className="logo" style={{ color: '#ffffff' }}>
-              <span className="logo-mark"><Plane size={18} aria-hidden="true" /></span>
-              <span className="logo-text" style={{ color: '#ffffff' }}><strong>AIRREST</strong></span>
-            </div>
-            <p style={{ marginTop: '14px', fontSize: '13px', lineHeight: '1.6', color: '#94a3b8' }}>
-              Giúp hành khách tìm lại sự chủ động khi chuyến bay thay đổi. Giải pháp kết nối nơi nghỉ quanh sân bay Nội Bài và Tân Sơn Nhất.
-            </p>
-          </div>
-          <div className="footer-col">
-            <h4>Hành khách</h4>
-            <ul className="footer-links-list">
-              <li><button type="button" onClick={() => onGo?.('stays')} style={{ color: '#94a3b8', fontSize: '13.5px' }}>Tìm nơi nghỉ</button></li>
-              <li><button type="button" onClick={() => onGo?.('track')} style={{ color: '#94a3b8', fontSize: '13.5px' }}>Theo dõi booking</button></li>
-              <li><button type="button" onClick={() => onGo?.('support')} style={{ color: '#94a3b8', fontSize: '13.5px' }}>Trung tâm hỗ trợ</button></li>
-            </ul>
-          </div>
-          <div className="footer-col">
-            <h4>Vận hành</h4>
-            <ul className="footer-links-list">
-              <li><button type="button" onClick={() => onGo?.('login')} style={{ color: '#94a3b8', fontSize: '13.5px' }}>Cổng quản trị & Đối tác</button></li>
-              <li><span style={{ color: '#64748b' }}>Hỗ trợ Nội Bài (HAN)</span></li>
-              <li><span style={{ color: '#64748b' }}>Hỗ trợ Tân Sơn Nhất (SGN)</span></li>
-            </ul>
-          </div>
-          <div className="footer-col">
-            <div className="footer-security-box">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#bfdbfe', fontWeight: '700', marginBottom: '8px' }}>
-                <ShieldCheck size={18} />
-                <span>Nghiên cứu MVP</span>
-              </div>
-              Bản mô phỏng nghiên cứu UI/UX. Không tích hợp thanh toán thật, hãng bay thật hoặc tồn phòng thời gian thực.
-            </div>
-          </div>
+    <footer className="airrest-dark-footer staff-footer">
+      <div className="shell staff-footer-in">
+        <div className="logo" style={{ color: '#ffffff' }}>
+          <span className="logo-mark"><Plane size={18} aria-hidden="true" /></span>
+          <span className="logo-text" style={{ color: '#ffffff' }}><strong>AIRREST</strong></span>
         </div>
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: '36px', paddingTop: '20px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', fontSize: '12.5px', color: '#64748b' }}>
-          <span>© 2026 AIRREST. Bản quyền thuộc đồ án nghiên cứu.</span>
-          <span>Dữ liệu mô phỏng · Cập nhật 2026</span>
-        </div>
+        {portal && <span className="staff-footer-portal">Cổng {portal}</span>}
+        <span className="staff-footer-copy">© 2026 AIRREST</span>
       </div>
     </footer>
   );

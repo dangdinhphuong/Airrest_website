@@ -46,10 +46,10 @@ export async function createRoomType(auth: AuthContext, hotelId: string | undefi
 }
 
 // Khóa dòng loại phòng (cùng khóa với createBooking) và kiểm tra thuộc khách sạn, chưa ngừng dùng.
-async function lockRoomType(tx: Db, hotelId: string, id: string): Promise<RoomTypeDoc> {
+async function lockRoomType(tx: Db, hotelId: string, id: string, allowRetired = false): Promise<RoomTypeDoc> {
   const rt = (await tx.query<RoomTypeDoc>('SELECT * FROM room_types WHERE id = $1 AND hotel_id = $2 FOR UPDATE', [id, hotelId])).rows[0];
   if (!rt) throw new AppError(404, 'ROOM_TYPE_NOT_FOUND', 'Không tìm thấy loại phòng');
-  if (rt.retiredAt) throw new AppError(409, 'ROOM_TYPE_RETIRED', 'Loại phòng đã ngừng dùng');
+  if (rt.retiredAt && !allowRetired) throw new AppError(409, 'ROOM_TYPE_RETIRED', 'Loại phòng đã ngừng dùng');
   return rt;
 }
 
@@ -62,8 +62,11 @@ async function peakCommitted(tx: Db, roomTypeId: string, now: Date): Promise<num
 
 export async function updateRoomType(auth: AuthContext, hotelId: string | undefined, id: string, patch: PatchRoomTypeBody, requestId?: string): Promise<RoomTypeDoc> {
   const hid = resolveHotelId(auth, hotelId);
+  // Mở bán lại: chỉ khi body đúng là { active: true } (UI 'Bán lại'); mọi sửa đổi khác trên loại đã ngừng dùng vẫn bị chặn.
+  const reactivate = patch.active === true && Object.keys(patch).length === 1;
   return withTransaction(async (tx) => {
-    const before = await lockRoomType(tx, hid, id);
+    const before = await lockRoomType(tx, hid, id, reactivate);
+    if (before.retiredAt) return reactivateRoomType(tx, auth, hid, before, requestId);
     if (patch.totalRooms !== undefined && patch.totalRooms < before.totalRooms) {
       const peak = await peakCommitted(tx, id, new Date());
       if (patch.totalRooms < peak) throw new AppError(409, 'ROOM_TOTAL_BELOW_RESERVED', `Số phòng không được thấp hơn số đang giữ/đặt/khóa (${peak})`, { peak });
@@ -91,6 +94,20 @@ export async function updateRoomType(auth: AuthContext, hotelId: string | undefi
     );
     return next;
   });
+}
+
+// Mở bán lại loại phòng đã ngừng dùng (retired_at != null): active=true, xóa retired_at.
+async function reactivateRoomType(tx: Db, auth: AuthContext, hid: string, before: RoomTypeDoc, requestId?: string): Promise<RoomTypeDoc> {
+  const clash = (await tx.query('SELECT 1 FROM room_types WHERE hotel_id = $1 AND code = $2 AND id <> $3 AND retired_at IS NULL', [hid, before.code, before.id])).rows[0];
+  if (clash) throw new AppError(409, 'ROOM_TYPE_CODE_EXISTS', 'Mã loại phòng đã được dùng bởi loại đang hoạt động');
+  try {
+    const next = (await tx.query<RoomTypeDoc>('UPDATE room_types SET active = true, retired_at = NULL, updated_at = now() WHERE id = $1 RETURNING *', [before.id])).rows[0]!;
+    await writeAudit({ actor: actorOf(auth), action: 'ROOM_TYPE.REACTIVATE', entity: { type: 'room_type', id: before.id }, hotelId: hid, before: { active: before.active, retiredAt: before.retiredAt }, after: { active: true }, requestId }, tx);
+    return next;
+  } catch (e) {
+    if (isDuplicateKey(e)) throw new AppError(409, 'ROOM_TYPE_CODE_EXISTS', 'Mã loại phòng đã được dùng bởi loại đang hoạt động');
+    throw e;
+  }
 }
 
 // Ngừng dùng (mềm): giữ lịch sử đơn cũ. Còn đơn hoạt động hoặc khóa trong tương lai thì từ chối.

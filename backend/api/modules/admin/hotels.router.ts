@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
+import { airportByIata } from '../../../data/airports';
 import { HOTEL_OWNER_ROLE } from '../../../config/roles';
 import { PERM } from '../../../config/permissions';
 import { db, json, withTransaction, type Db } from '../../../database/pg';
@@ -27,7 +28,7 @@ const hotelStatus = z.enum(['DRAFT', 'PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 
 
 const address = z.object({ line: z.string().min(1).max(200), ward: z.string().max(100).optional(), district: z.string().max(100).optional(), city: z.string().min(1).max(100), country: z.string().length(2).default('VN') });
 const location = z.object({ lng: z.number().min(-180).max(180), lat: z.number().min(-90).max(90) });
-const airports = z.array(z.object({ iata: z.string().length(3).transform((s) => s.toUpperCase()), km: z.number().min(0).max(200), minutes: z.number().int().min(0).max(600) })).min(1).max(10);
+const airports = z.array(z.object({ iata: z.string().length(3).transform((s) => s.toUpperCase()).refine((c) => !!airportByIata(c), 'Mã sân bay không có trong danh mục'), km: z.number().min(0).max(200), minutes: z.number().int().min(0).max(600) })).min(1).max(10);
 const contact = z.object({ phone: z.string().min(8).max(20), email: z.string().email().optional() });
 const policy = z.object({ cancellationTemplate: TEMPLATE, cleaningBufferMin: z.number().int().min(0).max(240), noShowGraceMin: z.number().int().min(0).max(600).optional(), receptionCloseHour: z.number().int().min(0).max(26).optional() });
 const approval = z.object({ manual: z.boolean(), manualUntil: z.coerce.date().optional() });

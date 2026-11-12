@@ -4,7 +4,10 @@ const uuid = z.string().uuid('Mã không hợp lệ');
 const date = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải dạng YYYY-MM-DD')
-  .refine((d) => new Date(`${d}T00:00:00Z`).toISOString().startsWith(d), 'Ngày không tồn tại');
+  .refine((d) => {
+    const t = new Date(`${d}T00:00:00Z`);
+    return !Number.isNaN(t.getTime()) && t.toISOString().startsWith(d);
+  }, 'Ngày không tồn tại');
 
 export const hotelTargetQuery = z.object({ hotelId: uuid.optional() });
 

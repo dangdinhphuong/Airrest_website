@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, denyPassenger } from '../../middleware/auth';
 import { accountsRouter } from './accounts.router';
+import { rolesRouter } from './roles.router';
 import { adminBookingsRouter } from './bookings.router';
 import { adminSupportRouter } from './support.router';
 import { adminFlightsRouter } from './flights.router';
@@ -14,9 +15,10 @@ import { adminPaymentsRouter } from './payments.router';
 // Cổng Admin: authenticate một lần ở đây; quyền kiểm ở từng route (requirePermission).
 // Thêm nhóm API Admin mới: tạo file *.router.ts trong thư mục này rồi thêm 1 dòng use() bên dưới.
 export const adminRouter = Router();
-adminRouter.use(authenticate);
+adminRouter.use(authenticate, denyPassenger);
 adminRouter.use(auditRouter);
 adminRouter.use(configsRouter);
+adminRouter.use(rolesRouter);
 adminRouter.use(accountsRouter);
 adminRouter.use(adminHotelsRouter);
 adminRouter.use(adminPaymentsRouter);

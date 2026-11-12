@@ -50,7 +50,8 @@ export { hotelScope };
  *  3) ghi bookings + room_reservations (+ payments nếu VNPay) + audit cùng một transaction
  * Bản đơn giản: 1 loại phòng, theo đêm; trả tại khách sạn hoặc VNPay (đơn PENDING_PAYMENT + bản ghi payments, link tạo sau commit). Xe/chuyến bay ở task riêng.
  */
-export async function createBooking(input: CreateBookingBody, requestId?: string): Promise<BookingDoc> {
+export async function createBooking(input: CreateBookingBody, requestId?: string, accountId?: string): Promise<BookingDoc> {
+  const by = accountId ? ({ type: 'PASSENGER', id: accountId } as const) : ({ type: 'GUEST' } as const);
   if (input.paymentMethod === 'VNPAY' && !env.VNPAY_ENABLED) throw new AppError(409, 'VNPAY_DISABLED', 'Thanh toán VNPay hiện chưa được bật');
   const online = input.paymentMethod === 'VNPAY';
   const roomType = (await db.query<RoomTypeDoc>('SELECT * FROM room_types WHERE id = $1 AND hotel_id = $2 AND active', [input.roomTypeId, input.hotelId])).rows[0];
@@ -113,7 +114,7 @@ export async function createBooking(input: CreateBookingBody, requestId?: string
           payment: { method: online ? 'VNPAY' : 'AT_HOTEL', status: 'UNPAID', paidVnd: 0, refundedVnd: 0 },
           shuttle: { tripType: 'NONE', legCount: 0 },
           ...(holdExpiresAt && { expiresAt: holdExpiresAt }),
-          statusHistory: [{ to: status, at: now, by: { type: 'GUEST' } }],
+          statusHistory: [{ to: status, at: now, by }],
           changeCount: 0,
           flags: { disputeOpen: false, payoutHeld: false, needsCall: false },
           v: 1,
@@ -122,10 +123,10 @@ export async function createBooking(input: CreateBookingBody, requestId?: string
         };
         const ins = await tx.query<{ seq: number }>(
           `INSERT INTO bookings (id, code, status, hotel_id, guest, hotel_snapshot, stay, stay_from, lines, pricing, payment_method, payment_status, paid_vnd, refunded_vnd,
-                                 shuttle, expires_at, status_history, change_count, flags, v, created_at, updated_at)
-           VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8,$9::jsonb,$10::jsonb,$11,'UNPAID',0,0,$12::jsonb,$13,$14::jsonb,0,$15::jsonb,1,$16,$16) RETURNING seq`,
+                                 shuttle, expires_at, status_history, change_count, flags, v, created_at, updated_at, account_id)
+           VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8,$9::jsonb,$10::jsonb,$11,'UNPAID',0,0,$12::jsonb,$13,$14::jsonb,0,$15::jsonb,1,$16,$16,$17) RETURNING seq`,
           [bookingId, code, status, input.hotelId, json(booking.guest), json(booking.hotelSnapshot), json(booking.stay), input.from, json(booking.lines), json(booking.pricing),
-            booking.payment.method, json(booking.shuttle), holdExpiresAt ?? null, json(booking.statusHistory), json(booking.flags), now],
+            booking.payment.method, json(booking.shuttle), holdExpiresAt ?? null, json(booking.statusHistory), json(booking.flags), now, accountId ?? null],
         );
         booking.seq = ins.rows[0]!.seq;
 
@@ -143,7 +144,7 @@ export async function createBooking(input: CreateBookingBody, requestId?: string
           );
         }
         await writeAudit(
-          { actor: { type: 'GUEST' }, action: 'BOOKING.CREATE', entity: { type: 'booking', id: bookingId }, hotelId: input.hotelId, bookingId, after: { code, status, totalVnd }, requestId },
+          { actor: by, action: 'BOOKING.CREATE', entity: { type: 'booking', id: bookingId }, hotelId: input.hotelId, bookingId, after: { code, status, totalVnd }, requestId },
           tx,
         );
         return booking;
@@ -228,3 +229,47 @@ export async function checkIn(auth: AuthContext, bookingId: string, requestId?: 
   emitBookingChange({ code: updated.code, status: updated.status, hotelId: updated.hotelId, updatedAt: updated.updatedAt, isNew: false });
   return updated;
 }
+
+// Chuyển trạng thái sau check-in (check-out, no-show) cùng khuôn với checkIn: cập nhật có điều kiện + audit cùng transaction.
+// Ngoài phạm vi khách sạn / không tồn tại -> 404 (không lộ tồn tại); sai trạng thái -> 409 INVALID_STATE. Không đụng tiền.
+async function transitionStay(
+  auth: AuthContext,
+  bookingId: string,
+  o: { from: BookingStatus; to: BookingStatus; action: string; reservation: { from: string; to: string }; dueOnly?: boolean },
+  requestId?: string,
+): Promise<BookingDoc> {
+  const scope = hotelScope(auth);
+  const now = new Date();
+  const updated = await withTransaction(async (tx) => {
+    const cur = (await tx.query<{ status: BookingStatus; stayFrom: Date }>('SELECT status, stay_from FROM bookings WHERE id = $1 AND ($2::uuid IS NULL OR hotel_id = $2) FOR UPDATE', [bookingId, scope.hotelId ?? null])).rows[0];
+    if (!cur) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Không tìm thấy đơn');
+    if (cur.status !== o.from) throw new AppError(409, 'INVALID_STATE', `Đơn không ở trạng thái ${o.from}`);
+    if (o.dueOnly) {
+      // Chỉ đánh dấu không đến khi đã tới/qua NGÀY nhận phòng theo giờ Việt Nam.
+      const due = (await tx.query<{ due: boolean }>("SELECT (($1::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= ($2::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::date) AS due", [now, cur.stayFrom])).rows[0]!.due;
+      if (!due) throw new AppError(409, 'NO_SHOW_NOT_DUE', 'Chưa tới ngày nhận phòng nên chưa thể đánh dấu không đến');
+    }
+    const hist = json([{ from: o.from, to: o.to, at: now, by: actorOf(auth) }]);
+    const row = (
+      await tx.query(
+        `UPDATE bookings SET status = $2, updated_at = $3, status_history = status_history || $4::jsonb, v = v + 1 WHERE id = $1 AND status = $5 RETURNING *`,
+        [bookingId, o.to, now, hist, o.from],
+      )
+    ).rows[0];
+    if (!row) throw new AppError(409, 'INVALID_STATE', `Đơn không ở trạng thái ${o.from}`);
+    const b = bookingFromRow(row);
+    await tx.query('UPDATE room_reservations SET state = $3, updated_at = $2 WHERE booking_id = $1 AND state = $4', [bookingId, now, o.reservation.to, o.reservation.from]);
+    await writeAudit({ actor: actorOf(auth), action: o.action, entity: { type: 'booking', id: bookingId }, hotelId: b.hotelId, bookingId, before: { status: o.from }, after: { status: o.to }, requestId }, tx);
+    return b;
+  });
+  emitBookingChange({ code: updated.code, status: updated.status, hotelId: updated.hotelId, updatedAt: updated.updatedAt, isNew: false });
+  return updated;
+}
+
+/** CHECKED_IN -> CHECKED_OUT (giải phóng giữ chỗ: reservation COMPLETED). Doanh thu "đã thực hiện" tính theo trạng thái này. */
+export const checkOut = (auth: AuthContext, bookingId: string, requestId?: string) =>
+  transitionStay(auth, bookingId, { from: 'CHECKED_IN', to: 'CHECKED_OUT', action: 'BOOKING.CHECKOUT', reservation: { from: 'CHECKED_IN', to: 'COMPLETED' } }, requestId);
+
+/** CONFIRMED -> NO_SHOW khi đã tới/qua ngày nhận phòng (giờ VN). Chỉ đổi trạng thái + nhả giữ chỗ, KHÔNG đụng tiền. */
+export const markNoShow = (auth: AuthContext, bookingId: string, requestId?: string) =>
+  transitionStay(auth, bookingId, { from: 'CONFIRMED', to: 'NO_SHOW', action: 'BOOKING.NOSHOW', reservation: { from: 'CONFIRMED', to: 'RELEASED' }, dueOnly: true }, requestId);

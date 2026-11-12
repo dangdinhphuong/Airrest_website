@@ -15,7 +15,7 @@ export type PaymentMethod = 'VNPAY' | 'AT_HOTEL';
 export type PaymentStatus = 'INITIATED' | 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'EXPIRED';
 export type RefundStatus = 'PENDING' | 'PROCESSING' | 'REFUNDED' | 'MANUAL_REQUIRED';
 
-export type ActorType = 'GUEST' | 'USER' | 'HOTEL' | 'ADMIN' | 'DRIVER' | 'SYSTEM';
+export type ActorType = 'GUEST' | 'USER' | 'HOTEL' | 'ADMIN' | 'DRIVER' | 'PASSENGER' | 'SYSTEM';
 export interface Actor {
   type: ActorType;
   id?: string;

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PERM } from '../../../config/permissions';
 import { signGuestToken, type AuthContext } from '../../../lib/jwt';
-import { authenticate, requirePermission } from '../../middleware/auth';
+import { authenticate, optionalPassenger, requirePermission } from '../../middleware/auth';
 import { idempotent } from '../../middleware/idempotency';
 import { strictRateLimit } from '../../middleware/rateLimit';
 import { validate } from '../../middleware/validate';
@@ -19,14 +19,15 @@ import {
 import { startBookingPayment } from '../../../services/payments/payments.service';
 import { hotelScope } from '../../../services/scope';
 import { confirmBooking, rejectBooking } from '../../../services/bookings/decisions';
-import { checkIn, createBooking, getBookingDetail, getDecision, listHotelBookings, lookupBooking, toGuestView } from '../../../services/bookings/bookings.service';
+import { checkIn, checkOut, createBooking, getBookingDetail, getDecision, listHotelBookings, lookupBooking, markNoShow, toGuestView } from '../../../services/bookings/bookings.service';
 
 // ---- Công khai (khách vãng lai, không cần tài khoản) ----
 export const bookingsRouter = Router();
 
 // FR-BKG-07/10/11: tạo đơn. Bắt buộc Idempotency-Key để bấm lặp/mạng chập không tạo đơn thứ hai.
-bookingsRouter.post('/', validate({ body: createBookingBody }), idempotent('booking.create'), async (req, res) => {
-  const booking = await createBooking(req.valid.body as CreateBookingBody, String(req.id));
+// Có Bearer hợp lệ của tài khoản khách -> gắn đơn vào tài khoản đó (account_id); không thì vẫn đặt như khách vãng lai.
+bookingsRouter.post('/', optionalPassenger, validate({ body: createBookingBody }), idempotent('booking.create'), async (req, res) => {
+  const booking = await createBooking(req.valid.body as CreateBookingBody, String(req.id), req.auth?.accountType === 'PASSENGER' ? req.auth.sub : undefined);
   if (booking.payment.method !== 'VNPAY') return void res.status(201).json({ booking: toGuestView(booking) });
   // VNPay lỗi thì đơn vẫn giữ chỗ (PENDING_PAYMENT); khách lấy lại link ở POST /v1/payments/vnpay/link.
   const paymentLink = await startBookingPayment(booking.id, booking.code).catch((e: { code?: string }) => ({ error: e.code ?? 'VNPAY_UNAVAILABLE' }));
@@ -62,6 +63,17 @@ hotelBookingsRouter.post(
     res.json({ booking: await checkIn(req.auth as AuthContext, id, String(req.id)) });
   },
 );
+
+// Check-out (CHECKED_IN -> CHECKED_OUT) và không đến (CONFIRMED đã tới/qua ngày nhận phòng giờ VN -> NO_SHOW). Cùng quyền booking:checkin.
+hotelBookingsRouter.post('/:id/check-out', requirePermission(PERM.BOOKING_CHECKIN), validate({ params: idParams }), async (req, res) => {
+  const { id } = req.valid.params as { id: string };
+  res.json({ booking: await checkOut(req.auth as AuthContext, id, String(req.id)) });
+});
+
+hotelBookingsRouter.post('/:id/no-show', requirePermission(PERM.BOOKING_CHECKIN), validate({ params: idParams }), async (req, res) => {
+  const { id } = req.valid.params as { id: string };
+  res.json({ booking: await markNoShow(req.auth as AuthContext, id, String(req.id)) });
+});
 
 // Khách sạn (hoặc admin có booking:decide + hotel:scope:all) xác nhận / từ chối đơn chờ. Từ chối bắt buộc lý do, kèm tối đa 3 gợi ý.
 hotelBookingsRouter.post('/:id/confirm', requirePermission(PERM.BOOKING_DECIDE), validate({ params: idParams }), async (req, res) => {

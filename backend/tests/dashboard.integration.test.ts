@@ -69,7 +69,9 @@ run('tích hợp: dashboard + thống kê khách sạn', () => {
     void a; void other;
     await db.query("INSERT INTO support_tickets (code, contact, subject) VALUES ('SP-AAAAAAAA','{\"phone\":\"+84900000001\"}'::jsonb,'x')");
     await db.query("INSERT INTO change_requests (booking_id, hotel_id, type, reason_code, quote, requested_by) VALUES ($1,$2,'CANCEL','HEALTH','{}'::jsonb,'{}'::jsonb)", [(await one<any>('SELECT id FROM bookings WHERE id = $1', [a.id]))!.id, H]);
-    const res = await request(app).get('/v1/admin/dashboard').set(auth(dash));
+    // Mọi số liệu tính theo ngày nhận phòng (stay_from): các đơn nhận phòng sau 5-11 ngày nên khoảng ngày phải phủ tương lai.
+    const win = `from=${encodeURIComponent(new Date(Date.now() - DAY).toISOString())}&to=${encodeURIComponent(new Date(Date.now() + 30 * DAY).toISOString())}`;
+    const res = await request(app).get(`/v1/admin/dashboard?${win}`).set(auth(dash));
     expect(res.status).toBe(200);
     expect(res.body.bookings.byStatus.PENDING.count).toBe(1);
     expect(res.body.bookings.pendingApproval).toBe(1);
@@ -82,9 +84,12 @@ run('tích hợp: dashboard + thống kê khách sạn', () => {
     const stats = await request(app).get(`/v1/admin/hotels/${H}/stats?${range}`).set(auth(dash));
     expect(stats.body.revenue.realized).toEqual(res.body.revenue.realized);
     expect(stats.body.bookings.byStatus.CHECKED_OUT.count).toBe(1);
-    // trend: đơn tạo 17:30Z = 00:30 ngày hôm sau theo giờ VN
-    await db.query("UPDATE bookings SET created_at = '2026-11-05T05:00:00Z' WHERE id <> $1", [a.id]);
-    await db.query("UPDATE bookings SET created_at = '2026-11-11T17:30:00Z' WHERE id = $1", [a.id]);
+    // đơn tạo hôm nay nhưng nhận phòng ngoài khoảng thì không tính (nhất quán với doanh thu)
+    const created = await request(app).get('/v1/admin/dashboard?from=2020-01-01T00:00:00Z&to=2020-02-01T00:00:00Z').set(auth(dash));
+    expect(created.body.bookings.total).toBe(0);
+    // trend theo ngày nhận phòng: 17:30Z = 00:30 ngày hôm sau theo giờ VN
+    await db.query("UPDATE bookings SET stay_from = '2026-11-05T05:00:00Z' WHERE id <> $1", [a.id]);
+    await db.query("UPDATE bookings SET stay_from = '2026-11-11T17:30:00Z' WHERE id = $1", [a.id]);
     const trend = await request(app).get('/v1/admin/dashboard?from=2026-11-10T00:00:00Z&to=2026-11-14T00:00:00Z').set(auth(dash));
     expect(trend.body.bookings.trend.find((x: any) => x.date === '2026-11-12').count).toBe(1);
     expect(trend.body.bookings.trend.find((x: any) => x.date === '2026-11-11').count).toBe(0);

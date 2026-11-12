@@ -5,6 +5,7 @@ import { useApp } from '../../state/store';
 import { hasPerm } from '../../lib/access';
 import { PERM } from '../../lib/perms';
 import { money } from '../../lib/time';
+import { ApiError } from '@airrest/api-client';
 import { describeError } from '../../lib/api';
 import * as H from '../../data/hotel';
 import { ConfirmButton, useAction, useLoad } from './kit';
@@ -53,10 +54,14 @@ export default function Rooms() {
     const edit = form.id;
     if (await act.run(() => (edit ? H.patchRoomType(form.id, body) : H.createRoomType(body)), edit ? 'Đã lưu loại phòng.' : 'Đã tạo loại phòng.')) { setForm(null); l.reload(); }
   };
+  const resell = async (t) => {
+    const call = async () => { try { await H.patchRoomType(t.id, { active: true }); } catch (e) { throw e?.code === 'ROOM_TYPE_RETIRED' ? new ApiError(e.status, e.code, 'Loại phòng này đã ngừng dùng hẳn nên hệ thống chưa cho mở bán lại. Hãy tạo loại phòng mới thay thế.') : e; } };
+    if (await act.run(call, `Đã bán lại ${t.name}.`)) l.reload();
+  };
   const retire = async (t) => { if (await act.run(() => H.retireRoomType(t.id), `Đã ngừng bán ${t.name}.`)) l.reload(); };
   return (
     <>
-      <ScreenTitle title="Loại phòng và giá" kicker="Khách sạn">Thay đổi giá và số phòng chỉ áp dụng cho đơn đặt sau đó.</ScreenTitle>
+      <ScreenTitle title="Loại phòng và giá">Thay đổi giá và số phòng chỉ áp dụng cho đơn đặt sau đó.</ScreenTitle>
       <div className="filter-bar">
         <label><input type="checkbox" checked={retired} onChange={(e) => setRetired(e.target.checked)} data-testid="rt-retired" /> Hiện cả loại đã ngừng bán</label>
         {manage && <button className="btn btn-sm btn-primary" type="button" onClick={() => setForm({})} data-testid="rt-new">Thêm loại phòng</button>}
@@ -73,8 +78,8 @@ export default function Rooms() {
             <tr key={t.id} data-testid="rt-row">
               <td data-label="Mã"><strong>{t.code}</strong></td><td data-label="Tên">{t.name}</td><td data-label="Sức chứa">{t.capacity}</td><td data-label="Giường">{t.beds}</td>
               <td data-label="m²">{t.areaM2}</td><td data-label="Số phòng">{t.totalRooms}</td><td data-label="Giá/đêm">{money(t.pricing.baseNightVnd)}</td>
-              <td data-label="Trạng thái">{t.retiredAt ? <Pill>Ngừng bán</Pill> : <Pill tone="ok">Đang bán</Pill>}</td>
-              {manage && <td>{!t.retiredAt && <div className="row-actions" style={{ marginTop: 0 }}>
+              <td data-label="Trạng thái">{t.retiredAt || t.active === false ? <Pill>Ngừng bán</Pill> : <Pill tone="ok">Đang bán</Pill>}</td>
+              {manage && <td>{t.retiredAt || t.active === false ? <ConfirmButton label="Bán lại" ask="Mở bán lại loại phòng này?" disabled={act.busy} testid="rt-resell" onConfirm={() => resell(t)} /> : <div className="row-actions" style={{ marginTop: 0 }}>
                 <button className="btn btn-sm" type="button" onClick={() => setForm(t)} data-testid="rt-edit">Sửa</button>
                 <ConfirmButton label="Ngừng bán" tone="danger" ask="Ngừng bán loại phòng này?" disabled={act.busy} testid="rt-retire" onConfirm={() => retire(t)} />
               </div>}</td>}

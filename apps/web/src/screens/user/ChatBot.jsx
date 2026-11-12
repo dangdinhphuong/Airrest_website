@@ -10,7 +10,6 @@ import { reply } from './botEngine';
 gsap.registerPlugin(useGSAP);
 
 const ROBOT = '/images/ai-robot.png';
-const GREETED = 'airrest-bot-greeted';
 const MINI = 'airrest-bot-mini';
 const QUICK = ['Tìm nơi nghỉ gần Nội Bài dưới 700k', 'Tra chuyến bay VN218', 'Theo dõi booking', 'Chính sách hủy', 'Gửi yêu cầu hỗ trợ'];
 const WELCOME = { id: 0, from: 'bot', text: 'Xin chào! Mình là trợ lý AIRREST. Bạn đang gặp sự cố chuyến bay hay cần tìm nơi nghỉ gần sân bay? (Mình trả lời theo kịch bản mô phỏng, không phải AI thật.)' };
@@ -33,13 +32,12 @@ export default function ChatBot() {
   const seq = useRef(1);
 
   useEffect(() => {
-    if (mini || safe(() => sessionStorage.getItem(GREETED))) return undefined;
+    if (mini) return undefined;
     const t = window.setTimeout(() => setGreet(true), 1500);
     return () => window.clearTimeout(t);
   }, []);
-  const dismissGreet = () => { setGreet(false); safe(() => sessionStorage.setItem(GREETED, '1')); };
-  const minimize = () => { dismissGreet(); setMini(true); safe(() => sessionStorage.setItem(MINI, '1')); };
-  const openChat = () => { dismissGreet(); setOpen(true); };
+    const minimize = () => { setGreet(false); setMini(true); safe(() => sessionStorage.setItem(MINI, '1')); };
+  const openChat = () => setOpen(true);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -68,7 +66,7 @@ export default function ChatBot() {
 
   // Hiệu ứng: robot lơ lửng, lời chào, khung chat, tin mới. Chỉ opacity/transform; bỏ qua khi người dùng yêu cầu giảm chuyển động.
   useGSAP(() => {
-    if (open || mini) return undefined;
+    if (open || mini || !root.current?.querySelector('[data-robot]')) return undefined;
     const mm = gsap.matchMedia();
     mm.add('(prefers-reduced-motion: no-preference)', () => {
       gsap.to('[data-robot]', { y: -7, duration: 1.7, ease: 'sine.inOut', yoyo: true, repeat: -1 });
@@ -76,15 +74,15 @@ export default function ChatBot() {
     return () => mm.revert();
   }, { scope: root, dependencies: [open, mini], revertOnUpdate: true });
   useGSAP(() => {
-    if (!greet) return undefined;
+    if (!greet || open || mini || !root.current?.querySelector('[data-greet]')) return undefined;
     const mm = gsap.matchMedia();
     mm.add('(prefers-reduced-motion: no-preference)', () => {
       gsap.from('[data-greet]', { opacity: 0, y: 10, scale: 0.92, duration: 0.4, ease: 'back.out(1.6)', clearProps: 'opacity,transform' });
     });
     return () => mm.revert();
-  }, { scope: root, dependencies: [greet] });
+  }, { scope: root, dependencies: [greet, open, mini] });
   useGSAP(() => {
-    if (!open) return undefined;
+    if (!open || !root.current?.querySelector('[data-chat]')) return undefined;
     const mm = gsap.matchMedia();
     mm.add('(prefers-reduced-motion: no-preference)', () => {
       gsap.from('[data-chat]', { opacity: 0, y: 24, scale: 0.96, transformOrigin: 'bottom right', duration: 0.28, ease: 'power2.out', clearProps: 'opacity,transform' });
@@ -92,8 +90,8 @@ export default function ChatBot() {
     return () => mm.revert();
   }, { scope: root, dependencies: [open] });
   useGSAP(() => {
-    const last = gsap.utils.toArray('[data-msg]').at(-1);
-    if (!open || !last) return undefined;
+    const last = open ? gsap.utils.toArray('[data-msg]').at(-1) : null;
+    if (!last) return undefined;
     const mm = gsap.matchMedia();
     mm.add('(prefers-reduced-motion: no-preference)', () => {
       gsap.from(last, { opacity: 0, y: 10, duration: 0.25, ease: 'power2.out', clearProps: 'opacity,transform' });
@@ -109,16 +107,15 @@ export default function ChatBot() {
       {!open && !mini && (
         <div className="tw:relative tw:flex tw:flex-col tw:items-end">
           {greet && (
-            <div data-greet className="tw:mb-1 tw:mr-2 tw:flex tw:max-w-[220px] tw:items-start tw:gap-2 tw:rounded-2xl tw:rounded-br-sm tw:bg-white tw:p-3 tw:text-xs tw:font-semibold tw:leading-5 tw:text-slate-700 tw:shadow-xl tw:ring-1 tw:ring-slate-200">
+            <div data-greet className="tw:mb-1 tw:mr-2 tw:flex tw:max-w-[190px] tw:items-start tw:gap-2 tw:rounded-2xl tw:rounded-br-sm tw:bg-white tw:p-3 tw:text-xs tw:font-semibold tw:leading-5 tw:text-slate-700 tw:shadow-xl tw:ring-1 tw:ring-slate-200">
               <button type="button" onClick={openChat} className="tw:text-left">Mình có thể giúp gì cho bạn? 👋</button>
-              <button type="button" onClick={dismissGreet} aria-label="Ẩn lời chào" className="tw:shrink-0 tw:text-slate-400 tw:hover:text-slate-600"><X size={14} /></button>
+              <button type="button" onClick={minimize} aria-label="Đóng trợ lý" className="tw:-m-2 tw:shrink-0 tw:p-2 tw:text-slate-400 tw:hover:text-slate-600"><X size={14} /></button>
             </div>
           )}
           <div className="tw:relative">
             <button type="button" onClick={openChat} aria-label="Mở trợ lý chat AIRREST" className="tw:block tw:cursor-pointer tw:drop-shadow-xl">
-              <img data-robot src={ROBOT} alt="" width="300" height="304" className="tw:size-28 tw:will-change-transform tw:md:size-40" />
+              <img data-robot src={ROBOT} alt="" width="300" height="304" className="tw:size-20 tw:will-change-transform tw:md:size-40" />
             </button>
-            <button type="button" onClick={minimize} aria-label="Thu nhỏ trợ lý" className="tw:absolute tw:right-1 tw:top-1 tw:grid tw:size-7 tw:place-items-center tw:rounded-full tw:bg-slate-900/70 tw:text-white tw:shadow tw:hover:bg-slate-900"><X size={14} /></button>
           </div>
         </div>
       )}

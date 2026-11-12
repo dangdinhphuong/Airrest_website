@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { flightCodeSchema, flightDateSchema, idParams, updateFlightBodySchema, type UpdateFlightBody } from '@airrest/validation';
+import { createFlightBodySchema, flightCodeSchema, flightDateSchema, idParams, updateFlightBodySchema, type CreateFlightBody, type UpdateFlightBody } from '@airrest/validation';
 import { PERM } from '../../../config/permissions';
 import type { AuthContext } from '../../../lib/jwt';
-import { listFlightChanges, listFlights, updateFlight } from '../../../services/flights/flights.service';
+import { createFlight, deleteFlight, listFlightChanges, listFlights, updateFlight } from '../../../services/flights/flights.service';
 import { requirePermission } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 
@@ -22,4 +22,15 @@ adminFlightsRouter.patch('/flights/:id', need, validate({ params: idParams, body
 
 adminFlightsRouter.get('/flights/:id/changes', need, validate({ params: idParams, query: z.object(page) }), async (req, res) => {
   res.json(await listFlightChanges((req.valid.params as { id: string }).id, req.valid.query as { limit: number; cursor?: number }));
+});
+
+// Tạo chuyến mô phỏng (ONTIME). 201 { flight }; 409 FLIGHT_EXISTS khi trùng (mã + ngày); 422 AIRPORT_UNKNOWN khi mã sân bay lạ.
+adminFlightsRouter.post('/flights', need, validate({ body: createFlightBodySchema }), async (req, res) => {
+  res.status(201).json(await createFlight(req.auth as AuthContext, req.valid.body as CreateFlightBody, String(req.id)));
+});
+
+// Xóa chuyến chưa có lịch sử thay đổi; 204. 409 FLIGHT_IN_USE nếu đã có tham chiếu.
+adminFlightsRouter.delete('/flights/:id', need, validate({ params: idParams }), async (req, res) => {
+  await deleteFlight(req.auth as AuthContext, (req.valid.params as { id: string }).id, String(req.id));
+  res.status(204).end();
 });

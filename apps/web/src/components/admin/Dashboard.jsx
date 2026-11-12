@@ -11,7 +11,7 @@ export default function Dashboard() {
   const r = useLoad('/dashboard', q);
   return (
     <>
-      <ScreenTitle title="Tổng quan" kicker="Toàn hệ thống" />
+      <ScreenTitle title="Tổng quan">Toàn hệ thống</ScreenTitle>
       <Filters fields={[['from', 'Từ ngày', 'date'], ['to', 'Đến ngày', 'date']]} onApply={setQ} />
       <LoadView r={r}>{(x) => (
         <>

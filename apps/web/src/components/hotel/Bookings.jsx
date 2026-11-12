@@ -4,13 +4,18 @@ import { useApp } from '../../state/store';
 import { hasPerm } from '../../lib/access';
 import { PERM } from '../../lib/perms';
 import { money } from '../../lib/time';
+import { ApiError } from '@airrest/api-client';
 import { describeError } from '../../lib/api';
 import { ErrorBox, Loading } from '../Common';
 import { ReasonAction } from '../partner/ui';
 import * as H from '../../data/hotel';
 import { ConfirmButton, ListState, STATUS, StatusPill, fmtD, fmtDT, needReason, today, useAction, useLoad, usePaged } from './kit';
 
-const pay = (p) => `${p.method === 'VNPAY' ? 'VNPay' : 'Tại KS'} · ${p.status}`;
+const PAY_METHOD = { VNPAY: 'VNPay', AT_HOTEL: 'Thanh toán tại khách sạn' };
+const PAY_STATUS = { NONE: 'Chưa phát sinh', UNPAID: 'Chưa thanh toán', PENDING: 'Chờ thanh toán', PAID: 'Đã thanh toán', PARTIALLY_REFUNDED: 'Đã hoàn một phần', REFUNDED: 'Đã hoàn tiền', FAILED: 'Thanh toán lỗi', EXPIRED: 'Hết hạn thanh toán', CANCELLED: 'Đã hủy' };
+const pay = (p) => `${PAY_METHOD[p.method] || (p.method === 'VNPAY' ? 'VNPay' : 'Thanh toán tại khách sạn')} · ${PAY_STATUS[p.status] || p.status}`;
+const DECISION = { CONFIRMED: 'Đã xác nhận', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối' };
+const ERR_VI = { NO_SHOW_NOT_DUE: 'Chưa tới ngày nhận phòng nên chưa thể đánh dấu "Không đến". Hãy thử lại từ ngày nhận phòng (giờ Việt Nam).', INVALID_STATE: 'Trạng thái đơn đã thay đổi, danh sách đã được làm mới. Vui lòng kiểm tra lại.' };
 
 function Detail({ id }) {
   const d = useLoad(() => H.getBooking(id), [id]);
@@ -24,7 +29,7 @@ function Detail({ id }) {
       <div>Phòng: {b.lines.map((l) => `${l.roomTypeName} x${l.qty} (${money(l.unitPriceVnd)})`).join(', ')}</div>
       <div>Tiền phòng {money(b.pricing.roomVnd)} · Xe {money(b.pricing.shuttleVnd)} · Phí dịch vụ {money(b.pricing.serviceFeeVnd)} · Tổng {money(b.pricing.totalVnd)}</div>
       <div>Thanh toán: {pay(b.payment)} (đã thu {money(b.payment.paidVnd)}, đã hoàn {money(b.payment.refundedVnd)})</div>
-      {decision && <div>Quyết định: {decision.decision}{decision.reason ? `, lý do: ${decision.reason}` : ''}</div>}
+      {decision && <div>Quyết định: {DECISION[decision.decision] || decision.decision}{decision.reason ? `, lý do: ${decision.reason}` : ''}</div>}
       <div className="muted">Lịch sử: {b.statusHistory.map((h) => `${STATUS[h.to]?.[0] || h.to} ${fmtDT(h.at)}`).join(' → ')}</div>
     </div>
   );
@@ -42,11 +47,13 @@ export default function Bookings() {
     status: applied.status, code: applied.code, cursor,
     from: applied.from && new Date(`${applied.from}T00:00:00`), to: applied.to && new Date(new Date(`${applied.to}T00:00:00`).getTime() + 86400000),
   }), [applied]);
-  const go = async (fn, ok) => { if (await act.run(fn, ok)) list.reload(); };
+  const go = async (fn, ok) => {
+    if (await act.run(async () => { try { await fn(); } catch (e) { if (ERR_VI[e?.code]) { if (e.code === 'INVALID_STATE') list.reload(); throw new ApiError(e.status, e.code, ERR_VI[e.code]); } throw e; } }, ok)) list.reload();
+  };
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
     <>
-      <ScreenTitle title="Đặt phòng" kicker="Khách sạn">Đơn của khách sạn, mới nhất trước. Ngày lọc theo ngày nhận phòng.</ScreenTitle>
+      <ScreenTitle title="Đặt phòng">Đơn của khách sạn, mới nhất trước. Ngày lọc theo ngày nhận phòng.</ScreenTitle>
       <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); setApplied(f); }}>
         <select aria-label="Trạng thái" value={f.status} onChange={set('status')} data-testid="bk-status">
           <option value="">Mọi trạng thái</option>
@@ -79,10 +86,12 @@ export default function Bookings() {
                       <ReasonAction label="Từ chối" tone="danger" confirmLabel="Từ chối đơn" placeholder="Lý do từ chối (bắt buộc)" testid="bk-reject" onSubmit={needReason((r) => go(() => H.rejectBooking(b.id, r), `Đã từ chối đơn ${b.code}.`))} />
                     </>}
                     {b.status === 'CONFIRMED' && can(PERM.BOOKING_CHECKIN) && <ConfirmButton label="Check-in" ask="Khách đã đến nhận phòng?" disabled={act.busy} testid="bk-checkin" onConfirm={() => go(() => H.checkInBooking(b.id), `Đã check-in đơn ${b.code}.`)} />}
+                    {b.status === 'CONFIRMED' && can(PERM.BOOKING_CHECKIN) && <ConfirmButton label="Không đến (No-show)" tone="danger" ask="Khách không đến nhận phòng? Đơn sẽ chuyển sang Không đến." disabled={act.busy} testid="bk-noshow" onConfirm={() => go(() => H.noShowBooking(b.id), `Đã đánh dấu không đến đơn ${b.code}.`)} />}
+                    {b.status === 'CHECKED_IN' && can(PERM.BOOKING_CHECKIN) && <ConfirmButton label="Check-out" ask="Khách đã trả phòng?" disabled={act.busy} testid="bk-checkout" onConfirm={() => go(() => H.checkOutBooking(b.id), `Đã check-out đơn ${b.code}.`)} />}
                   </div>
                 </td>
               </tr>
-              {open === b.id && <tr><td colSpan={8}><Detail id={b.id} /></td></tr>}
+              {open === b.id && <tr><td colSpan={8}><Detail key={`${b.id}-${b.status}`} id={b.id} /></td></tr>}
             </React.Fragment>
           ))}</tbody>
         </table></div>

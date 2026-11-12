@@ -10,6 +10,9 @@ export const adminApi = {
   patch: (path, body) => api.patch(`${A}${path}`, body),
 };
 
+export const listAirports = () => api.get('/v1/airports');
+export const createFlight = (body) => adminApi.post('/flights', body);
+export const deleteFlight = (id) => api.delete(`${A}/flights/${id}`);
 // Hotels
 export const hotelAction = (id, action, reason) => adminApi.post(`/hotels/${id}/${action}`, reason !== undefined ? { reason } : {});
 export const createHotel = (body) => adminApi.post('/hotels', body);
@@ -23,6 +26,10 @@ export const sendTicketMessage = (id, message, internal) => adminApi.post(`/supp
 export const createAccount = (body) => adminApi.post('/accounts', body);
 export const patchAccount = (id, body) => adminApi.patch(`/accounts/${id}`, body);
 export const resetPassword = (id, password) => adminApi.post(`/accounts/${id}/reset-password`, { password });
+// Roles
+export const createRole = (body) => adminApi.post('/roles', body);
+export const patchRole = (id, body) => adminApi.patch(`/roles/${id}`, body);
+export const deleteRole = (id) => api.delete(`${A}/roles/${id}`);
 // Configs
 export const putConfig = (key, body) => adminApi.put(`/configs/${encodeURIComponent(key)}`, body);
 // Flights

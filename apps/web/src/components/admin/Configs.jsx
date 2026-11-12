@@ -50,7 +50,7 @@ export default function Configs() {
   const [ver, setVer] = useState(null);
   return (
     <>
-      <ScreenTitle title="Cấu hình" kicker="Tham số hệ thống có phiên bản" />
+      <ScreenTitle title="Cấu hình">Tham số hệ thống có phiên bản</ScreenTitle>
       <LoadView r={r}>{({ items }) => (
         <>
           {edit && <Edit c={edit} onDone={() => { setEdit(null); r.reload(); if (ver) { const v = ver; setVer(null); setTimeout(() => setVer(v), 0); } }} />}

@@ -56,7 +56,7 @@ function Shell() {
           {sess && !allowed && <Notice tone="error" title="Không có quyền truy cập khu vực này" role="alert">Tài khoản {sess.name} chưa được cấp quyền cho khu vực này. {areas.length ? <button type="button" className="link-btn" onClick={() => onGo(areas[0])} data-testid="denied-back">Về khu vực của bạn</button> : <button type="button" className="link-btn" onClick={() => dispatch({ type: 'logout' })}>Đăng xuất</button>}</Notice>}
           {allowed && other && <p style={{ fontSize: 12, margin: '0 0 12px' }}>Tài khoản này còn quyền vào khu vực khác: <button type="button" className="link-btn" onClick={() => onGo(other)} data-testid="switch-area">Chuyển sang {MODULES[other].label}</button></p>}
           {allowed && <Body />}
-          <Footer onGo={onGo} />
+          <Footer portal={MODULES[activeModule].label.toLowerCase()} />
         </div>
       </main>
     </div>

@@ -52,6 +52,8 @@ tests/                 unit, http (middleware), *.integration (cần DB)
 | `POST /v1/bookings/lookup` | khách vãng lai | mã + SĐT, 404 chung khi sai, trả `guestToken` cho Socket.io |
 | `GET /v1/hotel/bookings` | quyền `booking:read` | tự khóa theo `hotelId` trong token |
 | `POST /v1/hotel/bookings/:id/check-in` | quyền `booking:checkin` | máy trạng thái bằng cập nhật có điều kiện + audit cùng transaction |
+| `POST /v1/hotel/bookings/:id/check-out`, `…/:id/no-show` | quyền `booking:checkin` | CHECKED_IN → CHECKED_OUT; CONFIRMED (đã tới/qua ngày nhận phòng giờ VN) → NO_SHOW (không đụng tiền); khách sạn khác → 404, sai trạng thái → 409 `INVALID_STATE` |
+| `GET/PATCH /v1/hotel/profile`, `POST /v1/hotel/media/upload-url` | quyền `room:manage` | hồ sơ khách sạn tự quản (mô tả, SĐT, giờ đóng lễ tân, chính sách hủy, tiện ích, ảnh); không sửa tài khoản nhận tiền/trạng thái/mã/sân bay/hoa hồng; ảnh lưu `hotels.images` (khóa R2), trả ở `GET /v1/hotels/:id` field `images` |
 | `POST /v1/bookings` với `paymentMethod: "VNPAY"` | khách vãng lai | đơn `PENDING_PAYMENT` + giữ phòng `booking.hold.holdMinutes` phút + bản ghi `payments`; trả `paymentLink.payUrl`. Cần `VNPAY_ENABLED=true` |
 | `POST /v1/payments/vnpay/link` | khách (mã + SĐT) | lấy lại / tạo lại link khi lần đầu lỗi hoặc link hỏng |
 | `GET /v1/payments/vnpay/ipn` | **VNPay** gọi | kiểm `vnp_SecureHash`, lệch tiền → anomaly, lặp → bỏ qua, đến muộn → hoàn 100%; trả JSON `{RspCode, Message}` |
@@ -59,8 +61,12 @@ tests/                 unit, http (middleware), *.integration (cần DB)
 | `GET /v1/admin/payments?anomaly=true`, `GET /v1/admin/refunds` | `admin:payment:read` | giao dịch VNPay, lệnh hoàn, giao dịch bất thường |
 | `POST /v1/admin/payments/reconcile`, `POST /v1/admin/refunds/:id/retry` | `admin:payment:manage` | đối soát gọi tay (truy vấn giao dịch treo >15', hết hạn đơn, xử lý hoàn đến hạn); thử lại lệnh `MANUAL_REQUIRED` |
 | `POST /v1/admin/media/upload-url` | `admin:hotel:manage` | URL PUT ký sẵn (5 phút) để tải ảnh JPEG/PNG/WebP ≤ 5MB thẳng lên Cloudflare R2; cần `R2_*` (kiểm tra: `npm run storage:check`) |
+| `POST /v1/auth/passenger/register`, `POST /v1/auth/passenger/login` | khách (tên đăng nhập, không email) | tài khoản khách `accounts.type='PASSENGER'`; mật khẩu >= 8; trùng tên -> 409 `USERNAME_TAKEN`; sai tên/mật khẩu -> 401 `INVALID_CREDENTIALS` (băm giả khi không có user); rate limit riêng 10/phút; trả `{token, user}` |
+| `PATCH /v1/me/password`, `GET /v1/me/bookings` | token khách | đổi mật khẩu (204); đơn của chính mình (keyset `cursor`/`nextCursor`, `status`, `limit`) |
+| `POST /v1/bookings` kèm Bearer của khách | khách đã đăng nhập (tùy chọn) | gắn `bookings.account_id`; token sai/khóa/nhân sự -> coi như vãng lai |
+| `GET /v1/admin/permissions`, `GET/POST /v1/admin/roles`, `PATCH/DELETE /v1/admin/roles/:id` | `admin:account:manage` | vai trò tùy chỉnh (`roles.system=false`, key `custom_*`); chỉ gán quyền mình có (`PERMISSION_ESCALATION`, người có đủ bộ quyền SYSADMIN gán được mọi quyền); vai trò hệ thống bất biến (`ROLE_SYSTEM_IMMUTABLE`); đang dùng -> `ROLE_IN_USE`; hiệu lực ngay (`forgetAuth`) |
 | `GET /v1/admin/audit-logs` | `audit:read` | **ADM-09** lọc entity/actor/action/hotel/booking/thời gian, phân trang con trỏ; chỉ đọc |
-| `GET/POST/PATCH /v1/admin/accounts`, `POST …/:id/reset-password`, `GET /v1/admin/roles` | `admin:account:manage` | **ADM-13** tài khoản Admin; chặn tự khóa, luôn còn ≥ 1 SYSADMIN |
+| `GET/POST/PATCH /v1/admin/accounts`, `POST …/:id/reset-password` | `admin:account:manage` | **ADM-13** tài khoản Admin (`adminRole` 4 vai trò cũ HOẶC `roleId` vai trò tùy chỉnh); chặn tự khóa/tự đổi vai trò, luôn còn ≥ 1 SYSADMIN, không sửa/đặt lại mật khẩu tài khoản có quyền cao hơn mình; danh sách không bao giờ có tài khoản khách |
 | `GET /v1/admin/configs`, `GET …/:key/versions`, `PUT …/:key` | đọc `admin:config:read`; ghi theo từng khóa | **ADM-12** cấu hình có phiên bản + lịch hiệu lực; đơn lưu `pricing.params.configVersions` |
 | `GET/POST/PATCH /v1/admin/hotels`, `…/:id/{approve,reject,suspend,activate}` | `admin:hotel:read` / `admin:hotel:manage` | **ADM-01** đăng ký đối tác (kèm tài khoản chủ), duyệt, tạm ngưng |
 | `PUT /v1/admin/hotels/:id/payout-account`, `…/payout-account/{approve,reject}` | `admin:hotel:manage` / `admin:hotel:approve-sensitive` | **ADM-15** đổi tài khoản nhận tiền: mã hóa, người duyệt ≠ người đề xuất |
@@ -72,13 +78,13 @@ Lỗi luôn có dạng `{ "error": { "code", "message", "details?", "requestId" 
 
 | Nhóm | Route chính | Quyền |
 |---|---|---|
-| Loại phòng + tồn + khóa phòng | `/v1/hotel/room-types`, `/:id/inventory`, `/v1/hotel/room-blocks` | `booking:read` / `room:manage` |
+| Loại phòng + tồn + khóa phòng (PATCH `{active:true}` mở bán lại loại đã ngừng dùng) | `/v1/hotel/room-types`, `/:id/inventory`, `/v1/hotel/room-blocks` | `booking:read` / `room:manage` |
 | Xác nhận / từ chối booking | `POST /v1/hotel/bookings/:id/confirm`, `/reject`; `GET /v1/hotel/bookings/:id` | `booking:decide` |
 | Admin xem booking, dashboard | `/v1/admin/bookings`, `/v1/admin/dashboard`; khách sạn: `GET /v1/hotel/stats` | `admin:booking:read`, `admin:dashboard:read` |
 | Đổi/hủy | khách `/v1/change-requests{,/quote,/lookup}`; nhân sự `/v1/hotel/change-requests` | `request:handle` |
 | Hỗ trợ | khách `/v1/support{,/lookup,/reply}`; admin `/v1/admin/support` | `support:handle` |
 | Xe đưa đón | khách `/v1/shuttle-requests`; nhân sự `/v1/hotel/shuttle-requests` | `shuttle:handle` |
-| Chuyến bay (mô phỏng) | `GET /v1/flights/:code?date=`; admin `/v1/admin/flights` | `flight:manage` |
+| Chuyến bay (mô phỏng) | `GET /v1/flights/:code?date=`; admin `GET/POST /v1/admin/flights`, `PATCH/DELETE …/:id` (xóa chỉ khi chưa có lịch sử đổi, else 409 `FLIGHT_IN_USE`; trùng mã+ngày 409 `FLIGHT_EXISTS`) | `flight:manage` |
 
 Booking mới của khách sạn bật duyệt tay vào `PENDING`, lễ tân xác nhận hoặc từ chối; đơn quá hạn chờ tự `EXPIRED` (quét mỗi `BOOKING_EXPIRY_SWEEP_SEC` giây, mặc định 60, `0` = tắt). Lệnh hoàn tiền phát sinh từ từ chối/hủy/đổi chỉ được GHI (`PENDING`, `due_at = infinity`), chưa thực thi vì luồng thanh toán tạm dừng.
 
@@ -113,6 +119,7 @@ Sự kiện do service phát **sau khi transaction commit** (`services/events.ts
 ## Giới hạn đã biết (shortcut)
 
 - Admin: Mật khẩu ban đầu do người tạo đặt (chưa có luồng mời qua email / đổi mật khẩu lần đầu). Mã hóa tài khoản nhận tiền là AES-GCM một khóa (`DATA_ENC_KEY`), chưa xoay khóa/KMS. Cấu hình đọc DB mỗi lần, chưa cache.
+- Tài khoản khách: chưa có xác minh/khôi phục mật khẩu (không thu email/SĐT, BR-002), chưa thu hồi phiên khi đổi mật khẩu (token cũ sống tới khi hết hạn), chưa khóa tài khoản theo số lần đăng nhập sai ngoài rate limit theo IP.
 - JWT chỉ chứa định danh (~200 byte, không phình theo số quyền); quyền nạp từ DB mỗi request, cache 30 giây/tiến trình (`lib/authz.ts`). Khóa/đổi vai trò có hiệu lực ngay trên bản API xử lý thay đổi, các bản khác chờ hết 30 giây. Chưa có refresh token/thu hồi phiên.
 - VNPay: mặc định `VNPAY_MODE=mock` (không gọi mạng) — mock chỉ chứng minh logic khớp tài liệu VNPay 2.1.0, **chưa** khớp VNPay thật. Khi có khóa sandbox/production: đặt `VNPAY_MODE=live`, `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`, `VNPAY_RETURN_URL` (trang FE), và khai báo IPN URL `https://<api>/v1/payments/vnpay/ipn` trên cổng VNPay merchant (IPN URL không gửi trong request). `VNPAY_URL`/`VNPAY_API_URL` mặc định là sandbox, đổi sang URL production khi lên thật. **Chạy thử sandbox một lượt** (đặt → trả → IPN → hoàn). Chưa xác thực chữ ký phản hồi querydr/refund, `vnp_IpAddr` đang cố định `127.0.0.1`; chưa có scheduler (đối soát gọi tay qua `/reconcile`); chưa làm chi trả khách sạn, thu thêm khi đổi đơn, hoàn một phần.
 - Realtime: sự kiện đơn chỉ phát trong một tiến trình API; chạy nhiều bản API cần Postgres LISTEN/NOTIFY hoặc Supabase Realtime (và adapter cho Socket.io). Không dùng Supabase Auth/Realtime/REST: backend nối thẳng Postgres bằng `DATABASE_URL`, xác thực bằng JWT riêng.

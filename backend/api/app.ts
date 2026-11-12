@@ -5,12 +5,15 @@ import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { corsOrigins } from '../config/env';
 import { logger } from '../lib/logger';
+import { installViErrorMap } from '../lib/zodErrorMap';
 import swaggerUi from 'swagger-ui-express';
 import { openapi } from './openapi';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import { apiRateLimit } from './middleware/rateLimit';
 import { healthRouter } from './modules/health/health.router';
 import { v1Router } from './modules/index';
+
+installViErrorMap(); // thông báo lỗi zod mặc định bằng tiếng Việt, áp cho toàn tiến trình
 
 // Tách khỏi server.ts để test bằng supertest mà không cần mở cổng / kết nối socket.
 export function createApp() {

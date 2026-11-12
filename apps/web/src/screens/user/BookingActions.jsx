@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Car, RefreshCw } from 'lucide-react';
-import { cancelShuttle, createChangeRequest, createShuttle, listAirports, listChangeRequests, listShuttles, quoteCancel, quoteShuttle } from '../../data/user';
-import { describeError } from '../../lib/api';
+import { cancelShuttle, createChangeRequest, describeApiError, createShuttle, listAirports, listChangeRequests, listShuttles, quoteCancel, quoteShuttle } from '../../data/user';
 import { money } from '../../lib/time';
 
 const BOX = 'tw:mt-6 tw:rounded-2xl tw:border tw:border-slate-200 tw:p-5';
@@ -39,13 +38,18 @@ export default function BookingActions({ booking, phone }) {
   const loadShuttle = useCallback(() => listShuttles(code, phone).then(setShuttles).catch(() => setShuttles([])), [code, phone]);
   useEffect(() => { loadReq(); loadShuttle(); }, [loadReq, loadShuttle]);
 
-  const run = async (fn, setM) => { setBusy(true); setM({ ok: false, text: '' }); try { await fn(); } catch (e) { setM({ ok: false, text: describeError(e) }); } finally { setBusy(false); } };
+  const run = async (fn, setM) => { setBusy(true); setM({ ok: false, text: '' }); try { await fn(); } catch (e) { setM({ ok: false, text: describeApiError(e) }); } finally { setBusy(false); } };
 
   const showQuote = () => run(async () => setQuote(await quoteCancel(code, phone)), setMsg);
   const submitRequest = (e) => {
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.currentTarget).entries());
     const body = { type, code, phone, reasonCode: d.reasonCode, ...(d.reasonNote?.trim() && { reasonNote: d.reasonNote.trim() }) };
+    if (type === 'CHANGE') {
+      const todayIso = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10); // ngày hôm nay theo giờ VN
+      if (d.newFrom < todayIso) { setMsg({ ok: false, text: 'Ngày nhận phòng mới không được ở quá khứ.' }); return; }
+      if (d.newTo <= d.newFrom) { setMsg({ ok: false, text: 'Ngày trả phòng mới phải sau ngày nhận phòng mới.' }); return; }
+    }
     if (type === 'CHANGE') Object.assign(body, { newFrom: new Date(`${d.newFrom}T14:00:00+07:00`), newTo: new Date(`${d.newTo}T12:00:00+07:00`) });
     run(async () => { await createChangeRequest(body); setMsg({ ok: true, text: 'Đã gửi yêu cầu. Khách sạn sẽ xem xét và trạng thái hiện ở danh sách bên dưới.' }); setQuote(null); await loadReq(); }, setMsg);
   };

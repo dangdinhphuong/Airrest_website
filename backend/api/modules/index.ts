@@ -10,17 +10,23 @@ import { flightsRouter } from './flights/flights.router';
 import { hotelStatsRouter } from './hotelStats/hotelStats.router';
 import { supportRouter } from './support/support.router';
 import { guestChangeRequestsRouter, hotelChangeRequestsRouter } from './changeRequests/changeRequests.router';
+import { hotelMediaRouter, hotelProfileRouter } from './hotelProfile/hotelProfile.router';
+import { meRouter, passengerAuthRouter } from './passengers/passengers.router';
 import { roomBlocksRouter, roomTypesRouter } from './rooms/rooms.router';
 
 // Gắn mọi module vào /v1. Thêm module mới: tạo thư mục modules/<ten>/ rồi thêm 1 dòng ở đây.
 export const v1Router = Router();
+v1Router.use('/auth/passenger', passengerAuthRouter);
 v1Router.use('/auth', authRouter);
+v1Router.use('/me', meRouter);
 v1Router.use('/airports', airportsRouter);
 v1Router.use('/hotels', hotelsRouter);
 v1Router.use('/bookings', bookingsRouter);
 v1Router.use('/hotel/bookings', hotelBookingsRouter);
 v1Router.use('/hotel/room-types', roomTypesRouter);
 v1Router.use('/hotel/room-blocks', roomBlocksRouter);
+v1Router.use('/hotel/profile', hotelProfileRouter);
+v1Router.use('/hotel/media', hotelMediaRouter);
 v1Router.use('/change-requests', guestChangeRequestsRouter);
 v1Router.use('/support', supportRouter);
 v1Router.use('/flights', flightsRouter);

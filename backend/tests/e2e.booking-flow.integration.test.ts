@@ -59,7 +59,7 @@ run('E2E API: đặt -> xác nhận -> hủy', () => {
     const detail = await request(app).get(`/v1/admin/bookings/${id}`).set(auth(admin));
     expect(detail.body.booking.statusHistory.map((h: any) => h.to)).toEqual(['PENDING', 'CONFIRMED', 'CANCELLED']);
     expect(await count('audit_logs', "booking_id = $1 AND action IN ('BOOKING.CONFIRM','BOOKING.CANCEL','CHANGE_REQUEST.APPROVE','CHANGE_REQUEST.CREATE')", [id])).toBe(4);
-    expect((await request(app).get('/v1/admin/dashboard').set(auth(admin))).body.bookings.byStatus.CANCELLED.count).toBe(1);
+    expect((await request(app).get(`/v1/admin/dashboard?from=${encodeURIComponent(new Date(Date.now() - DAY).toISOString())}&to=${encodeURIComponent(new Date(Date.now() + 30 * DAY).toISOString())}`).set(auth(admin))).body.bookings.byStatus.CANCELLED.count).toBe(1);
     expect((await request(app).get('/v1/admin/support').set(auth(admin))).body.items).toHaveLength(1);
   });
 });

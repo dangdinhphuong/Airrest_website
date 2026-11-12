@@ -1,15 +1,58 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { adminApi } from '../../data/admin';
+import { adminApi, listAirports } from '../../data/admin';
 import { describeError } from '../../lib/api';
 import { ErrorBox, Loading, EmptyBox, Notice } from '../Common';
 
 export const dt = (v) => (v ? new Date(v).toLocaleString('vi-VN') : '—');
 export const d = (v) => (v ? new Date(v).toLocaleDateString('vi-VN') : '—');
 export const isoOrUndef = (v) => (v ? new Date(v).toISOString() : undefined);
+// Cận trên "đến ngày" gồm cả ngày được chọn: 00:00 ngày kế tiếp (giờ máy người dùng).
+export const endOfDayIso = (v) => { if (!v) return undefined; const x = new Date(`${v}T00:00:00`); x.setDate(x.getDate() + 1); return x.toISOString(); };
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Danh mục sân bay (GET /v1/airports, công khai) tải một lần cho cả phiên.
+let airportCache = null;
+export function useAirports() {
+  const [s, set] = useState({ items: airportCache || [], err: null });
+  useEffect(() => {
+    if (airportCache) return undefined;
+    let live = true;
+    listAirports().then((r) => { airportCache = r.items; if (live) set({ items: r.items, err: null }); }, (e) => live && set({ items: [], err: errText(e) }));
+    return () => { live = false; };
+  }, []);
+  return s;
+}
+export const airportLabel = (a) => `${a.iata} – ${a.name} (${a.city})`;
+export function AirportSelect({ id, value, onChange, airports, allowEmpty, required = true, ...rest }) {
+  return (
+    <select id={id} value={value} onChange={onChange} required={required} {...rest}>
+      {(allowEmpty || !airports.length) && <option value="">{airports.length ? '— Chọn sân bay —' : 'Đang tải danh sách…'}</option>}
+      {airports.map((a) => <option key={a.iata} value={a.iata}>{airportLabel(a)}</option>)}
+    </select>
+  );
+}
+
 export const shortId = (id) => (id ? String(id).slice(0, 8) : '—');
 
 // Lỗi 422 của zod: thêm đường dẫn trường để người dùng biết sai ở đâu.
+const ERR_VI = {
+  AIRPORT_UNKNOWN: 'Mã sân bay không có trong danh mục. Hãy chọn sân bay từ danh sách.',
+  FLIGHT_EXISTS: 'Chuyến bay này (mã chuyến và ngày bay) đã tồn tại.',
+  FLIGHT_ROUTE_INVALID: 'Tuyến bay không hợp lệ: sân bay đi và đến phải khác nhau.',
+  FLIGHT_IN_USE: 'Không thể xóa: chuyến bay này đã có lịch sử thay đổi hoặc đang được tham chiếu.',
+  ROLE_NAME_TAKEN: 'Tên vai trò đã tồn tại.',
+  ROLE_SYSTEM_IMMUTABLE: 'Vai trò hệ thống không thể sửa hoặc xóa.',
+  CANNOT_MODIFY_SELF: 'Không thể sửa vai trò của chính bạn.',
+  ROLE_NOT_FOUND: 'Không tìm thấy vai trò (có thể đã bị xóa). Hãy tải lại danh sách.',
+  FLIGHT_NOT_FOUND: 'Không tìm thấy chuyến bay (có thể đã bị xóa).',
+};
+const list = (a) => (Array.isArray(a) && a.length ? a.join(', ') : 'không rõ');
 export function errText(e) {
+  const d = e?.details && !Array.isArray(e.details) ? e.details : {};
+  if (e?.code === 'PERMISSION_ESCALATION') return `Bạn không thể gán quyền mà bạn không có: ${list(d.missing)}.`;
+  if (e?.code === 'UNKNOWN_PERMISSION') return `Có quyền không tồn tại trong danh mục: ${list(d.unknown)}.`;
+  if (e?.code === 'ROLE_IN_USE') return `Vai trò đang được ${d.accountCount ?? 'một số'} tài khoản sử dụng.`;
+  if (ERR_VI[e?.code]) return ERR_VI[e.code];
   const i = Array.isArray(e?.details) ? e.details[0] : null;
   return i?.path?.length ? `${describeError(e)} (${i.path.join('.')})` : describeError(e);
 }
@@ -102,9 +145,9 @@ export function Act({ label, onDo, reason = false, danger = false, confirm = 'B�
 }
 
 // Ô lọc đơn giản: fields = [[key, label, type?, options?]]; áp dụng khi bấm "Lọc".
-export function Filters({ fields, onApply, testid = 'filters' }) {
+export function Filters({ fields, onApply, testid = 'filters', inclusiveTo = false }) {
   const [v, setV] = useState({});
-  const apply = (e) => { e.preventDefault(); const o = {}; for (const [k, , t] of fields) if (v[k]) o[k] = t === 'date' ? isoOrUndef(v[k]) : v[k].trim(); onApply(o); };
+  const apply = (e) => { e.preventDefault(); const o = {}; for (const [k, , t] of fields) if (v[k]) o[k] = t === 'date' ? (inclusiveTo && k === 'to' ? endOfDayIso(v[k]) : isoOrUndef(v[k])) : v[k].trim(); onApply(o); };
   return (
     <form className="inline-form" onSubmit={apply} style={{ margin: '8px 0 12px' }} data-testid={testid}>
       {fields.map(([k, label, t, opts]) => opts

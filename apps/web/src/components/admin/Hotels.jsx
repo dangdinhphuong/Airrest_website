@@ -7,7 +7,7 @@ import { hasPerm } from '../../lib/access';
 import { PERM } from '../../lib/perms';
 import { createHotel, hotelAction, patchHotel, payoutDecision, proposePayout } from '../../data/admin';
 import { BOOKING_LABEL } from './Dashboard';
-import { Act, Back, Filters, LoadView, PagedView, Table, d, dt, isoOrUndef, useLoad, usePaged, useRun } from './kit';
+import { Act, AirportSelect, Back, Filters, LoadView, PagedView, Table, d, dt, isoOrUndef, useAirports, useLoad, usePaged, useRun } from './kit';
 
 const ST = { DRAFT: ['Nháp / bị từ chối', 'neutral'], PENDING_APPROVAL: ['Chờ duyệt', 'warn'], ACTIVE: ['Đang hoạt động', 'ok'], SUSPENDED: ['Tạm ngưng', 'error'], HIDDEN_DEBT: ['Ẩn do công nợ', 'error'] };
 const TPL = { FLEXIBLE: 'Linh hoạt', STANDARD: 'Tiêu chuẩn', NON_REFUNDABLE: 'Không hoàn' };
@@ -17,6 +17,7 @@ const TplSelect = ({ id, value, onChange }) => <select id={id} value={value} onC
 function CreateForm({ onDone, onCancel }) {
   const [f, setF] = useState({ code: '', name: '', line: '', city: '', lng: '105.8', lat: '21.2', iata: 'HAN', km: '10', minutes: '20', phone: '', tpl: 'FLEXIBLE', buf: '0', oEmail: '', oName: '', oPw: '' });
   const { run, busy, node } = useRun();
+  const { items: airports, err: airErr } = useAirports();
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const submit = async (e) => {
     e.preventDefault();
@@ -34,12 +35,12 @@ function CreateForm({ onDone, onCancel }) {
   return (
     <form onSubmit={submit} className="card" data-testid="hotel-create">
       <h3>Đăng ký đối tác mới</h3>
-      {node}
+      {node}{airErr && <p className="field-error" role="alert">{airErr}</p>}
       <div className="grid-2">
         {inp('code', 'Mã khách sạn (A-Z, 0-9, gạch)', { pattern: '[A-Za-z0-9-]{3,30}' })}{inp('name', 'Tên khách sạn', { minLength: 2 })}
         {inp('line', 'Địa chỉ')}{inp('city', 'Thành phố')}
         {inp('lng', 'Kinh độ', { type: 'number', step: 'any' })}{inp('lat', 'Vĩ độ', { type: 'number', step: 'any' })}
-        {inp('iata', 'Sân bay (IATA)', { maxLength: 3, minLength: 3 })}{inp('km', 'Cách sân bay (km)', { type: 'number', min: 0 })}
+        <Field id="ch-iata" label="Sân bay (IATA)"><AirportSelect id="ch-iata" airports={airports} value={f.iata} onChange={set('iata')} data-testid="ch-iata" /></Field>{inp('km', 'Cách sân bay (km)', { type: 'number', min: 0 })}
         {inp('minutes', 'Thời gian di chuyển (phút)', { type: 'number', min: 0 })}{inp('phone', 'Điện thoại liên hệ', { minLength: 8 })}
         <Field id="ch-tpl" label="Chính sách hủy"><TplSelect id="ch-tpl" value={f.tpl} onChange={set('tpl')} /></Field>{inp('buf', 'Đệm dọn phòng (phút)', { type: 'number', min: 0 })}
         {inp('oEmail', 'Email chủ khách sạn', { type: 'email' })}{inp('oName', 'Họ tên chủ', { minLength: 2 })}
@@ -56,11 +57,14 @@ function EditForm({ h, onDone }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const submit = async (e) => {
     e.preventDefault();
+    // Chỉ gửi cờ duyệt tay khi người dùng đổi nó (bật/tắt hoặc đổi ngày), để sửa tên/SĐT không bị ràng buộc ngày.
+    const wasManual = !!h.approval?.manual;
+    const approvalChanged = f.manual !== wasManual || (f.manual && f.until !== (h.approval?.manualUntil ? h.approval.manualUntil.slice(0, 10) : ''));
     const body = {
       name: f.name, description: f.description,
       contact: { phone: f.phone, ...(f.email && { email: f.email }) },
       policy: { ...h.policy, cancellationTemplate: f.tpl, cleaningBufferMin: Number(f.buf) },
-      approval: f.manual ? { manual: true, manualUntil: isoOrUndef(`${f.until}T23:59:59`) } : { manual: false },
+      ...(approvalChanged && { approval: f.manual ? { manual: true, manualUntil: isoOrUndef(`${f.until}T23:59:59`) } : { manual: false } }),
     };
     const x = await run(() => patchHotel(h.id, body), 'Đã lưu thay đổi.');
     if (x.ok) onDone();
@@ -74,7 +78,7 @@ function EditForm({ h, onDone }) {
         <Field id="eh-email" label="Email liên hệ"><input id="eh-email" type="email" value={f.email} onChange={set('email')} /></Field>
         <Field id="eh-tpl" label="Chính sách hủy"><TplSelect id="eh-tpl" value={f.tpl} onChange={set('tpl')} /></Field>
         <Field id="eh-buf" label="Đệm dọn phòng (phút)"><input id="eh-buf" type="number" min={0} value={f.buf} onChange={set('buf')} /></Field>
-        <Field id="eh-until" label="Duyệt tay đến ngày (tối đa 90 ngày)"><input id="eh-until" type="date" disabled={!f.manual} required={f.manual} value={f.until} onChange={set('until')} /></Field>
+        <Field id="eh-until" label="Duyệt tay đến ngày (tối đa 90 ngày)"><input id="eh-until" type="date" disabled={!f.manual} required={f.manual && (!h.approval?.manual || !!h.approval?.manualUntil)} value={f.until} onChange={set('until')} /></Field>
       </div>
       <Field id="eh-desc" label="Mô tả"><input id="eh-desc" value={f.description} onChange={set('description')} /></Field>
       <label><input type="checkbox" checked={f.manual} onChange={(e) => setF({ ...f, manual: e.target.checked })} /> Khách sạn duyệt đơn bằng tay</label>
@@ -182,7 +186,8 @@ export default function Hotels() {
   if (sel) return <><ScreenTitle title="Khách sạn" /><Detail id={sel} onBack={() => { setSel(null); p.reload(); }} /></>;
   return (
     <>
-      <ScreenTitle title="Khách sạn" kicker="Đối tác và duyệt">
+      <ScreenTitle title="Khách sạn">
+        Đối tác và duyệt.{' '}
         {manage && !creating && <button type="button" className="btn btn-sm btn-primary" onClick={() => setCreating(true)} data-testid="hotel-new">Đăng ký đối tác</button>}
       </ScreenTitle>
       {creating && <CreateForm onCancel={() => setCreating(false)} onDone={(h) => { setCreating(false); setSel(h.id); }} />}

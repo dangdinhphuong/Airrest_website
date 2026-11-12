@@ -3,9 +3,8 @@ import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, Plane, Sh
 import { useApp } from '../state/store';
 import { loginStaff, logoutStaff } from '../data/auth';
 import { areasOf } from '../lib/access';
-import { describeError } from '../lib/api';
-import { NAME_MAX, loginUser, registerUser, validateRegister } from '../mock/users';
-import { SimBadge } from '../components/Common';
+import { describeError, setAuthToken, setGuestToken } from '../lib/api';
+import { FULLNAME_MAX, PASSWORD_MIN, USERNAME_MAX, describeAuthError, loginPassenger, registerPassenger, validateRegister } from '../data/user';
 
 
 function PasswordInput({ id, value, onChange, autoComplete, invalid, show, onToggle, placeholder }) {
@@ -19,7 +18,7 @@ function PasswordInput({ id, value, onChange, autoComplete, invalid, show, onTog
         onChange={onChange}
         autoComplete={autoComplete}
         aria-invalid={invalid || undefined}
-        placeholder={placeholder || 'Tối thiểu 8 ký tự'}
+        placeholder={placeholder || `Tối thiểu ${PASSWORD_MIN} ký tự`}
       />
       <button
         type="button"
@@ -39,7 +38,7 @@ export default function Login() {
 
   const [accountType, setAccountType] = useState('passenger'); // 'passenger' | 'admin'
   const [tab, setTab] = useState('login'); // 'login' | 'register'
-  const [form, setForm] = useState({ username: '', password: '', name: '', phone: '', confirm: '' });
+  const [form, setForm] = useState({ username: '', password: '', regUsername: '', fullName: '', regPassword: '', confirm: '' });
   const [errors, setErrors] = useState({});
   const [show, setShow] = useState(false);
   const [staff, setStaff] = useState({ email: '', password: '' });
@@ -53,32 +52,47 @@ export default function Login() {
   const switchTab = (t) => {
     setTab(t);
     setErrors({});
+    setForm((f) => ({ ...f, password: '', regPassword: '', confirm: '' }));
     setShow(false);
   };
 
-  const submitLogin = (e) => {
+  // Lưu token khách (sessionStorage), bỏ token nhân sự rồi vào store. Chỉ gọi khi đăng nhập/đăng ký thành công.
+  const enter = ({ token, user }, screen) => {
+    setAuthToken(null);
+    setGuestToken(token);
+    dispatch({ type: 'userLogin', user, screen });
+  };
+
+  const submitLogin = async (e) => {
     e.preventDefault();
     const u = form.username.trim();
     if (!u || !form.password) {
-      setErrors({ form: 'Nhập tên đăng nhập/email và mật khẩu.' });
+      setErrors({ form: !u ? 'Nhập tên đăng nhập.' : 'Nhập mật khẩu.' });
       return;
     }
-    const r = loginUser(u, form.password);
-    if (!r.ok) {
-      setErrors({ form: r.error });
-      return;
+    setBusy(true);
+    try {
+      enter(await loginPassenger(u, form.password), 'home');
+    } catch (err) {
+      setErrors({ form: describeAuthError(err) });
+      setBusy(false);
     }
-    dispatch({ type: 'userLogin', user: r.user });
   };
 
-  const submitRegister = (e) => {
+  const submitRegister = async (e) => {
     e.preventDefault();
-    const errs = validateRegister({ name: form.name, password: form.password, confirm: form.confirm });
+    const errs = validateRegister({ username: form.regUsername, fullName: form.fullName, password: form.regPassword, confirm: form.confirm });
     if (Object.keys(errs).length) {
       setErrors(errs);
       return;
     }
-    dispatch({ type: 'userLogin', user: registerUser({ name: form.name, password: form.password }) });
+    setBusy(true);
+    try {
+      enter(await registerPassenger({ username: form.regUsername, fullName: form.fullName, password: form.regPassword }), 'account');
+    } catch (err) {
+      setErrors(err?.code === 'USERNAME_TAKEN' ? { username: describeAuthError(err) } : { form: describeAuthError(err) });
+      setBusy(false);
+    }
   };
 
   const submitStaff = async (e) => {
@@ -99,7 +113,7 @@ export default function Login() {
       <div style={{ width: '100%', maxWidth: '1020px', marginBottom: '12px' }}>
         <button
           type="button"
-          onClick={() => dispatch({ type: 'go', screen: 'stays' })}
+          onClick={() => dispatch({ type: 'go', screen: 'home' })}
           data-testid="auth-continue"
           style={{ background: 'transparent', border: 'none', color: '#1262e8', fontWeight: '700', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
         >
@@ -210,7 +224,6 @@ export default function Login() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <span className="section-kicker">Tài khoản Passenger</span>
-                <SimBadge>Mô phỏng</SimBadge>
               </div>
               <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#062253', margin: '0 0 8px' }}>
                 {tab === 'login' ? 'Chào mừng trở lại' : 'Tạo tài khoản'}
@@ -266,7 +279,7 @@ export default function Login() {
               {tab === 'login' ? (
                 <form onSubmit={submitLogin} noValidate>
                   <div className="hero-input-field">
-                    <label htmlFor="a-user">Tên đăng nhập hoặc Email</label>
+                    <label htmlFor="a-user">Tên đăng nhập</label>
                     <div className="hero-input-box">
                       <Mail size={17} style={{ color: '#94a3b8' }} />
                       <input
@@ -275,7 +288,7 @@ export default function Login() {
                         onChange={(e) => set('username', e.target.value)}
                         autoComplete="username"
                         data-testid="login-username"
-                        placeholder="ban@example.com hoặc username"
+                        placeholder="Tên đăng nhập đã đăng ký"
                         required
                       />
                     </div>
@@ -294,13 +307,13 @@ export default function Login() {
                   </div>
 
                   {errors.form && (
-                    <p style={{ background: '#fff1f2', border: '1px solid #fecdd3', color: '#be123c', padding: '10px 14px', borderRadius: '10px', fontSize: '12.5px', fontWeight: '600', margin: '12px 0' }} data-testid="login-error">
+                    <p style={{ background: '#fff1f2', border: '1px solid #fecdd3', color: '#be123c', padding: '10px 14px', borderRadius: '10px', fontSize: '12.5px', fontWeight: '600', margin: '12px 0' }} role="alert" data-testid="login-error">
                       {errors.form}
                     </p>
                   )}
 
-                  <button type="submit" className="hero-submit-btn" data-testid="login-submit" style={{ marginTop: '16px' }}>
-                    Đăng nhập <ArrowRight size={17} style={{ marginLeft: 'auto' }} />
+                  <button type="submit" className="hero-submit-btn" disabled={busy} data-testid="login-submit" style={{ marginTop: '16px' }}>
+                    {busy ? 'Đang đăng nhập…' : 'Đăng nhập'} <ArrowRight size={17} style={{ marginLeft: 'auto' }} />
                   </button>
 
                   <p style={{ textAlign: 'center', fontSize: '12.5px', color: '#64748b', marginTop: '16px' }}>
@@ -313,29 +326,47 @@ export default function Login() {
               ) : (
                 <form onSubmit={submitRegister} noValidate>
                   <div className="hero-input-field">
-                    <label htmlFor="a-name">Họ và tên *</label>
+                    <label htmlFor="a-ruser">Tên đăng nhập *</label>
+                    <div className="hero-input-box">
+                      <UserRound size={17} style={{ color: '#94a3b8' }} />
+                      <input
+                        id="a-ruser"
+                        value={form.regUsername}
+                        maxLength={USERNAME_MAX}
+                        onChange={(e) => set('regUsername', e.target.value)}
+                        autoComplete="username"
+                        aria-invalid={!!errors.username || undefined}
+                        placeholder="Ví dụ: minhanh"
+                        data-testid="register-username"
+                        required
+                      />
+                    </div>
+                    {errors.username && <small className="ui-error" role="alert" data-testid="register-username-error">{errors.username}</small>}
+                  </div>
+
+                  <div className="hero-input-field">
+                    <label htmlFor="a-name">Họ và tên (tùy chọn)</label>
                     <div className="hero-input-box">
                       <UserRound size={17} style={{ color: '#94a3b8' }} />
                       <input
                         id="a-name"
-                        value={form.name}
-                        maxLength={NAME_MAX}
-                        onChange={(e) => set('name', e.target.value)}
+                        value={form.fullName}
+                        maxLength={FULLNAME_MAX}
+                        onChange={(e) => set('fullName', e.target.value)}
                         autoComplete="name"
                         placeholder="Nguyễn Minh Anh"
                         data-testid="register-name"
-                        required
                       />
                     </div>
-                    {errors.name && <small style={{ color: '#ef4444', fontSize: '11.5px', fontWeight: '600' }}>{errors.name}</small>}
+                    {errors.fullName && <small className="ui-error">{errors.fullName}</small>}
                   </div>
 
                   <div className="hero-input-field">
                     <label htmlFor="a-rpw">Mật khẩu *</label>
                     <PasswordInput
                       id="a-rpw"
-                      value={form.password}
-                      onChange={(e) => set('password', e.target.value)}
+                      value={form.regPassword}
+                      onChange={(e) => set('regPassword', e.target.value)}
                       autoComplete="new-password"
                       invalid={!!errors.password}
                       show={show}
@@ -358,8 +389,14 @@ export default function Login() {
                     {errors.confirm && <small style={{ color: '#ef4444', fontSize: '11.5px', fontWeight: '600' }}>{errors.confirm}</small>}
                   </div>
 
-                  <button type="submit" className="hero-submit-btn" data-testid="register-submit" style={{ marginTop: '16px' }}>
-                    Tạo tài khoản <ArrowRight size={17} style={{ marginLeft: 'auto' }} />
+                  {errors.form && (
+                    <p style={{ background: '#fff1f2', border: '1px solid #fecdd3', color: '#be123c', padding: '10px 14px', borderRadius: '10px', fontSize: '12.5px', fontWeight: '600', margin: '12px 0' }} role="alert" data-testid="register-error">
+                      {errors.form}
+                    </p>
+                  )}
+
+                  <button type="submit" className="hero-submit-btn" disabled={busy} data-testid="register-submit" style={{ marginTop: '16px' }}>
+                    {busy ? 'Đang tạo tài khoản…' : 'Tạo tài khoản'} <ArrowRight size={17} style={{ marginLeft: 'auto' }} />
                   </button>
 
                   <p style={{ textAlign: 'center', fontSize: '12.5px', color: '#64748b', marginTop: '16px' }}>
