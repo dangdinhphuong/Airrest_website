@@ -33,7 +33,8 @@ export function createApp() {
   app.get('/openapi.json', (_req, res) => res.json(openapi));
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapi, { customSiteTitle: 'Airrest API' }));
 
-  app.use(helmet());
+  // API công khai cho giao diện ở origin khác: CORP cross-origin (đọc dữ liệu vẫn bị CORS_ORIGINS kiểm soát); giúp giao diện phân biệt "API tắt" với "bị chặn CORS".
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cors({ origin: corsOrigins, credentials: true }));
   app.use(express.json({ limit: '100kb' }));
 
