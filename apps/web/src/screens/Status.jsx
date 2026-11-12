@@ -20,8 +20,14 @@ function RightsPanel({ flight, simNow }) {
   const rows = cancelled ? RIGHTS.cancel : RIGHTS.delay;
   const measure = cancelled ? simNow - (flight.cancelledAt ?? flight.updatedAt) : delayMinutes(flight);
   return (
-    <section className="card rights" aria-labelledby="rights-h" data-testid="rights-panel">
-      <div className="card-head"><h2 id="rights-h">Quyền lợi của bạn — thông tin tham khảo</h2><SimBadge tone="draft">Chờ PO duyệt</SimBadge></div>
+    <section className="airrest-card card rights" aria-labelledby="rights-h" data-testid="rights-panel">
+      <div className="airrest-card-head card-head">
+        <div>
+          <span className="section-kicker">Thông tin tham khảo</span>
+          <h2 id="rights-h" style={{ fontSize: '20px', fontWeight: '800', color: '#062253', margin: '4px 0 0' }}>Quyền lợi của bạn</h2>
+        </div>
+        <SimBadge tone="draft">Chờ PO duyệt</SimBadge>
+      </div>
       <Notice tone="info" title="Đây chưa phải kết luận về quyền lợi của bạn">
         Nội dung quyền lợi (MB-03) đang chờ Product Owner phê duyệt. Airrest không xác định quyền lợi của bạn: nghĩa vụ thuộc hãng hàng không và không phụ thuộc việc bạn dùng Airrest.
       </Notice>
@@ -29,7 +35,7 @@ function RightsPanel({ flight, simNow }) {
         <p className="muted">Chuyến bay đang đúng giờ nên chưa phát sinh mốc nào.</p>
       ) : (
         <>
-          <p className="muted">
+          <p className="muted" style={{ margin: '14px 0' }}>
             {cancelled ? `Thời gian chờ tại cảng từ lúc huỷ chuyến (mô phỏng): ${fmtDuration(measure)}.` : measure != null ? `Thời gian chậm theo dữ liệu: ${fmtDuration(measure)}.` : 'Chưa có đủ giờ để tính thời gian chậm.'}
           </p>
           <div className="table-wrap">
@@ -51,14 +57,14 @@ function RightsPanel({ flight, simNow }) {
               </tbody>
             </table>
           </div>
-          <ul className="plain-list">
+          <ul className="plain-list" style={{ marginTop: '16px' }}>
             {RIGHTS.passengerConditions.map((c) => <li key={c}>{c}</li>)}
             <li>{RIGHTS.exemptionNote}</li>
           </ul>
-          <details className="details">
-            <summary>Bồi thường ứng trước (chuyến nội địa, thông tin tham khảo)</summary>
-            <table className="mini-table"><tbody>{RIGHTS.compensationDomestic.map((c) => <tr key={c.label}><td>{c.label}</td><td>{c.amount}</td></tr>)}</tbody></table>
-            <p className="muted">Theo Thông tư 48/2026/TT-BXD Điều 5. Chỉ áp dụng khi chậm do lỗi người vận chuyển và không thuộc trường hợp miễn trừ; Airrest không xác định điều này.</p>
+          <details className="details" style={{ marginTop: '14px' }}>
+            <summary style={{ fontWeight: '700', color: '#1262e8', cursor: 'pointer' }}>Bồi thường ứng trước (chuyến nội địa, thông tin tham khảo)</summary>
+            <table className="mini-table" style={{ marginTop: '10px' }}><tbody>{RIGHTS.compensationDomestic.map((c) => <tr key={c.label}><td>{c.label}</td><td>{c.amount}</td></tr>)}</tbody></table>
+            <p className="muted" style={{ marginTop: '8px' }}>Theo Thông tư 48/2026/TT-BXD Điều 5. Chỉ áp dụng khi chậm do lỗi người vận chuyển và không thuộc trường hợp miễn trừ; Airrest không xác định điều này.</p>
           </details>
         </>
       )}
@@ -81,14 +87,17 @@ export default function Status() {
       {ontime ? (
         <Notice tone="ok" title="Chuyến bay đang đúng giờ">Chưa cần tìm nơi nghỉ. Nếu giờ bay thay đổi, thẻ trạng thái phía trên sẽ báo cho bạn.</Notice>
       ) : (
-        <div className="actions-card card">
-          <h2>Bước tiếp theo</h2>
-          <div className="action-grid">
-            <button type="button" className="btn btn-primary" onClick={() => dispatch({ type: 'go', screen: 'advice' })}><BedDouble size={18} aria-hidden="true" /> Gợi ý: ở lại hay đi nghỉ <ArrowRight size={16} aria-hidden="true" /></button>
-            <button type="button" className="btn" onClick={() => dispatch({ type: 'go', screen: 'stays' })}><Search size={18} aria-hidden="true" /> Tìm nơi nghỉ còn nhận khách</button>
-            <button type="button" className="btn" onClick={() => dispatch({ type: 'go', screen: 'request' })}><FileText size={18} aria-hidden="true" /> Đề nghị hãng hỗ trợ chỗ nghỉ (mô phỏng)</button>
+        <div className="airrest-card actions-card card">
+          <div style={{ marginBottom: '16px' }}>
+            <span className="section-kicker">Lựa chọn cho hành khách</span>
+            <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#062253', margin: '4px 0 0' }}>Bước tiếp theo</h2>
           </div>
-          <p className="muted">“Đề nghị hãng hỗ trợ” chỉ là mô phỏng trong Airrest, không gửi tới hãng thật và không phải điều kiện để bạn được hưởng quyền lợi.</p>
+          <div className="action-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+            <button type="button" className="btn btn-primary" onClick={() => dispatch({ type: 'go', screen: 'advice' })} style={{ borderRadius: '12px', minHeight: '48px', fontWeight: '700' }}><BedDouble size={18} aria-hidden="true" /> Gợi ý: ở lại hay đi nghỉ <ArrowRight size={16} aria-hidden="true" /></button>
+            <button type="button" className="btn" onClick={() => dispatch({ type: 'go', screen: 'stays' })} style={{ borderRadius: '12px', minHeight: '48px', fontWeight: '700', border: '1px solid #cbd5e1' }}><Search size={18} aria-hidden="true" /> Tìm nơi nghỉ còn nhận khách</button>
+            <button type="button" className="btn" onClick={() => dispatch({ type: 'go', screen: 'request' })} style={{ borderRadius: '12px', minHeight: '48px', fontWeight: '700', border: '1px solid #cbd5e1' }}><FileText size={18} aria-hidden="true" /> Theo dõi & Đề nghị hỗ trợ</button>
+          </div>
+          <p className="muted" style={{ marginTop: '16px', fontSize: '12.5px' }}>“Đề nghị hãng hỗ trợ” chỉ là mô phỏng trong Airrest, không gửi tới hãng thật và không phải điều kiện để bạn được hưởng quyền lợi.</p>
         </div>
       )}
     </>

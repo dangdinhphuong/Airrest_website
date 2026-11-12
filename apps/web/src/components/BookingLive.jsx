@@ -10,8 +10,9 @@ import { SHUTTLE_LABEL } from './PropertyCard';
 export default function BookingLive({ booking, property, simNow }) {
   const { dispatch } = useApp();
   const { bookings, pickups } = usePartner();
-  const b = bookings.find((x) => x.code === booking.code);
-  const pk = pickups.find((x) => x.bookingCode === booking.code);
+  const targetCode = booking.rawCode || booking.code;
+  const b = bookings.find((x) => x.code === targetCode || x.code === booking.code);
+  const pk = pickups.find((x) => x.bookingCode === targetCode || x.bookingCode === booking.code);
   const [caseId, setCaseId] = useState(null);
   if (b?.status === 'rejected') {
     return (
@@ -23,7 +24,7 @@ export default function BookingLive({ booking, property, simNow }) {
   const caseBtn = flagValue('guest_case') && (
     <div className="guest-case" data-testid="guest-case">
       {caseId ? <p className="ok-line" role="status" data-testid="guest-case-done">Đã gửi ca hỗ trợ {caseId}. Nhân viên hỗ trợ sẽ xem xét (mô phỏng).</p>
-        : <button type="button" className="btn btn-sm" onClick={() => setCaseId(createCase({ title: `Vấn đề về đặt phòng ${booking.code}`, category: 'Đặt phòng', link: { type: 'booking', code: booking.code, propertyId: property.id }, by: null, now: simNow }))} data-testid="guest-case-btn"><LifeBuoy size={16} aria-hidden="true" /> Báo vấn đề về đặt phòng này</button>}
+        : <button type="button" className="btn btn-sm" onClick={() => setCaseId(createCase({ title: `Vấn đề về đặt phòng ${booking.code}`, category: 'Đặt phòng', link: { type: 'booking', code: targetCode, propertyId: property.id }, by: null, now: simNow }))} data-testid="guest-case-btn"><LifeBuoy size={16} aria-hidden="true" /> Báo vấn đề về đặt phòng này</button>}
     </div>
   );
   if (property.shuttle === 'none' || !flagValue('pickup_request')) return caseBtn || null;
@@ -32,7 +33,7 @@ export default function BookingLive({ booking, property, simNow }) {
     <section className="pickup-block" aria-label="Xe đưa đón" data-testid="pickup-block">
       <h3><Car size={18} aria-hidden="true" /> Xe đón từ sân bay</h3>
       <p className="muted">{SHUTTLE_LABEL[property.shuttle]}. Trạng thái do lái xe của cơ sở cập nhật (mô phỏng); không có bản đồ hay định vị.</p>
-      {!pk && <button type="button" className="btn btn-sm btn-primary" onClick={() => requestPickup({ booking, property, now: simNow })} data-testid="request-pickup">Yêu cầu xe đón</button>}
+      {!pk && <button type="button" className="btn btn-sm btn-primary" onClick={() => requestPickup({ booking: { ...booking, code: targetCode }, property, now: simNow })} data-testid="request-pickup">Yêu cầu xe đón</button>}
       {caseBtn}
       {pk && (
         <>

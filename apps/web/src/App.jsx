@@ -5,7 +5,7 @@ import { adminNav, hotelNav, resolveTab } from './lib/partnerNav';
 import { ROLE_META } from './lib/rbac';
 import { MODULES, USER_ACTIVE, USER_CRUMB, moduleOf, userNav } from './lib/shellNav';
 import { refreshFlight } from './mock/service';
-import { AppNav, Breadcrumb, Footer, Header, Progress } from './components/Layout';
+import { AppNav, Breadcrumb, Footer, Header, MobileBottomNav, Progress } from './components/Layout';
 import FlightStatusCard from './components/FlightStatusCard';
 import SimTools from './components/SimTools';
 import { ErrorBox, Notice } from './components/Common';
@@ -85,20 +85,21 @@ function Shell() {
       <Header airport={airport} canChangeAirport={!flight} onAirport={(a) => dispatch({ type: 'setBrowseAirport', airport: a })}
         onHome={() => dispatch({ type: 'reset' })} onHelp={() => onGo('support')} onSearch={(code) => dispatch({ type: 'goLookup', code })}
         session={state.session} user={state.user} onPartner={() => onGo(state.session ? (ROLE_META[state.session.role]?.area === 'admin' ? 'admin' : 'hotel') : state.user ? 'stays' : 'login')} onLogout={() => dispatch({ type: 'logout' })}
-        onMenu={() => setDrawerOpen((v) => !v)} menuOpen={drawerOpen} hasMenu={!!panel} context={context} />
+        onMenu={() => setDrawerOpen((v) => !v)} menuOpen={drawerOpen} hasMenu={!!panel} context={context} onGo={onGo} />
       <AppNav panel={panel} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <main id="main" className={`feed ${effective === 'stays' ? 'feed-map' : ''} ${panel ? 'with-panel' : ''}`}>
         <div className="feed-in">
           <Breadcrumb items={crumb} />
           {showCard && <Progress screen={effective} />}
           {remindDue && <Notice tone="warn" title="Đến giờ rời nơi nghỉ" role="alert">Giờ rời {fmtTime(leave)} (giờ mô phỏng) đã tới. <button type="button" className="link-btn" onClick={() => onGo('reminder')}>Xem nhắc giờ</button></Notice>}
-          {showCard && <FlightStatusCard flight={flight} simNow={simNow} onRefresh={refresh} refreshing={refreshing} bannerClosedAt={bannerClosedAt} onCloseBanner={() => dispatch({ type: 'closeBanner' })} />}
+          {showCard && <FlightStatusCard flight={flight} simNow={simNow} onRefresh={refresh} refreshing={refreshing} bannerClosedAt={bannerClosedAt} onCloseBanner={() => dispatch({ type: 'closeBanner' })} onGo={onGo} />}
           {refreshError && <ErrorBox title="Không làm mới được" onRetry={refresh}>Dịch vụ dữ liệu mô phỏng tạm thời lỗi. Dữ liệu cũ vẫn được giữ.</ErrorBox>}
           <Body />
-          <Footer />
+          <Footer onGo={onGo} />
         </div>
       </main>
       <SimTools simNow={simNow} hasFlight={!!flight} canChange={!!flight && flight.status !== 'cancelled'} dispatch={dispatch} />
+      {activeModule === 'user' && <MobileBottomNav screen={effective} onGo={onGo} />}
     </div>
   );
 }

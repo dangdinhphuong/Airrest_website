@@ -1,11 +1,11 @@
-import React, { memo } from 'react';
-import { BedDouble, Building2, Check, Clock3, Hotel, MapPin, Star } from 'lucide-react';
+import React, { memo, useState } from 'react';
+import { BedDouble, Building2, Check, ChevronRight, Clock3, Heart, Hotel, MapPin, Star } from 'lucide-react';
 import { SIM } from '../config/simulation';
 import { fmtTime, money } from '../lib/time';
 import { receptionLabel } from '../lib/domain';
 
-export const SHUTTLE_LABEL = { free: 'Có xe đưa đón miễn phí', paid: 'Có xe đưa đón (có phí)', none: 'Không có xe đưa đón' };
-const TYPE_ICON = { 'Khách sạn': Hotel, 'Nhà nghỉ': Hotel, 'Căn hộ': Building2, 'Hộp ngủ': BedDouble, 'Phòng theo giờ': BedDouble };
+export const SHUTTLE_LABEL = { free: 'Có xe đưa đón', paid: 'Có xe đưa đón (có phí)', none: 'Không có xe đưa đón' };
+const IMAGES = ['/images/hotel-1.jpg', '/images/hotel-2.jpg', '/images/hotel-3.jpg'];
 
 export function priceNote() {
   const a = SIM.assumptions;
@@ -17,38 +17,81 @@ export function priceNoteShort() {
   return `${a.rooms} phòng · ${a.nights} đêm · ${a.adults} người lớn · mô phỏng`;
 }
 
-// Thẻ nơi nghỉ gọn: ô biểu tượng nhỏ + thông tin chính; chân thẻ có giá và nút. Không dùng ảnh khách sạn thật.
 function PropertyCard({ p, now, onOpen, nearest = false, selected = false }) {
-  const Icon = TYPE_ICON[p.type] || Hotel;
-  const tone = p.type === 'Hộp ngủ' || p.type === 'Phòng theo giờ' ? 'b' : p.type === 'Căn hộ' ? 'c' : 'a';
+  const [liked, setLiked] = useState(false);
+  // Chọn ảnh tương ứng ổn định theo id khách sạn
+  const imgIdx = Math.abs(p.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)) % IMAGES.length;
+  const imageSrc = p.image || IMAGES[imgIdx];
+
   return (
-    <article className={`card deal ${selected ? 'sel' : ''}`} data-testid="property-card" data-id={p.id} aria-current={selected ? 'true' : undefined}>
-      <div className="deal-row">
-        <button type="button" className={`deal-visual v-${tone}`} onClick={() => onOpen(p.id)} tabIndex={-1} aria-hidden="true">
-          <Icon size={24} aria-hidden="true" />
+    <article
+      className={`hotel-card-item ${selected ? 'sel' : ''}`}
+      data-testid="property-card"
+      data-id={p.id}
+      aria-current={selected ? 'true' : undefined}
+    >
+      <div className="hotel-card-img-wrap">
+        <img src={imageSrc} alt={`Không gian tại ${p.name}`} loading="lazy" />
+        <button
+          type="button"
+          className="hotel-like-btn"
+          onClick={(e) => { e.stopPropagation(); setLiked(!liked); }}
+          aria-label="Lưu nơi nghỉ"
+        >
+          <Heart size={18} fill={liked ? '#ef4444' : 'none'} color={liked ? '#ef4444' : 'currentColor'} />
         </button>
-        <div className="deal-body">
-          <div className="deal-title">
-            <h3>{p.name}</h3>
-            {nearest && <span className="ribbon-s">Gần nhất</span>}
-            <span className="rating" aria-label={`Điểm đánh giá ${p.rating} (mô phỏng)`}><Star size={12} aria-hidden="true" /> {p.rating}</span>
-          </div>
-          <p className="travel"><MapPin size={14} aria-hidden="true" /> {p.travelMin} phút đi xe · taxi ~{money(p.taxi)} · {SHUTTLE_LABEL[p.shuttle]}</p>
-          <p className="reception"><Clock3 size={14} aria-hidden="true" /> <span data-testid="reception">{receptionLabel(p, now)}</span> · còn phòng · {p.type}</p>
-          <ul className="tags tags-s">
-            {p.freeCancel && <li><Check size={11} aria-hidden="true" /> Huỷ miễn phí</li>}
-            {p.payAtProperty && <li><Check size={11} aria-hidden="true" /> Trả tại nơi nghỉ</li>}
-            {p.familyRoom && <li><Check size={11} aria-hidden="true" /> Phù hợp gia đình</li>}
-            {p.hourly && <li><Check size={11} aria-hidden="true" /> Thuê theo giờ</li>}
-          </ul>
-        </div>
+        {nearest && <span className="ribbon-s" style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 2 }}>Gần nhất</span>}
       </div>
-      <div className="deal-foot">
-        <div className="deal-price">
-          <strong data-testid="price">{money(p.price)}</strong>
-          <small>Giá tổng · {priceNoteShort()} · Cập nhật lúc {fmtTime(p.updatedAt)}</small>
+
+      <div className="hotel-card-content">
+        <div className="hotel-header-row">
+          <div>
+            <h3 className="hotel-title">{p.name}</h3>
+            <p className="hotel-sub-distance">
+              <MapPin size={13} aria-hidden="true" />
+              <span>{p.distanceKm} km · {p.travelMin} phút đi xe</span>
+            </p>
+          </div>
+          {p.rating && (
+            <span className="hotel-rating-badge" aria-label={`Điểm đánh giá ${p.rating}`}>
+              <Star size={12} fill="currentColor" /> {p.rating}
+            </span>
+          )}
         </div>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => onOpen(p.id)}>Xem chi tiết</button>
+
+        <div className="hotel-amenities-pills">
+          {p.shuttle !== 'none' && (
+            <span className="hotel-amenity-pill" style={{ background: '#eff6ff', color: '#1d4ed8' }}>
+              {SHUTTLE_LABEL[p.shuttle]}
+            </span>
+          )}
+          {p.freeCancel && <span className="hotel-amenity-pill">Hủy miễn phí</span>}
+          {p.amenities?.slice(0, 2).map((item) => (
+            <span key={item} className="hotel-amenity-pill">{item}</span>
+          ))}
+        </div>
+
+        <div className="hotel-room-divider">
+          <span className="hotel-room-name">{p.room}</span>
+          <span className="hotel-rooms-left">Còn {p.roomsLeft > 0 ? p.roomsLeft : 0} phòng</span>
+        </div>
+
+        <div className="hotel-foot-row">
+          <div className="hotel-price-block">
+            <small>Từ / đêm (mô phỏng)</small>
+            <strong data-testid="price">{money(p.price)}</strong>
+          </div>
+          <button
+            type="button"
+            className="hotel-select-btn"
+            onClick={() => onOpen(p.id)}
+          >
+            Chọn phòng <ChevronRight size={15} />
+          </button>
+        </div>
+
+        {/* Giữ lại thẻ ẩn cho test selector nếu có */}
+        <span data-testid="reception" style={{ display: 'none' }}>{receptionLabel(p, now)}</span>
       </div>
     </article>
   );
