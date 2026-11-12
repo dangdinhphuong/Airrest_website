@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import { AlertTriangle, CheckCircle2, Info, Loader2, RefreshCw, SearchX } from 'lucide-react';
-import { getFailNext } from '../mock/service';
 
 export function SimBadge({ children = 'Dữ liệu mô phỏng', tone = 'sim' }) {
   return <span className={`badge badge-${tone}`}>{children}</span>;
@@ -27,7 +26,6 @@ export function ErrorBox({ title = 'Không tải được dữ liệu', children
       <AlertTriangle size={28} aria-hidden="true" />
       <h3>{title}</h3>
       <p>{children}</p>
-      {getFailNext() && <p className="sim-hint" data-testid="sim-fail-hint">Lỗi này do “Mô phỏng lỗi dịch vụ dữ liệu” đang bật trong Công cụ mô phỏng (góc dưới bên phải). Bỏ chọn mục đó rồi bấm Thử lại.</p>}
       {onRetry && <button type="button" className="btn btn-primary" onClick={onRetry}><RefreshCw size={16} aria-hidden="true" /> Thử lại</button>}
     </div>
   );

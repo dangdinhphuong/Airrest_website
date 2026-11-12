@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, Plane, ShieldCheck, UserRound } from 'lucide-react';
 import { useApp } from '../state/store';
-import { startSession, usePartner } from '../mock/partner';
-import { ROLE_META, ROLE_ORDER } from '../lib/rbac';
-import { DEMO_PASSWORD, NAME_MAX, loginUser, registerUser, demoUsers, validateRegister } from '../mock/users';
+import { loginStaff, logoutStaff } from '../data/auth';
+import { areasOf } from '../lib/access';
+import { describeError } from '../lib/api';
+import { NAME_MAX, loginUser, registerUser, validateRegister } from '../mock/users';
 import { SimBadge } from '../components/Common';
 
-const STATUS_MSG = {
-  locked: 'Tài khoản đã bị khoá. Nhờ quản trị mở khoá hoặc chọn tài khoản khác.',
-  disabled: 'Tài khoản đã bị vô hiệu hoá và không đăng nhập được.',
-  invited: 'Tài khoản chưa được kích hoạt (đang chờ chấp nhận lời mời).',
-};
 
 function PasswordInput({ id, value, onChange, autoComplete, invalid, show, onToggle, placeholder }) {
   return (
@@ -39,7 +35,6 @@ function PasswordInput({ id, value, onChange, autoComplete, invalid, show, onTog
 
 export default function Login() {
   const { state, dispatch } = useApp();
-  const { accounts } = usePartner();
   const sess = state.session;
 
   const [accountType, setAccountType] = useState('passenger'); // 'passenger' | 'admin'
@@ -47,6 +42,8 @@ export default function Login() {
   const [form, setForm] = useState({ username: '', password: '', name: '', phone: '', confirm: '' });
   const [errors, setErrors] = useState({});
   const [show, setShow] = useState(false);
+  const [staff, setStaff] = useState({ email: '', password: '' });
+  const [busy, setBusy] = useState(false);
 
   const set = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -59,31 +56,11 @@ export default function Login() {
     setShow(false);
   };
 
-  const demos = [
-    ...demoUsers().map((n) => ({ key: `u-${n}`, label: 'Người dùng', badge: n, username: n })),
-    ...ROLE_ORDER.map((r) => accounts.find((a) => a.role === r && a.status === 'active')).filter(Boolean)
-      .map((a) => ({ key: a.id, label: ROLE_META[a.role].label, badge: a.id, username: a.id })),
-  ];
-
   const submitLogin = (e) => {
     e.preventDefault();
     const u = form.username.trim();
     if (!u || !form.password) {
       setErrors({ form: 'Nhập tên đăng nhập/email và mật khẩu.' });
-      return;
-    }
-    const acc = accounts.find((a) => a.id.toLowerCase() === u.toLowerCase() || a.identifier.toLowerCase() === u.toLowerCase());
-    if (acc) {
-      if (form.password !== DEMO_PASSWORD) {
-        setErrors({ form: 'Sai tên đăng nhập hoặc mật khẩu.' });
-        return;
-      }
-      if (acc.status !== 'active') {
-        setErrors({ form: STATUS_MSG[acc.status] });
-        return;
-      }
-      const sid = startSession(acc, state.simNow);
-      dispatch({ type: 'login', session: { id: acc.id, role: acc.role, propertyId: acc.propertyId, tenantId: acc.tenantId, sid } });
       return;
     }
     const r = loginUser(u, form.password);
@@ -96,7 +73,7 @@ export default function Login() {
 
   const submitRegister = (e) => {
     e.preventDefault();
-    const errs = validateRegister({ name: form.name, password: form.password, confirm: form.confirm }, accounts.flatMap((a) => [a.id, a.identifier]));
+    const errs = validateRegister({ name: form.name, password: form.password, confirm: form.confirm });
     if (Object.keys(errs).length) {
       setErrors(errs);
       return;
@@ -104,15 +81,17 @@ export default function Login() {
     dispatch({ type: 'userLogin', user: registerUser({ name: form.name, password: form.password }) });
   };
 
-  const handleAdminContinue = () => {
-    // Nếu chưa đăng nhập admin, chọn tài khoản admin mẫu đầu tiên
-    const adminAcc = accounts.find((a) => a.role === 'support' && a.status === 'active') || accounts[0];
-    if (adminAcc) {
-      const sid = startSession(adminAcc, state.simNow);
-      dispatch({ type: 'login', session: { id: adminAcc.id, role: adminAcc.role, propertyId: adminAcc.propertyId, tenantId: adminAcc.tenantId, sid } });
-    } else {
-      dispatch({ type: 'go', screen: 'admin' });
-    }
+  const submitStaff = async (e) => {
+    e.preventDefault();
+    if (!staff.email.trim() || !staff.password) { setErrors({ staff: 'Nhập email và mật khẩu.' }); return; }
+    setBusy(true); setErrors({});
+    try {
+      const s = await loginStaff(staff.email.trim(), staff.password);
+      const area = areasOf(s)[0]; // vào khu vực đầu tiên mà quyền cho phép
+      if (!area) { logoutStaff(); setErrors({ staff: 'Tài khoản chưa được cấp quyền vào cổng làm việc nào. Liên hệ quản trị.' }); return; }
+      dispatch({ type: 'login', session: { ...s, area } });
+    } catch (err) { setErrors({ staff: describeError(err) }); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -180,18 +159,18 @@ export default function Login() {
               className={accountType === 'admin' ? 'active' : ''}
               onClick={() => { setAccountType('admin'); setErrors({}); }}
             >
-              Quản trị viên
+              Nhân sự
             </button>
           </div>
 
           {sess && (
             <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '14px', padding: '14px 16px', marginBottom: '20px', fontSize: '13px', color: '#047857' }}>
-              <strong>Đang đăng nhập: {sess.id} ({ROLE_META[sess.role]?.label})</strong>
+              <strong>Đang đăng nhập: {sess.name}</strong>
               <div style={{ marginTop: '6px', display: 'flex', gap: '12px' }}>
                 <button
                   type="button"
                   className="link-btn"
-                  onClick={() => dispatch({ type: 'go', screen: ROLE_META[sess.role]?.area === 'admin' ? 'admin' : 'hotel' })}
+                  onClick={() => dispatch({ type: 'go', screen: sess.area })}
                 >
                   Vào khu vực làm việc
                 </button>
@@ -203,51 +182,30 @@ export default function Login() {
           )}
 
           {accountType === 'admin' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '380px' }}>
-              <span style={{ display: 'grid', placeItems: 'center', width: '56px', height: '56px', borderRadius: '16px', background: '#eff6ff', color: '#1262e8', marginBottom: '20px' }}>
-                <ShieldCheck size={28} />
-              </span>
-              <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#1262e8' }}>
-                Cổng nội bộ
-              </span>
-              <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#062253', margin: '6px 0 10px' }}>
-                Đăng nhập Admin
-              </h2>
-              <p style={{ fontSize: '13.5px', color: '#64748b', lineHeight: '1.65', margin: '0 0 24px' }}>
-                Tài khoản quản trị được AIRREST cấp riêng cho nhân sự vận hành và đối tác khách sạn. Chọn tài khoản quản trị mẫu bên dưới hoặc tiếp tục:
+            <form onSubmit={submitStaff} noValidate data-testid="staff-form">
+              <span className="section-kicker">Cổng nhân sự</span>
+              <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#062253', margin: '8px 0 8px' }}>Đăng nhập nhân sự</h2>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 20px', lineHeight: 1.6 }}>
+                Tài khoản khách sạn và quản trị do AIRREST cấp, không tự đăng ký. Chức năng hiển thị theo quyền được cấp cho tài khoản.
               </p>
-
-              <button
-                type="button"
-                className="hero-submit-btn"
-                onClick={handleAdminContinue}
-                style={{ margin: '0 0 24px' }}
-              >
-                Tiếp tục tới Admin Portal <ArrowRight size={17} style={{ marginLeft: 'auto' }} />
-              </button>
-
-              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
-                <small style={{ color: '#64748b', fontSize: '11.5px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Đăng nhập nhanh vai trò mẫu:
-                </small>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
-                  {accounts.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      className="chip"
-                      onClick={() => {
-                        const sid = startSession(a, state.simNow);
-                        dispatch({ type: 'login', session: { id: a.id, role: a.role, propertyId: a.propertyId, tenantId: a.tenantId, sid } });
-                      }}
-                      style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '8px' }}
-                    >
-                      <span>{ROLE_META[a.role]?.label}</span> (<strong>{a.id}</strong>)
-                    </button>
-                  ))}
+              <div className="hero-input-field">
+                <label htmlFor="s-email">Email</label>
+                <div className="hero-input-box">
+                  <Mail size={17} style={{ color: '#94a3b8' }} />
+                  <input id="s-email" type="email" value={staff.email} onChange={(e) => { setStaff((v) => ({ ...v, email: e.target.value })); setErrors({}); }} autoComplete="username" data-testid="staff-email" placeholder="ten@khachsan.vn" required />
                 </div>
               </div>
-            </div>
+              <div className="hero-input-field">
+                <label htmlFor="s-pw">Mật khẩu</label>
+                <PasswordInput id="s-pw" value={staff.password} onChange={(e) => { setStaff((v) => ({ ...v, password: e.target.value })); setErrors({}); }} autoComplete="current-password" show={show} onToggle={() => setShow((v) => !v)} placeholder="Mật khẩu" />
+              </div>
+              {errors.staff && (
+                <p style={{ background: '#fff1f2', border: '1px solid #fecdd3', color: '#be123c', padding: '10px 14px', borderRadius: '10px', fontSize: '12.5px', fontWeight: '600', margin: '12px 0' }} role="alert" data-testid="staff-error">{errors.staff}</p>
+              )}
+              <button type="submit" className="hero-submit-btn" disabled={busy} data-testid="staff-submit" style={{ marginTop: '16px' }}>
+                {busy ? 'Đang đăng nhập…' : 'Đăng nhập'} <ArrowRight size={17} style={{ marginLeft: 'auto' }} />
+              </button>
+            </form>
           ) : (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -342,7 +300,7 @@ export default function Login() {
                   )}
 
                   <button type="submit" className="hero-submit-btn" data-testid="login-submit" style={{ marginTop: '16px' }}>
-                    Đăng nhập Passenger <ArrowRight size={17} style={{ marginLeft: 'auto' }} />
+                    Đăng nhập <ArrowRight size={17} style={{ marginLeft: 'auto' }} />
                   </button>
 
                   <p style={{ textAlign: 'center', fontSize: '12.5px', color: '#64748b', marginTop: '16px' }}>
@@ -401,7 +359,7 @@ export default function Login() {
                   </div>
 
                   <button type="submit" className="hero-submit-btn" data-testid="register-submit" style={{ marginTop: '16px' }}>
-                    Tạo tài khoản Passenger <ArrowRight size={17} style={{ marginLeft: 'auto' }} />
+                    Tạo tài khoản <ArrowRight size={17} style={{ marginLeft: 'auto' }} />
                   </button>
 
                   <p style={{ textAlign: 'center', fontSize: '12.5px', color: '#64748b', marginTop: '16px' }}>
@@ -413,30 +371,6 @@ export default function Login() {
                 </form>
               )}
 
-              {/* Demo user chips */}
-              <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '20px', paddingTop: '16px' }} data-testid="auth-demo">
-                <small style={{ color: '#64748b', fontSize: '11.5px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Tài khoản mẫu: mật khẩu <code>{DEMO_PASSWORD}</code>
-                </small>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
-                  {demos.filter((d) => d.key.startsWith('u-')).map((d) => (
-                    <button
-                      key={d.key}
-                      type="button"
-                      className="chip"
-                      onClick={() => {
-                        setTab('login');
-                        setForm((f) => ({ ...f, username: d.username, password: DEMO_PASSWORD }));
-                        setErrors({});
-                      }}
-                      data-testid={`demo-${d.key}`}
-                      style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '8px' }}
-                    >
-                      <span>{d.label}:</span> <strong>{d.badge}</strong>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
         </section>

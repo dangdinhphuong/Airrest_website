@@ -1,14 +1,12 @@
-// Tài khoản người dùng cuối MÔ PHỎNG (ngoài MVP: MB-16 đã loại; Proposed, chưa được PO duyệt — xem PRODUCT_DECISION_REGISTER D-30).
-// Chỉ lưu trong bộ nhớ trang, mất khi tải lại (D-18 phương án A). Không thu email/SĐT (BR-002). Mật khẩu chỉ để trình diễn, không phải xác thực thật.
-export const DEMO_PASSWORD = 'Demo@2026';
+// Tài khoản người dùng cuối MÔ PHỎNG: backend chưa có tài khoản hành khách. Chỉ lưu trong bộ nhớ trang, mất khi tải lại.
+// Không có tài khoản dựng sẵn: người dùng tự đăng ký. Mật khẩu chỉ để trình diễn, không phải xác thực thật.
 export const NAME_MAX = 50;
 export const PASSWORD_MIN = 6;
 const LOOKS_LIKE_CONTACT = /@|\d{6,}/;
 
-let users = [{ name: 'nguoidung', password: DEMO_PASSWORD, seed: true }];
+let users = [];
 const same = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
-export const demoUsers = () => users.filter((u) => u.seed).map((u) => u.name);
 export const userExists = (name) => users.some((u) => same(u.name, name));
 
 export function validateRegister({ name, password, confirm }, reservedNames = []) {

@@ -55,7 +55,7 @@ export interface HotelDoc {
   location: { type: 'Point'; coordinates: [number, number] };
   airports: Array<{ iata: string; km: number; minutes: number }>;
   amenities: string[];
-  policy: { cancellationTemplate: 'FLEXIBLE' | 'STANDARD' | 'NON_REFUNDABLE'; cleaningBufferMin: number; noShowGraceMin?: number };
+  policy: { cancellationTemplate: 'FLEXIBLE' | 'STANDARD' | 'NON_REFUNDABLE'; cleaningBufferMin: number; noShowGraceMin?: number; receptionCloseHour?: number };
   approval: { manual: boolean; manualUntil?: Date | string };
   rating: { avg: number; count: number };
   slug?: string;

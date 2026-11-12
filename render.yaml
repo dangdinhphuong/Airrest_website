@@ -32,5 +32,7 @@ services:
     runtime: static
     buildCommand: npm ci && npm run build -w @airrest/web
     staticPublishPath: apps/web/dist
+    envVars:
+      - { key: VITE_API_BASE_URL, sync: false } # URL của airrest-api, ví dụ https://airrest-api.onrender.com (Vite nhúng lúc build: đổi thì phải deploy lại)
     routes:
       - { type: rewrite, source: /*, destination: /index.html } # SPA

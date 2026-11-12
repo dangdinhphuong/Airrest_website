@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { Lock } from 'lucide-react';
-import { LOCKED } from '../../config/lockedRequirements';
 
 export const Pill = ({ tone = 'neutral', children, ...r }) => <span className={`pill pill-${tone}`} {...r}>{children}</span>;
 export const BOOKING_STATUS = { pending: ['Chờ xác nhận', 'warn'], confirmed: ['Đã xác nhận', 'ok'], rejected: ['Đã từ chối', 'error'] };
@@ -11,25 +9,6 @@ export function SubTabs({ tabs, value, onChange, label }) {
     <div className="subtabs" role="tablist" aria-label={label}>
       {tabs.map(([id, text]) => <button key={id} type="button" role="tab" aria-selected={value === id} className={value === id ? 'on' : ''} onClick={() => onChange(id)} data-testid={`sub-${id}`}>{text}</button>)}
     </div>
-  );
-}
-
-// Thẻ “chờ quyết định” cho các yêu cầu Blocked/Deferred: chỉ nêu lý do, không giả lập hành vi (phương án A).
-export function LockedList({ area, tab, title = 'Chưa khả dụng, chờ quyết định' }) {
-  const items = LOCKED.filter((x) => x.area === area && (!tab || x.tab === tab));
-  if (!items.length) return null;
-  return (
-    <section className="locked-list" aria-label={title} data-testid={`locked-${tab || 'all'}`}>
-      <h3><Lock size={16} aria-hidden="true" /> {title}</h3>
-      <ul>
-        {items.map((x) => (
-          <li key={x.id} data-testid="locked-item">
-            <strong>{x.id}</strong> {x.name} <Pill tone={x.status === 'Blocked' ? 'error' : 'neutral'}>{x.status}</Pill>
-            <small> {x.oq.length ? `· chờ ${x.oq.join(', ')} (D-${x.oq.map((o) => Number(o.slice(3)) - 13).join(', D-')})` : ''}</small>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 

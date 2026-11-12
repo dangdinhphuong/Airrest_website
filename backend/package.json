@@ -14,7 +14,8 @@
     "test:db": "RUN_DB_TESTS=1 vitest run",
     "storage:check": "tsx --env-file-if-exists=.env scripts/storage-check.ts",
     "db:seed": "tsx --env-file-if-exists=.env database/scripts/seed.ts",
-    "db:migrate": "tsx --env-file-if-exists=.env database/scripts/migrate.ts"
+    "db:migrate": "tsx --env-file-if-exists=.env database/scripts/migrate.ts",
+    "dev:db": "tsx scripts/dev-db.ts"
   },
   "dependencies": {
     "@airrest/business-logic": "*",

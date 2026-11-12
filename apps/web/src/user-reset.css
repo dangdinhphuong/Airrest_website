@@ -1,0 +1,17 @@
+/* Reset kiểu preflight của Tailwind, chỉ áp trong `.airrest-user`. Độ ưu tiên 0 (`:where`) nên mọi class `tw:` đều thắng.
+   Nạp sau styles.css (để thắng các rule thẻ trần của nó) và TRƯỚC user.css (xem ghi chú ở đó). */
+:where(.airrest-user), :where(.airrest-user) *, :where(.airrest-user) ::before, :where(.airrest-user) ::after {
+  box-sizing: border-box; margin: 0; padding: 0; border: 0 solid;
+}
+:where(.airrest-user) { font-family: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif; line-height: 1.5; font-size: 16px; }
+:where(.airrest-user) :is(h1, h2, h3, h4, p, small, strong) { font-size: inherit; font-weight: inherit; letter-spacing: inherit; line-height: inherit; color: inherit; margin: 0; }
+:where(.airrest-user) small { font-size: 80%; }
+:where(.airrest-user) strong { font-weight: bolder; }
+:where(.airrest-user) a { color: inherit; text-decoration: inherit; }
+:where(.airrest-user) :where(button, input, select, textarea) { font: inherit; color: inherit; background-color: transparent; border-radius: 0; letter-spacing: inherit; }
+:where(.airrest-user) button { cursor: pointer; }
+:where(.airrest-user) button:disabled { cursor: not-allowed; }
+:where(.airrest-user) :is(img, svg) { display: block; vertical-align: middle; }
+:where(.airrest-user) img { max-width: 100%; height: auto; }
+:where(.airrest-user) :is(button, a, input, select, textarea) { -webkit-tap-highlight-color: transparent; }
+:where(.airrest-user) :is(button, a, input, select, textarea):focus-visible { outline: 3px solid rgba(18, 98, 232, 0.35); outline-offset: 2px; }

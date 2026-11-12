@@ -1,0 +1,5 @@
+/* Giao diện người dùng (sao chép từ AIRREST/Next.js): Tailwind v4 CHỈ sinh class có tiền tố `tw:`, không preflight,
+   nên không đụng CSS của khách sạn/quản trị trong styles.css. Reset giới hạn trong `.airrest-user` nằm ở user-reset.css và PHẢI nạp trước file này: utility `space-*`/`divide-*`
+   có độ ưu tiên 0 như reset, nên thứ tự nạp quyết định bên thắng. */
+@import "tailwindcss/theme.css" prefix(tw);
+@import "tailwindcss/utilities.css" prefix(tw);

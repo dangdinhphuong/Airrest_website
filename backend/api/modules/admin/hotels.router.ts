@@ -29,7 +29,7 @@ const address = z.object({ line: z.string().min(1).max(200), ward: z.string().ma
 const location = z.object({ lng: z.number().min(-180).max(180), lat: z.number().min(-90).max(90) });
 const airports = z.array(z.object({ iata: z.string().length(3).transform((s) => s.toUpperCase()), km: z.number().min(0).max(200), minutes: z.number().int().min(0).max(600) })).min(1).max(10);
 const contact = z.object({ phone: z.string().min(8).max(20), email: z.string().email().optional() });
-const policy = z.object({ cancellationTemplate: TEMPLATE, cleaningBufferMin: z.number().int().min(0).max(240), noShowGraceMin: z.number().int().min(0).max(600).optional() });
+const policy = z.object({ cancellationTemplate: TEMPLATE, cleaningBufferMin: z.number().int().min(0).max(240), noShowGraceMin: z.number().int().min(0).max(600).optional(), receptionCloseHour: z.number().int().min(0).max(26).optional() });
 const approval = z.object({ manual: z.boolean(), manualUntil: z.coerce.date().optional() });
 
 const createBody = z.object({

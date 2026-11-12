@@ -108,15 +108,17 @@ export const openapi = {
     },
     '/v1/auth/me': { get: op({ tag: 'Auth', summary: 'Thông tin tài khoản hiện tại' }) },
 
+    '/v1/airports': { get: op({ tag: 'Airports (công khai)', summary: 'Danh mục sân bay thương mại Việt Nam', public: true }) },
+
     '/v1/hotels': {
       get: op({
         tag: 'Hotels (công khai)',
         summary: 'Tìm khách sạn theo sân bay',
         public: true,
-        params: [{ ...param('airport', 'query'), required: true, description: 'Mã IATA 3 ký tự, ví dụ HAN' }, limit, cursor],
+        params: [{ ...param('airport', 'query'), required: true, description: 'Mã IATA 3 ký tự, ví dụ HAN' }, limit, cursor, { ...param('from', 'query'), description: 'Đầu cửa sổ tính số phòng còn (ISO), mặc định bây giờ' }, { ...param('to', 'query'), description: 'Cuối cửa sổ (ISO), mặc định from + 24 giờ, tối đa 31 ngày' }],
       }),
     },
-    '/v1/hotels/{id}': { get: op({ tag: 'Hotels (công khai)', summary: 'Chi tiết khách sạn', public: true, params: [idParam], extra: { 404: err('Không tìm thấy') } }) },
+    '/v1/hotels/{id}': { get: op({ tag: 'Hotels (công khai)', summary: 'Chi tiết khách sạn (kèm loại phòng, giá, số phòng còn, cờ tính năng)', public: true, params: [idParam, { ...param('from', 'query'), description: 'Đầu cửa sổ tính số phòng còn (ISO)' }, { ...param('to', 'query'), description: 'Cuối cửa sổ (ISO)' }], extra: { 404: err('Không tìm thấy') } }) },
 
     '/v1/bookings': {
       post: op({

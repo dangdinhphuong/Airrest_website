@@ -1,109 +1,68 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { AppProvider, useApp } from './state/store';
-import { ROLE_LABEL, usePartner } from './mock/partner';
-import { adminNav, hotelNav, resolveTab } from './lib/partnerNav';
-import { ROLE_META } from './lib/rbac';
-import { MODULES, USER_ACTIVE, USER_CRUMB, moduleOf, userNav } from './lib/shellNav';
-import { refreshFlight } from './mock/service';
-import { AppNav, Breadcrumb, Footer, Header, MobileBottomNav, Progress } from './components/Layout';
-import FlightStatusCard from './components/FlightStatusCard';
-import SimTools from './components/SimTools';
-import { ErrorBox, Notice } from './components/Common';
-import { leaveTime } from './lib/domain';
-import { reminderProperty } from './screens/Reminder';
-import { fmtTime } from './lib/time';
-import Home from './screens/Home';
-import Status from './screens/Status';
-import Advice from './screens/Advice';
-import Stays from './screens/Stays';
-import Detail from './screens/Detail';
-import Booking from './screens/Booking';
-import Reminder from './screens/Reminder';
-import Terminal from './screens/Terminal';
-import Support from './screens/Support';
-import Request from './screens/Request';
+import { adminTabs } from './lib/adminNav';
+import { hotelTabs } from './lib/hotelNav';
+import { areasOf, resolveTab, visibleTabs } from './lib/access';
+import { MODULES, moduleOf } from './lib/shellNav';
+import { AppNav, Breadcrumb, Footer, Header } from './components/Layout';
+import { Notice } from './components/Common';
 import Login from './screens/Login';
 import Hotel from './screens/Hotel';
 import Admin from './screens/Admin';
+import ApiBanner from './components/ApiBanner';
+import UserSite from './screens/user/UserSite';
+import UserHome from './screens/user/Home';
+import { Account, HotelDetail, PaymentResult, Support, Track } from './screens/user/Pages';
 
-const SCREENS = { login: Login, hotel: Hotel, admin: Admin, home: Home, status: Status, advice: Advice, stays: Stays, detail: Detail, booking: Booking, reminder: Reminder, terminal: Terminal, support: Support, request: Request };
-const NEEDS_FLIGHT = ['status', 'advice', 'booking', 'reminder', 'request'];
+const PARTNER_SCREENS = { hotel: Hotel, admin: Admin };
+const USER_PAGES = { detail: HotelDetail, track: Track, support: Support, account: Account, payment: PaymentResult }; // màn khác của người dùng = trang chủ
+
+const TABS = { hotel: hotelTabs, admin: adminTabs };
 
 function Shell() {
-  const { state, dispatch, getProperty } = useApp();
-  const { screen, flight, simNow, bannerClosedAt, reminder, browseAirport, propertyId } = state;
-  const P = usePartner();
-  // Phiên bị thu hồi (khóa, vô hiệu hóa, gán lại vai trò, thu hồi thủ công) có hiệu lực ngay (SA-FR-003, SA-FR-005).
-  useEffect(() => {
-    if (state.session && !P.sessions.some((s) => s.id === state.session.sid && !s.revoked)) dispatch({ type: 'logout' });
-  }, [P.sessions, state.session, dispatch]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [refreshError, setRefreshError] = useState(false);
-  const refresh = async () => {
-    setRefreshing(true); setRefreshError(false);
-    try { dispatch({ type: 'flightRefreshed', flight: await refreshFlight(flight, simNow) }); }
-    catch { setRefreshError(true); }
-    finally { setRefreshing(false); }
-  };
-
-  const prop = flight ? reminderProperty(state, getProperty) : null;
-  const leave = flight ? leaveTime(flight, prop) : null;
-  const remindDue = reminder.enabled && leave != null && simNow >= leave && screen !== 'reminder';
-  const airport = flight ? flight.origin : browseAirport;
-  const hasStay = !!prop;
+  const { state, dispatch } = useApp();
+  const { screen, session: sess } = state;
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const onGo = (scr) => dispatch({ type: 'go', screen: scr });
-  const effective = NEEDS_FLIGHT.includes(screen) && !flight ? 'home' : screen;
-  const Body = SCREENS[effective] || Stays;
-  const partnerScreen = ['login', 'hotel', 'admin'].includes(effective); // khu vực đối tác không có thẻ chuyến bay
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const sess = state.session;
-  const area = sess ? ROLE_META[sess.role]?.area : null;
-  const activeModule = moduleOf(effective);
-  const acc = sess ? P.accounts.find((a) => a.id === sess.id) || sess : null;
-  const ownProp = acc?.propertyId ? getProperty(acc.propertyId, simNow) : null;
-  let panel = null; let crumb = [];
-  if (activeModule === 'user') {
-    const items = userNav(!!flight, hasStay);
-    panel = { title: 'Người dùng', context: 'Người dùng cuối, không cần đăng nhập', group: 'Menu', items, cur: USER_ACTIVE[effective], onPick: (i) => onGo(i.screen) };
-    crumb = [MODULES.user.label, ...(USER_CRUMB[effective] || [])];
-  } else if (activeModule && sess && area === activeModule) {
-    const items = (activeModule === 'hotel' ? hotelNav(sess.role, !!acc.propertyId) : adminNav(sess.role)).map((i) => ({ ...i, count: i.id === 'bookings' ? P.bookings.filter((b) => b.propertyId === acc.propertyId && ['pending', 'confirmed'].includes(b.status)).length : i.id === 'pickups' ? P.pickups.filter((x) => x.propertyId === acc.propertyId && !['done', 'failed'].includes(x.status)).length : 0 }));
-    const cur = resolveTab(items, state.partnerTab);
-    if (items.length) panel = { title: `Chức năng của ${ROLE_LABEL[sess.role]}`, context: `${ROLE_LABEL[sess.role]} · ${sess.id}`, group: 'Menu', items, cur, testid: 'partner-sidebar', testPrefix: 'tab-', onPick: (i) => dispatch({ type: 'partnerTab', id: i.id }) };
-    crumb = [MODULES[activeModule].label, ...(panel ? [items.find((i) => i.id === cur)?.label] : [])];
-  } else if (activeModule) crumb = [MODULES[activeModule].label];
-  else crumb = ['Đăng nhập'];
-  const context = activeModule === 'hotel' && ownProp ? ownProp.name : activeModule ? MODULES[activeModule].label : 'Đăng nhập';
-  const showCard = flight && !partnerScreen && effective !== 'home' && effective !== 'support';
+  const activeModule = moduleOf(screen);
 
-  if (effective === 'login') return <Login />; // trang đăng nhập/đăng ký toàn trang, không dùng khung ứng dụng
+  if (screen === 'login') return <Login />; // trang đăng nhập/đăng ký toàn trang, không dùng khung ứng dụng
+  if (activeModule === 'user') { // người dùng cuối: giao diện AIRREST riêng, không dùng khung có menu bên
+    const Page = USER_PAGES[screen] || UserHome;
+    return <UserSite page={USER_PAGES[screen] ? screen : 'home'}><Page /></UserSite>;
+  }
+
+  // Cổng nhân sự: vào được khu vực nào là do QUYỀN của phiên (areasOf), không do tên vai trò.
+  const areas = areasOf(sess);
+  const allowed = !!sess && areas.includes(screen);
+  const items = allowed ? visibleTabs(sess, TABS[screen]) : [];
+  const cur = resolveTab(items, state.partnerTab);
+  const panel = allowed && items.length ? { title: 'Chức năng được cấp', context: `${sess.name}`, group: 'Menu', items, cur, testid: 'partner-sidebar', testPrefix: 'tab-', onPick: (i) => dispatch({ type: 'partnerTab', id: i.id }) } : null;
+  const crumb = [MODULES[activeModule].label, ...(panel ? [items.find((i) => i.id === cur)?.label] : [])];
+  const Body = PARTNER_SCREENS[screen];
+  const other = areas.find((x) => x !== screen);
 
   return (
     <div className="app">
       <a className="skip" href="#main">Bỏ qua tới nội dung chính</a>
-      <Header airport={airport} canChangeAirport={!flight} onAirport={(a) => dispatch({ type: 'setBrowseAirport', airport: a })}
-        onHome={() => dispatch({ type: 'reset' })} onHelp={() => onGo('support')} onSearch={(code) => dispatch({ type: 'goLookup', code })}
-        session={state.session} user={state.user} onPartner={() => onGo(state.session ? (ROLE_META[state.session.role]?.area === 'admin' ? 'admin' : 'hotel') : state.user ? 'stays' : 'login')} onLogout={() => dispatch({ type: 'logout' })}
-        onMenu={() => setDrawerOpen((v) => !v)} menuOpen={drawerOpen} hasMenu={!!panel} context={context} onGo={onGo} />
+      <Header onHome={() => dispatch({ type: 'reset' })} session={sess} user={state.user} onPartner={() => onGo(sess ? (areas[0] ?? 'login') : state.user ? 'home' : 'login')} onLogout={() => dispatch({ type: 'logout' })}
+        onMenu={() => setDrawerOpen((v) => !v)} menuOpen={drawerOpen} hasMenu={!!panel} context={MODULES[activeModule].label} />
       <AppNav panel={panel} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <main id="main" className={`feed ${effective === 'stays' ? 'feed-map' : ''} ${panel ? 'with-panel' : ''}`}>
+      <main id="main" className={`feed ${panel ? 'with-panel' : ''}`}>
         <div className="feed-in">
           <Breadcrumb items={crumb} />
-          {showCard && <Progress screen={effective} />}
-          {remindDue && <Notice tone="warn" title="Đến giờ rời nơi nghỉ" role="alert">Giờ rời {fmtTime(leave)} (giờ mô phỏng) đã tới. <button type="button" className="link-btn" onClick={() => onGo('reminder')}>Xem nhắc giờ</button></Notice>}
-          {showCard && <FlightStatusCard flight={flight} simNow={simNow} onRefresh={refresh} refreshing={refreshing} bannerClosedAt={bannerClosedAt} onCloseBanner={() => dispatch({ type: 'closeBanner' })} onGo={onGo} />}
-          {refreshError && <ErrorBox title="Không làm mới được" onRetry={refresh}>Dịch vụ dữ liệu mô phỏng tạm thời lỗi. Dữ liệu cũ vẫn được giữ.</ErrorBox>}
-          <Body />
+          {!sess && <Notice tone="warn" title="Bạn chưa đăng nhập">Khu vực này dành cho khách sạn hoặc nhân sự AIRREST. <button type="button" className="link-btn" onClick={() => onGo('login')}>Đăng nhập</button></Notice>}
+          {sess && !allowed && <Notice tone="error" title="Không có quyền truy cập khu vực này" role="alert">Tài khoản {sess.name} chưa được cấp quyền cho khu vực này. {areas.length ? <button type="button" className="link-btn" onClick={() => onGo(areas[0])} data-testid="denied-back">Về khu vực của bạn</button> : <button type="button" className="link-btn" onClick={() => dispatch({ type: 'logout' })}>Đăng xuất</button>}</Notice>}
+          {allowed && other && <p style={{ fontSize: 12, margin: '0 0 12px' }}>Tài khoản này còn quyền vào khu vực khác: <button type="button" className="link-btn" onClick={() => onGo(other)} data-testid="switch-area">Chuyển sang {MODULES[other].label}</button></p>}
+          {allowed && <Body />}
           <Footer onGo={onGo} />
         </div>
       </main>
-      <SimTools simNow={simNow} hasFlight={!!flight} canChange={!!flight && flight.status !== 'cancelled'} dispatch={dispatch} />
-      {activeModule === 'user' && <MobileBottomNav screen={effective} onGo={onGo} />}
     </div>
   );
 }
 
 export default function App() {
-  return <AppProvider><Shell /></AppProvider>;
+  return <AppProvider><ApiBanner /><Shell /></AppProvider>;
 }

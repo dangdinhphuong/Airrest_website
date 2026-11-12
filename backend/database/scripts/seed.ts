@@ -4,6 +4,9 @@ import { runMigrations } from '../migrate';
 import { closeDb, connectDb, db, json } from '../pg';
 import { hashPassword } from '../../lib/password';
 import { seedFlights } from '../../services/flights/flightSeed';
+import { seedGeneratedFlights } from '../../services/flights/flightSeedGen';
+import { seedActivity } from './seedActivity';
+import { buildCatalog, seedCatalog } from './seedCatalog';
 import { ensureSystemRoles } from '../../services/systemRoles';
 
 // Dữ liệu mẫu để chạy thử API. Chạy lại nhiều lần an toàn (upsert theo khóa tự nhiên). Tự áp migration trước.
@@ -59,6 +62,14 @@ const HOTEL_ID = '65000000-0000-4000-8000-000000000001';
   );
 
   console.log(`Chuyến bay mô phỏng: chèn mới ${await seedFlights(db)}`);
+  // Danh mục và chuyến bay sinh ra rất nhiều truy vấn (chậm khi DB ở xa như Supabase): đã có đủ thì bỏ qua, SEED_FORCE=1 để chạy lại.
+  const have = Number((await db.query<{ n: string }>("SELECT count(*)::text AS n FROM hotels WHERE code ~ '^[A-Z]{3}-[0-9]{2}$'")).rows[0]!.n);
+  if (have >= buildCatalog().length && !process.env.SEED_FORCE) console.log(`Danh mục khách sạn và chuyến bay sinh: đã có ${have} cơ sở, bỏ qua (SEED_FORCE=1 để chạy lại)`);
+  else {
+    console.log(`Danh mục khách sạn mẫu: ${(await seedCatalog(env.SEED_PASSWORD)).hotels} cơ sở + tài khoản thử theo vai trò`);
+    console.log(`Chuyến bay sinh theo mạng đường bay (22 sân bay): chèn mới ${await seedGeneratedFlights(db)}`);
+  }
+  console.log(`Hoạt động mô phỏng: ${await seedActivity()}`);
   console.log(`Seed xong. Hotel ${hotel.id}, tài khoản: letan@demo.airrest.vn / admin@demo.airrest.vn (mật khẩu: SEED_PASSWORD)`);
   await closeDb();
 })().catch((e) => {

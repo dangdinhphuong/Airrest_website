@@ -18,6 +18,7 @@ npm run db:seed                # (tự migrate) khách sạn mẫu + 2 tài kho�
 npm run dev:api                # http://localhost:3000
 npm test                       # unit + HTTP (không cần DB)
 npm run test:db                # thêm test tích hợp: tự bật Postgres nhúng (không cần Docker); hoặc TEST_DATABASE_URL (chỉ DB local)
+npm run dev:db                 # Postgres nhúng bền cho dev (backend/.data/pg), in ra DATABASE_URL để đặt vào .env
 ```
 
 Tài khoản mẫu (mật khẩu = `SEED_PASSWORD`, mặc định `ChangeMe123!`): `letan@demo.airrest.vn` (lễ tân, chỉ thấy khách sạn của mình), `admin@demo.airrest.vn` (vai trò SYSADMIN: toàn quyền Admin). Vai trò hệ thống OPS / SUPPORT / FINANCE / SYSADMIN định nghĩa ở `config/roles.ts` và seed vào `roles`.
@@ -46,7 +47,7 @@ tests/                 unit, http (middleware), *.integration (cần DB)
 | `GET /health`, `GET /ready` | LB/giám sát | liveness / readiness |
 | `POST /v1/auth/login` | tài khoản nội bộ | scrypt, quyền gộp từ roles, rate limit chặt |
 | `GET /v1/auth/me` | đã đăng nhập | middleware `authenticate` |
-| `GET /v1/hotels?airport=HAN` · `GET /v1/hotels/:id` | công khai | validate query, phân trang keyset, chỉ trả trường công khai |
+| `GET /v1/hotels?airport=HAN[&from&to]` · `GET /v1/hotels/:id` | công khai | phân trang keyset, chỉ trả trường công khai; kèm `rooms[]` (giá/đêm, **số phòng còn** trong cửa sổ `from→to`, mặc định 24 giờ tới, tối đa 31 ngày) và `features` (xe đưa đón, 24/24, theo giờ, gia đình, hủy miễn phí) suy từ tag `amenities` + `policy` (xem `services/hotels/catalog.ts`; không đổi schema) |
 | `POST /v1/bookings` | khách vãng lai | **transaction T1**: khóa tồn → sweep-line → ghi đơn + giữ phòng + audit; **Idempotency-Key bắt buộc** |
 | `POST /v1/bookings/lookup` | khách vãng lai | mã + SĐT, 404 chung khi sai, trả `guestToken` cho Socket.io |
 | `GET /v1/hotel/bookings` | quyền `booking:read` | tự khóa theo `hotelId` trong token |

@@ -1,0 +1,56 @@
+/* CHUẨN Ô NHẬP DUY NHẤT cho toàn ứng dụng (người dùng, khách sạn, quản trị, đăng nhập).
+   Mọi input/select/textarea tự theo chuẩn này (độ ưu tiên 0), không cần class. Nạp SAU styles.css, user-reset.css và user.css.
+   Đổi diện mạo cả ứng dụng: sửa các biến ở :root. Ô có icon dùng .ui-box (khung) + .ui-bare (ô bên trong, không viền). */
+:root {
+  --ctl-h: 44px;
+  --ctl-r: 12px;
+  --ctl-line: #cbd5e1;
+  --ctl-focus: #1262e8;
+  --ctl-ring: rgba(18, 98, 232, 0.2);
+  --ctl-invalid: #ef4444;
+}
+
+:where(input:not([type=checkbox], [type=radio], [type=range], [type=file], [type=hidden], [type=color], [type=submit], [type=button], [type=reset]), select, textarea) {
+  box-sizing: border-box;
+  min-height: var(--ctl-h);
+  padding: 0 14px;
+  border: 1px solid var(--ctl-line);
+  border-radius: var(--ctl-r);
+  background-color: #fff;
+  color: #10203a;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+:where(textarea) { min-height: 96px; padding: 10px 14px; line-height: 1.5; resize: vertical; }
+:where(select) { padding-right: 32px; }
+:where(input:not([type=checkbox], [type=radio], [type=range], [type=file], [type=hidden], [type=color], [type=submit], [type=button], [type=reset]), select, textarea):hover:not(:disabled) { border-color: #94a3b8; }
+:where(input:not([type=checkbox], [type=radio], [type=range], [type=file], [type=hidden], [type=color], [type=submit], [type=button], [type=reset]), select, textarea):is(:focus, :focus-visible) {
+  outline: none;
+  border-color: var(--ctl-focus);
+  box-shadow: 0 0 0 3px var(--ctl-ring);
+}
+:where(input, select, textarea)[aria-invalid="true"] { border-color: var(--ctl-invalid); }
+:where(input, select, textarea)[aria-invalid="true"]:is(:focus, :focus-visible) { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2); }
+:where(input, select, textarea):disabled { background-color: #f1f5f9; color: #64748b; cursor: not-allowed; }
+:where(input, textarea)::placeholder { color: #94a3b8; opacity: 1; }
+:where(input[type=checkbox], input[type=radio]) { accent-color: var(--ctl-focus); }
+
+/* Nhãn và chú thích dùng chung */
+:where(label) { font-size: 13px; }
+.ui-hint { font-size: 12px; color: #64748b; }
+.ui-error { font-size: 12px; font-weight: 600; color: #be123c; }
+
+/* Ô có icon: khung .ui-box giữ viền/focus, ô bên trong .ui-bare không viền */
+.ui-box { display: flex; align-items: center; gap: 10px; min-height: var(--ctl-h); padding: 0 14px; border: 1px solid var(--ctl-line); border-radius: var(--ctl-r); background: #fff; transition: border-color 0.15s, box-shadow 0.15s; }
+.ui-box:hover { border-color: #94a3b8; }
+.ui-box:focus-within { border-color: var(--ctl-focus); box-shadow: 0 0 0 3px var(--ctl-ring); }
+.ui-bare, .hero-input-box input, .hero-input-box select { width: 100%; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.ui-bare:is(:focus, :focus-visible), .hero-input-box input:is(:focus, :focus-visible), .hero-input-box select:is(:focus, :focus-visible) { border: 0; box-shadow: none; outline: none; }
+
+/* Khung form: tiêu đề cách ô đầu tiên */
+.card:has(> .field, > .grid-2) > h3:first-child { margin: 0 0 14px; }
+
+/* Nút nằm cạnh ô nhập trong thanh lọc/form một dòng: cùng chiều cao với ô */
+.filter-bar .btn, .inline-form .btn { min-height: var(--ctl-h); padding-inline: 16px; }

@@ -8,10 +8,14 @@
     "build": "vite build"
   },
   "dependencies": {
-    "leaflet": "^1.9.4",
+    "@airrest/api-client": "*",
+    "@gsap/react": "^2.1.2",
+    "@tailwindcss/vite": "^4.3.5",
+    "gsap": "^3.15.1",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "tailwindcss": "^4.3.5",
     "vite": "^6.0.5"
   }
 }

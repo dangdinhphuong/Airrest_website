@@ -1,16 +1,8 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, HelpCircle, Hotel, LogOut, MapPin, Menu, Plane, Search, ShieldCheck, UserCircle } from 'lucide-react';
-import { ROLE_LABEL } from '../mock/partner';
-import { SimBadge } from './Common';
-import { FEAT_TONE } from '../lib/shellNav';
+import { ChevronRight, LogOut, Menu, Plane, ShieldCheck, UserCircle } from 'lucide-react';
 
-// Khung trang theo mẫu react/apps/walo-erp: Header cao 60px, thanh module 80px, bảng tính năng 240px, breadcrumb, vùng nội dung.
-export const AIRPORTS = [{ id: 'HAN', label: 'Nội Bài (HAN)' }, { id: 'SGN', label: 'Tân Sơn Nhất (SGN)' }];
-
-export function Header({ airport, canChangeAirport, onAirport, onHome, onHelp, onSearch, session, user, onPartner, onLogout, onMenu, menuOpen, hasMenu, context, onGo }) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState('');
-  const cur = AIRPORTS.find((a) => a.id === airport) || AIRPORTS[0];
+// Khung cổng nhân sự (khách sạn/quản trị): header chỉ có logo, khu vực đang làm việc, tài khoản và đăng xuất.
+export function Header({ onHome, session, user, onPartner, onLogout, onMenu, menuOpen, hasMenu, context }) {
   return (
     <header className="topbar">
       <div className="topbar-in">
@@ -19,76 +11,16 @@ export function Header({ airport, canChangeAirport, onAirport, onHome, onHelp, o
           <span className="logo-mark"><Plane size={18} aria-hidden="true" /></span>
           <span className="logo-text"><strong>AIRREST</strong><small>Nơi nghỉ quanh sân bay</small></span>
         </button>
-        {onGo && (
-          <nav className="topbar-nav-links" aria-label="Điều hướng chính">
-            <button type="button" className="topbar-nav-link" onClick={() => onGo('home')}>Chuyến bay</button>
-            <button type="button" className="topbar-nav-link" onClick={() => onGo('stays')}>Nơi nghỉ</button>
-            <button type="button" className="topbar-nav-link" onClick={() => onGo('request')}>Theo dõi booking</button>
-            <button type="button" className="topbar-nav-link" onClick={() => onGo('support')}>Trợ giúp</button>
-          </nav>
-        )}
         {context && <span className="topbar-context" title={context}>{context}</span>}
-        <div className="airport-pick">
-          <button type="button" className="pick-btn" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)} disabled={!canChangeAirport}
-            title={canChangeAirport ? 'Chọn sân bay' : 'Sân bay lấy theo chuyến bay đang theo dõi'}>
-            <MapPin size={15} aria-hidden="true" /> <span>{cur.label}</span> {canChangeAirport && <ChevronDown size={14} aria-hidden="true" />}
-          </button>
-          {open && (
-            <>
-              <div className="pick-backdrop" onClick={() => setOpen(false)} />
-              <ul className="pick-menu" role="listbox" aria-label="Sân bay">
-                {AIRPORTS.map((a) => (
-                  <li key={a.id}><button type="button" role="option" aria-selected={a.id === airport} className={a.id === airport ? 'on' : ''} onClick={() => { onAirport(a.id); setOpen(false); }}>{a.label}</button></li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-        <form className="header-search" role="search" onSubmit={(e) => { e.preventDefault(); onSearch(q.trim().toUpperCase()); }}>
-          <Search size={16} aria-hidden="true" />
-          <input aria-label="Tra cứu theo số hiệu chuyến bay" placeholder="Số hiệu chuyến bay (VD: VN218)" value={q} onChange={(e) => setQ(e.target.value.toUpperCase())} maxLength={6} autoComplete="off" />
-          <button type="submit" className="btn btn-sm btn-primary">Kiểm tra</button>
-        </form>
         <div className="topbar-right">
-          <SimBadge tone="sim">Mô phỏng</SimBadge>
-          <button type="button" className="btn btn-ghost" onClick={onPartner} data-testid="partner-entry"><UserCircle size={18} aria-hidden="true" /> <span className="hide-sm">{session ? ROLE_LABEL[session.role] : user ? user.name : 'Đăng nhập'}</span></button>
+          <button type="button" className="btn btn-ghost" onClick={onPartner} data-testid="partner-entry"><UserCircle size={18} aria-hidden="true" /> <span className="hide-sm">{session ? session.name : user ? user.name : 'Đăng nhập'}</span></button>
           {(session || user) && <button type="button" className="btn btn-ghost" onClick={onLogout} data-testid="logout" aria-label="Đăng xuất"><LogOut size={16} aria-hidden="true" /></button>}
-          <button type="button" className="btn btn-ghost" onClick={onHelp}><HelpCircle size={16} aria-hidden="true" /> <span className="hide-sm">Trợ giúp</span></button>
         </div>
       </div>
     </header>
   );
 }
 
-export function MobileBottomNav({ screen, onGo }) {
-  if (!onGo) return null;
-  const isFlight = ['home', 'status'].includes(screen);
-  const isStays = ['stays', 'detail'].includes(screen);
-  const isBooking = ['request', 'booking'].includes(screen);
-  const isSupport = screen === 'support';
-  return (
-    <nav className="airrest-mobile-bar" aria-label="Điều hướng di động">
-      <button type="button" className={`airrest-mobile-tab ${isFlight ? 'active' : ''}`} onClick={() => onGo('home')}>
-        <Plane size={18} aria-hidden="true" />
-        <span>Chuyến bay</span>
-      </button>
-      <button type="button" className={`airrest-mobile-tab ${isStays ? 'active' : ''}`} onClick={() => onGo('stays')}>
-        <Hotel size={18} aria-hidden="true" />
-        <span>Nơi nghỉ</span>
-      </button>
-      <button type="button" className={`airrest-mobile-tab ${isBooking ? 'active' : ''}`} onClick={() => onGo('request')}>
-        <Search size={18} aria-hidden="true" />
-        <span>Booking</span>
-      </button>
-      <button type="button" className={`airrest-mobile-tab ${isSupport ? 'active' : ''}`} onClick={() => onGo('support')}>
-        <HelpCircle size={18} aria-hidden="true" />
-        <span>Trợ giúp</span>
-      </button>
-    </nav>
-  );
-}
-
-// Thanh menu con 72px (ô icon màu, tooltip khi rê chuột). Từ 1024px luôn hiện; nhỏ hơn thì nằm trong ngăn kéo.
 export function AppNav({ panel, open, onClose }) {
   const showPanel = !!panel;
   const [tip, setTip] = useState(null);
@@ -109,7 +41,7 @@ export function AppNav({ panel, open, onClose }) {
                       <button type="button" className={`feat ${on ? 'on' : ''}`} disabled={i.disabled} onClick={() => { panel.onPick(i); onClose(); }} aria-current={on ? 'page' : undefined}
                         aria-label={i.label} onMouseEnter={(e) => showTip(e, i)} onMouseLeave={() => setTip(null)} onFocus={(e) => showTip(e, i)} onBlur={() => setTip(null)}
                         data-testid={panel.testPrefix ? `${panel.testPrefix}${i.id}` : undefined}>
-                        <span className="feat-ico" style={{ background: FEAT_TONE[i.id] || '#475569' }}><Icon size={20} strokeWidth={2.2} aria-hidden="true" /></span>
+                        <span className="feat-ico"><Icon size={22} strokeWidth={2} aria-hidden="true" /></span><span className="feat-label">{i.short ?? i.label}</span>
                         {i.count > 0 && <span className="side-count" aria-label={`${i.count} mục`}>{i.count}</span>}
                       </button>
                     </li>
@@ -138,22 +70,6 @@ export function Breadcrumb({ items }) {
 const STEPS = [
   ['status', 'Chuyến bay'], ['advice', 'Gợi ý'], ['stays', 'Nơi nghỉ'], ['booking', 'Đặt chỗ'], ['reminder', 'Nhắc giờ'],
 ];
-export function Progress({ screen }) {
-  const map = { detail: 'stays', terminal: 'advice', request: 'status' };
-  const cur = map[screen] || screen;
-  const idx = STEPS.findIndex((s) => s[0] === cur);
-  if (idx < 0) return null;
-  return (
-    <nav className="progress" aria-label="Các bước">
-      <ol>
-        {STEPS.map((s, i) => (
-          <li key={s[0]} className={i === idx ? 'cur' : i < idx ? 'done' : ''} aria-current={i === idx ? 'step' : undefined}><span>{i + 1}</span>{s[1]}</li>
-        ))}
-      </ol>
-    </nav>
-  );
-}
-
 export function Footer({ onGo }) {
   return (
     <footer className="airrest-dark-footer">
@@ -172,7 +88,7 @@ export function Footer({ onGo }) {
             <h4>Hành khách</h4>
             <ul className="footer-links-list">
               <li><button type="button" onClick={() => onGo?.('stays')} style={{ color: '#94a3b8', fontSize: '13.5px' }}>Tìm nơi nghỉ</button></li>
-              <li><button type="button" onClick={() => onGo?.('request')} style={{ color: '#94a3b8', fontSize: '13.5px' }}>Theo dõi booking</button></li>
+              <li><button type="button" onClick={() => onGo?.('track')} style={{ color: '#94a3b8', fontSize: '13.5px' }}>Theo dõi booking</button></li>
               <li><button type="button" onClick={() => onGo?.('support')} style={{ color: '#94a3b8', fontSize: '13.5px' }}>Trung tâm hỗ trợ</button></li>
             </ul>
           </div>

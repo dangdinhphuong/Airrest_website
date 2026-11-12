@@ -20,8 +20,9 @@ services:
   api:
     image: node:22-alpine
     working_dir: /app
-    # Env truyền qua compose nên gọi tsx trực tiếp (script npm đòi file .env). Seed chạy lại an toàn (upsert).
-    command: sh -c "npm install && cd backend && npx tsx database/scripts/seed.ts && npx tsx watch api/server.ts"
+    # Env truyền qua compose nên gọi tsx trực tiếp (script npm đòi file .env). Chỉ áp migration rồi bật API ngay: seed dữ liệu mẫu
+    # (khoảng 160 khách sạn, chuyến bay, đơn...) nặng và chạy tay một lần: npm run db:seed -w @airrest/backend
+    command: sh -c "npm install && cd backend && npx tsx database/scripts/migrate.ts && npx tsx watch api/server.ts"
     env_file: ./backend/.env
     environment:
       NODE_ENV: development
@@ -39,6 +40,8 @@ services:
       - api-node-modules:/app/node_modules
 
   web:
+    # Domain backend: VITE_API_BASE_URL trong apps/web/.env (thư mục được mount nên Vite đọc được), ví dụ http://localhost:3000.
+    # CORS_ORIGINS của api (ở trên) phải chứa http://localhost:5174. Đổi .env thì: docker compose restart web
     image: node:22-alpine
     working_dir: /app
     command: sh -c "npm install && npm run dev -w @airrest/web -- --host 0.0.0.0 --port 5173"
