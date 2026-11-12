@@ -10,7 +10,39 @@ const loadReader = () => (readerPromise ??= (async () => {
   return readBarcodes;
 })().catch((e) => { readerPromise = undefined; throw e; }));
 
-const OPTS = { formats: ['PDF417', 'QRCode', 'Aztec', 'DataMatrix'], tryHarder: true, maxNumberOfSymbols: 1 };
+const OPTS = { formats: ['PDF417', 'QRCode', 'Aztec', 'DataMatrix'], tryHarder: true, maxNumberOfSymbols: 4 };
+// Ảnh chụp/ảnh tải về thường có mã rất nhỏ (mỗi ô chưa tới 1 px) nên đọc nguyên bản thất bại: phóng to, kéo giãn tương phản,
+// rồi thử thêm bản đen trắng. Dừng ở lần đầu cho ra thẻ lên tàu hợp lệ.
+const firstBcbp = (hits) => hits.filter((h) => h.isValid).map((h) => h.text).find((t) => parseBcbp(t));
+async function decodeFile(file, readBarcodes) {
+  const direct = firstBcbp(await readBarcodes(file, OPTS));
+  if (direct) return direct;
+  const bmp = await createImageBitmap(file);
+  try {
+    const long = Math.max(bmp.width, bmp.height);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    for (const [scale, bw] of [[3, false], [4, false], [2, false], [5, false], [3, true], [4, true]]) {
+      const k = Math.min(scale, 4000 / long);
+      if (k < 1.5) continue; // ảnh đã đủ lớn, phóng thêm không giúp ích
+      canvas.width = Math.round(bmp.width * k); canvas.height = Math.round(bmp.height * k);
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const px = img.data; let lo = 255; let hi = 0;
+      for (let i = 0; i < px.length; i += 4) { const g = (px[i] * 77 + px[i + 1] * 151 + px[i + 2] * 28) >> 8; px[i] = g; if (g < lo) lo = g; if (g > hi) hi = g; }
+      const span = Math.max(1, hi - lo);
+      for (let i = 0; i < px.length; i += 4) {
+        const g = ((px[i] - lo) * 255) / span;
+        px[i] = px[i + 1] = px[i + 2] = bw ? (g > 128 ? 255 : 0) : g;
+      }
+      const t = firstBcbp(await readBarcodes(img, OPTS));
+      if (t) return t;
+    }
+  } finally { bmp.close?.(); }
+  return null;
+}
+
 const NOT_BCBP = 'Không đọc được thẻ lên tàu hợp lệ trong ảnh này. Hãy thử lại hoặc nhập số hiệu chuyến bay thủ công.';
 
 // Cửa sổ quét thẻ lên tàu: camera hoặc ảnh. onResult({ flight, date }) chỉ nhận số hiệu và ngày bay.
@@ -47,10 +79,12 @@ export default function ScanTicket({ onResult, onClose }) {
             const k = Math.min(1, 1280 / v.videoWidth);
             canvas.width = Math.round(v.videoWidth * k); canvas.height = Math.round(v.videoHeight * k);
             ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-            const [hit] = await readBarcodes(ctx.getImageData(0, 0, canvas.width, canvas.height), OPTS);
-            if (hit?.isValid && hit.text !== seen) {
-              seen = hit.text;
-              if (done(hit.text)) return;
+            const hits = await readBarcodes(ctx.getImageData(0, 0, canvas.width, canvas.height), OPTS);
+            const text = firstBcbp(hits);
+            if (text && done(text)) return;
+            const other = hits.find((h) => h.isValid);
+            if (other && other.text !== seen) {
+              seen = other.text;
               if (alive) setMsg('Mã này không phải thẻ lên tàu. Hãy hướng camera vào mã trên thẻ lên tàu.');
             }
           }
@@ -72,8 +106,8 @@ export default function ScanTicket({ onResult, onClose }) {
     setState('busy'); setMsg('');
     try {
       const readBarcodes = await loadReader();
-      const [hit] = await readBarcodes(file, OPTS);
-      if (hit?.isValid && done(hit.text)) return;
+      const text = await decodeFile(file, readBarcodes);
+      if (text && done(text)) return;
       setMsg(NOT_BCBP);
     } catch { setMsg('Không xử lý được ảnh này. Hãy thử ảnh khác.'); }
     setState(stream.current ? 'scanning' : 'nocam');

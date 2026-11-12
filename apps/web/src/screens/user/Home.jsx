@@ -82,7 +82,7 @@ export default function Home() {
   const runFlightSearch = async (code, day) => {
     setResult({ s: 'loading' });
     try { setResult({ s: 'found', f: await lookupFlight(code, day) }); }
-    catch (err) { setResult({ s: err.status === 404 ? 'notfound' : 'error' }); }
+    catch (err) { setResult({ s: err.status === 404 ? 'notfound' : 'error', q: { code, day } }); }
   };
   const searchFlight = (e) => { e.preventDefault(); runFlightSearch(flight.trim().toUpperCase(), date); };
   const onScanned = ({ flight: code, date: day }) => { setScanning(false); setFlight(code); setDate(day); runFlightSearch(code, day); };
@@ -216,9 +216,9 @@ export default function Home() {
               <div className="tw:flex tw:flex-col tw:justify-between tw:gap-4 tw:bg-blue-50 tw:p-5 tw:sm:flex-row tw:sm:items-center"><div className="tw:flex tw:items-center tw:gap-3"><span className="tw:grid tw:size-11 tw:place-items-center tw:rounded-xl tw:bg-white tw:text-blue-600"><MoonStar /></span><div><small className="tw:text-slate-500">Tình trạng</small><p className="tw:font-bold">{f.status === 'ontime' ? 'Chuyến bay đúng giờ, chưa cần tìm nơi nghỉ' : 'Có thể tìm nơi nghỉ gần sân bay'}</p></div></div><button type="button" onClick={() => toStays(f.origin)} className="tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Tìm khách sạn gần sân bay</button></div>
             </div>
           ) : result.s === 'notfound' ? (
-            <div data-result className="tw:rounded-2xl tw:border tw:border-amber-200 tw:bg-amber-50 tw:p-6"><h2 className="tw:font-bold">Không tìm thấy chuyến bay</h2><p className="tw:mt-2 tw:text-sm tw:text-slate-600">Hãy kiểm tra lại số hiệu hoặc tiếp tục tìm nơi nghỉ. Việc tra cứu chuyến bay không bắt buộc.</p><button type="button" onClick={() => toStays()} className="tw:mt-4 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Tiếp tục tìm khách sạn</button></div>
+            <div data-result className="tw:rounded-2xl tw:border tw:border-amber-200 tw:bg-amber-50 tw:p-6"><h2 className="tw:font-bold">Không tìm thấy chuyến bay</h2>{result.q && <p className="tw:mt-1 tw:text-sm tw:font-bold tw:text-slate-800">{result.q.code} · {result.q.day.split('-').reverse().join('/')}</p>}<p className="tw:mt-2 tw:text-sm tw:text-slate-600">Hãy kiểm tra lại số hiệu hoặc tiếp tục tìm nơi nghỉ. Việc tra cứu chuyến bay không bắt buộc.</p><button type="button" onClick={() => toStays()} className="tw:mt-4 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Tiếp tục tìm khách sạn</button></div>
           ) : (
-            <div data-result role="alert" className="tw:rounded-2xl tw:border tw:border-rose-200 tw:bg-rose-50 tw:p-6"><h2 className="tw:font-bold">Không tra cứu được chuyến bay</h2><p className="tw:mt-2 tw:text-sm tw:text-slate-600">Dịch vụ dữ liệu mô phỏng tạm thời lỗi. Bạn vẫn có thể tiếp tục tìm nơi nghỉ.</p><button type="button" onClick={() => toStays()} className="tw:mt-4 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Tiếp tục tìm khách sạn</button></div>
+            <div data-result role="alert" className="tw:rounded-2xl tw:border tw:border-rose-200 tw:bg-rose-50 tw:p-6"><h2 className="tw:font-bold">Không tra cứu được chuyến bay</h2>{result.q && <p className="tw:mt-1 tw:text-sm tw:font-bold tw:text-slate-800">{result.q.code} · {result.q.day.split('-').reverse().join('/')}</p>}<p className="tw:mt-2 tw:text-sm tw:text-slate-600">Dịch vụ dữ liệu mô phỏng tạm thời lỗi. Bạn vẫn có thể tiếp tục tìm nơi nghỉ.</p><button type="button" onClick={() => toStays()} className="tw:mt-4 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Tiếp tục tìm khách sạn</button></div>
           )}
         </section>
       )}
