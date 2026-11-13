@@ -34,6 +34,15 @@ const schema = z.object({
   VNPAY_API_URL: z.string().url().default('https://sandbox.vnpayment.vn/merchant_webapi/api/transaction'), // querydr + refund
   VNPAY_RETURN_URL: z.string().url().default('http://localhost:5174/payment/result'), // VNPay đưa khách về trang FE này
   // IPN URL (https://<api>/v1/payments/vnpay/ipn) KHÔNG gửi trong request: khai báo trên cổng quản trị VNPay của merchant.
+
+  // --- MoMo (cổng thanh toán di sản, giữ để tương thích ngược)
+  MOMO_MODE: z.enum(['mock', 'live']).default('mock'),
+  MOMO_PARTNER_CODE: z.string().optional(),
+  MOMO_ACCESS_KEY: z.string().optional(),
+  MOMO_SECRET_KEY: z.string().optional(),
+  MOMO_ENDPOINT: z.string().url().default('https://test-payment.momo.vn'),
+  MOMO_REDIRECT_URL: z.string().url().default('http://localhost:5174/payment/result'),
+  MOMO_IPN_URL: z.string().url().default('http://localhost:3000/v1/payments/momo/ipn'),
 });
 
 const parsed = schema
