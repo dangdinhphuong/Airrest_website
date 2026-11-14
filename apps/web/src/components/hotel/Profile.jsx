@@ -3,6 +3,7 @@ import { ErrorBox, Field, Loading, ScreenTitle } from '../Common';
 import { describeError } from '../../lib/api';
 import * as H from '../../data/hotel';
 import { ConfirmButton, fmtDT, useAction, useLoad } from './kit';
+import Select from '../Select';
 
 const TPL = { FLEXIBLE: 'Linh hoạt', STANDARD: 'Tiêu chuẩn', NON_REFUNDABLE: 'Không hoàn' };
 const TYPES = { 'image/jpeg': 'JPG', 'image/png': 'PNG', 'image/webp': 'WebP' };
@@ -28,7 +29,7 @@ function InfoForm({ p, busy, onSave }) {
       <div className="grid-2">
         <Field id="pf-phone" label="Điện thoại liên hệ"><input id="pf-phone" value={v.phone} onChange={set('phone')} required minLength={8} maxLength={20} data-testid="pf-phone" /></Field>
         <Field id="pf-close" label="Giờ đóng lễ tân (0-26, để trống nếu mở 24/7)" hint="Số giờ sau 24 nghĩa là qua nửa đêm, ví dụ 25 = 01:00 sáng hôm sau."><input id="pf-close" type="number" min="0" max="26" value={v.close} onChange={set('close')} data-testid="pf-close" /></Field>
-        <Field id="pf-tpl" label="Chính sách hủy"><select id="pf-tpl" value={v.tpl} onChange={set('tpl')} data-testid="pf-tpl">{Object.entries(TPL).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></Field>
+        <Field id="pf-tpl" label="Chính sách hủy"><Select id="pf-tpl" value={v.tpl} onChange={set('tpl')} data-testid="pf-tpl">{Object.entries(TPL).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</Select></Field>
         <Field id="pf-amen" label="Tiện ích (cách nhau bởi dấu phẩy, tối đa 40)"><input id="pf-amen" value={v.amenities} onChange={set('amenities')} data-testid="pf-amenities" /></Field>
       </div>
       <Field id="pf-desc" label="Mô tả (tối đa 5000 ký tự)"><textarea id="pf-desc" rows={4} maxLength={5000} value={v.description} onChange={set('description')} data-testid="pf-desc" /></Field>

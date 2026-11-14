@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import pg from 'pg';
 import { env } from '../config/env';
 import { logger } from '../lib/logger';
@@ -66,14 +67,24 @@ const RETRYABLE = new Set(['40001', '40P01']); // serialization_failure, deadloc
  * Tự chạy lại tối đa 3 lần khi deadlock/serialization failure, giống driver Mongo trước đây.
  * Callback phải dùng `tx` cho MỌI thao tác DB và không được có tác dụng phụ ngoài DB (nó có thể chạy lại).
  */
+const commitHooks = new AsyncLocalStorage<Array<() => void>>();
+/** Chạy `fn` sau khi transaction đang chạy (nếu có) commit; không trong transaction thì chạy ngay. Rollback -> không chạy. */
+export const afterCommit = (fn: () => void): void => {
+  const hooks = commitHooks.getStore();
+  if (hooks) hooks.push(fn);
+  else fn();
+};
+
 export async function withTransaction<T>(fn: (tx: Db) => Promise<T>): Promise<T> {
   if (!pool) throw new Error('PostgreSQL chưa kết nối');
   for (let attempt = 1; ; attempt++) {
     const client = await pool.connect();
+    const hooks: Array<() => void> = []; // mỗi lần thử một danh sách riêng: thử lại/rollback thì bỏ
     try {
       await client.query('BEGIN');
-      const result = await fn(wrap(client));
+      const result = await commitHooks.run(hooks, () => fn(wrap(client)));
       await client.query('COMMIT');
+      for (const h of hooks) try { h(); } catch (err) { logger.error({ err }, 'afterCommit lỗi'); }
       return result;
     } catch (e) {
       await client.query('ROLLBACK').catch(() => undefined);

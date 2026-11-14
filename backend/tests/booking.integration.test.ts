@@ -85,6 +85,18 @@ run('tích hợp: đặt phòng + realtime (cần Postgres)', () => {
     expect(bad.status).toBe(404);
   });
 
+  it('lookup + shuttle lookup + track trả hotel {name,address,location} công khai, không lộ SĐT/email/id nội bộ', async () => {
+    await db.query("UPDATE hotels SET address = $2::jsonb, contact = $3::jsonb WHERE id = $1", [hotelId, JSON.stringify({ line: '12 Nguyễn Trãi', district: 'Thanh Xuân', city: 'Hà Nội', country: 'VN' }), JSON.stringify({ phone: '0911000111', email: 'noibo@ks.vn' })]);
+    const created = (await one<{ code: string }>('SELECT code FROM bookings'))!;
+    const l = await request(app).post('/v1/bookings/lookup').send({ code: created.code, phone: '0912345678' });
+    expect(l.body.booking.hotel).toEqual({ name: 'KS Test', address: '12 Nguyễn Trãi, Thanh Xuân, Hà Nội', location: { lat: 21.2, lng: 105.8 } });
+    expect(JSON.stringify(l.body)).not.toMatch(/0911000111|noibo@ks\.vn|hotelId|hotel_id/);
+    const s = await request(app).post('/v1/shuttle-requests/lookup').send({ code: created.code, phone: '0912345678' });
+    expect(s.body.hotel.address).toBe('12 Nguyễn Trãi, Thanh Xuân, Hà Nội');
+    const t = await request(app).get('/v1/track/shuttle').set('Authorization', `Bearer ${s.body.guestToken}`);
+    expect(t.body.hotel).toEqual(s.body.hotel);
+  });
+
   it('đăng nhập lễ tân -> check-in; token khách sạn khác không check-in được đơn này', async () => {
     const roleId = (await one<{ id: string }>(
       "INSERT INTO roles (key, name, scope, hotel_id, permissions, system) VALUES ('reception', 'LT', 'HOTEL', $1, $2, true) RETURNING id",

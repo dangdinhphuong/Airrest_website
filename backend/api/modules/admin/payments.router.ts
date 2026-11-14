@@ -15,6 +15,7 @@ export const adminPaymentsRouter = Router();
 const listQuery = z.object({
   status: z.string().max(30).optional(),
   bookingId: uuid.optional(),
+  method: z.enum(['VNPAY', 'MOMO']).optional(), // lọc theo cổng
   anomaly: z.enum(['true']).optional(), // chỉ giao dịch bất thường
   limit: limitQuery,
   cursor: seqCursor.optional(),
@@ -27,6 +28,7 @@ async function list(table: 'payments' | 'refunds', q: ListQuery) {
   const add = (sql: string, v: unknown) => where.push(sql.replace('?', `$${params.push(v)}`));
   if (q.status) add('status = ?', q.status);
   if (q.bookingId) add('booking_id = ?', q.bookingId);
+  if (q.method) add('method = ?', q.method);
   if (q.anomaly && table === 'payments') where.push('anomaly IS NOT NULL');
   if (q.cursor !== undefined) add('seq < ?', q.cursor);
   const rows = (await db.query<{ seq: number }>(`SELECT * FROM ${table} ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY seq DESC LIMIT ${q.limit + 1}`, params)).rows;

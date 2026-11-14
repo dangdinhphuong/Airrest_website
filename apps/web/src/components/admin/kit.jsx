@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { adminApi, listAirports } from '../../data/admin';
 import { describeError } from '../../lib/api';
 import { ErrorBox, Loading, EmptyBox, Notice } from '../Common';
+import Select from '../Select';
 
 export const dt = (v) => (v ? new Date(v).toLocaleString('vi-VN') : '—');
 export const d = (v) => (v ? new Date(v).toLocaleDateString('vi-VN') : '—');
@@ -25,10 +26,10 @@ export function useAirports() {
 export const airportLabel = (a) => `${a.iata} – ${a.name} (${a.city})`;
 export function AirportSelect({ id, value, onChange, airports, allowEmpty, required = true, ...rest }) {
   return (
-    <select id={id} value={value} onChange={onChange} required={required} {...rest}>
+    <Select id={id} value={value} onChange={onChange} required={required} {...rest}>
       {(allowEmpty || !airports.length) && <option value="">{airports.length ? '— Chọn sân bay —' : 'Đang tải danh sách…'}</option>}
       {airports.map((a) => <option key={a.iata} value={a.iata}>{airportLabel(a)}</option>)}
-    </select>
+    </Select>
   );
 }
 
@@ -151,7 +152,7 @@ export function Filters({ fields, onApply, testid = 'filters', inclusiveTo = fal
   return (
     <form className="inline-form" onSubmit={apply} style={{ margin: '8px 0 12px' }} data-testid={testid}>
       {fields.map(([k, label, t, opts]) => opts
-        ? <select key={k} aria-label={label} value={v[k] || ''} onChange={(e) => setV({ ...v, [k]: e.target.value })}><option value="">{label}: tất cả</option>{opts.map(([val, txt]) => <option key={val} value={val}>{txt}</option>)}</select>
+        ? <Select key={k} aria-label={label} value={v[k] || ''} onChange={(e) => setV({ ...v, [k]: e.target.value })}><option value="">{label}: tất cả</option>{opts.map(([val, txt]) => <option key={val} value={val}>{txt}</option>)}</Select>
         : <input key={k} aria-label={label} placeholder={label} type={t === 'date' ? 'date' : 'text'} title={label} value={v[k] || ''} onChange={(e) => setV({ ...v, [k]: e.target.value })} data-testid={`f-${k}`} />)}
       <button type="submit" className="btn btn-sm btn-primary" data-testid="f-apply">Lọc</button>
     </form>

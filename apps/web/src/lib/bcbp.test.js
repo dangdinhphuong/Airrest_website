@@ -6,11 +6,11 @@ const now = new Date(2026, 7, 10); // 10/08/2026
 
 describe('parseBcbp', () => {
   it('đọc số hiệu và ngày từ mẫu IATA', () => {
-    expect(parseBcbp(SAMPLE, now)).toEqual({ flight: 'AC834', date: '2026-08-14' });
+    expect(parseBcbp(SAMPLE, now)).toEqual({ flight: 'AC834', date: '2026-08-14', from: 'YUL', to: 'FRA' });
   });
   it('hãng 2 ký tự + số có chữ cái hậu tố', () => {
     const s = 'M1NGUYEN/AN           EXYZ789 SGNHANVN 0218A226Y012A0001 100';
-    expect(parseBcbp(s, now)).toEqual({ flight: 'VN218A', date: '2026-08-14' });
+    expect(parseBcbp(s, now)).toEqual({ flight: 'VN218A', date: '2026-08-14', from: 'SGN', to: 'HAN' });
   });
   it('không trả tên hay mã đặt chỗ', () => {
     expect(JSON.stringify(parseBcbp(SAMPLE, now))).not.toMatch(/DESMARAIS|ABC123/);

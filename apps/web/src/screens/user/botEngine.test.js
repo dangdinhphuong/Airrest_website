@@ -1,7 +1,7 @@
 // Kiểm tra bộ phân tích câu hỏi và lọc nơi nghỉ của trợ lý chat (phần thuần, không gọi API).
 // Chạy: npx vitest run apps/web/src/screens/user/botEngine.test.js (từ thư mục gốc monorepo)
 import { describe, expect, it } from 'vitest';
-import { detectAirport, filterHotels, parseQuery } from './botEngine';
+import { bookingRooms, detectAirport, filterHotels, parseQuery } from './botEngine';
 import { parseTrack } from './data';
 
 const AP = [
@@ -61,5 +61,15 @@ describe('filterHotels', () => {
   it('giá, km và cờ kết hợp "và"', () => {
     expect(filterHotels(list, q({ maxPrice: 700000, flags: ['freeCancel'] })).map((x) => x.id)).toEqual(['a']);
     expect(filterHotels(list, q({ maxKm: 3 })).map((x) => x.id)).toEqual(['b']);
+  });
+});
+
+describe('bookingRooms', () => {
+  it('liệt kê đủ các dòng loại phòng của đơn nhiều phòng', () => {
+    expect(bookingRooms({ lines: [{ roomTypeName: 'Standard', qty: 2 }, { roomTypeName: 'Deluxe', qty: 1 }] })).toBe('Standard × 2, Deluxe × 1');
+  });
+  it('đơn cũ không có lines thì dùng tóm tắt', () => {
+    expect(bookingRooms({ roomTypeName: 'Standard +1 loại khác' })).toBe('Standard +1 loại khác');
+    expect(bookingRooms({})).toBe('');
   });
 });

@@ -5,6 +5,7 @@ import { useApp } from '../../state/store';
 import { createAccount, patchAccount, resetPassword } from '../../data/admin';
 import Roles from './Roles';
 import { Act, Filters, LoadView, PagedView, Table, dt, tempPassword, useLoad, usePaged, useRun } from './kit';
+import Select from '../Select';
 
 const ST = { ACTIVE: ['Hoạt động', 'ok'], LOCKED: ['Đã khóa', 'error'], INVITED: ['Mới mời', 'warn'] };
 
@@ -25,7 +26,7 @@ function Create({ roles, onDone, onShown }) {
       <div className="grid-2">
         <Field id="ac-email" label="Email"><input id="ac-email" type="email" required value={f.email} onChange={set('email')} /></Field>
         <Field id="ac-name" label="Họ tên"><input id="ac-name" required minLength={2} value={f.fullName} onChange={set('fullName')} /></Field>
-        <Field id="ac-role" label="Vai trò"><select id="ac-role" value={f.roleId} onChange={set('roleId')}>{roles.map((r) => <option key={r.id} value={r.id}>{r.name}{r.system ? '' : ' (tùy chỉnh)'}</option>)}</select></Field>
+        <Field id="ac-role" label="Vai trò"><Select id="ac-role" value={f.roleId} onChange={set('roleId')}>{roles.map((r) => <option key={r.id} value={r.id}>{r.name}{r.system ? '' : ' (tùy chỉnh)'}</option>)}</Select></Field>
         <Field id="ac-pw" label="Mật khẩu tạm (tối thiểu 12 ký tự)"><input id="ac-pw" required minLength={12} value={f.password} onChange={set('password')} autoComplete="off" /></Field>
       </div>
       <button className="btn btn-primary" disabled={busy} data-testid="account-create-submit">Tạo tài khoản</button>
@@ -72,7 +73,7 @@ export default function Accounts() {
                 <span className="inline-form">
                   {a.status === 'LOCKED' ? <Act label="Mở khóa" confirm="Mở khóa tài khoản?" onDo={() => act(() => patchAccount(a.id, { status: 'ACTIVE' }), 'Đã mở khóa.')} testid="acc-unlock" />
                     : <Act label="Khóa" danger confirm="Khóa tài khoản này?" onDo={() => act(() => patchAccount(a.id, { status: 'LOCKED' }), 'Đã khóa tài khoản.')} testid="acc-lock" />}
-                  <select aria-label="Đổi vai trò" value={roleIdOf(a)} onChange={(e) => setPending({ a, role: e.target.value })} data-testid="acc-role">{roleOpts.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
+                  <Select aria-label="Đổi vai trò" value={roleIdOf(a)} onChange={(e) => setPending({ a, role: e.target.value })} data-testid="acc-role">{roleOpts.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</Select>
                   <Act label="Đặt lại mật khẩu" danger confirm="Tạo mật khẩu tạm mới? Mật khẩu cũ mất hiệu lực." onDo={() => reset(a)} testid="acc-reset" />
                 </span>)]]} />
           </PagedView>

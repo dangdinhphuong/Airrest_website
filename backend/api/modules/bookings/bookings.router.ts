@@ -3,23 +3,32 @@ import { PERM } from '../../../config/permissions';
 import { signGuestToken, type AuthContext } from '../../../lib/jwt';
 import { authenticate, optionalPassenger, requirePermission } from '../../middleware/auth';
 import { idempotent } from '../../middleware/idempotency';
-import { strictRateLimit } from '../../middleware/rateLimit';
+import { groupLookupRateLimit, strictRateLimit } from '../../middleware/rateLimit';
 import { validate } from '../../middleware/validate';
 import {
+  bookingQuoteBody,
   createBookingBody,
+  eventsQuery,
+  groupLookupBody,
   idParams,
   lookupBody,
   rejectBookingBody,
   staffListQuery,
+  type BookingQuoteBody,
   type CreateBookingBody,
+  type EventsQuery,
+  type GroupLookupBody,
   type LookupBody,
   type RejectBookingBody,
   type StaffListQuery,
 } from '@airrest/validation';
+import { guestHotel, guestShuttleState, loadGuestShuttles } from '../../../services/shuttle/guestView';
+import { groupLookup } from '../../../services/delay/groupLookup';
+import { listBookingEvents } from '../../../services/bookings/bookingEvents';
 import { startBookingPayment } from '../../../services/payments/payments.service';
 import { hotelScope } from '../../../services/scope';
 import { confirmBooking, rejectBooking } from '../../../services/bookings/decisions';
-import { checkIn, checkOut, createBooking, getBookingDetail, getDecision, listHotelBookings, lookupBooking, markNoShow, toGuestView } from '../../../services/bookings/bookings.service';
+import { checkIn, checkOut, createBooking, quoteBooking, getBookingDetail, getDecision, listHotelBookings, lookupBooking, markNoShow, toGuestView } from '../../../services/bookings/bookings.service';
 
 // ---- Công khai (khách vãng lai, không cần tài khoản) ----
 export const bookingsRouter = Router();
@@ -28,17 +37,31 @@ export const bookingsRouter = Router();
 // Có Bearer hợp lệ của tài khoản khách -> gắn đơn vào tài khoản đó (account_id); không thì vẫn đặt như khách vãng lai.
 bookingsRouter.post('/', optionalPassenger, validate({ body: createBookingBody }), idempotent('booking.create'), async (req, res) => {
   const booking = await createBooking(req.valid.body as CreateBookingBody, String(req.id), req.auth?.accountType === 'PASSENGER' ? req.auth.sub : undefined);
-  if (booking.payment.method !== 'VNPAY') return void res.status(201).json({ booking: toGuestView(booking) });
-  // VNPay lỗi thì đơn vẫn giữ chỗ (PENDING_PAYMENT); khách lấy lại link ở POST /v1/payments/vnpay/link.
-  const paymentLink = await startBookingPayment(booking.id, booking.code).catch((e: { code?: string }) => ({ error: e.code ?? 'VNPAY_UNAVAILABLE' }));
-  res.status(201).json({ booking: toGuestView(booking), paymentLink });
+  const view = { ...toGuestView(booking), hotel: await guestHotel(booking) };
+  const shuttles = booking.shuttle.legCount > 0 ? { shuttles: await loadGuestShuttles(booking.id) } : {}; // xe đặt cùng đơn (giá từng chiều, passengers = guests)
+  if (booking.payment.method === 'AT_HOTEL') return void res.status(201).json({ booking: view, ...shuttles });
+  // VNPay lỗi thì đơn vẫn giữ chỗ (PENDING_PAYMENT); khách lấy lại link ở POST /v1/payments/link.
+  const paymentLink = await startBookingPayment(booking.id, booking.code).catch((e: { code?: string }) => ({ error: e.code ?? 'PAYMENT_UNAVAILABLE' }));
+  res.status(201).json({ booking: view, ...shuttles, paymentLink });
+});
+
+// Báo giá trước khi gửi yêu cầu (phòng + xe + phí dịch vụ + tổng), công khai, không ghi dữ liệu.
+bookingsRouter.post('/quote', validate({ body: bookingQuoteBody }), async (req, res) => {
+  res.json(await quoteBooking(req.valid.body as BookingQuoteBody));
 });
 
 // FR-BKG-08: tra cứu bằng Booking Code + SĐT. Trả thêm guestToken ngắn hạn để vào phòng Socket.io `booking:{code}`.
 bookingsRouter.post('/lookup', strictRateLimit, validate({ body: lookupBody }), async (req, res) => {
   const { code, phone } = req.valid.body as LookupBody;
   const booking = await lookupBooking(code, phone);
-  res.json({ booking: toGuestView(booking, await getDecision(booking.id)), guestToken: signGuestToken(booking.code) });
+  const state = await guestShuttleState(booking);
+  res.json({ booking: { ...toGuestView(booking, await getDecision(booking.id)), hotel: state.hotel }, guestToken: signGuestToken(booking.code), ...state }); // + stage, shuttles, events (đã làm sạch)
+});
+
+// Tra cứu theo mã nhóm (luồng delay): mã nhóm + SĐT của một người trong nhóm. Sai mã hoặc SĐT -> cùng một 404.
+bookingsRouter.post('/group-lookup', groupLookupRateLimit, validate({ body: groupLookupBody }), async (req, res) => {
+  const { groupCode, phone } = req.valid.body as GroupLookupBody;
+  res.json(await groupLookup(groupCode, phone));
 });
 
 // ---- Cổng khách sạn (cần đăng nhập + quyền, tự khóa theo hotelId trong token) ----
@@ -52,6 +75,12 @@ hotelBookingsRouter.get('/', requirePermission(PERM.BOOKING_READ), validate({ qu
 hotelBookingsRouter.get('/:id', requirePermission(PERM.BOOKING_READ), validate({ params: idParams }), async (req, res) => {
   const { id } = req.valid.params as { id: string };
   res.json(await getBookingDetail(hotelScope(req.auth as AuthContext), id));
+});
+
+// Nhật ký đơn (booking_events + lịch sử trạng thái ở trang đầu), phân trang con trỏ theo seq tăng dần.
+hotelBookingsRouter.get('/:id/events', requirePermission(PERM.BOOKING_READ), validate({ params: idParams, query: eventsQuery }), async (req, res) => {
+  const { id } = req.valid.params as { id: string };
+  res.json(await listBookingEvents(hotelScope(req.auth as AuthContext), id, req.valid.query as EventsQuery));
 });
 
 hotelBookingsRouter.post(

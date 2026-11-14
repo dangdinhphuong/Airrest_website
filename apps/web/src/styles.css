@@ -237,7 +237,7 @@ p { margin: 0 0 10px; }
   .spec div { grid-template-columns: 220px 1fr; align-items: baseline; gap: 12px; }
 }
 @media (max-width: 719px) {
-  .rights-table thead { position: absolute; left: -9999px; }
+  .rights-table thead { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .rights-table tr { display: block; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; padding: 6px 10px; }
   .rights-table td { display: grid; grid-template-columns: 110px 1fr; gap: 8px; border: 0; padding: 5px 0; }
   .rights-table td::before { content: attr(data-label); color: var(--muted); font-size: 12px; font-weight: 600; }
@@ -309,9 +309,6 @@ body { background: var(--soft); }
 @media (max-width: 1023px) {
   .sidebar { display: none; }
   .feed { padding: 16px 14px 120px; }
-  .mobile-nav { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; background: #fff; border-top: 1px solid var(--line); padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
-  .mobile-nav button.on { color: var(--blue-800); background: var(--blue-100); }
-  .mobile-nav button:disabled { opacity: .45; }
   .simtools { bottom: 74px; left: 12px; }
   .header-search { display: none; }
   .topbar-in { padding-inline: 12px; gap: 8px; }
@@ -1637,3 +1634,51 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: 0; }
 .profile-images .ph { display: grid; place-items: center; height: 96px; border-radius: 8px; background: #eef2f7; color: var(--muted); font-size: 12px; text-align: center; overflow: hidden; word-break: break-all; padding: 4px; }
 .profile-images img { width: 100%; height: 96px; object-fit: cover; border-radius: 8px; display: block; }
 .profile-images .row-actions { margin-top: 6px; gap: 4px; }
+
+/* Cổng nhân sự: đội xe, điều phối xe, chuyến của tài xế, nhật ký đơn */
+.live-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 3px 10px; border-radius: 99px; background: var(--muted-bg); color: #475569; }
+.live-badge i { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+.live-badge.live-on { background: var(--green-soft); color: var(--green); } .live-badge.live-on i { background: var(--green); }
+.avatar { border-radius: 50%; object-fit: cover; flex: none; }
+.avatar-ph { display: inline-grid; place-items: center; background: var(--blue-100); color: var(--blue-900); font-weight: 700; }
+.who { display: inline-flex; align-items: center; gap: 8px; }
+.driver-photo { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.block { display: block; }
+.ext-alerts { border: 2px solid var(--red); border-radius: var(--radius-sm); background: var(--red-soft); padding: 4px 14px 12px; margin: 12px 0; }
+.ext-alerts h3 { color: #b91c1c; }
+.ext-card { background: #fff; border: 1px solid var(--red-line); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 10px; }
+.ext-card.is-overdue { border: 3px solid var(--red); }
+.ext-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; }
+.cd { color: #b45309; } .cd-overdue { color: #b91c1c; animation: cd-blink 1.2s steps(2, start) infinite; }
+@keyframes cd-blink { 50% { opacity: .55; } }
+.ext-info, .trip-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 14px; margin: 8px 0; }
+.ext-info dt, .trip-info dt { font-size: 12px; color: var(--muted); } .ext-info dd, .trip-info dd { margin: 0; overflow-wrap: anywhere; }
+.ext-form { margin-top: 8px; }
+.trip-line { padding: 6px 0; } .trip-line + .trip-line { border-top: 1px dashed var(--line); }
+.trip-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.veh-list { padding-left: 18px; display: grid; gap: 6px; }
+.trip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+.trip-card { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px; background: #fff; min-width: 0; }
+.trip-card header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.trip-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.trip-actions .btn { min-height: 44px; }
+.trip-map { width: 100%; margin: 10px 0; border-radius: 10px; border: 1px solid var(--line); z-index: 0; }
+.event-log { margin-top: 14px; } .event-log h4 { margin: 0 0 8px; }
+.timeline { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--line); display: grid; gap: 8px; }
+.timeline li { display: grid; grid-template-columns: 150px 1fr auto; gap: 4px 10px; align-items: baseline; }
+.timeline time { font-size: 12.5px; color: var(--muted); } .timeline small { color: var(--muted); }
+@media (max-width: 600px) { .timeline li { grid-template-columns: 1fr; } }
+
+/* iOS Safari tự phóng to trang khi chạm vào ô nhập có chữ <16px: ép 16px ở điện thoại (khách hàng). :root + :not() để thắng các rule 14px cũ và utility tw: (nằm trong @layer nên thua rule không layer). */
+@media (max-width: 767px) {
+  :root input:not([type=checkbox]):not([type=radio]):not([type=range]), :root select, :root textarea { font-size: 16px; }
+}
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } /* iOS xoay ngang không tự phóng chữ */
+
+/* Vùng chạm tối thiểu 44px trên màn nhỏ/cảm ứng (Phase 1 audit pwa-audit). Đặt cuối file để thắng các rule 40/36/32/28px ở trên. */
+@media (max-width: 1023px) {
+  .btn, .btn-sm, .link-btn, .logo-btn { min-height: 44px; }
+  .logo-btn, .topbar-right .btn { min-width: 44px; justify-content: center; } /* nút chỉ còn icon khi chữ bị ẩn ở màn hẹp */
+  .icon-btn { width: 44px; height: 44px; }
+  .ui-select-pop li { min-height: 44px; display: flex; align-items: center; }
+}

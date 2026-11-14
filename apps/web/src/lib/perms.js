@@ -7,6 +7,8 @@ export const PERM = {
   REQUEST_HANDLE: 'request:handle',
   SUPPORT_HANDLE: 'support:handle',
   SHUTTLE_HANDLE: 'shuttle:handle',
+  FLEET_MANAGE: 'fleet:manage',
+  TRIP_DRIVE: 'trip:drive',
   FLIGHT_MANAGE: 'flight:manage',
   ADMIN_DASHBOARD_READ: 'admin:dashboard:read',
   ADMIN_BOOKING_READ: 'admin:booking:read',
@@ -23,4 +25,8 @@ export const PERM = {
   ADMIN_PAYMENT_READ: 'admin:payment:read',
   ADMIN_PAYMENT_MANAGE: 'admin:payment:manage',
   ADMIN_HOTEL_APPROVE_SENSITIVE: 'admin:hotel:approve-sensitive',
+  PAYER_DELAY_READ: 'payer:delay:read',
+  PAYER_DELAY_MANAGE: 'payer:delay:manage',
+  ADMIN_PAYER_READ: 'admin:payer:read',
+  ADMIN_PAYER_MANAGE: 'admin:payer:manage',
 };

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef } from 'react';
 import { getGuestToken, setAuthToken, setGuestToken, setOnUnauthorized } from '../lib/api';
 import { fetchMe } from '../data/user';
+import { setTrackPrefill } from '../screens/user/data';
 
 // Trạng thái toàn ứng dụng trong bộ nhớ trang. Chỉ token KHÁCH được lưu sessionStorage (lib/api.js); phiên nhân sự không bao giờ ghi ra ngoài bộ nhớ. Dữ liệu nghiệp vụ lấy từ API ở data/*.
 const initial = {
@@ -22,8 +23,9 @@ function reducer(s, a) {
     case 'openProperty': return { ...s, propertyId: a.id, screen: 'detail' };
     case 'partnerTab': return { ...s, partnerTab: a.id };
     case 'login': return { ...s, partnerTab: null, session: a.session, user: null, screen: a.session.area };
-    case 'userLogin': return { ...s, partnerTab: null, session: null, user: a.user, screen: a.screen ?? 'home' };
-    case 'restoreUser': return s.session || s.user ? s : { ...s, user: a.user };
+    case 'userLogin': return { ...s, partnerTab: null, session: null, user: a.user, browseAirport: a.user.preferences?.airport ?? s.browseAirport, screen: a.screen ?? 'home' };
+    case 'restoreUser': return s.session || s.user ? s : { ...s, user: a.user, browseAirport: a.user.preferences?.airport ?? s.browseAirport };
+    case 'setUser': return s.user ? { ...s, user: a.user, browseAirport: a.user.preferences?.airport ?? s.browseAirport } : s; // sau khi khách sửa hồ sơ/cấu hình
     case 'unauthorized': return s.session || s.user ? { ...s, session: null, user: null, partnerTab: null, screen: 'login' } : s;
     case 'logout': return { ...s, session: null, user: null, partnerTab: null, screen: 'login' };
     case 'reset': return { ...initial, ...keepAuth(s) };
@@ -31,13 +33,18 @@ function reducer(s, a) {
   }
 }
 
-const SCREENS = ['home', 'support', 'track', 'account', 'login', 'hotel', 'admin'];
+const SCREENS = ['home', 'stays', 'support', 'track', 'account', 'login', 'hotel', 'admin'];
 const Ctx = createContext(null);
 export const useApp = () => useContext(Ctx);
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initial, (init) => {
     if (window.location.pathname.startsWith('/payment/result')) return { ...init, screen: 'payment' }; // VNPay đưa khách về đường dẫn này
+    if (window.location.pathname.startsWith('/tra-cuu')) { // link trong email: /tra-cuu?code=AR-XXXXXXXX hoặc NH-XXXXXXXX
+      const code = new URLSearchParams(window.location.search).get('code');
+      if (code) setTrackPrefill(code.trim().slice(0, 40));
+      return { ...init, screen: 'track' };
+    }
     const h = window.location.hash.replace('#/', '');
     return SCREENS.includes(h) ? { ...init, screen: h } : init;
   });

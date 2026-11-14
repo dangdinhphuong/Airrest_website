@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Select from '../Select';
 
 export const Pill = ({ tone = 'neutral', children, ...r }) => <span className={`pill pill-${tone}`} {...r}>{children}</span>;
 export const BOOKING_STATUS = { pending: ['Chờ xác nhận', 'warn'], confirmed: ['Đã xác nhận', 'ok'], rejected: ['Đã từ chối', 'error'] };
@@ -31,7 +32,7 @@ export function ReasonAction({ label, confirmLabel = 'Xác nhận', placeholder 
   return (
     <span className="inline-form">
       {options
-        ? <select aria-label={placeholder} value={reason} onChange={(e) => setReason(e.target.value)} data-testid={testid ? `${testid}-reason` : undefined}>{options.map((o) => <option key={o}>{o}</option>)}</select>
+        ? <Select aria-label={placeholder} value={reason} onChange={(e) => setReason(e.target.value)} data-testid={testid ? `${testid}-reason` : undefined}>{options.map((o) => <option key={o}>{o}</option>)}</Select>
         : <input aria-label={placeholder} placeholder={placeholder} value={reason} onChange={(e) => { setReason(e.target.value); setErr(''); }} data-testid={testid ? `${testid}-reason` : undefined} />}
       <button type="button" className="btn btn-sm btn-primary" onClick={go} data-testid={testid ? `${testid}-confirm` : undefined}>{confirmLabel}</button>
       <button type="button" className="link-btn" onClick={() => { setOpen(false); setErr(''); }}>Huỷ</button>

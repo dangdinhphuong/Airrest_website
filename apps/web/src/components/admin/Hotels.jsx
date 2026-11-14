@@ -8,11 +8,12 @@ import { PERM } from '../../lib/perms';
 import { createHotel, hotelAction, patchHotel, payoutDecision, proposePayout } from '../../data/admin';
 import { BOOKING_LABEL } from './Dashboard';
 import { Act, AirportSelect, Back, Filters, LoadView, PagedView, Table, d, dt, isoOrUndef, useAirports, useLoad, usePaged, useRun } from './kit';
+import Select from '../Select';
 
 const ST = { DRAFT: ['Nháp / bị từ chối', 'neutral'], PENDING_APPROVAL: ['Chờ duyệt', 'warn'], ACTIVE: ['Đang hoạt động', 'ok'], SUSPENDED: ['Tạm ngưng', 'error'], HIDDEN_DEBT: ['Ẩn do công nợ', 'error'] };
 const TPL = { FLEXIBLE: 'Linh hoạt', STANDARD: 'Tiêu chuẩn', NON_REFUNDABLE: 'Không hoàn' };
 const St = ({ s }) => <Pill tone={ST[s]?.[1]}>{ST[s]?.[0] || s}</Pill>;
-const TplSelect = ({ id, value, onChange }) => <select id={id} value={value} onChange={onChange}>{Object.entries(TPL).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>;
+const TplSelect = ({ id, value, onChange }) => <Select id={id} value={value} onChange={onChange}>{Object.entries(TPL).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</Select>;
 
 function CreateForm({ onDone, onCancel }) {
   const [f, setF] = useState({ code: '', name: '', line: '', city: '', lng: '105.8', lat: '21.2', iata: 'HAN', km: '10', minutes: '20', phone: '', tpl: 'FLEXIBLE', buf: '0', oEmail: '', oName: '', oPw: '' });
@@ -101,7 +102,7 @@ function PayoutForm({ id, onDone }) {
     <form onSubmit={submit} data-testid="payout-form">
       {node}
       <div className="grid-2">
-        <Field id="po-type" label="Loại"><select id="po-type" value={f.type} onChange={set('type')}><option value="BANK">Ngân hàng</option><option value="MOMO">Ví MoMo</option></select></Field>
+        <Field id="po-type" label="Loại"><Select id="po-type" value={f.type} onChange={set('type')}><option value="BANK">Ngân hàng</option><option value="MOMO">Ví MoMo</option></Select></Field>
         <Field id="po-no" label={f.type === 'BANK' ? 'Số tài khoản' : 'SĐT ví MoMo'}><input id="po-no" required value={f.accountNo} onChange={set('accountNo')} autoComplete="off" /></Field>
         <Field id="po-name" label="Tên chủ tài khoản"><input id="po-name" required minLength={2} value={f.accountName} onChange={set('accountName')} /></Field>
         {f.type === 'BANK' && <Field id="po-bank" label="Mã ngân hàng"><input id="po-bank" required minLength={2} value={f.bankCode} onChange={set('bankCode')} /></Field>}

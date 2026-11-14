@@ -35,7 +35,7 @@ function Detail({ id, onBack }) {
   return (
     <>
       <Back onClick={onBack} />
-      <LoadView r={r}>{({ ticket: t, messages }) => (
+      <LoadView r={r}>{({ ticket: t, messages, attachments = [] }) => (
         <div data-testid="ticket-detail">
           <h2>{t.code} · {t.subject} <St s={t.status} /></h2>
           <p className="muted">Liên hệ: {t.contact?.fullName} · {t.contact?.phone}{t.bookingCode ? ` · đơn ${t.bookingCode}` : ''}{who(t)}</p>
@@ -48,6 +48,9 @@ function Detail({ id, onBack }) {
           <section className="card"><h3>Tin nhắn</h3>
             {messages.map((m) => <div key={m.id} className="card-inner" data-testid="msg"><strong>{authorOf(m)} <small>({authorMeta(m)}) · {dt(m.createdAt)}</small> {m.internal && <Pill tone="warn">Nội bộ</Pill>}</strong><span>{m.body}</span></div>)}
           </section>
+          {attachments.length > 0 && <section className="card" data-testid="ticket-attachments"><h3>Tệp đính kèm của khách ({attachments.length})</h3>
+            {attachments.map((a) => <div key={a.id} className="card-inner">{a.url ? (a.contentType.startsWith('video/') ? <video src={a.url} controls preload="none" style={{ maxWidth: '100%', maxHeight: 280 }} /> : <a href={a.url} target="_blank" rel="noreferrer"><img src={a.url} alt="Ảnh khách đính kèm" loading="lazy" style={{ maxWidth: '100%', maxHeight: 280 }} /></a>) : <span className="muted">{a.contentType} · {(a.sizeBytes / 1048576).toFixed(1)} MB (không tải được URL xem)</span>}</div>)}
+          </section>}
           {DONE.includes(t.status) ? <p className="muted" data-testid="ticket-closed">Ticket đã {t.status === 'CLOSED' ? 'đóng' : 'xử lý'}, không thể gửi thêm tin nhắn.</p> : (
             <form onSubmit={send} className="card">
               <div className="field"><label htmlFor="tm">Nội dung</label><input id="tm" value={text} onChange={(e) => setText(e.target.value)} required maxLength={2000} /></div>

@@ -43,3 +43,40 @@ export const scrollToId = (id, block = 'start') => window.setTimeout(() => docum
 let trackPrefill = '';
 export const setTrackPrefill = (q) => { trackPrefill = q; };
 export const takeTrackPrefill = () => { const q = trackPrefill; trackPrefill = ''; return q; };
+
+// Truyền mã đơn (+ SĐT, chủ đề) từ trang Theo dõi sang trang Hỗ trợ (đọc một lần).
+let supportPrefill = null;
+export const setSupportPrefill = (q) => { supportPrefill = q; };
+export const takeSupportPrefill = () => { const q = supportPrefill; supportPrefill = null; return q; };
+
+// Văn bản hành trình để khách dán vào ứng dụng gọi xe. Thiếu địa chỉ thì rơi về tên khách sạn.
+export function buildRideText({ direction, airport, hotel, pickupAt, passengers }) {
+  const place = hotel?.address || hotel?.name || '';
+  const [from, to] = direction === 'TO_HOTEL' ? [airport, place] : [place, airport];
+  const t = new Date(pickupAt);
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(t).map((x) => [x.type, x.value]));
+  return `Điểm đón: ${from}; Điểm đến: ${to}; Giờ đón: ${p.day}/${p.month}/${p.year} ${p.hour === '24' ? '00' : p.hour}:${p.minute}; Số khách: ${passengers}`;
+}
+
+// Sao chép vào clipboard; không có quyền/HTTP thì dự phòng textarea + execCommand. Trả true nếu chép được.
+export async function copyText(text) {
+  try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; } } catch { /* rơi xuống dự phòng */ }
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+  document.body.appendChild(ta); ta.select();
+  try { return document.execCommand('copy'); } catch { return false; } finally { ta.remove(); }
+}
+
+// Cấu hình cá nhân -> 'Khách và phòng' mặc định (thiếu trường nào thì dùng 2 người lớn, 0 trẻ em, 1 phòng).
+export const partyFromPrefs = (p) => ({ adults: p?.adults ?? 2, children: p?.children ?? 0, rooms: p?.rooms ?? 1 });
+
+// Truyền { code, phone } của ticket từ trang Tài khoản sang trang Hỗ trợ để mở ticket đó (đọc một lần).
+let ticketPrefill = null;
+export const setTicketPrefill = (q) => { ticketPrefill = q; };
+export const takeTicketPrefill = () => { const q = ticketPrefill; ticketPrefill = null; return q; };
+
+// Truyền ý định từ trang danh sách khách sạn sang trang chủ: { airport, hotelId? } (đọc rồi xoá khi Home đã mount).
+let staysIntent = null;
+export const setStaysIntent = (q) => { staysIntent = q; };
+export const peekStaysIntent = () => staysIntent;
+export const clearStaysIntent = () => { staysIntent = null; };

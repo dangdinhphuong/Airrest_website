@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { PERM } from '../../../config/permissions';
 import type { AuthContext } from '../../../lib/jwt';
@@ -43,7 +43,10 @@ const uploadBody = z.object({
   size: z.number().int().min(1).max(MAX_IMAGE_BYTES),
 });
 
-hotelMediaRouter.post('/upload-url', need, validate({ body: uploadBody }), async (req, res) => {
+// Ảnh tài xế (folder 'drivers') cần fleet:manage; ảnh khách sạn/phòng cần room:manage.
+const uploadPerm: RequestHandler = (req, res, next) => requirePermission((req.valid.body as z.infer<typeof uploadBody>).folder === 'drivers' ? PERM.FLEET_MANAGE : PERM.ROOM_MANAGE)(req, res, next);
+
+hotelMediaRouter.post('/upload-url', validate({ body: uploadBody }), uploadPerm, async (req, res) => {
   const b = req.valid.body as z.infer<typeof uploadBody>;
   const out = await presignImageUpload(b.folder as MediaFolder, b.contentType);
   await writeAudit({ actor: actorOf(req.auth as AuthContext), action: 'MEDIA.UPLOAD_URL', entity: { type: 'media', id: out.key }, hotelId: (req.auth as AuthContext).hotelId, after: { size: b.size, contentType: b.contentType }, requestId: String(req.id) });

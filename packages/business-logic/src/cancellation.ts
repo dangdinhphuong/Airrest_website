@@ -48,9 +48,11 @@ export function cancellationQuote(i: {
 }
 
 // Đổi ngày: giữ giá đơn vị của đơn gốc, tính lại tiền phòng + phí dịch vụ theo số đêm mới.
-export function changeQuote(i: { unitPriceVnd: number; qty: number; oldNights: number; newNights: number; oldTotalVnd: number; fee: ServiceFeeParams }) {
+// `shuttleVnd` (xe đặt cùng đơn, không đổi theo ngày): phí DV = % × (phòng + xe) và tổng gồm xe (BR-BKG-01). Mặc định 0 = hành vi cũ.
+export function changeQuote(i: { unitPriceVnd: number; qty: number; oldNights: number; newNights: number; oldTotalVnd: number; fee: ServiceFeeParams; shuttleVnd?: number }) {
   const newRoomVnd = i.unitPriceVnd * i.qty * i.newNights;
-  const newServiceFeeVnd = serviceFee(newRoomVnd, i.fee);
-  const newTotalVnd = newRoomVnd + newServiceFeeVnd;
+  const shuttle = i.shuttleVnd ?? 0;
+  const newServiceFeeVnd = serviceFee(newRoomVnd + shuttle, i.fee);
+  const newTotalVnd = newRoomVnd + shuttle + newServiceFeeVnd;
   return { newRoomVnd, newServiceFeeVnd, newTotalVnd, diffVnd: newTotalVnd - i.oldTotalVnd };
 }

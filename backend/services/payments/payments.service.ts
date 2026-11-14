@@ -4,12 +4,16 @@ import type { Actor, BookingDoc, LedgerAccount, PaymentDoc, RefundDoc } from '..
 import { bookingFromRow } from '../../database/types';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
+import { MOMO_PENDING_CODES, momoGateway, newGatewayOrder, newMomoOrder, verifyMomoIpn } from '../../lib/momo';
 import { newVnpOrder, verifyVnpay, vnpDate, vnpKeys, vnpayGateway } from '../../lib/vnpay';
 import { writeAudit } from '../audit';
 import { emitBookingChange } from '../events';
 import { approvalHoldMs } from '../bookings/bookings.service';
 import { expireOverdueBookings } from '../bookings/decisions';
 import { getConfig } from '../systemConfig';
+import { cancelShuttlesForBooking } from '../shuttle/cascade';
+import { dispatchDueForBooking } from '../shuttle/dispatch';
+import { publishBookingStatus } from '../shuttle/events';
 
 const SYSTEM: Actor = { type: 'SYSTEM' };
 const STALE_PENDING_MS = 15 * 60_000; // BA §6.4: callback không đến sau 15 phút -> chủ động truy vấn
@@ -34,15 +38,15 @@ const notify = (b: { code: string; status: string; hotelId: string }) => emitBoo
 export interface PayLink { payUrl: string; expiresAt?: Date }
 
 /**
- * Trả link thanh toán còn dùng được cho đơn PENDING_PAYMENT; chưa có thì tạo URL VNPay.
- * Mỗi lần tạo mới là một bản ghi payments với txnRef mới (VNPay không cho dùng lại vnp_TxnRef).
- * Lỗi tạo link -> AppError 502, đơn vẫn giữ chỗ, khách thử lại qua endpoint pay-link.
+ * Trả link thanh toán còn dùng được cho đơn PENDING_PAYMENT (VNPay hoặc MoMo theo đơn); chưa có thì tạo link mới.
+ * Mỗi lần tạo mới là một bản ghi payments với orderId mới (cổng không cho dùng lại mã giao dịch).
+ * Lỗi tạo link -> AppError 502, đơn vẫn giữ chỗ, khách thử lại qua POST /v1/payments/link.
  */
-export async function ensureVnpayLink(bookingId: string): Promise<PayLink> {
+export async function ensurePaymentLink(bookingId: string): Promise<PayLink> {
   const b = (await db.query('SELECT * FROM bookings WHERE id = $1', [bookingId])).rows[0];
   const booking = b && bookingFromRow(b);
-  if (!booking || booking.status !== 'PENDING_PAYMENT' || booking.payment.method !== 'VNPAY') {
-    throw new AppError(409, 'PAYMENT_NOT_AVAILABLE', 'Đơn không ở trạng thái chờ thanh toán VNPay');
+  if (!booking || booking.status !== 'PENDING_PAYMENT' || booking.payment.method === 'AT_HOTEL') {
+    throw new AppError(409, 'PAYMENT_NOT_AVAILABLE', 'Đơn không ở trạng thái chờ thanh toán trực tuyến');
   }
   if (!booking.expiresAt || booking.expiresAt <= new Date()) throw new AppError(409, 'BOOKING_EXPIRED', 'Đơn đã hết thời gian giữ chỗ');
 
@@ -55,22 +59,44 @@ export async function ensureVnpayLink(bookingId: string): Promise<PayLink> {
   const dead = open.filter((p) => !p.gateway.payUrl).map((p) => p.id);
   if (dead.length) await db.query("UPDATE payments SET status = 'FAILED', updated_at = $2 WHERE id = ANY($1::uuid[]) AND status = 'INITIATED'", [dead, now]);
 
-  const { orderId, requestId } = newVnpOrder(booking.code);
+  const method = booking.payment.method;
+  const { orderId, requestId } = newGatewayOrder(method, booking.code);
   const id = randomUUID();
-  const gateway = { tmnCode: vnpKeys.tmnCode, orderId, requestId, createDate: vnpDate(now) };
+  const gateway = method === 'MOMO' ? { orderId, requestId } : { tmnCode: vnpKeys.tmnCode, orderId, requestId, createDate: vnpDate(now) };
   const ins = await db.query<PaymentDoc>(
     `INSERT INTO payments (id, booking_id, hotel_id, method, amount_vnd, status, txn_ref, gateway, created_at, updated_at)
-     VALUES ($1,$2,$3,'VNPAY',$4,'INITIATED',$5,$6::jsonb,$7,$7) RETURNING *`,
-    [id, bookingId, booking.hotelId, booking.pricing.totalVnd, orderId, json(gateway), now],
+     VALUES ($1,$2,$3,$8,$4,'INITIATED',$5,$6::jsonb,$7,$7) RETURNING *`,
+    [id, bookingId, booking.hotelId, booking.pricing.totalVnd, orderId, json(gateway), now, method],
   );
-  return startVnpayPayment(ins.rows[0]!, booking.code);
+  return startPayment(ins.rows[0]!, booking.code);
 }
 
 // Ngay sau khi tạo đơn VNPay: lấy bản ghi payments INITIATED do createBooking tạo rồi tạo URL thanh toán.
 export async function startBookingPayment(bookingId: string, code: string): Promise<PayLink> {
   const p = (await db.query<PaymentDoc>("SELECT * FROM payments WHERE booking_id = $1 AND status = 'INITIATED' ORDER BY created_at DESC LIMIT 1", [bookingId])).rows[0];
   if (!p) throw new AppError(409, 'PAYMENT_NOT_AVAILABLE', 'Đơn không có giao dịch chờ khởi tạo');
-  return startVnpayPayment(p, code);
+  return startPayment(p, code);
+}
+
+const startPayment = (p: PaymentDoc, code: string) => (p.method === 'MOMO' ? startMomoPayment(p, code) : startVnpayPayment(p, code));
+
+// Tạo link MoMo cho bản ghi payments INITIATED. Live gọi mạng: lỗi/từ chối -> payment FAILED + 502 (IPN muộn vẫn xử lý được theo orderId).
+async function startMomoPayment(payment: PaymentDoc, code: string): Promise<PayLink> {
+  const b = (await db.query<{ expiresAt?: Date }>('SELECT expires_at FROM bookings WHERE id = $1', [payment.bookingId])).rows[0];
+  let payUrl: string | undefined;
+  try {
+    const res = await momoGateway.create({ orderId: payment.gateway.orderId, requestId: payment.gateway.requestId, amount: payment.amountVnd, orderInfo: `Airrest ${code}` });
+    if (res.resultCode !== 0) logger.error({ orderId: payment.gateway.orderId, resultCode: res.resultCode, message: res.message }, 'MoMo từ chối tạo link');
+    payUrl = res.resultCode === 0 ? res.payUrl : undefined;
+  } catch (e) {
+    logger.error({ err: e, orderId: payment.gateway.orderId }, 'Tạo link MoMo lỗi');
+  }
+  if (!payUrl) {
+    await db.query("UPDATE payments SET status = 'FAILED', updated_at = now() WHERE id = $1 AND status = 'INITIATED'", [payment.id]);
+    throw new AppError(502, 'MOMO_UNAVAILABLE', 'Không tạo được liên kết thanh toán MoMo, vui lòng thử lại');
+  }
+  await db.query("UPDATE payments SET status = 'PENDING', gateway = gateway || $2::jsonb, updated_at = now() WHERE id = $1 AND status = 'INITIATED'", [payment.id, json({ payUrl })]);
+  return { payUrl, expiresAt: b?.expiresAt };
 }
 
 // Tạo URL VNPay cho bản ghi payments đã có (INITIATED). Không gọi mạng: lỗi chỉ xảy ra khi cấu hình sai.
@@ -82,7 +108,7 @@ export async function startVnpayPayment(payment: PaymentDoc, code: string): Prom
       txnRef: payment.gateway.orderId,
       amount: payment.amountVnd,
       orderInfo: `Airrest ${code}`.replace(/-/g, ' '),
-      createDate: payment.gateway.createDate,
+      createDate: payment.gateway.createDate!,
       expireDate: b?.expiresAt ? vnpDate(b.expiresAt) : undefined,
     }));
   } catch (e) {
@@ -100,22 +126,19 @@ type Query = Record<string, unknown>;
 export interface IpnReply { RspCode: string; Message: string }
 const reply = (RspCode: string, Message: string): IpnReply => ({ RspCode, Message });
 
-/**
- * Xử lý IPN: kiểm chữ ký -> tìm đơn -> kiểm số tiền -> cập nhật có điều kiện (R3). Lặp lại không sinh bản ghi thứ hai.
- * Mã trả VNPay: 00 ok, 01 không thấy đơn, 02 đã xác nhận trước đó, 04 sai số tiền, 97 sai chữ ký, 99 lỗi khác.
- */
-export async function handleVnpayIpn(q: Query, requestId?: string): Promise<IpnReply> {
-  if (!verifyVnpay(q)) return reply('97', 'Invalid signature');
-  const payment = (await db.query<PaymentDoc>('SELECT * FROM payments WHERE txn_ref = $1', [String(q.vnp_TxnRef)])).rows[0];
-  if (!payment) {
-    logger.warn({ orderId: q.vnp_TxnRef }, 'IPN cho vnp_TxnRef không tồn tại, bỏ qua');
-    return reply('01', 'Order not found');
-  }
-  const success = q.vnp_ResponseCode === '00' && q.vnp_TransactionStatus === '00';
-  const resultCode = Number(q.vnp_ResponseCode);
-  const cb = { at: new Date(), resultCode, signatureOk: true };
+type Outcome = 'OK' | 'DUPLICATE' | 'AMOUNT_MISMATCH';
 
-  if (Number(q.vnp_Amount) !== payment.amountVnd * 100) {
+/**
+ * Phần xử lý kết quả dùng chung cho IPN mọi cổng: kiểm số tiền (BR-PAY-01) -> idempotent (SUCCEEDED là cuối) -> FAILED hoặc settleSuccess.
+ * `amountVnd` là số tiền cổng báo, đã quy về VND.
+ */
+async function applyGatewayResult(
+  payment: PaymentDoc,
+  r: { amountVnd: number; success: boolean; resultCode: number; message: string; transId: number },
+  requestId?: string,
+): Promise<Outcome> {
+  const cb = { at: new Date(), resultCode: r.resultCode, signatureOk: true };
+  if (r.amountVnd !== payment.amountVnd) {
     // BR-PAY-01: lệch tiền -> không xác nhận, đưa vào hàng đợi kế toán xử lý.
     await db.query("UPDATE payments SET anomaly = $2::jsonb, callbacks = callbacks || $3::jsonb, updated_at = $4 WHERE id = $1 AND status <> 'SUCCEEDED'", [
       payment.id,
@@ -123,18 +146,58 @@ export async function handleVnpayIpn(q: Query, requestId?: string): Promise<IpnR
       json([cb]),
       cb.at,
     ]);
-    return reply('04', 'Invalid amount');
+    return 'AMOUNT_MISMATCH';
   }
-  if (payment.status === 'SUCCEEDED') return reply('02', 'Order already confirmed');
-  if (!success) {
+  if (payment.status === 'SUCCEEDED') return 'DUPLICATE';
+  if (!r.success) {
     await db.query(
       "UPDATE payments SET status = 'FAILED', gateway = gateway || $2::jsonb, callbacks = callbacks || $3::jsonb, updated_at = $4 WHERE id = $1 AND status IN ('INITIATED','PENDING')",
-      [payment.id, json({ resultCode, message: String(q.vnp_ResponseCode) }), json([cb]), cb.at],
+      [payment.id, json({ resultCode: r.resultCode, message: r.message }), json([cb]), cb.at],
     );
-    return reply('00', 'Confirm Success');
+    return 'OK';
   }
-  await settleSuccess(payment.id, Number(q.vnp_TransactionNo), cb, requestId);
-  return reply('00', 'Confirm Success');
+  await settleSuccess(payment.id, r.transId, cb, requestId);
+  return 'OK';
+}
+
+/**
+ * Xử lý IPN VNPay: kiểm chữ ký -> tìm đơn -> applyGatewayResult. Lặp lại không sinh bản ghi thứ hai.
+ * Mã trả VNPay: 00 ok, 01 không thấy đơn, 02 đã xác nhận trước đó, 04 sai số tiền, 97 sai chữ ký, 99 lỗi khác.
+ */
+export async function handleVnpayIpn(q: Query, requestId?: string): Promise<IpnReply> {
+  if (!verifyVnpay(q)) return reply('97', 'Invalid signature');
+  const payment = (await db.query<PaymentDoc>("SELECT * FROM payments WHERE txn_ref = $1 AND method = 'VNPAY'", [String(q.vnp_TxnRef)])).rows[0];
+  if (!payment) {
+    logger.warn({ orderId: q.vnp_TxnRef }, 'IPN cho vnp_TxnRef không tồn tại, bỏ qua');
+    return reply('01', 'Order not found');
+  }
+  const out = await applyGatewayResult(
+    payment,
+    { amountVnd: Number(q.vnp_Amount) / 100, success: q.vnp_ResponseCode === '00' && q.vnp_TransactionStatus === '00', resultCode: Number(q.vnp_ResponseCode), message: String(q.vnp_ResponseCode), transId: Number(q.vnp_TransactionNo) },
+    requestId,
+  );
+  return out === 'AMOUNT_MISMATCH' ? reply('04', 'Invalid amount') : out === 'DUPLICATE' ? reply('02', 'Order already confirmed') : reply('00', 'Confirm Success');
+}
+
+/**
+ * IPN MoMo (POST JSON). Trả mã HTTP: 400 sai chữ ký (không nêu lý do); 204 đã tiếp nhận (kể cả lặp, lệch tiền đã ghi anomaly, không thấy đơn)
+ * để MoMo không gọi lại vô ích. Mã "đang chờ" không đổi trạng thái.
+ */
+export async function handleMomoIpn(body: Record<string, unknown>, requestId?: string): Promise<number> {
+  if (!verifyMomoIpn(body)) return 400;
+  const payment = (await db.query<PaymentDoc>("SELECT * FROM payments WHERE txn_ref = $1 AND method = 'MOMO'", [String(body.orderId)])).rows[0];
+  if (!payment) {
+    logger.warn({ orderId: body.orderId }, 'IPN MoMo cho orderId không tồn tại, bỏ qua');
+    return 204;
+  }
+  const resultCode = Number(body.resultCode);
+  if (MOMO_PENDING_CODES.includes(resultCode)) return 204;
+  await applyGatewayResult(
+    payment,
+    { amountVnd: Number(body.amount), success: resultCode === 0, resultCode, message: String(body.message ?? ''), transId: Number(body.transId) || 0 },
+    requestId,
+  );
+  return 204;
 }
 
 /**
@@ -167,14 +230,15 @@ async function settleSuccess(paymentId: string, transId: number, cb: { at: Date;
       await tx.query(
         `UPDATE bookings SET status = $2, payment_status = 'PAID', paid_vnd = $3, updated_at = $4, expires_at = $5,
            status_history = status_history || $6::jsonb, v = v + 1 WHERE id = $1`,
-        [b.id, next, amount, now, manual ? holdUntil : null, json([{ from: 'PENDING_PAYMENT', to: next, at: now, by: SYSTEM, reasonCode: 'VNPAY_PAID' }])],
+        [b.id, next, amount, now, manual ? holdUntil : null, json([{ from: 'PENDING_PAYMENT', to: next, at: now, by: SYSTEM, reasonCode: `${p.method}_PAID` }])],
       );
+      publishBookingStatus(b, next); // phát sau commit: khách thấy kết quả thanh toán ngay
       if (manual) await tx.query("UPDATE room_reservations SET hold_expires_at = $2, updated_at = $3 WHERE booking_id = $1 AND state = 'HOLD'", [b.id, holdUntil, now]);
       else await tx.query("UPDATE room_reservations SET state = 'CONFIRMED', hold_expires_at = NULL, updated_at = $2 WHERE booking_id = $1 AND state = 'HOLD'", [b.id, now]);
       const fee = b.pricing.serviceFeeVnd;
       await insertLedger(tx, b, { type: 'PAYMENT', id: p.id }, now, [['CUSTOMER_PAID', amount], ['HOTEL_PAYABLE', amount - fee], ['AIRREST_REVENUE', fee]]);
       await writeAudit({ actor: SYSTEM, action: 'PAYMENT.SUCCEEDED', entity: { type: 'payment', id: p.id }, hotelId: b.hotelId, bookingId: b.id, after: { amountVnd: amount, status: next }, requestId }, tx);
-      return { refundId: null, booking: { code: b.code, status: next, hotelId: b.hotelId } };
+      return { refundId: null, booking: { code: b.code, status: next, hotelId: b.hotelId }, confirmedId: next === 'CONFIRMED' ? b.id : null };
     }
 
     // Không xác nhận được đơn -> hoàn 100% giao dịch này.
@@ -188,26 +252,29 @@ async function settleSuccess(paymentId: string, transId: number, cb: { at: Date;
         [b.id, now, json([{ from: 'PENDING_PAYMENT', to: 'EXPIRED', at: now, by: SYSTEM, reasonCode: 'PAID_AFTER_HOLD' }])],
       );
       await tx.query("UPDATE room_reservations SET state = 'RELEASED', updated_at = $2 WHERE booking_id = $1 AND state = 'HOLD'", [b.id, now]);
+      publishBookingStatus(b, 'EXPIRED');
+      await cancelShuttlesForBooking(tx, b.id, SYSTEM, 'Thanh toán đến sau khi hết hạn giữ chỗ', requestId); // xe đặt cùng đơn không được mồ côi
     }
     // Trùng giao dịch: đơn đã PAID đúng số tiền, khoản thừa nằm ngoài đơn nên không đụng payment của đơn. Chỉ trường hợp muộn mới ghi thu rồi hoàn.
     if (!alreadyPaid) await tx.query("UPDATE bookings SET payment_status = 'PAID', paid_vnd = paid_vnd + $2, updated_at = $3 WHERE id = $1", [b.id, amount, now]);
     const refund = newRefund(b, p, kind === 'DUPLICATE' ? 'DUPLICATE_PAYMENT' : 'LATE_PAYMENT');
     await tx.query(
       `INSERT INTO refunds (id, booking_id, hotel_id, payment_id, key, amount_vnd, reason_code, method, status, gateway, due_at, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'VNPAY','PENDING',$8::jsonb,$9,$9,$9)`,
-      [refund.id, b.id, b.hotelId, p.id, refund.key, amount, refund.reasonCode, json(refund.gateway), now],
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$10,'PENDING',$8::jsonb,$9,$9,$9)`,
+      [refund.id, b.id, b.hotelId, p.id, refund.key, amount, refund.reasonCode, json(refund.gateway), now, p.method],
     );
     await insertLedger(tx, b, { type: 'PAYMENT', id: p.id }, now, [['CUSTOMER_PAID', amount], ['CUSTOMER_REFUNDABLE', amount]]);
     await writeAudit({ actor: SYSTEM, action: `PAYMENT.${kind}`, entity: { type: 'payment', id: p.id }, hotelId: b.hotelId, bookingId: b.id, after: { amountVnd: amount, refundId: refund.id }, requestId }, tx);
-    return { refundId: refund.id, booking: { code: b.code, status, hotelId: b.hotelId } };
+    return { refundId: refund.id, booking: { code: b.code, status, hotelId: b.hotelId }, confirmedId: null };
   });
   if (!out) return;
   notify(out.booking);
+  if (out.confirmedId) await dispatchDueForBooking(out.confirmedId); // đơn vừa xác nhận do thanh toán: điều xe cho yêu cầu đã tới hạn (không ném lỗi)
   if (out.refundId) await processRefund(out.refundId, requestId); // gọi VNPay ngoài transaction
 }
 
 function newRefund(b: BookingDoc, p: PaymentDoc, reasonCode: RefundDoc['reasonCode']) {
-  const { orderId, requestId } = newVnpOrder(`RF${b.code}`);
+  const { orderId, requestId } = newGatewayOrder(p.method, `RF${b.code}`);
   // Một giao dịch thu chỉ có tối đa một lệnh hoàn cùng lý do (UNIQUE key).
   return { id: randomUUID(), key: `${b.id}:${reasonCode}:${p.id}`, reasonCode, gateway: { orderId, requestId } };
 }
@@ -219,12 +286,19 @@ export async function processRefund(refundId: string, requestId?: string): Promi
   const now = new Date();
   const r = (await db.query<RefundDoc>("UPDATE refunds SET status = 'PROCESSING', updated_at = $2 WHERE id = $1 AND status = 'PENDING' RETURNING *", [refundId, now])).rows[0];
   if (!r) return null; // đã có luồng khác nhận
-  const pay = (await db.query<PaymentDoc>('SELECT txn_ref, gateway FROM payments WHERE id = $1', [r.paymentId])).rows[0];
+  const pay = (await db.query<PaymentDoc>('SELECT method, txn_ref, gateway FROM payments WHERE id = $1', [r.paymentId])).rows[0];
   let res: { ok: boolean; code: string; message: string; transId?: number };
   try {
-    res = await vnpayGateway.refund({
-      requestId: r.gateway.requestId, txnRef: pay!.gateway.orderId, amount: r.amountVnd, transId: pay?.gateway.transId ?? 0, transactionDate: pay!.gateway.createDate,
-    });
+    if (pay!.method === 'MOMO') {
+      const m = await momoGateway.refund({ orderId: r.gateway.orderId, requestId: r.gateway.requestId, amount: r.amountVnd, transId: pay!.gateway.transId ?? 0, description: 'Airrest hoan tien' });
+      // Đang xử lý (không phải thất bại): giữ PROCESSING, không tốn lượt thử; lệnh kẹt >15 phút được trả về PENDING và gọi lại với CÙNG requestId.
+      if (MOMO_PENDING_CODES.includes(m.resultCode)) return (await db.query<RefundDoc>('SELECT * FROM refunds WHERE id = $1', [r.id])).rows[0] ?? null;
+      res = { ok: m.resultCode === 0, code: String(m.resultCode), message: m.message, transId: m.transId };
+    } else {
+      res = await vnpayGateway.refund({
+        requestId: r.gateway.requestId, txnRef: pay!.gateway.orderId, amount: r.amountVnd, transId: pay?.gateway.transId ?? 0, transactionDate: pay!.gateway.createDate!,
+      });
+    }
   } catch (e) {
     // Lỗi mạng có thể đã hoàn thật: giữ NGUYÊN requestId khi thử lại.
     res = { ok: false, code: 'ERR', message: (e as Error).message };
@@ -243,7 +317,9 @@ export async function processRefund(refundId: string, requestId?: string): Promi
           [r.bookingId, r.amountVnd, at],
         );
       }
-      await insertLedger(tx, { id: r.bookingId, hotelId: r.hotelId }, { type: 'REFUND', id: r.id }, at, [['CUSTOMER_REFUNDABLE', -r.amountVnd], ['CUSTOMER_PAID', -r.amountVnd]]);
+      // Hoàn riêng một chiều xe: tiền xe vốn nằm ở HOTEL_PAYABLE (khách sạn cung cấp xe) nên trừ ở đó, không qua CUSTOMER_REFUNDABLE.
+      const from: LedgerAccount = r.reasonCode === 'SHUTTLE_CANCELLED' ? 'HOTEL_PAYABLE' : 'CUSTOMER_REFUNDABLE';
+      await insertLedger(tx, { id: r.bookingId, hotelId: r.hotelId }, { type: 'REFUND', id: r.id }, at, [[from, -r.amountVnd], ['CUSTOMER_PAID', -r.amountVnd]]);
       await writeAudit({ actor: SYSTEM, action: 'REFUND.DONE', entity: { type: 'refund', id: r.id }, hotelId: r.hotelId, bookingId: r.bookingId, after: { amountVnd: r.amountVnd }, requestId }, tx);
     });
   } else {
@@ -275,6 +351,14 @@ export async function retryRefund(refundId: string, actor: Actor, requestId?: st
 
 // ---------- Đối soát gọi tay (BA §6, ADM-11 theo quyết định: không scheduler) ----------
 
+type QueryResult = { status: 'SUCCESS' | 'FAILED' | 'PENDING'; amount?: number; transId?: number; message?: string };
+async function queryPayment(p: PaymentDoc): Promise<QueryResult> {
+  if (p.method !== 'MOMO') return vnpayGateway.query({ txnRef: p.gateway.orderId, requestId: newVnpOrder('Q').requestId, transactionDate: p.gateway.createDate! });
+  const q = await momoGateway.query({ orderId: p.gateway.orderId, requestId: newMomoOrder('Q').requestId });
+  const status = q.resultCode === 0 ? 'SUCCESS' : MOMO_PENDING_CODES.includes(q.resultCode) ? 'PENDING' : 'FAILED';
+  return { status, amount: q.amount, transId: q.transId, message: q.message };
+}
+
 /** Một lượt: (1) truy vấn giao dịch treo >15 phút, (2) hết hạn đơn chờ thanh toán, (3) xử lý lệnh hoàn đến hạn. */
 export async function reconcilePayments(actor: Actor, requestId?: string) {
   const now = new Date();
@@ -284,7 +368,7 @@ export async function reconcilePayments(actor: Actor, requestId?: string) {
   for (const p of stale) {
     out.queried++;
     try {
-      const q = await vnpayGateway.query({ txnRef: p.gateway.orderId, requestId: newVnpOrder('Q').requestId, transactionDate: p.gateway.createDate });
+      const q = await queryPayment(p);
       if (q.status === 'SUCCESS') {
         if (q.amount !== undefined && q.amount !== p.amountVnd) {
           await db.query('UPDATE payments SET anomaly = $2::jsonb, updated_at = $3 WHERE id = $1', [p.id, json({ kind: 'AMOUNT_MISMATCH', at: now }), now]);
@@ -297,7 +381,7 @@ export async function reconcilePayments(actor: Actor, requestId?: string) {
         out.failed++;
       }
     } catch (e) {
-      logger.error({ err: e, orderId: p.gateway.orderId }, 'Truy vấn VNPay lỗi, bỏ qua giao dịch này');
+      logger.error({ err: e, orderId: p.gateway.orderId, method: p.method }, 'Truy vấn cổng thanh toán lỗi, bỏ qua giao dịch này');
     }
   }
 
@@ -333,7 +417,9 @@ async function expireUnpaid(tx: Db, bookingId: string, actor: Actor, now: Date, 
     )
   ).rows[0];
   if (!b) return null;
+  publishBookingStatus({ id: bookingId, hotelId: b.hotelId }, 'EXPIRED');
   await tx.query("UPDATE room_reservations SET state = 'RELEASED', updated_at = $2 WHERE booking_id = $1 AND state = 'HOLD'", [bookingId, now]);
+  await cancelShuttlesForBooking(tx, bookingId, actor, 'Đơn hết hạn chờ thanh toán', requestId); // xe đặt cùng đơn: hủy cùng transaction
   // Giao dịch chưa thanh toán -> EXPIRED. Nếu khách vẫn trả sau đó, settleSuccess hoàn 100%.
   await tx.query("UPDATE payments SET status = 'EXPIRED', updated_at = $2 WHERE booking_id = $1 AND status IN ('INITIATED','PENDING')", [bookingId, now]);
   await writeAudit({ actor, action: 'BOOKING.EXPIRE', entity: { type: 'booking', id: bookingId }, hotelId: b.hotelId, bookingId, before: { status: 'PENDING_PAYMENT' }, after: { status: 'EXPIRED' }, requestId }, tx);

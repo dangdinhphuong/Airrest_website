@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { AIRPORTS } from '../../data/airports';
 import { db, withTransaction } from '../../database/pg';
 import { bookingFromRow, type AccountDoc, type BookingStatus } from '../../database/types';
 import { AppError, isDuplicateKey } from '../../lib/errors';
@@ -33,6 +34,21 @@ export const registerBody = z.object({
 });
 export const loginBody = z.object({ username: z.string().max(200), password: z.string().min(1).max(PASSWORD_MAX) });
 export const changePasswordBody = z.object({ currentPassword: z.string().min(1).max(PASSWORD_MAX), newPassword: passengerPassword });
+// Cấu hình cá nhân: thay nguyên khối khi gửi (không trộn từng trường). Không có SĐT/email (BR-002).
+export const preferencesSchema = z
+  .object({
+    airport: z.string().length(3).transform((s) => s.toUpperCase()).refine((c) => AIRPORTS.some((a) => a.iata === c), 'Sân bay không hợp lệ.').optional(),
+    adults: z.number().int().min(1).max(30).optional(),
+    children: z.number().int().min(0).max(29).optional(),
+    rooms: z.number().int().min(1).max(5).optional(),
+    paymentMethod: z.enum(['AT_HOTEL', 'VNPAY', 'MOMO']).optional(),
+  })
+  .strict()
+  .refine((p) => (p.adults ?? 1) + (p.children ?? 0) <= 30, { message: 'Tổng số khách tối đa 30.', path: ['children'] });
+export const patchProfileBody = z
+  .object({ fullName: z.string().trim().min(1, 'Nhập họ và tên.').max(100).optional(), preferences: preferencesSchema.optional() })
+  .refine((b) => b.fullName !== undefined || b.preferences !== undefined, { message: 'Không có gì để cập nhật.' });
+export const meTicketsQuery = z.object({ limit: z.coerce.number().int().min(1).max(100).default(20), cursor: z.coerce.number().int().min(0).optional() });
 export const meBookingsQuery = z.object({
   status: z.enum(['PENDING_PAYMENT', 'PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'REJECTED', 'EXPIRED', 'NO_SHOW']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -43,11 +59,12 @@ export const meBookingsQuery = z.object({
 let dummyHash: Promise<string> | undefined;
 const getDummyHash = () => (dummyHash ??= hashPassword(randomUUID()));
 
-export const passengerView = (a: Pick<AccountDoc, 'id' | 'username' | 'fullName'>) => ({
+export const passengerView = (a: Pick<AccountDoc, 'id' | 'username' | 'fullName' | 'preferences'>) => ({
   id: a.id,
   type: 'PASSENGER' as const,
   username: a.username,
   fullName: a.fullName,
+  preferences: a.preferences ?? {},
   permissions: [] as string[],
 });
 
@@ -106,5 +123,35 @@ export async function listPassengerBookings(accountId: string, q: z.infer<typeof
     items: page.map((b) => ({ ...toGuestView(b), guest: { fullName: b.guest.fullName, phone: b.guest.phone }, createdAt: b.createdAt })),
     nextCursor: rows.length > q.limit ? page[page.length - 1]?.seq : null,
   };
+}
+
+// Sửa họ tên và/hoặc cấu hình cá nhân của chính người gọi; preferences (nếu gửi) thay nguyên khối.
+export async function updatePassengerProfile(accountId: string, input: z.infer<typeof patchProfileBody>, requestId?: string) {
+  return withTransaction(async (tx) => {
+    const acc = (
+      await tx.query<AccountDoc>(
+        "UPDATE accounts SET full_name = COALESCE($2, full_name), preferences = COALESCE($3::jsonb, preferences), updated_at = now() WHERE id = $1 AND type = 'PASSENGER' AND status = 'ACTIVE' RETURNING *",
+        [accountId, input.fullName ?? null, input.preferences ? JSON.stringify(input.preferences) : null],
+      )
+    ).rows[0];
+    if (!acc) throw new AppError(401, 'ACCOUNT_INACTIVE', 'Tài khoản không tồn tại hoặc đã bị khóa');
+    await writeAudit({ actor: { type: 'PASSENGER', id: accountId }, action: 'PASSENGER.UPDATE_PROFILE', entity: { type: 'account', id: accountId }, after: { fullName: input.fullName, preferences: input.preferences }, requestId }, tx);
+    return passengerView(acc);
+  });
+}
+
+// Ticket hỗ trợ gắn với tài khoản (gửi lúc đang đăng nhập). phone là SĐT khách đã nhập ở ticket đó, để mở lại ticket mà không phải gõ lại.
+export async function listPassengerTickets(accountId: string, q: z.infer<typeof meTicketsQuery>) {
+  const params: unknown[] = [accountId];
+  const where = ['account_id = $1'];
+  if (q.cursor !== undefined) where.push(`seq < $${params.push(q.cursor)}`);
+  const rows = (
+    await db.query<{ seq: number; code: string; subject: string; status: string; createdAt: Date; updatedAt: Date; phone: string }>(
+      `SELECT seq, code, subject, status, created_at, updated_at, contact->>'phone' AS phone FROM support_tickets WHERE ${where.join(' AND ')} ORDER BY seq DESC LIMIT ${q.limit + 1}`,
+      params,
+    )
+  ).rows;
+  const page = rows.slice(0, q.limit);
+  return { items: page.map(({ seq: _seq, ...t }) => t), nextCursor: rows.length > q.limit ? page[page.length - 1]?.seq : null };
 }
 

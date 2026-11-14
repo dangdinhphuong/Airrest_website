@@ -6,6 +6,7 @@ import type { FlightChangeDoc, FlightDoc } from '../../database/types';
 import { AppError, isDuplicateKey } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
 import { actorOf, writeAudit } from '../audit';
+import { onFlightTimeChanged } from '../delay/timeChange';
 import { getConfig } from '../systemConfig';
 
 export const FLIGHT_COLS = "id, seq, code, airline, origin, dest, sched_dep, to_char(flight_date, 'YYYY-MM-DD') AS flight_date, new_dep, status, cause, cancelled_at, distance_km, sim_scenario, created_at, updated_at";
@@ -100,8 +101,11 @@ export async function updateFlight(auth: AuthContext, id: string, body: UpdateFl
       )
     ).rows[0]!;
     await writeAudit({ actor: actorOf(auth), action: 'FLIGHT.UPDATE', entity: { type: 'flight', id }, before: { status: f.status, effectiveAt: fromEff === null ? null : new Date(fromEff) }, after: { status: body.status, effectiveAt: toEff === null ? null : new Date(toEff) }, reasonNote: body.reason, requestId }, tx);
-    return { next, change, now };
+    return { next, change, now, fromEff, toEff, statusBefore: f.status };
   });
+  if (out.statusBefore !== body.status || out.fromEff !== out.toEff) {
+    await onFlightTimeChanged({ flightId: id, fromDep: out.fromEff === null ? null : new Date(out.fromEff), toDep: out.toEff === null ? null : new Date(out.toEff), status: body.status });
+  }
   const cfg = await getConfig('flight.thresholds', out.now);
   return { flight: toFlightDto(out.next, { delayHours: cfg.value.delayHours, lastChange: await lastChangeOf(id), now: out.now }), change: changeView(out.change) };
 }

@@ -36,3 +36,36 @@ export const listShuttles = (q) => api.get(`${H}/shuttle-requests`, { query: q }
 export const assignShuttle = (id, driverName, driverPhone) => post(`/shuttle-requests/${id}/assign`, { driverName, driverPhone });
 export const completeShuttle = (id) => post(`/shuttle-requests/${id}/complete`);
 export const cancelShuttle = (id, note) => post(`/shuttle-requests/${id}/cancel`, { note });
+
+// Nhật ký đơn (booking:read) và đội xe / điều phối / chuyến tài xế.
+export const listBookingEvents = (id, q) => api.get(`${H}/bookings/${id}/events`, { query: q });
+
+export const listVehicles = () => api.get(`${H}/vehicles`);
+export const createVehicle = (body) => post('/vehicles', body);
+export const patchVehicle = (id, body) => api.patch(`${H}/vehicles/${id}`, body);
+export const deleteVehicle = (id) => api.delete(`${H}/vehicles/${id}`);
+export const listDrivers = () => api.get(`${H}/drivers`);
+export const createDriver = (body) => post('/drivers', body);
+export const patchDriver = (id, body) => api.patch(`${H}/drivers/${id}`, body);
+export const deleteDriver = (id) => api.delete(`${H}/drivers/${id}`);
+
+export const getBoard = () => api.get(`${H}/shuttle/board`);
+const trip = (id, step, body) => post(`/shuttle-trips/${id}/${step}`, body);
+export const getTrip = (id) => api.get(`${H}/shuttle-trips/${id}`);
+export const setExternal = (id, body) => trip(id, 'external', body);
+export const reassignTrip = (id, vehicleId) => trip(id, 'reassign', { vehicleId });
+export const cancelTrip = (id, note) => trip(id, 'cancel', { note });
+export const staffStep = (id, step) => trip(id, step); // arrived | onboard | dropped-off (chỉ xe ngoài)
+
+export const listDriverTrips = () => api.get('/v1/driver/trips');
+export const driverNoShow = (id) => api.post(`/v1/driver/trips/${id}/no-show`, {});
+export const driverStep = (id, step, body) => api.post(`/v1/driver/trips/${id}/${step}`, body); // accept | reject | start | arrived | onboard | dropped-off
+
+// Yêu cầu giữ phòng cho khách delay (quyền booking:decide).
+export const listDelayOffers = (status = 'PENDING') => api.get(`${H}/delay-offers`, { query: { status } });
+export const confirmDelayOffer = (id, roomNumbers) => post(`/delay-offers/${encodeURIComponent(id)}/confirm`, { roomNumbers });
+export const rejectDelayOffer = (id, reason) => post(`/delay-offers/${encodeURIComponent(id)}/reject`, { reason });
+
+// Yêu cầu gia hạn lưu trú cho khách delay (quyền booking:decide).
+export const acceptExtension = (id) => post(`/delay-offers/${encodeURIComponent(id)}/extension/accept`);
+export const rejectExtension = (id, reason) => post(`/delay-offers/${encodeURIComponent(id)}/extension/reject`, reason ? { reason } : {});

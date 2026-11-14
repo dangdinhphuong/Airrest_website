@@ -46,11 +46,55 @@
 .ui-box { display: flex; align-items: center; gap: 10px; min-height: var(--ctl-h); padding: 0 14px; border: 1px solid var(--ctl-line); border-radius: var(--ctl-r); background: #fff; transition: border-color 0.15s, box-shadow 0.15s; }
 .ui-box:hover { border-color: #94a3b8; }
 .ui-box:focus-within { border-color: var(--ctl-focus); box-shadow: 0 0 0 3px var(--ctl-ring); }
-.ui-bare, .hero-input-box input, .hero-input-box select { width: 100%; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.ui-bare, .ui-bare.ui-select, .hero-input-box input, .hero-input-box select { width: 100%; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
 .ui-bare:is(:focus, :focus-visible), .hero-input-box input:is(:focus, :focus-visible), .hero-input-box select:is(:focus, :focus-visible) { border: 0; box-shadow: none; outline: none; }
+
+/* Select tùy biến (components/Select.jsx): nút giống ô nhập, danh sách có ô tìm kiếm + thanh cuộn riêng */
+button.ui-select { position: relative; display: inline-flex; align-items: center; gap: 8px; box-sizing: border-box; min-height: var(--ctl-h); padding: 0 14px; border: 1px solid var(--ctl-line); border-radius: var(--ctl-r); background-color: #fff; color: #10203a; font-family: inherit; font-size: 14px; line-height: 1.4; text-align: left; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+button.ui-select:hover:not(:disabled) { border-color: #94a3b8; }
+button.ui-select:is(:focus-visible, [aria-expanded=true]) { outline: none; border-color: var(--ctl-focus); box-shadow: 0 0 0 3px var(--ctl-ring); }
+button.ui-select[aria-invalid="true"] { border-color: var(--ctl-invalid); }
+button.ui-select:disabled { background-color: #f1f5f9; color: #64748b; cursor: not-allowed; }
+.ui-select-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-select-icon { flex: none; color: #64748b; transition: transform 0.15s; }
+.ui-select-icon[data-open=true] { transform: rotate(180deg); }
+.ui-select-req { position: absolute; inset: auto 0 0 0; width: 100%; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+.ui-select-pop { position: fixed; z-index: 1000; overflow: hidden; border: 1px solid var(--ctl-line); border-radius: var(--ctl-r); background: #fff; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18); }
+.ui-select-search { display: flex; align-items: center; gap: 8px; margin: 8px; padding: 0 10px; border: 1px solid var(--ctl-line); border-radius: 8px; color: #94a3b8; }
+.ui-select-search:focus-within { border-color: var(--ctl-focus); box-shadow: 0 0 0 3px var(--ctl-ring); }
+.ui-select-search input { width: 100%; min-height: 34px; padding: 0; border: 0; background: transparent; box-shadow: none; outline: none; color: #10203a; font: inherit; font-size: 13px; }
+.ui-select-pop ul { margin: 0; padding: 4px; list-style: none; overflow-y: auto; }
+.ui-select-pop li { padding: 9px 12px; border-radius: 8px; color: #10203a; font-size: 14px; line-height: 1.4; cursor: pointer; }
+.ui-select-pop li[data-active=true] { background: #eef4ff; }
+.ui-select-pop li[aria-selected=true] { color: var(--ctl-focus); font-weight: 700; }
+.ui-select-pop li[aria-disabled=true] { opacity: 0.4; cursor: not-allowed; }
+.ui-select-pop li.ui-select-empty { color: #64748b; cursor: default; }
 
 /* Khung form: tiêu đề cách ô đầu tiên */
 .card:has(> .field, > .grid-2) > h3:first-child { margin: 0 0 14px; }
 
 /* Nút nằm cạnh ô nhập trong thanh lọc/form một dòng: cùng chiều cao với ô */
 .filter-bar .btn, .inline-form .btn { min-height: var(--ctl-h); padding-inline: 16px; }
+.ui-bare.ui-select[aria-expanded=true] { border: 0; box-shadow: none; }
+
+/* Điện thoại: ô nhập trong hộp thoại cỡ 16px để iOS không tự phóng to khi chạm vào */
+@media (max-width: 639px) {
+  [role=dialog] input, [role=dialog] textarea, [role=dialog] select { font-size: 16px; }
+}
+
+/* Lọc khoảng giá (components/PriceRange.jsx): ô nhãn nổi + thanh kéo hai đầu */
+.ui-float { position: relative; display: block; }
+.ui-float > span:first-child { position: absolute; top: -8px; left: 10px; z-index: 1; padding: 0 4px; background: #fff; color: #64748b; font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.ui-float-box { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border: 1px solid var(--ctl-line); border-radius: 10px; background: #fff; color: #64748b; font-size: 13px; }
+.ui-float-box:focus-within { border-color: var(--ctl-focus); box-shadow: 0 0 0 3px var(--ctl-ring); }
+.ui-float-box input { width: 100%; min-width: 0; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; outline: none; color: #10203a; font: inherit; }
+.ui-range { position: relative; height: 28px; margin-top: 8px; }
+.ui-range-track, .ui-range-fill { position: absolute; top: 12px; height: 4px; border-radius: 2px; }
+.ui-range-track { left: 0; right: 0; background: #e2e8f0; }
+.ui-range-fill { background: var(--ctl-focus); }
+.ui-range input[type=range] { position: absolute; inset: 0; width: 100%; height: 28px; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; pointer-events: none; -webkit-appearance: none; appearance: none; min-height: 0; }
+.ui-range input[type=range]::-webkit-slider-runnable-track { height: 28px; background: transparent; }
+.ui-range input[type=range]::-moz-range-track { height: 28px; background: transparent; }
+.ui-range input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: 3px; border: 2px solid var(--ctl-focus); border-radius: 50%; background: #fff; pointer-events: auto; cursor: grab; }
+.ui-range input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border: 2px solid var(--ctl-focus); border-radius: 50%; background: #fff; pointer-events: auto; cursor: grab; }
+.ui-range input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--ctl-ring); }

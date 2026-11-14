@@ -50,7 +50,7 @@ export function useAction() {
   const [busy, setBusy] = useState(false);
   const run = async (fn, ok) => {
     setBusy(true); setMsg(null);
-    try { await fn(); setMsg({ tone: 'ok', text: ok }); return true; } catch (e) { setMsg({ tone: 'error', text: describeError(e) }); return false; } finally { setBusy(false); }
+    try { const r = await fn(); setMsg({ tone: 'ok', text: typeof ok === 'function' ? ok(r) : ok }); return true; } catch (e) { setMsg({ tone: 'error', text: describeError(e) }); return false; } finally { setBusy(false); }
   };
   const note = msg && <Notice tone={msg.tone} onClose={() => setMsg(null)}><span data-testid={`msg-${msg.tone}`}>{msg.text}</span></Notice>;
   return { run, busy, note };

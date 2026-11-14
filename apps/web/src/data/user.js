@@ -1,6 +1,6 @@
 // Dữ liệu cho các màn người dùng cuối: gọi API thật /v1/* (công khai, không đăng nhập). Backend: backend/api/modules/*.
-import { newIdempotencyKey } from '@airrest/api-client';
-import { api, asGuest, describeError } from '../lib/api';
+import { ApiError, newIdempotencyKey } from '@airrest/api-client';
+import { api, apiBase, asGuest, describeError } from '../lib/api';
 
 const IMAGES = ['/images/hotel-1.jpg', '/images/hotel-2.jpg', '/images/hotel-3.jpg'];
 // Tag trong hotels.amenities -> nhãn hiển thị (xem backend/services/hotels/catalog.ts).
@@ -18,7 +18,7 @@ export const airportName = (iata) => airports.find((a) => a.iata === iata)?.name
 export const airportCity = (iata) => airports.find((a) => a.iata === iata)?.city ?? '';
 
 // Tên trường kỹ thuật trong thông báo lỗi của backend -> tên tiếng Việt cho khách.
-const FIELD_VI = { newFrom: 'Ngày nhận mới', newTo: 'Ngày trả mới', checkIn: 'Ngày nhận phòng', checkOut: 'Ngày trả phòng', from: 'Ngày nhận phòng', to: 'Ngày trả phòng', phone: 'Số điện thoại', code: 'Mã', fullName: 'Họ và tên', email: 'Email', subject: 'Tiêu đề', message: 'Nội dung', reasonNote: 'Ghi chú', reasonCode: 'Lý do', pickupAt: 'Giờ đón', location: 'Điểm đón', bookingCode: 'Mã booking' };
+const FIELD_VI = { newFrom: 'Ngày nhận mới', newTo: 'Ngày trả mới', checkIn: 'Ngày nhận phòng', checkOut: 'Ngày trả phòng', from: 'Ngày nhận phòng', to: 'Ngày trả phòng', phone: 'Số điện thoại', code: 'Mã', fullName: 'Họ và tên', email: 'Email', subject: 'Tiêu đề', message: 'Nội dung', reasonNote: 'Ghi chú', reasonCode: 'Lý do', pickupAt: 'Giờ đón', passengers: 'Số khách đi xe', location: 'Điểm đón', bookingCode: 'Mã booking' };
 export function describeApiError(e) {
   return describeError(e).replace(/\b(newFrom|newTo|checkIn|checkOut|from|to|phone|code|fullName|email|subject|message|reasonNote|reasonCode|pickupAt|location|bookingCode)\b(?=\s+(phải|không|là|quá|tối|bắt|sai|thiếu))/g, (m) => FIELD_VI[m] ?? m);
 }
@@ -26,14 +26,14 @@ export function describeApiError(e) {
 const receptionLabel = (f) => (f.reception24 ? 'Lễ tân 24/24' : f.receptionCloseHour != null ? `Nhận khách đến ${String(f.receptionCloseHour % 24).padStart(2, '0')}:00` : 'Liên hệ khách sạn để biết giờ nhận khách');
 
 function roomView(r, freeCancel) {
-  return { id: r.id, name: r.name, price: r.baseNightVnd, maxOccupancy: r.capacity, beds: r.beds, areaM2: r.areaM2, cancellationPolicy: freeCancel ? 'Hủy miễn phí' : 'Không hoàn hủy', availableRooms: r.roomsLeft };
+  return { id: r.id, name: r.name, price: r.baseNightVnd, maxOccupancy: r.capacity, beds: r.beds, areaM2: r.areaM2, cancellationPolicy: freeCancel ? 'Hủy miễn phí' : 'Không hoàn hủy', availableRooms: r.roomsLeft, hourly: r.hourly?.enabled ? r.hourly : null };
 }
 
 // Khách sạn từ API -> dạng hiển thị của thẻ nơi nghỉ. `room` = loại phòng rẻ nhất còn phòng (hoặc rẻ nhất nếu hết).
 export function toHotelView(h, iata) {
   const rooms = (h.rooms ?? []).map((r) => roomView(r, h.features.freeCancel));
   if (!rooms.length) return null;
-  const ap = h.airports.find((a) => a.iata === iata) ?? h.airports[0];
+  const ap = h.airports.find((a) => a.iata === iata) ?? (iata ? h.airports[0] : [...h.airports].sort((a, b) => a.km - b.km)[0]); // không chỉ định sân bay: lấy sân bay gần nhất
   const f = h.features;
   const apiImgs = Array.isArray(h.images) ? h.images.map((x) => (typeof x === 'string' ? x : x?.url)).filter((x) => typeof x === 'string' && x) : [];
   const gallery = apiImgs.length ? apiImgs : [IMAGES[Number(String(h.code).slice(-2)) % IMAGES.length || 0]];
@@ -42,19 +42,31 @@ export function toHotelView(h, iata) {
     image: gallery[0], images: gallery,
     rating: h.rating?.count ? Number(h.rating.avg).toFixed(1) : null,
     amenities: h.amenities.map((a) => AMENITY_LABEL[a]).filter(Boolean),
-    shuttleAvailable: f.shuttle !== 'none', freeCancel: f.freeCancel, hourly: f.hourly, familyRoom: f.family, reception24: f.reception24,
+    shuttleAvailable: f.shuttle !== 'none', shuttleMode: f.shuttle, airports: h.airports.map((a) => a.iata), freeCancel: f.freeCancel, hourly: f.hourly, familyRoom: f.family, reception24: f.reception24,
     receptionLabel: receptionLabel(f), address: h.address?.line ?? '', description: h.description ?? '',
     room: rooms.find((r) => r.availableRooms > 0) ?? rooms[0], rooms,
   };
 }
 
-export async function listHotels(airport, signal) {
-  const { items } = await api.get('/v1/hotels', { query: { airport, limit: 50 }, signal });
-  return items.map((h) => toHotelView(h, airport)).filter(Boolean);
+// `search` (tuỳ chọn): { sort, guests, rooms, maxKm, priceUnder, minRating, shuttle, freeCancel, hourly, family, reception24, limit } — backend lọc/sắp xếp/cắt top N.
+// Trả mảng khách sạn (đã đúng thứ tự khi có `sort`); `.total` = số khớp lọc trước khi cắt top N; `.priceRange` = { min, max } giá/đêm của sân bay (biên thanh kéo giá).
+export async function listHotels(airport, signal, search = {}) {
+  const query = Object.fromEntries(Object.entries({ limit: 50, ...search }).filter(([, v]) => v !== undefined && v !== '' && v !== false));
+  const { items, total, priceRange = null } = await api.get('/v1/hotels', { query: { ...(airport && { airport }), ...query }, signal });
+  return Object.assign(items.map((h) => toHotelView(h, airport)).filter(Boolean), { total: total ?? items.length, priceRange });
 }
 
-export async function getHotel(id, signal) {
-  const { hotel, rooms } = await api.get(`/v1/hotels/${id}`, { signal });
+// 'Được khách đánh giá cao': toàn hệ thống, sắp theo điểm giảm dần, ưu tiên >= 3 lượt đánh giá.
+// shortcut: nếu có < n khách sạn đạt ngưỡng 3 thì hạ xuống >= 1 lượt (hệ thống còn ít đánh giá), bỏ khi dữ liệu đủ dày.
+export async function listTopRated(signal, search = {}, n = 4, fetchHotels = listHotels) {
+  const run = (minReviews) => fetchHotels(undefined, signal, { ...search, sort: 'rating', minReviews, limit: n });
+  const strict = await run(3);
+  return strict.length >= n ? strict : run(1);
+}
+
+// `window` (tuỳ chọn) = { from, to } (ISO) để số phòng còn tính theo ngày khách chọn.
+export async function getHotel(id, signal, window) {
+  const { hotel, rooms } = await api.get(`/v1/hotels/${id}`, { signal, ...(window && { query: window }) });
   return toHotelView({ ...hotel, rooms }, hotel.airports[0]?.iata);
 }
 
@@ -75,11 +87,73 @@ export function stayWindow(checkIn, checkOut) {
   return { from, to: new Date(`${checkOut}T12:00:00+07:00`) };
 }
 
-export async function createBooking({ hotelId, roomTypeId, guest, checkIn, checkOut, paymentMethod, idempotencyKey }) {
-  const { from, to } = stayWindow(checkIn, checkOut);
-  const { booking, paymentLink } = await api.post('/v1/bookings', { hotelId, roomTypeId, qty: 1, paymentMethod, from, to, guest }, { auth: asGuest(), idempotencyKey: idempotencyKey ?? newIdempotencyKey() }); // khách đã đăng nhập: gửi Bearer để đơn gắn vào tài khoản
-  return { ...booking, paymentLink };
+// ---- Khách và phòng / xe cùng đơn: hàm thuần (có test ở user.test.js) ----
+export const MAX_ROOMS = 5; // khớp qty tối đa của backend
+export const MAX_GUESTS = 30;
+// Loại phòng đủ chỗ: sức chứa × số phòng >= tổng số người (đã gồm trẻ em) và còn đủ phòng.
+export const roomFits = (room, people, rooms) => room.maxOccupancy * rooms >= people && room.availableRooms >= rooms;
+// Loại phòng rẻ nhất thỏa điều kiện, null nếu không có.
+export const bestRoom = (hotel, people, rooms) => hotel.rooms.filter((r) => roomFits(r, people, rooms)).sort((a, b) => a.price - b.price)[0] ?? null;
+// 'Thứ Sáu, 14/11/2026' từ yyyy-mm-dd (lấy giữa trưa để không lệch ngày theo múi giờ).
+export const weekdayLabel = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
+export const guestsSummary = ({ adults, children, rooms }) => `${adults} người lớn${children ? `, ${children} trẻ em` : ''} · ${rooms} phòng`;
+
+// Giờ đón dạng 'yyyy-mm-ddTHH:mm' theo GIỜ VIỆT NAM (khớp cách backend tính ngày lưu trú và phụ thu đêm).
+// Mặc định: đón sân bay 12:00 ngày nhận phòng, ra sân bay 10:00 ngày trả phòng; nếu đã qua thì dời tới ~1 giờ nữa (backend không nhận giờ đón trong quá khứ).
+export const vnNowLocal = (nowMs = Date.now()) => new Date(nowMs + 7 * 3600_000).toISOString().slice(0, 16);
+// `hourly` = { arrive, leave } ('yyyy-mm-ddTHH:mm' giờ VN) khi đơn có phòng theo giờ: xe bám giờ đến (giờ vào sớm nhất) và giờ ra muộn nhất của đơn.
+export function defaultPickup(direction, checkIn, checkOut, nowMs = Date.now(), hourly) {
+  const want = hourly ? (direction === 'TO_HOTEL' ? hourly.arrive : hourly.leave) : direction === 'TO_HOTEL' ? `${checkIn}T12:00` : `${checkOut}T10:00`;
+  const soon = vnNowLocal(nowMs + 3600_000);
+  return want < soon ? soon : want;
 }
+export const pickupIso = (local) => `${local}:00+07:00`;
+// state: { airport, TO_HOTEL: {on, at, location}, TO_AIRPORT: {...} } -> body.shuttle (undefined nếu không chọn chiều nào). Không gửi giá/passengers.
+export function buildShuttle(state, checkIn, checkOut, nowMs, hourly) {
+  const legs = ['TO_HOTEL', 'TO_AIRPORT'].filter((d) => state[d]?.on).map((direction) => {
+    const l = state[direction];
+    return { direction, pickupAt: pickupIso(l.at || defaultPickup(direction, checkIn, checkOut, nowMs, hourly)), ...(state.airport && { airport: state.airport }), ...(l.location?.trim() && { location: l.location.trim() }) };
+  });
+  return legs.length ? { legs } : undefined;
+}
+// Lỗi tạo đơn liên quan xe/số người -> { field, text } để đưa khách về đúng trường.
+export function bookingFieldError(e) {
+  const c = e?.code;
+  if (c === 'GUESTS_EXCEED_CAPACITY') return { field: 'guests', text: `Các phòng đã chọn chỉ chứa tối đa ${e.details?.maxGuests ?? '?'} người. Hãy giảm số khách hoặc thêm phòng.` };
+  if (c === 'SHUTTLE_NOT_OFFERED') return { field: 'shuttle', text: 'Khách sạn này không có dịch vụ xe đưa đón. Hãy bỏ chọn xe rồi thử lại.' };
+  if (c === 'PICKUP_OUT_OF_STAY_WINDOW') return { field: 'pickup', text: 'Giờ đón phải nằm trong thời gian lưu trú (trước ngày nhận hoặc sau ngày trả tối đa 24 giờ) và chưa qua.' };
+  if (c === 'HOURLY_OUT_OF_STAY') return { field: 'dates', text: 'Giờ ở theo giờ phải nằm trong khoảng nhận - trả phòng của đơn. Hãy đổi ngày hoặc chọn lại giờ.' };
+  if (c === 'AIRPORT_NOT_SERVED') return { field: 'airport', text: 'Khách sạn không phục vụ sân bay này. Hãy chọn sân bay khác.' };
+  if (c === 'SHUTTLE_OUT_OF_RANGE') return { field: 'airport', text: 'Quãng đường tới sân bay vượt giới hạn phục vụ của xe đưa đón.' };
+  return null;
+}
+// Báo giá xe trước khi có đơn (công khai).
+export const quoteHotelShuttle = (hotelId, body, signal) => api.post(`/v1/hotels/${hotelId}/shuttle-quote`, body, { auth: false, signal });
+
+// `rooms` = [{ roomTypeId, qty }] (nhiều loại phòng cùng khách sạn).
+// Đơn toàn giờ không gửi from/to (backend suy ra từ các dòng giờ); có dòng đêm thì gửi ngày nhận/trả như cũ.
+// Đơn trộn mà giờ vào sớm nhất đã nằm trước `from` (hôm nay quá 14:00, from = bây giờ): kéo `from` về giờ vào đó để dòng giờ nằm trong khoảng ở của đơn.
+export function windowFor(rooms, checkIn, checkOut) {
+  if (!rooms.some((r) => (r.kind ?? 'NIGHT') === 'NIGHT')) return {};
+  const w = stayWindow(checkIn, checkOut);
+  const starts = rooms.filter((r) => r.kind === 'HOURLY').map((r) => Date.parse(r.startsAt));
+  return starts.length && Math.min(...starts) < w.from.getTime() ? { ...w, from: new Date(Math.min(...starts)) } : w;
+}
+export async function createBooking({ hotelId, rooms, guest, checkIn, checkOut, paymentMethod, idempotencyKey, guests = 1, children = 0, shuttle }) {
+  const { from, to } = windowFor(rooms, checkIn, checkOut);
+  const { booking, paymentLink, shuttles } = await api.post('/v1/bookings', { hotelId, rooms, guests, children, ...(shuttle && { shuttle }), paymentMethod, from, to, guest }, { auth: asGuest(), idempotencyKey: idempotencyKey ?? newIdempotencyKey() }); // khách đã đăng nhập: gửi Bearer để đơn gắn vào tài khoản
+  return { ...booking, paymentLink, shuttles };
+}
+
+// Báo giá trước khi gửi yêu cầu (backend tính phòng + xe + phí dịch vụ + tổng; không giữ phòng).
+export async function quoteBooking({ hotelId, rooms, checkIn, checkOut, shuttle }, signal) {
+  const { from, to } = windowFor(rooms, checkIn, checkOut);
+  return api.post('/v1/bookings/quote', { hotelId, rooms, ...(shuttle && { shuttle }), from, to }, { auth: false, signal });
+}
+
+// Giờ vào còn trống của một loại phòng bật giờ trong một ngày (mỗi 30 phút + mốc 'Bây giờ'); khung kín có `reason` (PAST | CLOSED | FULL).
+export const getHourlySlots = (hotelId, { roomTypeId, date, hours, qty = 1 }, signal) => api.get(`/v1/hotels/${hotelId}/hourly-slots`, { auth: false, signal, query: { roomTypeId, date, hours, qty } });
+export const SLOT_REASON = { PAST: 'đã qua', CLOSED: 'quá giờ bán', FULL: 'hết phòng' };
 
 export async function lookupBooking(code, phone) {
   const { booking } = await api.post('/v1/bookings/lookup', { code, phone }, { auth: false });
@@ -87,15 +161,27 @@ export async function lookupBooking(code, phone) {
 }
 
 export async function getPaymentLink(code, phone) {
-  const { paymentLink } = await api.post('/v1/payments/vnpay/link', { code, phone }, { auth: false });
+  const { paymentLink } = await api.post('/v1/payments/link', { code, phone }, { auth: false });
   return paymentLink;
 }
 
+// Cổng đang bật (GET /v1/payments/methods). Lỗi mạng/API: chỉ còn 'tại khách sạn'.
+export const AT_HOTEL_ONLY = [{ id: 'AT_HOTEL', label: 'Thanh toán tại khách sạn' }];
+export const listPaymentMethods = () => api.get('/v1/payments/methods', { auth: false }).then((r) => r.methods);
+export const PAY_LABEL = { AT_HOTEL: 'Tại khách sạn', VNPAY: 'VNPay', MOMO: 'MoMo' };
+
+// Đơn vừa tạo, để trang kết quả thanh toán tra lại trạng thái thật (chỉ giữ đơn gần nhất, mất khi đóng tab).
+const LAST = 'airrest.lastBooking';
+export const saveLastBooking = (code, phone) => { try { sessionStorage.setItem(LAST, JSON.stringify({ code, phone })); } catch { /* sessionStorage bị chặn: bỏ qua */ } };
+export const readLastBooking = () => { try { const v = JSON.parse(sessionStorage.getItem(LAST)); return v?.code && v?.phone ? v : null; } catch { return null; } };
+export const clearLastBooking = () => { try { sessionStorage.removeItem(LAST); } catch { /* bỏ qua */ } };
+
 // Chỉ có khi backend chạy VNPAY_MODE=mock (không production): giả lập VNPay gọi IPN.
 export const simulatePayment = (orderId, success) => api.post('/v1/payments/vnpay/dev-simulate', { orderId, resultCode: success ? 0 : 24 }, { auth: false });
+export const simulateMomoPayment = (orderId, success) => api.post('/v1/payments/momo/dev-simulate', { orderId, resultCode: success ? 0 : 1006 }, { auth: false });
 
 export async function createTicket({ bookingCode, phone, fullName, email, subject, message }) {
-  const { ticket } = await api.post('/v1/support', { bookingCode: bookingCode || undefined, phone, fullName: fullName || undefined, email: email || undefined, subject, message }, { auth: false, idempotencyKey: newIdempotencyKey() });
+  const { ticket } = await api.post('/v1/support', { bookingCode: bookingCode || undefined, phone, fullName: fullName || undefined, email: email || undefined, subject, message }, { auth: asGuest(), idempotencyKey: newIdempotencyKey() }); // khách đã đăng nhập: gửi Bearer để ticket gắn vào tài khoản
   return ticket;
 }
 
@@ -108,11 +194,42 @@ export const listChangeRequests = (code, phone) => api.post('/v1/change-requests
 export const quoteShuttle = (body) => api.post('/v1/shuttle-requests/quote', body, { auth: false }).then((r) => r.quote);
 export const createShuttle = (body) => api.post('/v1/shuttle-requests', body, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.shuttle);
 export const listShuttles = (code, phone) => api.post('/v1/shuttle-requests/lookup', { code, phone }, { auth: false }).then((r) => r.shuttles);
+// Tra cứu đầy đủ (giới hạn nghiêm): { booking, guestToken, stage, shuttles, events }. Làm mới sau đó chỉ dùng getTrackState (không dính giới hạn nghiêm).
+export const lookupBookingFull = (code, phone) => api.post('/v1/bookings/lookup', { code, phone }, { auth: false });
+// Token theo dõi khác token tài khoản khách nên không đi qua `api` (nó gắn token phiên); lỗi chuẩn hóa thành ApiError (401 = token hết hạn).
+export async function getTrackState(guestToken, signal) {
+  let res;
+  try { res = await fetch(`${apiBase}/v1/track/shuttle`, { headers: { Authorization: `Bearer ${guestToken}`, Accept: 'application/json' }, signal }); }
+  catch (e) { if (signal?.aborted) throw e; throw new ApiError(0, 'NETWORK_ERROR', 'Không kết nối được máy chủ. Kiểm tra mạng hoặc thử lại sau.'); }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? 'HTTP_ERROR', data?.error?.message ?? `Lỗi máy chủ (${res.status})`);
+  return data;
+}
+export const callShuttleNow = (body) => api.post('/v1/shuttle-requests/call-now', body, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.shuttle);
 export const cancelShuttle = (id, code, phone) => api.post(`/v1/shuttle-requests/${id}/cancel`, { code, phone }, { auth: false }).then((r) => r.shuttle);
 
 // ---- Tra cứu / trả lời ticket hỗ trợ (mã SP-XXXXXXXX + SĐT) ----
 export const lookupTicket = (code, phone) => api.post('/v1/support/lookup', { code, phone }, { auth: false }).then((r) => r.ticket);
 export const replyTicket = (code, phone, message) => api.post('/v1/support/reply', { code, phone, message }, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.ticket);
+
+// ---- Ảnh/video đính kèm ticket (khớp SUPPORT_ATTACHMENT ở packages/validation/src/support.ts; máy chủ kiểm lại) ----
+export const ATTACH = { accept: 'image/jpeg,image/png,image/webp,video/mp4', maxImageMb: 5, maxVideoMb: 30, hint: 'Ảnh JPG/PNG/WebP tối đa 5 MB (tối đa 5 ảnh), video MP4 tối đa 30 MB (1 video).' };
+// Lỗi tiếng Việt nếu tệp không hợp lệ, null nếu được.
+export function checkAttachment(file) {
+  if (!ATTACH.accept.split(',').includes(file.type)) return 'Chỉ nhận ảnh JPG/PNG/WebP hoặc video MP4.';
+  const max = (file.type.startsWith('video/') ? ATTACH.maxVideoMb : ATTACH.maxImageMb) * 1024 * 1024;
+  return file.size > max ? `Tệp quá lớn (tối đa ${file.type.startsWith('video/') ? ATTACH.maxVideoMb : ATTACH.maxImageMb} MB).` : null;
+}
+// Xin URL → PUT thẳng lên kho lưu trữ → xác nhận (máy chủ kiểm kích thước/loại thật). Ném ApiError, dùng describeApiError để hiển thị.
+export async function attachFile(code, phone, file) {
+  const bad = checkAttachment(file);
+  if (bad) throw new ApiError(0, 'ATTACHMENT_INVALID', bad);
+  const u = await api.post('/v1/support/attachments/upload-url', { code, phone, contentType: file.type, size: file.size }, { auth: false, idempotencyKey: newIdempotencyKey() });
+  let put;
+  try { put = await fetch(u.uploadUrl, { method: u.method, headers: u.headers, body: file }); } catch { throw new ApiError(0, 'UPLOAD_FAILED', 'Không tải được tệp lên máy chủ lưu trữ. Kiểm tra mạng rồi thử lại.'); }
+  if (!put.ok) throw new ApiError(put.status, 'UPLOAD_FAILED', 'Máy chủ lưu trữ từ chối tệp. Thử lại hoặc chọn tệp khác.');
+  return (await api.post('/v1/support/attachments/confirm', { code, phone, attachmentId: u.attachmentId }, { auth: false })).attachment;
+}
 
 // ---- Tài khoản hành khách (backend: /v1/auth/passenger/*, /v1/auth/me, /v1/me/*) ----
 export const USERNAME_MAX = 50;
@@ -149,7 +266,7 @@ export function describeAuthError(e) {
   return describeApiError(e);
 }
 
-const userView = (u) => ({ id: u.id, username: u.username ?? '', fullName: u.fullName ?? '', name: u.fullName || u.username || 'Tài khoản' });
+const userView = (u) => ({ id: u.id, username: u.username ?? '', fullName: u.fullName ?? '', name: u.fullName || u.username || 'Tài khoản', preferences: u.preferences ?? {} });
 
 // Đăng ký / đăng nhập: trả { token, user }; người gọi tự lưu token (setGuestToken) rồi cập nhật store.
 export async function registerPassenger({ username, password, fullName }) {
@@ -168,3 +285,9 @@ export async function fetchMe() {
 }
 export const changePassword = (currentPassword, newPassword) => api.patch('/v1/me/password', { currentPassword, newPassword });
 export const listMyBookings = (cursor, signal) => api.get('/v1/me/bookings', { query: { limit: 10, cursor }, signal });
+// Sửa họ tên và/hoặc cấu hình cá nhân { airport, adults, children, rooms, paymentMethod } (gửi là thay nguyên khối). Trả user mới.
+export const updateProfile = (body) => api.patch('/v1/me/profile', body).then((r) => userView(r.user));
+export const listMyTickets = (cursor, signal) => api.get('/v1/me/tickets', { query: { limit: 10, cursor }, signal });
+
+// Tra cứu cả nhóm khách delay bằng mã nhóm NH-XXXXXXXX + SĐT người đại diện (backend: strictRateLimit, 404 không phân biệt sai mã/SĐT).
+export const lookupGroup = (groupCode, phone) => api.post('/v1/bookings/group-lookup', { groupCode, phone }, { auth: false });

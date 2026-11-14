@@ -12,6 +12,10 @@ export const rooms = {
   booking: (code: string) => `booking:${code}`,
   hotelOrders: (hotelId: string) => `hotel:${hotelId}:orders`,
   adminAlerts: () => 'admin:alerts',
+  hotelShuttle: (hotelId: string) => `hotel:${hotelId}:shuttle`, // nhân sự điều phối xe của khách sạn
+  adminShuttle: () => 'admin:shuttle', // tài khoản hotel:scope:all (không gắn khách sạn): nhận xe của mọi khách sạn
+  driver: (accountId: string) => `driver:${accountId}`,
+  payerAlerts: (payerId: string, stationId?: string) => (stationId ? `payer:${payerId}:station:${stationId}:alerts` : `payer:${payerId}:alerts`), // cảnh báo đỏ luồng delay cho nhân viên quầy
 };
 
 let io: Server | undefined;
@@ -21,6 +25,12 @@ export function roomsFor(auth: AuthContext): string[] {
   const list: string[] = [];
   if (auth.hotelId && auth.permissions.includes(PERM.BOOKING_READ)) list.push(rooms.hotelOrders(auth.hotelId));
   if (auth.permissions.includes(PERM.ADMIN_ALERTS)) list.push(rooms.adminAlerts());
+  if ([PERM.FLEET_MANAGE, PERM.SHUTTLE_HANDLE].some((p) => auth.permissions.includes(p))) {
+    if (auth.hotelId) list.push(rooms.hotelShuttle(auth.hotelId));
+    else if (auth.permissions.includes(PERM.HOTEL_SCOPE_ALL)) list.push(rooms.adminShuttle());
+  }
+  if (auth.accountType === 'DRIVER' && auth.permissions.includes(PERM.TRIP_DRIVE)) list.push(rooms.driver(auth.sub));
+  if (auth.accountType === 'PAYER' && auth.payerId && auth.permissions.includes(PERM.PAYER_DELAY_READ)) list.push(rooms.payerAlerts(auth.payerId, auth.payerStationId)); // nhân viên trạm chỉ nhận của trạm mình; cấp đơn vị nhận mọi trạm
   return list;
 }
 

@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, ImageUp, X } from 'lucide-react';
 import { parseBcbp } from '../../lib/bcbp';
+import { ocrImage, terminateOcr } from '../../lib/ocr';
+import { parseTicketText } from '../../lib/ticketText';
 
 // Bộ giải mã (~1,4 MB wasm) chỉ tải khi người dùng mở cửa sổ quét; wasm phục vụ cùng origin, không qua CDN.
 let readerPromise;
@@ -43,7 +45,7 @@ async function decodeFile(file, readBarcodes) {
   return null;
 }
 
-const NOT_BCBP = 'Không đọc được thẻ lên tàu hợp lệ trong ảnh này. Hãy thử lại hoặc nhập số hiệu chuyến bay thủ công.';
+const NOT_FOUND = 'Không đọc được mã vạch hay chữ số hiệu và ngày bay trong ảnh này. Hãy thử ảnh rõ và lớn hơn, hoặc nhập số hiệu chuyến bay thủ công.';
 
 // Cửa sổ quét thẻ lên tàu: camera hoặc ảnh. onResult({ flight, date }) chỉ nhận số hiệu và ngày bay.
 export default function ScanTicket({ onResult, onClose }) {
@@ -51,6 +53,7 @@ export default function ScanTicket({ onResult, onClose }) {
   const stream = useRef(null);
   const [state, setState] = useState('starting'); // starting | scanning | busy | nocam
   const [msg, setMsg] = useState('');
+  const [busyMsg, setBusyMsg] = useState('Đang đọc ảnh…');
 
   const stop = () => { stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null; };
   const done = (text) => {
@@ -96,26 +99,29 @@ export default function ScanTicket({ onResult, onClose }) {
         setMsg(e?.name === 'NotAllowedError' ? 'Bạn chưa cho phép dùng camera. Hãy cấp quyền hoặc tải ảnh thẻ lên tàu.' : 'Không mở được camera trên thiết bị này. Hãy tải ảnh thẻ lên tàu.');
       }
     })();
-    return () => { alive = false; window.removeEventListener('keydown', onKey); stop(); };
+    return () => { alive = false; window.removeEventListener('keydown', onKey); stop(); terminateOcr(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fromFile = async (e) => {
     const file = e.target.files?.[0]; e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) { setMsg('Vui lòng chọn tệp ảnh (JPG, PNG, WebP).'); return; }
-    setState('busy'); setMsg('');
+    setState('busy'); setMsg(''); setBusyMsg('Đang đọc mã vạch…');
     try {
       const readBarcodes = await loadReader();
       const text = await decodeFile(file, readBarcodes);
       if (text && done(text)) return;
-      setMsg(NOT_BCBP);
+      setBusyMsg('Không thấy mã vạch, đang đọc chữ in trên ảnh (vài giây)…');
+      const parsed = parseTicketText(await ocrImage(file));
+      if (parsed) { stop(); onResult({ ...parsed, source: 'ocr' }); return; }
+      setMsg(NOT_FOUND);
     } catch { setMsg('Không xử lý được ảnh này. Hãy thử ảnh khác.'); }
     setState(stream.current ? 'scanning' : 'nocam');
   };
 
   return (
-    <div className="tw:fixed tw:inset-0 tw:z-[70] tw:grid tw:place-items-center tw:bg-slate-900/70 tw:p-4" onClick={onClose}>
-      <section role="dialog" aria-modal="true" aria-label="Quét mã thẻ lên tàu" onClick={(e) => e.stopPropagation()} className="tw:w-full tw:max-w-md tw:overflow-hidden tw:rounded-3xl tw:bg-white tw:shadow-2xl">
+    <div className="tw:fixed tw:inset-0 tw:z-[70] tw:grid tw:place-items-end tw:bg-slate-900/70 tw:p-0 tw:sm:place-items-center tw:sm:p-4" onClick={onClose}>
+      <section role="dialog" aria-modal="true" aria-label="Quét mã thẻ lên tàu" onClick={(e) => e.stopPropagation()} className="tw:max-h-[92dvh] tw:w-full tw:max-w-md tw:overflow-y-auto tw:rounded-t-3xl tw:bg-white tw:sm:rounded-3xl tw:shadow-2xl">
         <header className="tw:flex tw:items-center tw:justify-between tw:border-b tw:border-slate-200 tw:px-5 tw:py-4">
           <h2 className="tw:text-base tw:font-extrabold tw:text-[#062253]">Quét mã thẻ lên tàu</h2>
           <button type="button" onClick={onClose} aria-label="Đóng" className="tw:grid tw:size-9 tw:place-items-center tw:rounded-full tw:bg-slate-100 tw:text-slate-600 tw:hover:bg-slate-200"><X size={16} /></button>
@@ -126,7 +132,7 @@ export default function ScanTicket({ onResult, onClose }) {
               <video ref={video} muted playsInline className="tw:size-full tw:object-cover" />
               <div className="tw:pointer-events-none tw:absolute tw:inset-6 tw:rounded-xl tw:border-2 tw:border-white/80" />
               {state === 'starting' && <p className="tw:absolute tw:inset-0 tw:grid tw:place-items-center tw:text-sm tw:font-semibold tw:text-white">Đang mở camera…</p>}
-              {state === 'busy' && <p className="tw:absolute tw:inset-0 tw:grid tw:place-items-center tw:bg-slate-900/60 tw:text-sm tw:font-semibold tw:text-white">Đang đọc ảnh…</p>}
+              {state === 'busy' && <p className="tw:absolute tw:inset-0 tw:grid tw:place-items-center tw:bg-slate-900/60 tw:px-6 tw:text-center tw:text-sm tw:font-semibold tw:text-white">{busyMsg}</p>}
             </div>
           )}
           <p className="tw:mt-3 tw:text-xs tw:leading-5 tw:text-slate-500">

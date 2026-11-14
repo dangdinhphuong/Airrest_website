@@ -14,6 +14,8 @@ export const PERMISSION_CATALOG: Record<Permission, { group: string; description
   [PERM.REQUEST_HANDLE]: { group: 'Hỗ trợ và vận hành', description: 'Duyệt hoặc từ chối yêu cầu đổi/hủy đơn' },
   [PERM.SUPPORT_HANDLE]: { group: 'Hỗ trợ và vận hành', description: 'Xử lý phiếu hỗ trợ khách hàng' },
   [PERM.SHUTTLE_HANDLE]: { group: 'Hỗ trợ và vận hành', description: 'Vận hành yêu cầu xe đưa đón' },
+  [PERM.FLEET_MANAGE]: { group: 'Hỗ trợ và vận hành', description: 'Quản lý xe và tài xế của khách sạn, xem bảng điều phối, đổi xe cho chuyến và nhập xe ngoài (Grab, Xanh SM)' },
+  [PERM.TRIP_DRIVE]: { group: 'Hỗ trợ và vận hành', description: 'Tài xế nhận, từ chối và cập nhật các chuyến đưa đón được giao cho chính mình' },
   [PERM.FLIGHT_MANAGE]: { group: 'Hỗ trợ và vận hành', description: 'Chỉnh giờ và trạng thái chuyến bay mô phỏng' },
   [PERM.ADMIN_ALERTS]: { group: 'Hỗ trợ và vận hành', description: 'Nhận cảnh báo khẩn theo thời gian thực' },
   [PERM.ADMIN_DASHBOARD_READ]: { group: 'Báo cáo và giám sát', description: 'Xem bảng điều khiển tổng quan của Admin' },
@@ -24,6 +26,10 @@ export const PERMISSION_CATALOG: Record<Permission, { group: string; description
   [PERM.ADMIN_CONFIG_WRITE]: { group: 'Cấu hình hệ thống', description: 'Sửa tham số hệ thống chung' },
   [PERM.ADMIN_CONFIG_SHUTTLE]: { group: 'Cấu hình hệ thống', description: 'Sửa bảng giá xe đưa đón' },
   [PERM.ADMIN_CONFIG_FINANCE]: { group: 'Cấu hình hệ thống', description: 'Sửa tham số tài chính (phí dịch vụ, hoa hồng, ...)' },
+  [PERM.PAYER_DELAY_READ]: { group: 'Khách delay chuyến', description: 'Xem chuyến delay, hành khách và lô đặt phòng nghỉ của trạm mình' },
+  [PERM.PAYER_DELAY_MANAGE]: { group: 'Khách delay chuyến', description: 'Nhập chuyến và hành khách, chọn khách nhận phòng và đặt phòng nghỉ cho khách delay' },
+  [PERM.ADMIN_PAYER_READ]: { group: 'Khách delay chuyến', description: 'Xem đơn vị chi trả, trạm và giá hợp đồng khách sạn' },
+  [PERM.ADMIN_PAYER_MANAGE]: { group: 'Khách delay chuyến', description: 'Tạo/sửa đơn vị chi trả, trạm, tài khoản nhân viên và giá hợp đồng khách sạn' },
   [PERM.ADMIN_ACCOUNT_MANAGE]: { group: 'Tài khoản và vai trò', description: 'Quản lý tài khoản Admin, vai trò và quyền (quyền nhạy cảm, mức Quản trị hệ thống)' },
 };
 

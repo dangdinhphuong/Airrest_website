@@ -3,11 +3,14 @@ import { db, json, withTransaction, type Db } from '../../database/pg';
 import { bookingFromRow, type Actor, type Alternative, type BookingDecisionDoc, type BookingDoc, type RefundDoc } from '../../database/types';
 import { AppError } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
-import { newVnpOrder } from '../../lib/vnpay';
+import { newGatewayOrder } from '../../lib/momo';
 import { actorOf, writeAudit } from '../audit';
 import { emitBookingChange } from '../events';
+import { publishBookingStatus } from '../shuttle/events';
 import { hotelScope } from '../scope';
 import { cancelShuttlesForBooking } from '../shuttle/cascade';
+import { legRefundedVnd } from '../shuttle/billing';
+import { dispatchDueForBooking } from '../shuttle/dispatch';
 import { suggestAlternatives } from './alternatives';
 
 const SYSTEM: Actor = { type: 'SYSTEM' };
@@ -27,16 +30,18 @@ const upsertDecision = (tx: Db, bookingId: string, decision: BookingDecisionDoc[
  */
 export async function createDecisionRefund(tx: Db, b: BookingDoc, reasonCode: RefundDoc['reasonCode'], now: Date, requestId?: string): Promise<string | null> {
   if (b.payment.status !== 'PAID' || b.payment.paidVnd <= 0) return null;
-  const pay = (await tx.query<{ id: string }>("SELECT id FROM payments WHERE booking_id = $1 AND status = 'SUCCEEDED' ORDER BY paid_at LIMIT 1", [b.id])).rows[0];
+  const pay = (await tx.query<{ id: string; method: string }>("SELECT id, method FROM payments WHERE booking_id = $1 AND status = 'SUCCEEDED' ORDER BY paid_at LIMIT 1", [b.id])).rows[0];
   if (!pay) return null;
-  const { orderId, requestId: gwRequestId } = newVnpOrder(`RF${b.code}`);
+  const amount = b.payment.paidVnd - (await legRefundedVnd(tx, b.id)); // trừ phần các chiều xe đã hoàn riêng trước đó (không hoàn hai lần)
+  if (amount <= 0) return null;
+  const { orderId, requestId: gwRequestId } = newGatewayOrder(pay.method, `RF${b.code}`);
   const ins = await tx.query<{ id: string }>(
     `INSERT INTO refunds (id, booking_id, hotel_id, payment_id, key, amount_vnd, reason_code, method, status, gateway, due_at, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,'VNPAY','PENDING',$8::jsonb,'infinity',$9,$9) ON CONFLICT (key) DO NOTHING RETURNING id`,
-    [randomUUID(), b.id, b.hotelId, pay.id, `DECISION:${b.id}`, b.payment.paidVnd, reasonCode, json({ orderId, requestId: gwRequestId }), now],
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$10,'PENDING',$8::jsonb,'infinity',$9,$9) ON CONFLICT (key) DO NOTHING RETURNING id`,
+    [randomUUID(), b.id, b.hotelId, pay.id, `DECISION:${b.id}`, amount, reasonCode, json({ orderId, requestId: gwRequestId }), now, pay.method],
   );
   const created = ins.rows[0];
-  if (created) await writeAudit({ actor: SYSTEM, action: 'REFUND.CREATE', entity: { type: 'refund', id: created.id }, hotelId: b.hotelId, bookingId: b.id, after: { amountVnd: b.payment.paidVnd, reasonCode }, requestId }, tx);
+  if (created) await writeAudit({ actor: SYSTEM, action: 'REFUND.CREATE', entity: { type: 'refund', id: created.id }, hotelId: b.hotelId, bookingId: b.id, after: { amountVnd: amount, reasonCode }, requestId }, tx);
   return created?.id ?? null;
 }
 
@@ -55,13 +60,15 @@ export async function expireOne(tx: Db, bookingId: string, actor: Actor, now: Da
   await upsertDecision(tx, bookingId, 'EXPIRED', actor);
   await cancelShuttlesForBooking(tx, bookingId, actor, 'Đơn hết hạn chờ xác nhận', requestId);
   await writeAudit({ actor, action: 'BOOKING.EXPIRE', entity: { type: 'booking', id: bookingId }, hotelId: b.hotelId, bookingId, before: { status: 'PENDING' }, after: { status: 'EXPIRED' }, reasonCode: 'HOLD_EXPIRED', requestId }, tx);
-  await createDecisionRefund(tx, b, 'HOTEL_NO_RESPONSE', now, requestId);
+  if (b.payment.method !== 'PAYER') await createDecisionRefund(tx, b, 'HOTEL_NO_RESPONSE', now, requestId);
+  publishBookingStatus(b, 'EXPIRED');
   return { code: b.code, status: 'EXPIRED', hotelId: b.hotelId, updatedAt: now };
 }
 
 /** Quét đơn chờ xác nhận quá hạn; mỗi đơn một transaction. */
 export async function expireOverdueBookings(actor: Actor = SYSTEM, requestId?: string, now = new Date()): Promise<{ expired: number }> {
-  const due = (await db.query<{ id: string }>("SELECT id FROM bookings WHERE status = 'PENDING' AND expires_at <= $1 ORDER BY expires_at LIMIT 200", [now])).rows;
+  // Đơn PAYER (luồng delay) do job delay_room_offers xử lý để còn chuyển khách sạn; job này không đụng.
+  const due = (await db.query<{ id: string }>("SELECT id FROM bookings WHERE status = 'PENDING' AND payment_method <> 'PAYER' AND expires_at <= $1 ORDER BY expires_at LIMIT 200", [now])).rows;
   let expired = 0;
   for (const d of due) {
     const ev = await withTransaction((tx) => expireOne(tx, d.id, actor, now, requestId));
@@ -72,6 +79,34 @@ export async function expireOverdueBookings(actor: Actor = SYSTEM, requestId?: s
   }
   return { expired };
 }
+
+/**
+ * Đường nội bộ cho luồng delay (offers.ts): chốt một đơn PAYER đang PENDING sang CONFIRMED/REJECTED/EXPIRED trong transaction của caller
+ * (caller đã khóa offer). Không hoàn tiền, không gợi ý khách sạn khác. Trả null nếu đơn không còn PENDING. Caller tự emit Change sau commit.
+ */
+export async function settlePayerBooking(tx: Db, bookingId: string, to: 'CONFIRMED' | 'REJECTED' | 'EXPIRED', actor: Actor, reason: string | undefined, now: Date, requestId?: string): Promise<Change | null> {
+  const row = (
+    await tx.query(
+      `UPDATE bookings SET status = $2, expires_at = CASE WHEN $2 = 'CONFIRMED' THEN NULL ELSE expires_at END, updated_at = $3, status_history = status_history || $4::jsonb, v = v + 1
+       WHERE id = $1 AND status = 'PENDING' AND payment_method = 'PAYER' RETURNING *`,
+      [bookingId, to, now, json([{ from: 'PENDING', to, at: now, by: actor, ...(to !== 'CONFIRMED' && { reasonCode: to === 'EXPIRED' ? 'HOLD_EXPIRED' : 'HOTEL_REJECTED' }) }])],
+    )
+  ).rows[0];
+  if (!row) return null;
+  const b = bookingFromRow(row);
+  if (to === 'CONFIRMED') {
+    const r = await tx.query("UPDATE room_reservations SET state = 'CONFIRMED', hold_expires_at = NULL, updated_at = $2 WHERE booking_id = $1 AND state = 'HOLD'", [bookingId, now]);
+    if (r.rowCount === 0) throw new AppError(409, 'BOOKING_EXPIRED', 'Phòng giữ cho đơn này không còn');
+  } else {
+    await tx.query("UPDATE room_reservations SET state = 'RELEASED', updated_at = $2 WHERE booking_id = $1 AND state = 'HOLD'", [bookingId, now]);
+    await cancelShuttlesForBooking(tx, bookingId, actor, to === 'EXPIRED' ? 'Đơn hết hạn chờ xác nhận' : 'Đơn bị khách sạn từ chối', requestId);
+  }
+  await upsertDecision(tx, bookingId, to, actor, reason);
+  await writeAudit({ actor, action: `BOOKING.${to === 'CONFIRMED' ? 'CONFIRM' : to === 'EXPIRED' ? 'EXPIRE' : 'REJECT'}`, entity: { type: 'booking', id: bookingId }, hotelId: b.hotelId, bookingId, before: { status: 'PENDING' }, after: { status: to }, ...(to !== 'CONFIRMED' && { reasonCode: to === 'EXPIRED' ? 'HOLD_EXPIRED' : 'HOTEL_REJECTED' }), reasonNote: reason, requestId }, tx);
+  publishBookingStatus(b, to);
+  return { code: b.code, status: to, hotelId: b.hotelId, updatedAt: now };
+}
+export const emitSettled = emit;
 
 /** Khách tra cứu một đơn đã quá hạn nhưng job chưa chạy: chuyển EXPIRED ngay để khách luôn thấy đúng. */
 export async function lazyExpire(bookingId: string, now = new Date()): Promise<void> {
@@ -93,6 +128,7 @@ async function decide(auth: AuthContext, bookingId: string, mode: 'CONFIRM' | 'R
     const row = (await tx.query('SELECT * FROM bookings WHERE id = $1 AND ($2::uuid IS NULL OR hotel_id = $2) FOR UPDATE', [bookingId, scope.hotelId ?? null])).rows[0];
     if (!row) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Không tìm thấy đơn');
     const cur = bookingFromRow(row);
+    if (cur.payment.method === 'PAYER') throw new AppError(409, 'USE_DELAY_OFFER_API', 'Đơn của đơn vị chi trả xử lý qua /v1/hotel/delay-offers (POST /:id/confirm hoặc /:id/reject)');
     if (cur.status !== 'PENDING') throw new AppError(409, 'INVALID_STATE', 'Đơn không ở trạng thái chờ xác nhận');
     if (cur.expiresAt && cur.expiresAt <= now) {
       // Quá hạn: chuyển EXPIRED và COMMIT (không rollback), rồi báo lỗi ra ngoài.
@@ -123,6 +159,7 @@ async function decide(auth: AuthContext, bookingId: string, mode: 'CONFIRM' | 'R
       await writeAudit({ actor, action: 'BOOKING.REJECT', entity: { type: 'booking', id: bookingId }, hotelId: cur.hotelId, bookingId, before: { status: 'PENDING' }, after: { status: 'REJECTED' }, reasonCode: 'HOTEL_REJECTED', reasonNote: reason, requestId }, tx);
       await createDecisionRefund(tx, cur, 'HOTEL_REJECTED', now, requestId);
     }
+    publishBookingStatus(next, to);
     return { kind: 'done', booking: next, alternatives };
   });
   if (out.kind === 'expired') {
@@ -130,6 +167,7 @@ async function decide(auth: AuthContext, bookingId: string, mode: 'CONFIRM' | 'R
     throw new AppError(409, 'BOOKING_EXPIRED', 'Đơn đã hết hạn chờ xác nhận');
   }
   emit({ code: out.booking.code, status: out.booking.status, hotelId: out.booking.hotelId, updatedAt: out.booking.updatedAt });
+  if (mode === 'CONFIRM') await dispatchDueForBooking(bookingId); // điều xe cho yêu cầu đã tới hạn (không ném lỗi, không làm hỏng xác nhận)
   return out;
 }
 

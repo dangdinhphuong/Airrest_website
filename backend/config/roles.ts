@@ -17,7 +17,7 @@ export const ADMIN_ROLES: Record<AdminRoleKey, { name: string; permissions: stri
   },
   FINANCE: {
     name: 'Kế toán Admin',
-    permissions: [PERM.ADMIN_HOTEL_READ, PERM.ADMIN_CONFIG_READ, PERM.ADMIN_CONFIG_FINANCE, PERM.ADMIN_HOTEL_APPROVE_SENSITIVE, PERM.ADMIN_PAYMENT_READ, PERM.ADMIN_PAYMENT_MANAGE, PERM.AUDIT_READ, PERM.BOOKING_READ, PERM.ADMIN_BOOKING_READ, PERM.ADMIN_DASHBOARD_READ],
+    permissions: [PERM.ADMIN_HOTEL_READ, PERM.ADMIN_CONFIG_READ, PERM.ADMIN_CONFIG_FINANCE, PERM.ADMIN_HOTEL_APPROVE_SENSITIVE, PERM.ADMIN_PAYMENT_READ, PERM.ADMIN_PAYMENT_MANAGE, PERM.ADMIN_PAYER_READ, PERM.AUDIT_READ, PERM.BOOKING_READ, PERM.ADMIN_BOOKING_READ, PERM.ADMIN_DASHBOARD_READ],
   },
   SYSADMIN: {
     name: 'Quản trị hệ thống',
@@ -30,6 +30,7 @@ export const ADMIN_ROLES: Record<AdminRoleKey, { name: string; permissions: stri
       PERM.REQUEST_HANDLE,
       PERM.SUPPORT_HANDLE,
       PERM.SHUTTLE_HANDLE,
+      PERM.FLEET_MANAGE,
       PERM.FLIGHT_MANAGE,
       PERM.ADMIN_DASHBOARD_READ,
       PERM.AUDIT_READ,
@@ -43,9 +44,17 @@ export const ADMIN_ROLES: Record<AdminRoleKey, { name: string; permissions: stri
       PERM.ADMIN_HOTEL_APPROVE_SENSITIVE,
       PERM.ADMIN_PAYMENT_READ,
       PERM.ADMIN_PAYMENT_MANAGE,
+      PERM.ADMIN_PAYER_READ,
+      PERM.ADMIN_PAYER_MANAGE,
     ],
   },
 };
 
 // Vai trò hệ thống của khách sạn: chủ KS tạo tài khoản đầu tiên qua ADM-01. Phạm vi dữ liệu luôn khóa theo hotelId.
-export const HOTEL_OWNER_ROLE = { key: 'hotel_owner', name: 'Chủ khách sạn', permissions: [PERM.BOOKING_READ, PERM.BOOKING_CHECKIN, PERM.ROOM_MANAGE, PERM.BOOKING_DECIDE, PERM.REQUEST_HANDLE, PERM.SHUTTLE_HANDLE] };
+export const HOTEL_OWNER_ROLE = { key: 'hotel_owner', name: 'Chủ khách sạn', permissions: [PERM.BOOKING_READ, PERM.BOOKING_CHECKIN, PERM.ROOM_MANAGE, PERM.BOOKING_DECIDE, PERM.REQUEST_HANDLE, PERM.SHUTTLE_HANDLE, PERM.FLEET_MANAGE] };
+
+// Tài xế của khách sạn (tài khoản DRIVER): chỉ thao tác chuyến của chính mình, không xem đơn/tiền.
+export const HOTEL_DRIVER_ROLE = { key: 'hotel_driver', name: 'Tài xế khách sạn', permissions: [PERM.TRIP_DRIVE] };
+
+// Nhân viên đơn vị chi trả (tài khoản PAYER): chỉ thao tác dữ liệu của đơn vị/trạm mình, không xem tiền hay dữ liệu khách sạn.
+export const PAYER_STAFF_ROLE = { key: 'payer_staff', name: 'Nhân viên đơn vị chi trả', permissions: [PERM.PAYER_DELAY_READ, PERM.PAYER_DELAY_MANAGE] };

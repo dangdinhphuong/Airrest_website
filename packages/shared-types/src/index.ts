@@ -11,11 +11,11 @@ export type BookingStatus =
   | 'NO_SHOW';
 
 export type ReservationState = 'HOLD' | 'CONFIRMED' | 'CHECKED_IN' | 'RELEASED' | 'COMPLETED';
-export type PaymentMethod = 'VNPAY' | 'AT_HOTEL';
+export type PaymentMethod = 'VNPAY' | 'MOMO' | 'AT_HOTEL' | 'PAYER';
 export type PaymentStatus = 'INITIATED' | 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'EXPIRED';
 export type RefundStatus = 'PENDING' | 'PROCESSING' | 'REFUNDED' | 'MANUAL_REQUIRED';
 
-export type ActorType = 'GUEST' | 'USER' | 'HOTEL' | 'ADMIN' | 'DRIVER' | 'PASSENGER' | 'SYSTEM';
+export type ActorType = 'GUEST' | 'USER' | 'HOTEL' | 'ADMIN' | 'DRIVER' | 'PASSENGER' | 'PAYER' | 'SYSTEM';
 export interface Actor {
   type: ActorType;
   id?: string;
@@ -26,3 +26,4 @@ export type ChangeRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
 export type ShuttleStatus = 'REQUESTED' | 'ASSIGNED' | 'DONE' | 'CANCELLED';
 export * from './flights';
+export * from './delay';

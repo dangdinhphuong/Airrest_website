@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ScreenTitle } from '../Common';
 import { useApp } from '../../state/store';
 import { hasPerm } from '../../lib/access';
@@ -9,28 +9,34 @@ import { describeError } from '../../lib/api';
 import { ErrorBox, Loading } from '../Common';
 import { ReasonAction } from '../partner/ui';
 import * as H from '../../data/hotel';
+import { EventLog } from './fleetKit';
 import { ConfirmButton, ListState, STATUS, StatusPill, fmtD, fmtDT, needReason, today, useAction, useLoad, usePaged } from './kit';
+import Select from '../Select';
+import { lineLabel, stayLabel, stayShort } from '../../lib/bookingText';
 
-const PAY_METHOD = { VNPAY: 'VNPay', AT_HOTEL: 'Thanh toán tại khách sạn' };
+const PAY_METHOD = { VNPAY: 'VNPay', MOMO: 'MoMo', AT_HOTEL: 'Thanh toán tại khách sạn' };
 const PAY_STATUS = { NONE: 'Chưa phát sinh', UNPAID: 'Chưa thanh toán', PENDING: 'Chờ thanh toán', PAID: 'Đã thanh toán', PARTIALLY_REFUNDED: 'Đã hoàn một phần', REFUNDED: 'Đã hoàn tiền', FAILED: 'Thanh toán lỗi', EXPIRED: 'Hết hạn thanh toán', CANCELLED: 'Đã hủy' };
-const pay = (p) => `${PAY_METHOD[p.method] || (p.method === 'VNPAY' ? 'VNPay' : 'Thanh toán tại khách sạn')} · ${PAY_STATUS[p.status] || p.status}`;
+export const pay = (p) => `${PAY_METHOD[p.method] || p.method || PAY_METHOD.AT_HOTEL} · ${PAY_STATUS[p.status] || p.status}`;
 const DECISION = { CONFIRMED: 'Đã xác nhận', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối' };
 const ERR_VI = { NO_SHOW_NOT_DUE: 'Chưa tới ngày nhận phòng nên chưa thể đánh dấu "Không đến". Hãy thử lại từ ngày nhận phòng (giờ Việt Nam).', INVALID_STATE: 'Trạng thái đơn đã thay đổi, danh sách đã được làm mới. Vui lòng kiểm tra lại.' };
 
 function Detail({ id }) {
   const d = useLoad(() => H.getBooking(id), [id]);
+  const events = useCallback((cursor) => H.listBookingEvents(id, { cursor }), [id]);
   if (d.loading) return <Loading />;
   if (d.err) return <ErrorBox onRetry={d.reload}>{describeError(d.err)}</ErrorBox>;
   const { booking: b, decision } = d.data;
   return (
     <div className="card-inner" data-testid="booking-detail">
       <div>Khách: <strong>{b.guest.fullName}</strong> · {b.guest.phone}{b.guest.email ? ` · ${b.guest.email}` : ''}</div>
-      <div>Lưu trú: {fmtDT(b.stay.from)} đến {fmtDT(b.stay.to)} ({b.stay.nights} đêm)</div>
-      <div>Phòng: {b.lines.map((l) => `${l.roomTypeName} x${l.qty} (${money(l.unitPriceVnd)})`).join(', ')}</div>
+      <div data-testid="detail-guest-count">Số người: {b.guest.count ?? 1}{b.guest.children > 0 ? ` (${b.guest.children} trẻ em)` : ''}</div>
+      <div data-testid="detail-stay">Lưu trú: {stayLabel(b.stay)}</div>
+      <div data-testid="detail-lines">Phòng: {b.lines.map((l) => `${lineLabel(l)} (${money(l.unitPriceVnd)})`).join('; ')}</div>
       <div>Tiền phòng {money(b.pricing.roomVnd)} · Xe {money(b.pricing.shuttleVnd)} · Phí dịch vụ {money(b.pricing.serviceFeeVnd)} · Tổng {money(b.pricing.totalVnd)}</div>
       <div>Thanh toán: {pay(b.payment)} (đã thu {money(b.payment.paidVnd)}, đã hoàn {money(b.payment.refundedVnd)})</div>
       {decision && <div>Quyết định: {DECISION[decision.decision] || decision.decision}{decision.reason ? `, lý do: ${decision.reason}` : ''}</div>}
       <div className="muted">Lịch sử: {b.statusHistory.map((h) => `${STATUS[h.to]?.[0] || h.to} ${fmtDT(h.at)}`).join(' → ')}</div>
+      <EventLog fetchPage={events} />
     </div>
   );
 }
@@ -55,10 +61,10 @@ export default function Bookings() {
     <>
       <ScreenTitle title="Đặt phòng">Đơn của khách sạn, mới nhất trước. Ngày lọc theo ngày nhận phòng.</ScreenTitle>
       <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); setApplied(f); }}>
-        <select aria-label="Trạng thái" value={f.status} onChange={set('status')} data-testid="bk-status">
+        <Select aria-label="Trạng thái" value={f.status} onChange={set('status')} data-testid="bk-status">
           <option value="">Mọi trạng thái</option>
           {Object.entries(STATUS).filter(([k]) => !['APPROVED', 'REQUESTED', 'ASSIGNED', 'DONE'].includes(k)).map(([k, [t]]) => <option key={k} value={k}>{t}</option>)}
-        </select>
+        </Select>
         <input className="filter-input" aria-label="Mã đơn" placeholder="Mã đơn (tiền tố)" value={f.code} onChange={set('code')} data-testid="bk-code" />
         <label>Từ <input type="date" value={f.from} onChange={set('from')} /></label>
         <label>Đến <input type="date" value={f.to} min={f.from || undefined} onChange={set('to')} /></label>
@@ -73,8 +79,8 @@ export default function Bookings() {
               <tr data-testid="bk-row">
                 <td data-label="Mã"><strong>{b.code}</strong></td>
                 <td data-label="Khách">{b.guest.fullName}</td>
-                <td data-label="Nhận phòng">{fmtD(b.stay.from)} ({b.stay.nights} đêm)</td>
-                <td data-label="Phòng">{b.lines.map((l) => `${l.roomTypeName} x${l.qty}`).join(', ')}</td>
+                <td data-label="Nhận phòng">{stayShort(b.stay)}</td>
+                <td data-label="Phòng">{b.lines.map((l) => `${l.roomTypeName} x${l.qty}${l.kind === 'HOURLY' ? ` (${l.hours} giờ)` : ''}`).join(', ')}</td>
                 <td data-label="Tổng">{money(b.pricing.totalVnd)}</td>
                 <td data-label="Thanh toán">{pay(b.payment)}</td>
                 <td data-label="Trạng thái"><StatusPill s={b.status} /></td>

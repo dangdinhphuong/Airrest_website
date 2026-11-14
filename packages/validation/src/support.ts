@@ -36,3 +36,23 @@ export type TicketPatchBody = z.infer<typeof ticketPatchBody>;
 
 export const staffMessageBody = z.object({ message: z.string().trim().min(1).max(2000), internal: z.boolean().default(false) });
 export type StaffMessageBody = z.infer<typeof staffMessageBody>;
+
+// Tệp đính kèm (ảnh/video làm bằng chứng): giới hạn dùng chung cho server và giao diện.
+export const SUPPORT_ATTACHMENT = {
+  types: { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4' },
+  maxImageBytes: 5 * 1024 * 1024,
+  maxVideoBytes: 30 * 1024 * 1024,
+  maxImages: 5,
+  maxVideos: 1,
+  maxFiles: 6,
+} as const;
+export type SupportAttachmentType = keyof typeof SUPPORT_ATTACHMENT.types;
+export const isVideoType = (t: string) => t.startsWith('video/');
+export const maxBytesOf = (t: SupportAttachmentType) => (isVideoType(t) ? SUPPORT_ATTACHMENT.maxVideoBytes : SUPPORT_ATTACHMENT.maxImageBytes);
+
+export const attachmentUploadBody = ticketLookupBody
+  .extend({ contentType: z.enum(Object.keys(SUPPORT_ATTACHMENT.types) as [SupportAttachmentType, ...SupportAttachmentType[]]), size: z.number().int().min(1) })
+  .refine((b) => b.size <= maxBytesOf(b.contentType), { message: 'Tệp vượt dung lượng cho phép', path: ['size'] });
+export type AttachmentUploadBody = z.infer<typeof attachmentUploadBody>;
+export const attachmentConfirmBody = ticketLookupBody.extend({ attachmentId: z.string().uuid() });
+export type AttachmentConfirmBody = z.infer<typeof attachmentConfirmBody>;

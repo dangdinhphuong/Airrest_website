@@ -61,6 +61,12 @@ const HOTEL_ID = '65000000-0000-4000-8000-000000000001';
     [pw, [sysadmin.id]],
   );
 
+  // Tài khoản hành khách mẫu (thay cho tài khoản demo trong prototype cũ): nguoidung / Demo@2026. Không ghi đè nếu đã tồn tại.
+  await db.query(
+    `INSERT INTO accounts (type, username, password_hash, full_name, status, role_ids) VALUES ('PASSENGER', 'nguoidung', $1, 'nguoidung', 'ACTIVE', '{}'::uuid[]) ON CONFLICT DO NOTHING`,
+    [await hashPassword('Demo@2026')],
+  );
+
   console.log(`Chuyến bay mô phỏng: chèn mới ${await seedFlights(db)}`);
   // Danh mục và chuyến bay sinh ra rất nhiều truy vấn (chậm khi DB ở xa như Supabase): đã có đủ thì bỏ qua, SEED_FORCE=1 để chạy lại.
   const have = Number((await db.query<{ n: string }>("SELECT count(*)::text AS n FROM hotels WHERE code ~ '^[A-Z]{3}-[0-9]{2}$'")).rows[0]!.n);

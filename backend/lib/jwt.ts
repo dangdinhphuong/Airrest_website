@@ -4,8 +4,10 @@ import { env } from '../config/env';
 export interface AuthContext {
   kind: 'ACCOUNT' | 'GUEST';
   sub: string;
-  accountType?: 'HOTEL' | 'DRIVER' | 'ADMIN' | 'PASSENGER';
+  accountType?: 'HOTEL' | 'DRIVER' | 'ADMIN' | 'PASSENGER' | 'PAYER';
   hotelId?: string;
+  payerId?: string; // chỉ accountType = PAYER
+  payerStationId?: string; // chỉ PAYER; vắng = cấp đơn vị (mọi trạm)
   permissions: string[];
   bookingCode?: string; // chỉ với kind = GUEST
 }

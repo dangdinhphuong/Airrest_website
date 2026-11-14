@@ -12,10 +12,11 @@ import Admin from './screens/Admin';
 import ApiBanner from './components/ApiBanner';
 import UserSite from './screens/user/UserSite';
 import UserHome from './screens/user/Home';
+import Stays from './screens/user/Stays';
 import { Account, HotelDetail, PaymentResult, Support, Track } from './screens/user/Pages';
 
 const PARTNER_SCREENS = { hotel: Hotel, admin: Admin };
-const USER_PAGES = { detail: HotelDetail, track: Track, support: Support, account: Account, payment: PaymentResult }; // màn khác của người dùng = trang chủ
+const USER_PAGES = { stays: Stays, detail: HotelDetail, track: Track, support: Support, account: Account, payment: PaymentResult }; // màn khác của người dùng = trang chủ
 
 const TABS = { hotel: hotelTabs, admin: adminTabs };
 

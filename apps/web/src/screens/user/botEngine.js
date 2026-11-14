@@ -1,9 +1,11 @@
 // Trợ lý chat AIRREST: trả lời theo kịch bản (từ khóa), KHÔNG gọi AI hay dịch vụ ngoài. Dữ liệu lấy từ API qua data/user.js.
-// reply() trả { text, hotels?, actions? }; action = { label, act } với act: { type: 'openProperty', id } | { type: 'go', screen } | { type: 'stays' }.
-import { airportName, getAirports, listAirports, listHotels, lookupBooking, lookupFlight } from '../../data/user';
+// reply(text, { airport, mem }) trả { text, hotels?, actions?, chips? }; action = { label, act } với act: { type: 'openProperty', id } | { type: 'go', screen } | { type: 'stays' } | { type: 'book', hotelId, airport, party, dates }.
+// Hội thoại nhiều lượt (đặt phòng, hủy/đổi ngày, xe, khiếu nại) nằm ở botFlows.js; trạng thái giữ trong ctx.mem.
+import { airportName, getAirports, listAirports, lookupFlight } from '../../data/user';
 import { describeError } from '../../lib/api';
-import { fmtDuration, isoDate, money } from '../../lib/time';
+import { fmtDuration, isoDate } from '../../lib/time';
 import { CHIPS, parseTrack, statusCopy } from './data';
+import { beginCancel, beginComplaint, beginSearch, beginShuttle, beginTicket, getBooking, runFlow } from './botFlows';
 
 export const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
 
@@ -47,35 +49,17 @@ export function parseQuery(text, defaultAirport = 'HAN', airports = getAirports(
   return { airport, maxPrice, maxKm: km ? parseFloat(km[1].replace(',', '.')) : null, flags };
 }
 
-// Lọc thuần theo điều kiện đã phân tích (dễ test); danh sách lấy từ API ở searchHotels.
+// Lọc thuần theo điều kiện đã phân tích (dễ test).
 export function filterHotels(hotels, q) {
   const tests = q.flags.map((id) => CHIPS.find((c) => c.id === id).test);
   return hotels
     .filter((h) => h.room.availableRooms > 0 && (q.maxPrice == null || h.room.price <= q.maxPrice) && (q.maxKm == null || h.distanceKm <= q.maxKm) && tests.every((t) => t(h)))
     .sort((a, b) => a.travelMinutes - b.travelMinutes);
 }
-export const searchHotels = async (q) => filterHotels(await listHotels(q.airport), q);
+const START = ['Tìm & đặt phòng', 'Theo dõi booking', 'Hủy / đổi ngày', 'Xe đưa đón', 'Gửi khiếu nại'];
+const MENU = 'Mình có thể giúp: tìm và đặt nơi nghỉ gần sân bay, tra chuyến bay, theo dõi booking, hủy/đổi ngày, đặt xe đưa đón, gửi khiếu nại hoặc giải thích chính sách.';
 
-const stays = { label: 'Xem tất cả nơi nghỉ', act: { type: 'stays' } };
-const MENU = 'Mình có thể giúp: tìm nơi nghỉ gần sân bay (theo giá, khoảng cách, xe đưa đón…), tra chuyến bay, theo dõi booking, giải thích quy trình/chính sách hủy hoặc chuyển bạn tới trung tâm hỗ trợ.';
-
-function criteriaText(q) {
-  const parts = [];
-  if (q.maxPrice != null) parts.push(`giá dưới ${money(q.maxPrice)}`);
-  if (q.maxKm != null) parts.push(`trong ${q.maxKm} km`);
-  q.flags.forEach((id) => parts.push(CHIPS.find((c) => c.id === id).label.toLowerCase()));
-  return parts.length ? ` (${parts.join(', ')})` : '';
-}
-
-async function hotelReply(text, ctx) {
-  const q = parseQuery(text, ctx.airport);
-  const found = await searchHotels(q);
-  const where = airportName(q.airport);
-  if (!found.length) return { text: `Hiện chưa có nơi nghỉ nào gần ${where}${criteriaText(q)}. Bạn thử nới điều kiện (giá cao hơn, xa hơn) hoặc đổi sân bay nhé.`, actions: [stays] };
-  return { text: `Mình tìm được ${found.length} nơi nghỉ gần ${where}${criteriaText(q)}. Gần sân bay nhất:`, hotels: found.slice(0, 3), actions: [stays] };
-}
-
-async function flightReply(code) {
+async function flightReply(code, mem, ctx) {
   const c = code.toUpperCase();
   try {
     const f = await lookupFlight(c, isoDate(0));
@@ -84,20 +68,25 @@ async function flightReply(code) {
       : f.status === 'ontime' ? `Chuyến ${c} (${route}) đúng giờ, khởi hành ${f.schedTime}.`
         : f.delayMinutes != null ? `Chuyến ${c} (${route}) chậm ${fmtDuration(f.delayMinutes)}: từ ${f.schedTime} sang ${f.newTime}.`
           : `Chuyến ${c} (${route}) bị chậm nhưng chưa có giờ khởi hành mới.`;
-    if (f.status === 'ontime') return { text: `${text} Dữ liệu mô phỏng.` };
-    return { text: `${text} Bạn có thể tìm nơi nghỉ gần sân bay ${airportName(f.origin)}. Dữ liệu mô phỏng.`, actions: [{ label: `Tìm nơi nghỉ gần ${f.origin}`, act: { type: 'stays' } }] };
+    if (f.status === 'ontime') return { text };
+    const q = await beginSearch(mem, '', ctx, { seed: { airport: f.origin } }); // chuyến chậm/hủy: chuyển sang tìm nơi nghỉ gần sân bay đó
+    return { ...q, text: `${text} Mình hỗ trợ tìm nơi nghỉ gần ${airportName(f.origin)} nhé.\n${q.text}` };
   } catch (e) {
-    return { text: e.status === 404 ? `Mình không thấy chuyến ${c} hôm nay trong dữ liệu mô phỏng. Bạn kiểm tra lại số hiệu giúp mình nhé.` : describeError(e) };
+    return { text: e.status === 404 ? `Mình không thấy chuyến ${c} hôm nay trong dữ liệu. Bạn kiểm tra lại số hiệu giúp mình nhé.` : describeError(e) };
   }
 }
 
-async function trackReply({ ref, phone }) {
+// Các loại phòng của đơn, mỗi dòng một loại ('Standard × 2, Deluxe × 1'); đơn cũ không có lines[] thì dùng tóm tắt roomTypeName.
+export const bookingRooms = (b) => (b.lines?.length ? b.lines.map((l) => `${l.roomTypeName} × ${l.qty}${l.kind === 'HOURLY' ? ` (theo giờ: ${l.hours} giờ từ ${hhmmVn(l.startsAt)})` : ''}`).join(', ') : b.roomTypeName ?? '');
+const hhmmVn = (iso) => new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Ho_Chi_Minh' });
+
+async function trackReply({ ref, phone }, mem) {
   const open = [{ label: 'Mở trang theo dõi', act: { type: 'go', screen: 'track' } }];
   if (!ref || !phone) return { text: `Để tra cứu, bạn gửi cả mã booking và số điện thoại đã dùng khi đặt, ví dụ: "AR-7K3M9P2Q 0912345678".${ref ? ` (Mình đã nhận mã ${ref.toUpperCase()}, còn thiếu số điện thoại.)` : ''}`, actions: open };
   try {
-    const b = await lookupBooking(ref.toUpperCase(), phone);
+    const { booking: b } = await getBooking(mem, ref, phone);
     const d = (iso) => new Date(iso).toLocaleDateString('vi-VN');
-    return { text: `Booking ${b.code}: ${b.hotel?.name} (${b.lines?.[0]?.roomTypeName}), ${d(b.stay.from)} → ${d(b.stay.to)}. Trạng thái: ${statusCopy(b.status)}.${b.decision?.reason ? ` Lý do: ${b.decision.reason}.` : ''}`, actions: open };
+    return { text: `Booking ${b.code}: ${b.hotel?.name} (${bookingRooms(b)}), ${b.stay.type === 'HOURLY' ? `${d(b.stay.from)} (theo giờ)` : `${d(b.stay.from)} → ${d(b.stay.to)}`}. Trạng thái: ${statusCopy(b.status)}.${b.decision?.reason ? ` Lý do: ${b.decision.reason}.` : ''}`, actions: open, chips: ['Hủy / đổi ngày', 'Xe đưa đón', 'Gửi khiếu nại'] };
   } catch (e) {
     return { text: e.status === 404 ? 'Mình không tìm thấy booking khớp mã và số điện thoại này. Bạn kiểm tra lại thông tin giúp mình nhé.' : describeError(e), actions: open };
   }
@@ -105,25 +94,46 @@ async function trackReply({ ref, phone }) {
 
 const HOW = /quy trinh|cach hoat dong|dat cho (nhu the nao|the nao|ra sao)|may buoc|huong dan/;
 const TRACK = /theo doi|tra cuu booking|ma booking|booking cua toi|kiem tra booking/;
-const SUPPORT = /ho tro|khieu nai|ticket|nhan vien|lien he|hotline|phan nan/;
+const SHUTTLE = /\bxe\b|don xe|dua don|tai xe|bien so|goi xe|shuttle|grab/;
+const SUPPORT = /ho tro|ticket|nhan vien|lien he|hotline/;
+const COMPLAINT = /khieu nai|phan nan|bat man|that vong|sai gia|tinh sai|tru tien|ve sinh|khong dung mo ta|co van de|gap su co/;
+const ANGRY = /lua dao|bao cong an|\bkien\b|buc xuc|qua te/;
+const CANCEL_START = /huy (phong|dat|booking|don)|(muon|can|xin|giup).{0,15}huy|doi (ngay|lich)/;
+const POLICY_Q = /chinh sach|quy dinh|phi huy|mat phi|bao nhieu|co duoc|nhu the nao/;
 const POLICY = /huy|hoan tien|thanh toan|tien coc|refund/;
 const SEARCH = /khach san|phong|noi nghi|cho nghi|nghi dem|nghi chan|\btim\b|gan san bay|goi y|o dau/;
 const GREET = /^(xin )?chao|\bhello\b|\bhi\b|\balo\b|ban la ai|giup gi|lam duoc gi/;
 
 export async function reply(text, ctx) {
+  const mem = ctx.mem ?? {};
   await listAirports().catch(() => {}); // cần danh mục sân bay để hiểu tên sân bay trong câu
   const n = norm(text);
+  const fails = mem.fails ?? 0;
+  mem.fails = 0;
+  if (mem.flow) {
+    if (/^(huy bo|thoi|dung lai|thoat|quay lai)$/.test(n.trim())) { mem.flow = null; mem.step = null; mem.s = null; return { text: `Mình đã dừng. ${MENU}`, chips: START }; }
+    const r = await runFlow(text, n, ctx, mem);
+    if (r) return r;
+  }
+  const ticket = text.match(/\bSP-[0-9A-Z]{8}\b/i);
+  if (ticket) return beginTicket(mem, ticket[0].toUpperCase(), parseTrack(text).phone);
   const track = parseTrack(text);
-  if (track.ref || track.phone) return trackReply(track);
+  if (track.ref || track.phone) return trackReply(track, mem);
   const fm = text.match(/\b([a-z]{2}\d{2,4})\b/i);
-  if (fm) return flightReply(fm[1]);
-  if (HOW.test(n)) return { text: 'Quy trình 3 bước: (1) chọn nơi nghỉ phù hợp theo khoảng cách, giá, tiện ích; (2) gửi yêu cầu với thông tin liên hệ tối thiểu, không cần tạo tài khoản; (3) theo dõi bằng mã booking và số điện thoại để biết khách sạn đã xác nhận hay từ chối.', actions: [stays] };
+  if (fm) return flightReply(fm[1], mem, ctx);
+  if (ANGRY.test(n)) return beginComplaint(mem, 'Mình xin lỗi bạn về sự bất tiện này. ');
+  if (HOW.test(n)) return { text: 'Quy trình 3 bước: (1) chọn nơi nghỉ phù hợp theo khoảng cách, giá, tiện ích; (2) gửi yêu cầu với thông tin liên hệ tối thiểu, không cần tạo tài khoản; (3) theo dõi bằng mã booking và số điện thoại để biết khách sạn đã xác nhận hay từ chối.', actions: [{ label: 'Xem tất cả nơi nghỉ', act: { type: 'stays' } }], chips: ['Tìm & đặt phòng'] };
   if (TRACK.test(n)) return { text: 'Bạn gửi cho mình mã booking và số điện thoại đã dùng khi đặt (ví dụ: "AR-7K3M9P2Q 0912345678"), hoặc mở trang theo dõi booking.', actions: [{ label: 'Mở trang theo dõi', act: { type: 'go', screen: 'track' } }] };
-  if (SUPPORT.test(n)) return { text: 'Bạn có thể gửi ticket hoặc tra cứu ticket đã gửi (mã SP-XXXXXXXX kèm số điện thoại) tại trung tâm hỗ trợ. Quản trị viên sẽ tiếp nhận và cập nhật trạng thái. Vui lòng không gửi thông tin giấy tờ tùy thân.', actions: [{ label: 'Mở trung tâm hỗ trợ', act: { type: 'go', screen: 'support' } }] };
+  if (COMPLAINT.test(n)) return beginComplaint(mem);
+  if (CANCEL_START.test(n) && !POLICY_Q.test(n)) return beginCancel(mem, ctx);
+  if (SUPPORT.test(n)) return { text: 'Bạn có thể nhắn mình để gửi khiếu nại ngay trong chat, hoặc tra cứu ticket đã gửi (mã SP-XXXXXXXX kèm số điện thoại). Vui lòng không gửi thông tin giấy tờ tùy thân.', actions: [{ label: 'Mở trung tâm hỗ trợ', act: { type: 'go', screen: 'support' } }], chips: ['Gửi khiếu nại'] };
   const q = parseQuery(text, ctx.airport);
-  if (q.maxPrice != null || q.maxKm != null || q.flags.length) return hotelReply(text, ctx);
-  if (POLICY.test(n)) return { text: 'Mỗi nơi nghỉ có chính sách riêng: nơi gắn nhãn “Hủy miễn phí” cho hủy không mất phí, nơi còn lại không hoàn hủy. Bạn có thể thanh toán tại khách sạn hoặc online qua VNPay (cổng đang chạy chế độ mô phỏng). Muốn hủy hoặc đổi ngày, vào “Theo dõi booking” và gửi yêu cầu cho đơn của bạn.', actions: [{ label: 'Mở trang theo dõi', act: { type: 'go', screen: 'track' } }, stays] };
-  if (SEARCH.test(n)) return hotelReply(text, ctx);
-  if (GREET.test(n)) return { text: `Xin chào! Mình là trợ lý AIRREST (chạy theo kịch bản mô phỏng). ${MENU}` };
-  return { text: `Xin lỗi, mình chưa hiểu ý bạn. ${MENU}` };
+  if (q.maxPrice != null || q.maxKm != null || (q.flags.length && SEARCH.test(n))) return beginSearch(mem, text, ctx, { immediate: true });
+  if (SHUTTLE.test(n)) return beginShuttle(mem);
+  if (POLICY.test(n)) return { text: 'Mỗi nơi nghỉ có chính sách riêng: nơi gắn nhãn “Hủy miễn phí” cho hủy không mất phí, nơi còn lại không hoàn hủy. Bạn có thể thanh toán tại khách sạn hoặc online qua cổng thanh toán đang bật như VNPay hoặc MoMo. Muốn hủy hoặc đổi ngày, mình có thể gửi yêu cầu giúp bạn ngay trong chat.', chips: ['Hủy / đổi ngày', 'Tìm & đặt phòng'] };
+  if (SEARCH.test(n)) return beginSearch(mem, text, ctx);
+  if (GREET.test(n)) return { text: `Xin chào! Mình là trợ lý AIRREST. ${MENU}`, chips: START };
+  mem.fails = fails + 1;
+  if (mem.fails >= 2) { mem.fails = 0; return beginComplaint(mem, 'Có vẻ mình chưa hiểu đúng ý bạn, mình chuyển bạn sang bộ phận hỗ trợ nhé. '); }
+  return { text: `Xin lỗi, mình chưa hiểu ý bạn. ${MENU}`, chips: START };
 }

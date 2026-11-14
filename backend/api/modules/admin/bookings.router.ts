@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { adminBookingListQuery, idParams, type AdminBookingListQuery } from '@airrest/validation';
+import { adminBookingListQuery, eventsQuery, idParams, type AdminBookingListQuery, type EventsQuery } from '@airrest/validation';
 import { PERM } from '../../../config/permissions';
+import { listBookingEvents } from '../../../services/bookings/bookingEvents';
 import { getBookingDetail, listBookings } from '../../../services/bookings/bookings.service';
 import { requirePermission } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
@@ -16,4 +17,9 @@ adminBookingsRouter.get('/bookings', need, validate({ query: adminBookingListQue
 adminBookingsRouter.get('/bookings/:id', need, validate({ params: idParams }), async (req, res) => {
   const { id } = req.valid.params as { id: string };
   res.json(await getBookingDetail({}, id));
+});
+
+adminBookingsRouter.get('/bookings/:id/events', need, validate({ params: idParams, query: eventsQuery }), async (req, res) => {
+  const { id } = req.valid.params as { id: string };
+  res.json(await listBookingEvents({}, id, req.valid.query as EventsQuery));
 });

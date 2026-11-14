@@ -7,7 +7,7 @@ import type { AuthContext } from '../lib/jwt';
 // Mỗi request đọc lại tài khoản + vai trò, cache ngắn trong bộ nhớ: đổi vai trò/khóa tài khoản có hiệu lực sau tối đa TTL.
 // shortcut: cache theo từng tiến trình; chạy nhiều bản API thì bản khác chờ hết TTL (30s), nâng lên Redis/Change Stream khi cần.
 const TTL_MS = 30_000;
-const cache = new Map<string, { at: number; value: Pick<AuthContext, 'permissions' | 'hotelId' | 'accountType'> | null }>();
+const cache = new Map<string, { at: number; value: Pick<AuthContext, 'permissions' | 'hotelId' | 'accountType' | 'payerId' | 'payerStationId'> | null }>();
 
 // Gọi ngay sau khi sửa/khóa tài khoản để bản API này áp dụng tức thì.
 export const forgetAuth = (sub: string): void => void cache.delete(sub);
@@ -16,10 +16,12 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function load(sub: string) {
   if (!UUID.test(sub)) return null;
-  const a = (await db.query<AccountDoc>('SELECT type, status, hotel_id, role_ids FROM accounts WHERE id = $1', [sub])).rows[0];
+  const a = (await db.query<AccountDoc>('SELECT type, status, hotel_id, payer_id, payer_station_id, role_ids FROM accounts WHERE id = $1', [sub])).rows[0];
   if (!a || a.status !== 'ACTIVE') return null;
+  // Đơn vị chi trả bị tạm ngưng thì nhân viên của nó cũng bị khóa.
+  if (a.payerId && !(await db.query("SELECT 1 FROM payers WHERE id = $1 AND status = 'ACTIVE'", [a.payerId])).rows[0]) return null;
   const roles = (await db.query<RoleDoc>('SELECT permissions FROM roles WHERE id = ANY($1::uuid[])', [a.roleIds])).rows;
-  return { accountType: a.type, hotelId: a.hotelId, permissions: [...new Set(roles.flatMap((r) => r.permissions))] };
+  return { accountType: a.type, hotelId: a.hotelId, payerId: a.payerId, payerStationId: a.payerStationId, permissions: [...new Set(roles.flatMap((r) => r.permissions))] };
 }
 
 // Token khách vãng lai không có quyền. Token tài khoản: tài khoản phải còn ACTIVE.

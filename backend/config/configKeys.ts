@@ -50,6 +50,30 @@ export const CONFIG_KEYS = {
     default: { holdMinutes: 10, approvalRemindMin: 10, approvalAlertMin: 15, approvalExpireMin: 20, noShowGraceMin: 60 },
     writePerm: PERM.ADMIN_CONFIG_WRITE,
   },
+  'delay.hotelConfirmMin': {
+    // Luồng delay (đơn vị chi trả): KS có bao nhiêu phút để xác nhận một đơn (spec 6.4).
+    schema: z.object({ minutes: int(1, 60) }),
+    default: { minutes: 5 },
+    writePerm: PERM.ADMIN_CONFIG_WRITE,
+  },
+  'delay.maxTransfers': {
+    // Số lần chuyển khách sạn tối đa cho một đơn vị đặt; vượt thì nhóm FAILED + báo đỏ quầy (spec 6.4).
+    schema: z.object({ count: int(0, 20) }),
+    default: { count: 3 },
+    writePerm: PERM.ADMIN_CONFIG_WRITE,
+  },
+  'delay.maxWaitMin': {
+    // Tổng thời gian chờ tối đa của một nhóm kể từ lượt gửi đầu tiên; vượt thì nhóm FAILED + báo đỏ quầy.
+    schema: z.object({ minutes: int(1, 240) }),
+    default: { minutes: 15 },
+    writePerm: PERM.ADMIN_CONFIG_WRITE,
+  },
+  'delay.sweepSec': {
+    // Chu kỳ job quét offer quá hạn; đọc một lần lúc khởi động API (đổi cần khởi động lại).
+    schema: z.object({ seconds: int(1, 300) }),
+    default: { seconds: 5 },
+    writePerm: PERM.ADMIN_CONFIG_WRITE,
+  },
   'cancellation.fee': {
     // Phí hủy theo gói chính sách (BA §5, chờ PO xác nhận). null = không có cửa sổ đó.
     // freeHours: còn >= số giờ này trước check-in thì miễn phí; partialHours: còn >= số giờ này thì giữ partialBps; còn lại giữ lateBps.
@@ -108,6 +132,24 @@ export const CONFIG_KEYS = {
     schema: z.object({ gatewayRetries: int(0, 10), claimLinkDays: int(1, 30) }),
     default: { gatewayRetries: 3, claimLinkDays: 7 },
     writePerm: PERM.ADMIN_CONFIG_FINANCE,
+  },
+  'delay.arriveBeforeMin': {
+    // Luồng delay (spec 6.5): khách phải có mặt ở sân bay trước giờ bay mới bao nhiêu phút.
+    schema: z.object({ minutes: int(0, 600) }),
+    default: { minutes: 120 },
+    writePerm: PERM.ADMIN_CONFIG_WRITE,
+  },
+  'delay.bufferMin': {
+    // Luồng delay (spec 6.5): dự phòng cộng thêm khi tính giờ rời khách sạn.
+    schema: z.object({ minutes: int(0, 240) }),
+    default: { minutes: 15 },
+    writePerm: PERM.ADMIN_CONFIG_WRITE,
+  },
+  'delay.minLeadMin': {
+    // Đổi giờ bay sớm hơn: giờ rời KS mới còn ít hơn ngần này phút nữa thì không tự rút ngắn, báo khẩn cho quầy.
+    schema: z.object({ minutes: int(0, 240) }),
+    default: { minutes: 30 },
+    writePerm: PERM.ADMIN_CONFIG_WRITE,
   },
 } as const;
 

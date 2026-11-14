@@ -61,3 +61,15 @@ export const requirePermission =
     }
     next();
   };
+
+// Như requirePermission nhưng chỉ cần MỘT trong các quyền (vd. fleet:manage HOẶC shuttle:handle).
+export const requireAnyPermission =
+  (...options: string[]): RequestHandler =>
+  (req, _res, next) => {
+    const auth = req.auth;
+    if (!auth) throw new AppError(401, 'UNAUTHENTICATED', 'Chưa đăng nhập');
+    if (auth.kind !== 'ACCOUNT' || auth.accountType === 'PASSENGER' || !options.some((p) => auth.permissions.includes(p))) {
+      throw new AppError(403, 'FORBIDDEN', 'Không đủ quyền thực hiện thao tác này');
+    }
+    next();
+  };

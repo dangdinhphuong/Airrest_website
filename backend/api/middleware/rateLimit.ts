@@ -31,3 +31,21 @@ export const passengerAuthRateLimit = rateLimit({
   legacyHeaders: false,
   message: tooMany,
 });
+
+// Xin URL tải tệp đính kèm hỗ trợ (endpoint công khai nhận file): chặn spam dung lượng.
+export const attachmentRateLimit = rateLimit({
+  windowMs: 60 * 60_000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: tooMany,
+});
+
+// Riêng cho tra cứu nhóm delay: cùng mức 10/phút/IP nhưng bộ đếm tách khỏi strictRateLimit (không khóa chéo đăng nhập/tra cứu đơn).
+export const groupLookupRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: tooMany,
+});

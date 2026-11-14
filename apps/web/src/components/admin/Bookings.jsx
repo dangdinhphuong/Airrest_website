@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ScreenTitle } from '../Common';
 import { Pill } from '../partner/ui';
 import { money } from '../../lib/time';
 import { BOOKING_LABEL } from './Dashboard';
+import { EventLog } from '../hotel/fleetKit';
+import { adminApi } from '../../data/admin';
+import { lineLabel, stayLabel } from '../../lib/bookingText';
 import { Back, Filters, LoadView, PagedView, Table, dt, useLoad, usePaged } from './kit';
 
 const TONE = { CONFIRMED: 'ok', CHECKED_IN: 'ok', CHECKED_OUT: 'neutral', PENDING: 'warn', PENDING_PAYMENT: 'warn', CANCELLED: 'error', REJECTED: 'error', EXPIRED: 'neutral', NO_SHOW: 'error' };
@@ -11,6 +14,7 @@ const Row = ({ l, children }) => <div><dt>{l}</dt><dd>{children}</dd></div>;
 
 function Detail({ id, onBack }) {
   const r = useLoad(`/bookings/${id}`);
+  const events = useCallback((cursor) => adminApi.get(`/bookings/${id}/events`, { cursor }), [id]);
   return (
     <>
       <Back onClick={onBack} />
@@ -20,8 +24,9 @@ function Detail({ id, onBack }) {
           <dl className="breakdown">
             <Row l="Khách sạn">{b.hotelSnapshot?.name} <small>{b.hotelId}</small></Row>
             <Row l="Khách">{b.guest?.fullName} · {b.guest?.phone}{b.guest?.email ? ` · ${b.guest.email}` : ''}</Row>
-            <Row l="Lưu trú">{dt(b.stay?.from)} → {dt(b.stay?.to)} ({b.stay?.nights} đêm)</Row>
-            <Row l="Phòng">{(b.lines || []).map((x) => `${x.roomTypeName} × ${x.qty} (${money(x.subtotalVnd)})`).join('; ')}</Row>
+            <Row l="Số người"><span data-testid="detail-guest-count">{b.guest?.count ?? 1}{b.guest?.children > 0 ? ` (${b.guest.children} trẻ em)` : ''}</span></Row>
+            <Row l="Lưu trú">{b.stay ? stayLabel(b.stay) : '—'}</Row>
+            <Row l="Phòng">{(b.lines || []).map((x) => `${lineLabel(x)} (${money(x.subtotalVnd)})`).join('; ')}</Row>
             <Row l="Tiền phòng">{money(b.pricing?.roomVnd ?? 0)}</Row>
             <Row l="Xe đưa đón">{money(b.pricing?.shuttleVnd ?? 0)}</Row>
             <Row l="Phí dịch vụ">{money(b.pricing?.serviceFeeVnd ?? 0)}</Row>
@@ -29,6 +34,7 @@ function Detail({ id, onBack }) {
             <Row l="Thanh toán">{b.payment ? `${b.payment.method} · ${b.payment.status} · đã trả ${money(b.payment.paidVnd)} · đã hoàn ${money(b.payment.refundedVnd)}` : '—'}</Row>
             <Row l="Tạo lúc">{dt(b.createdAt)}</Row>
           </dl>
+          <EventLog fetchPage={events} />
           <h3>Lịch sử trạng thái</h3>
           <Table rowKey={(h) => `${h.at}${h.to}`} rows={b.statusHistory || []} cols={[['Lúc', (h) => dt(h.at)], ['Từ', (h) => h.from ? BOOKING_LABEL[h.from] : '—'], ['Sang', (h) => BOOKING_LABEL[h.to] || h.to], ['Bởi', (h) => h.by?.type + (h.by?.id ? ` ${h.by.id.slice(0, 8)}` : '')], ['Lý do', (h) => h.reasonCode || h.reason || '—']]} />
         </div>

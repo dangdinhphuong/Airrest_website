@@ -11,3 +11,4 @@ const gen = (prefix: string): string => {
 
 export const generateBookingCode = (): string => gen('AR');
 export const generateTicketCode = (): string => gen('SP');
+export const generateGroupCode = (): string => gen('NH');

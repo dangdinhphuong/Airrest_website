@@ -6,11 +6,15 @@ import {
   changePassengerPassword,
   changePasswordBody,
   listPassengerBookings,
+  listPassengerTickets,
   loginBody,
   loginPassenger,
   meBookingsQuery,
+  meTicketsQuery,
+  patchProfileBody,
   registerBody,
   registerPassenger,
+  updatePassengerProfile,
 } from '../../../services/passengers/passengers.service';
 import type { z } from 'zod';
 
@@ -29,6 +33,13 @@ meRouter.use(authenticate, requirePassenger);
 meRouter.patch('/password', passengerAuthRateLimit, validate({ body: changePasswordBody }), async (req, res) => {
   await changePassengerPassword(req.auth!.sub, req.valid.body as z.infer<typeof changePasswordBody>, String(req.id));
   res.status(204).end();
+});
+// Sửa họ tên / cấu hình cá nhân (sân bay, số khách, thanh toán mặc định); không nhận SĐT/email (BR-002).
+meRouter.patch('/profile', validate({ body: patchProfileBody }), async (req, res) => {
+  res.json({ user: await updatePassengerProfile(req.auth!.sub, req.valid.body as z.infer<typeof patchProfileBody>, String(req.id)) });
+});
+meRouter.get('/tickets', validate({ query: meTicketsQuery }), async (req, res) => {
+  res.json(await listPassengerTickets(req.auth!.sub, req.valid.query as z.infer<typeof meTicketsQuery>));
 });
 meRouter.get('/bookings', validate({ query: meBookingsQuery }), async (req, res) => {
   res.json(await listPassengerBookings(req.auth!.sub, req.valid.query as z.infer<typeof meBookingsQuery>));

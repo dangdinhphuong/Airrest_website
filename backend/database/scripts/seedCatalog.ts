@@ -79,6 +79,16 @@ export async function seedCatalog(password: string): Promise<{ hotels: number }>
     )).rows[0]!;
     const has = (await db.query("SELECT 1 FROM room_types WHERE hotel_id = $1 AND code = 'STD'", [hotel.id])).rowCount;
     if (!has) await db.query("INSERT INTO room_types (hotel_id, code, name, capacity, beds, area_m2, total_rooms, pricing, active) VALUES ($1, 'STD', $2, $3, 1, 22, $4, $5::jsonb, true)", [hotel.id, h.roomName, h.capacity, h.rooms, json({ baseNightVnd: h.price })]);
+    // Phòng theo giờ: khách sạn có tag HOURLY (và HAN-01/SGN-01 làm ví dụ) bật giờ cho loại STD; chưa cấu hình thì mới ghi (không đè cấu hình đã sửa tay).
+    if (h.amenities.includes('HOURLY') || h.code === 'HAN-01' || h.code === 'SGN-01') {
+      const first = h.code === 'HAN-01' ? 120_000 : Math.max(60_000, Math.round((h.price * 0.3) / 10_000) * 10_000);
+      const next = h.code === 'HAN-01' ? 70_000 : Math.round((first * 0.6) / 10_000) * 10_000;
+      await db.query(
+        `UPDATE room_types SET pricing = pricing || jsonb_build_object('hourly', $2::jsonb) WHERE hotel_id = $1 AND code = 'STD' AND pricing->'hourly' IS NULL`,
+        [hotel.id, json({ enabled: true, firstHourVnd: first, nextHourVnd: next, minHours: 1, maxHours: 8, cleaningMin: 30 })],
+      );
+      await db.query("UPDATE hotels SET amenities = array_append(amenities, 'HOURLY') WHERE id = $1 AND NOT 'HOURLY' = ANY(amenities)", [hotel.id]);
+    }
     const hasFam = (await db.query("SELECT 1 FROM room_types WHERE hotel_id = $1 AND code = 'FAM'", [hotel.id])).rowCount;
     if (h.family && !hasFam) await db.query("INSERT INTO room_types (hotel_id, code, name, capacity, beds, area_m2, total_rooms, pricing, active) VALUES ($1, 'FAM', 'Phòng gia đình', 4, 2, 36, $2, $3::jsonb, true)", [hotel.id, Math.max(1, h.rooms), json({ baseNightVnd: Math.round((h.price * 1.6) / 10000) * 10000 })]);
   }

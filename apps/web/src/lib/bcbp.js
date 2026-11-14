@@ -1,5 +1,5 @@
 // Đọc phần bắt buộc của thẻ lên tàu IATA BCBP (Resolution 792): chỉ lấy số hiệu chuyến bay và ngày bay.
-// Cố ý KHÔNG trả tên hành khách / mã đặt chỗ để chúng không bao giờ rời khỏi hàm này.
+// Chỉ trả số hiệu, ngày và tuyến bay. Cố ý KHÔNG trả tên hành khách / mã đặt chỗ / ghế để chúng không bao giờ rời khỏi hàm này.
 const pad = (n) => String(n).padStart(2, '0');
 
 // Ngày trong thẻ chỉ có số thứ tự trong năm (1-366), không có năm: chọn năm cho ngày bay gần hôm nay nhất.
@@ -14,15 +14,17 @@ export function ordinalToIso(ordinal, now = new Date()) {
   return best ? `${best.getFullYear()}-${pad(best.getMonth() + 1)}-${pad(best.getDate())}` : null;
 }
 
-// "M1DESMARAIS/LUC  EABC123 YULFRAAC 0834 226F001A0025 100" -> { flight: 'AC834', date: '2026-08-14' } hoặc null.
+// "M1DESMARAIS/LUC  EABC123 YULFRAAC 0834 226F001A0025 100" -> { flight: 'AC834', date: '2026-08-14', from: 'YUL', to: 'FRA' } hoặc null.
 export function parseBcbp(text, now = new Date()) {
   const s = String(text ?? '');
   if (s.length < 58 || s[0] !== 'M' || !/^[1-9]$/.test(s[1])) return null;
+  const from = s.slice(30, 33);
+  const to = s.slice(33, 36);
   const carrier = s.slice(36, 39).trim();
   const number = s.slice(39, 44).trim();
   const ordinal = Number(s.slice(44, 47));
-  if (!/^[A-Z0-9]{2,3}$/.test(carrier) || !/^\d{1,4}[A-Z]?$/.test(number) || !(ordinal >= 1 && ordinal <= 366)) return null;
+  if (!/^[A-Z]{3}$/.test(from) || !/^[A-Z]{3}$/.test(to) || !/^[A-Z0-9]{2,3}$/.test(carrier) || !/^\d{1,4}[A-Z]?$/.test(number) || !(ordinal >= 1 && ordinal <= 366)) return null;
   const date = ordinalToIso(ordinal, now);
   if (!date) return null;
-  return { flight: `${carrier}${number.replace(/^0+(?=\d)/, '')}`, date };
+  return { flight: `${carrier}${number.replace(/^0+(?=\d)/, '')}`, date, from, to };
 }

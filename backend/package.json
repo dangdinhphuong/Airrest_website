@@ -14,6 +14,7 @@
     "test:db": "RUN_DB_TESTS=1 vitest run",
     "storage:check": "tsx --env-file-if-exists=.env scripts/storage-check.ts",
     "db:seed": "tsx --env-file-if-exists=.env database/scripts/seed.ts",
+    "db:seed:fleet": "tsx --env-file-if-exists=.env database/scripts/seedFleet.ts",
     "db:migrate": "tsx --env-file-if-exists=.env database/scripts/migrate.ts",
     "dev:db": "tsx scripts/dev-db.ts"
   },
@@ -29,6 +30,7 @@
     "express-rate-limit": "^8.7.4",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^10.5.0",
     "pg": "^8.23.1",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
@@ -42,6 +44,7 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.6",
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
     "@types/swagger-ui-express": "^4.1.8",

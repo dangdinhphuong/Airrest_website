@@ -1,0 +1,654 @@
+[
+  {
+    "viewport": "320x568",
+    "page": "public-home",
+    "vw": 320,
+    "sw": 320,
+    "overflowPx": 0,
+    "ctlTotal": 28,
+    "ctlSmall": 14,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "input.ui-bare",
+        2
+      ],
+      [
+        "button.tw:mt-4.tw:rounded-xl",
+        2
+      ],
+      [
+        "button.tw:rounded-xl.tw:border",
+        1
+      ],
+      [
+        "button.tw:rounded-xl.tw:bg-white",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "320x568",
+    "page": "public-stays",
+    "vw": 320,
+    "sw": 320,
+    "overflowPx": 0,
+    "ctlTotal": 21,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:mt-4.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "320x568",
+    "page": "public-support",
+    "vw": 320,
+    "sw": 320,
+    "overflowPx": 0,
+    "ctlTotal": 24,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "320x568",
+    "page": "public-track",
+    "vw": 320,
+    "sw": 320,
+    "overflowPx": 0,
+    "ctlTotal": 17,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "320x568",
+    "page": "public-login",
+    "vw": 320,
+    "sw": 320,
+    "overflowPx": 0,
+    "ctlTotal": 10,
+    "ctlSmall": 6,
+    "topSmall": [
+      [
+        "[auth-continue]",
+        1
+      ],
+      [
+        "[tab-login]",
+        1
+      ],
+      [
+        "[tab-register]",
+        1
+      ],
+      [
+        "[login-username]",
+        1
+      ],
+      [
+        "input",
+        1
+      ],
+      [
+        "button",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": [
+      "div.auth-navy-circle right=387"
+    ]
+  },
+  {
+    "viewport": "360x800",
+    "page": "public-home",
+    "vw": 360,
+    "sw": 360,
+    "overflowPx": 0,
+    "ctlTotal": 28,
+    "ctlSmall": 14,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "input.ui-bare",
+        2
+      ],
+      [
+        "button.tw:mt-4.tw:rounded-xl",
+        2
+      ],
+      [
+        "button.tw:rounded-xl.tw:border",
+        1
+      ],
+      [
+        "button.tw:rounded-xl.tw:bg-white",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "360x800",
+    "page": "public-stays",
+    "vw": 360,
+    "sw": 360,
+    "overflowPx": 0,
+    "ctlTotal": 21,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:mt-4.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "360x800",
+    "page": "public-support",
+    "vw": 360,
+    "sw": 360,
+    "overflowPx": 0,
+    "ctlTotal": 24,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "360x800",
+    "page": "public-track",
+    "vw": 360,
+    "sw": 360,
+    "overflowPx": 0,
+    "ctlTotal": 17,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "360x800",
+    "page": "public-login",
+    "vw": 360,
+    "sw": 360,
+    "overflowPx": 0,
+    "ctlTotal": 10,
+    "ctlSmall": 6,
+    "topSmall": [
+      [
+        "[auth-continue]",
+        1
+      ],
+      [
+        "[tab-login]",
+        1
+      ],
+      [
+        "[tab-register]",
+        1
+      ],
+      [
+        "[login-username]",
+        1
+      ],
+      [
+        "input",
+        1
+      ],
+      [
+        "button",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": [
+      "div.auth-navy-circle right=427"
+    ]
+  },
+  {
+    "viewport": "393x852",
+    "page": "public-home",
+    "vw": 393,
+    "sw": 393,
+    "overflowPx": 0,
+    "ctlTotal": 28,
+    "ctlSmall": 14,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "input.ui-bare",
+        2
+      ],
+      [
+        "button.tw:mt-4.tw:rounded-xl",
+        2
+      ],
+      [
+        "button.tw:rounded-xl.tw:border",
+        1
+      ],
+      [
+        "button.tw:rounded-xl.tw:bg-white",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "393x852",
+    "page": "public-stays",
+    "vw": 393,
+    "sw": 393,
+    "overflowPx": 0,
+    "ctlTotal": 21,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:mt-4.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "393x852",
+    "page": "public-support",
+    "vw": 393,
+    "sw": 393,
+    "overflowPx": 0,
+    "ctlTotal": 24,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "393x852",
+    "page": "public-track",
+    "vw": 393,
+    "sw": 393,
+    "overflowPx": 0,
+    "ctlTotal": 17,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "393x852",
+    "page": "public-login",
+    "vw": 393,
+    "sw": 393,
+    "overflowPx": 0,
+    "ctlTotal": 10,
+    "ctlSmall": 6,
+    "topSmall": [
+      [
+        "[auth-continue]",
+        1
+      ],
+      [
+        "[tab-login]",
+        1
+      ],
+      [
+        "[tab-register]",
+        1
+      ],
+      [
+        "[login-username]",
+        1
+      ],
+      [
+        "input",
+        1
+      ],
+      [
+        "button",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": [
+      "div.auth-navy-circle right=460"
+    ]
+  },
+  {
+    "viewport": "412x915",
+    "page": "public-home",
+    "vw": 412,
+    "sw": 412,
+    "overflowPx": 0,
+    "ctlTotal": 28,
+    "ctlSmall": 14,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "input.ui-bare",
+        2
+      ],
+      [
+        "button.tw:mt-4.tw:rounded-xl",
+        2
+      ],
+      [
+        "button.tw:rounded-xl.tw:border",
+        1
+      ],
+      [
+        "button.tw:rounded-xl.tw:bg-white",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "412x915",
+    "page": "public-stays",
+    "vw": 412,
+    "sw": 412,
+    "overflowPx": 0,
+    "ctlTotal": 21,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:mt-4.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "412x915",
+    "page": "public-support",
+    "vw": 412,
+    "sw": 412,
+    "overflowPx": 0,
+    "ctlTotal": 24,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "412x915",
+    "page": "public-track",
+    "vw": 412,
+    "sw": 412,
+    "overflowPx": 0,
+    "ctlTotal": 17,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "412x915",
+    "page": "public-login",
+    "vw": 412,
+    "sw": 412,
+    "overflowPx": 0,
+    "ctlTotal": 10,
+    "ctlSmall": 6,
+    "topSmall": [
+      [
+        "[auth-continue]",
+        1
+      ],
+      [
+        "[tab-login]",
+        1
+      ],
+      [
+        "[tab-register]",
+        1
+      ],
+      [
+        "[login-username]",
+        1
+      ],
+      [
+        "input",
+        1
+      ],
+      [
+        "button",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": [
+      "div.auth-navy-circle right=479"
+    ]
+  }
+]

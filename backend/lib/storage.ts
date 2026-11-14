@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { SUPPORT_ATTACHMENT, type SupportAttachmentType } from '@airrest/validation';
 import { env } from '../config/env';
 import { AppError } from './errors';
 
@@ -9,7 +10,7 @@ export const IMAGE_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/web
 export type ImageType = keyof typeof IMAGE_TYPES;
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const UPLOAD_URL_TTL_SECONDS = 300;
-export const MEDIA_FOLDERS = ['hotels', 'rooms'] as const;
+export const MEDIA_FOLDERS = ['hotels', 'rooms', 'drivers'] as const;
 export type MediaFolder = (typeof MEDIA_FOLDERS)[number];
 
 let client: { s3: S3Client; bucket: string } | undefined;
@@ -33,6 +34,27 @@ export async function presignImageUpload(folder: MediaFolder, type: ImageType) {
   const key = newMediaKey(folder, type);
   const uploadUrl = await getSignedUrl(s3, new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: type }), { expiresIn: UPLOAD_URL_TTL_SECONDS });
   return { key, uploadUrl, method: 'PUT' as const, headers: { 'Content-Type': type }, expiresIn: UPLOAD_URL_TTL_SECONDS, publicUrl: publicUrl(key) };
+}
+
+// Tệp đính kèm hỗ trợ của khách (ảnh/video): khóa do server đặt, URL PUT hết hạn sau 5 phút. Kích thước thật được kiểm ở bước xác nhận bằng headMedia.
+export async function presignSupportUpload(type: SupportAttachmentType) {
+  const { s3, bucket } = r2();
+  const key = `support/${new Date().getUTCFullYear()}/${randomUUID()}.${SUPPORT_ATTACHMENT.types[type]}`;
+  const uploadUrl = await getSignedUrl(s3, new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: type }), { expiresIn: UPLOAD_URL_TTL_SECONDS });
+  return { key, uploadUrl, method: 'PUT' as const, headers: { 'Content-Type': type }, expiresIn: UPLOAD_URL_TTL_SECONDS };
+}
+
+// Kích thước và loại THẬT của object đã tải lên; null nếu chưa có.
+export async function headMedia(key: string): Promise<{ size: number; contentType?: string } | null> {
+  const { s3, bucket } = r2();
+  try {
+    const h = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return { size: h.ContentLength ?? 0, contentType: h.ContentType };
+  } catch (e) {
+    const err = e as { name?: string; $metadata?: { httpStatusCode?: number } };
+    if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) return null;
+    throw e;
+  }
 }
 
 // Bucket công khai: ghép với R2_PUBLIC_BASE_URL. Bucket riêng tư: không có URL này, dùng presignDownload.

@@ -6,13 +6,15 @@ import { db, json, withTransaction, type Db } from '../../database/pg';
 import { bookingFromRow, type Actor, type BookingDoc, type ChangeRequestDoc, type HotelDoc } from '../../database/types';
 import { AppError, isDuplicateKey } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
-import { newVnpOrder } from '../../lib/vnpay';
+import { newGatewayOrder } from '../../lib/momo';
 import { actorOf, writeAudit } from '../audit';
+import { legRefundedVnd } from '../shuttle/billing';
 import { cancelShuttlesForBooking } from '../shuttle/cascade';
 import { isRoomAvailable } from '../rooms/availability';
 import { hotelScope } from '../scope';
 import { lookupBooking } from '../bookings/bookings.service';
 import { emitBookingChange } from '../events';
+import { publishBookingStatus } from '../shuttle/events';
 import { getConfig } from '../systemConfig';
 
 const DAY_MS = 24 * 3600_000;
@@ -22,16 +24,23 @@ const CHANGEABLE = ['PENDING', 'CONFIRMED'];
 type Template = 'FLEXIBLE' | 'STANDARD' | 'NON_REFUNDABLE';
 
 // Báo giá hủy tại thời điểm `now` (dựa trên gói chính sách của khách sạn + cấu hình cancellation.fee).
-async function cancelQuoteFor(b: BookingDoc, now: Date) {
+// Xe đặt cùng đơn tách riêng khỏi chính sách phòng: KHÔNG hoàn tiền xe (khách không đi), phần xe đã thu hiển thị là 'giữ lại'.
+// Phần PHÒNG tính đúng như cũ trên (phòng + phí DV) -> đơn không chọn xe cho kết quả y hệt trước đây.
+async function cancelQuoteFor(b: BookingDoc, now: Date, q: Db = db) {
   const hotel = (await db.query<Pick<HotelDoc, 'policy'>>('SELECT policy FROM hotels WHERE id = $1', [b.hotelId])).rows[0];
   const template = ((hotel?.policy as { cancellationTemplate?: Template } | undefined)?.cancellationTemplate ?? 'FLEXIBLE') as Template;
   const cfg = await getConfig('cancellation.fee', now);
   const tier = cfg.value[template] as CancellationTier;
-  const q = cancellationQuote({
+  const paid = b.payment.paidVnd;
+  const shuttleVnd = b.pricing.shuttleVnd ?? 0;
+  const shuttleRefundVnd = 0;
+  const shuttleKeepVnd = paid > 0 ? shuttleVnd : 0;
+  const paidRoomFee = paid > 0 ? Math.max(0, paid - (await legRefundedVnd(q, b.id)) - shuttleVnd) : 0;
+  const rq = cancellationQuote({
     tier, checkInAt: new Date(b.stay.from), now, roomVnd: b.pricing.roomVnd, nights: b.stay.nights, serviceFeeVnd: b.pricing.serviceFeeVnd,
-    totalVnd: b.pricing.totalVnd, paidVnd: b.payment.paidVnd, refundedVnd: b.payment.refundedVnd,
+    totalVnd: b.pricing.totalVnd - shuttleVnd, paidVnd: paid > 0 ? paidRoomFee : 0, refundedVnd: b.payment.refundedVnd,
   });
-  return { template, configVersion: cfg.version, ...q };
+  return { template, configVersion: cfg.version, ...rq, keepVnd: rq.keepVnd + shuttleKeepVnd, refundVnd: rq.refundVnd + shuttleRefundVnd, shuttleRefundVnd, shuttleKeepVnd };
 }
 
 export async function quoteCancellation(code: string, phone: string) {
@@ -47,6 +56,8 @@ export async function createChangeRequest(input: CreateChangeRequestBody, reques
     const now = new Date();
     const b = bookingFromRow((await tx.query('SELECT * FROM bookings WHERE id = $1 FOR UPDATE', [found.id])).rows[0]!);
     if (input.type === 'CANCEL' && !CANCELLABLE.includes(b.status)) throw new AppError(409, 'BOOKING_NOT_CANCELLABLE', 'Đơn không thể hủy ở trạng thái hiện tại');
+    // shortcut: đơn có dòng theo giờ chưa hỗ trợ đổi ngày (đổi giờ vào = hủy + đặt lại); nâng cấp khi cần đổi giờ vào trực tiếp.
+    if (input.type === 'CHANGE' && b.lines.some((l) => l.kind === 'HOURLY')) throw new AppError(422, 'CHANGE_NOT_SUPPORTED_HOURLY', 'Đơn có phòng theo giờ chưa hỗ trợ đổi ngày. Bạn có thể hủy đơn rồi đặt lại giờ khác.');
     if (input.type === 'CHANGE' && !CHANGEABLE.includes(b.status)) throw new AppError(409, 'BOOKING_NOT_CHANGEABLE', 'Đơn không thể đổi ngày ở trạng thái hiện tại');
     const pending = (await tx.query('SELECT 1 FROM change_requests WHERE booking_id = $1 AND status = \'PENDING\'', [b.id])).rows[0];
     if (pending) throw new AppError(409, 'REQUEST_ALREADY_PENDING', 'Đơn đã có một yêu cầu đang chờ xử lý');
@@ -55,18 +66,20 @@ export async function createChangeRequest(input: CreateChangeRequestBody, reques
     let newFrom: Date | null = null;
     let newTo: Date | null = null;
     if (input.type === 'CANCEL') {
-      quote = { kind: 'CANCEL', ...(await cancelQuoteFor(b, now)) };
+      quote = { kind: 'CANCEL', ...(await cancelQuoteFor(b, now, tx)) };
     } else {
       newFrom = input.newFrom;
       newTo = input.newTo;
       if (newFrom.getTime() === new Date(b.stay.from).getTime() && newTo.getTime() === new Date(b.stay.to).getTime()) throw new AppError(422, 'CHANGE_SAME_DATES', 'Ngày mới trùng ngày hiện tại');
-      const cq = await cancelQuoteFor(b, now);
+      const cq = await cancelQuoteFor(b, now, tx);
       if (cq.template === 'NON_REFUNDABLE' && cq.hoursBefore < 24) throw new AppError(409, 'CHANGE_NOT_ALLOWED', 'Gói không hoàn không cho đổi ngày trong vòng 24 giờ trước nhận phòng');
       const newNights = Math.max(1, Math.ceil((newTo.getTime() - newFrom.getTime()) / DAY_MS));
       const fee = await getConfig('pricing.serviceFee', now);
       quote = {
         kind: 'CHANGE', newNights,
-        ...changeQuote({ unitPriceVnd: b.lines[0]!.unitPriceVnd, qty: b.lines.reduce((s, l) => s + l.qty, 0), oldNights: b.stay.nights, newNights, oldTotalVnd: b.pricing.totalVnd, fee: fee.value }),
+        ...changeQuote({ unitPriceVnd: b.lines.reduce((s, l) => s + l.unitPriceVnd * l.qty, 0), qty: 1, // tổng giá một đêm của mọi dòng phòng
+           oldNights: b.stay.nights, newNights, oldTotalVnd: b.pricing.totalVnd, fee: fee.value, shuttleVnd: b.pricing.shuttleVnd ?? 0 }),
+        shuttleVnd: b.pricing.shuttleVnd ?? 0, // để applyChange phát hiện báo giá cũ nếu xe đổi trong lúc chờ duyệt
       };
     }
     let created: ChangeRequestDoc;
@@ -136,16 +149,16 @@ export async function listStaffRequests(auth: AuthContext, q: StaffRequestsQuery
 }
 
 // Lệnh hoàn do hủy/đổi: chỉ GHI (PENDING, due_at vô hạn), không gọi cổng thanh toán; luồng thanh toán bật lại sẽ kích hoạt.
-async function createRequestRefund(tx: Db, b: BookingDoc, key: string, amountVnd: number, reasonCode: 'CANCEL_APPROVED' | 'CHANGE_DOWNSIZE', now: Date, requestId?: string): Promise<string | null> {
-  const amount = Math.min(amountVnd, b.payment.paidVnd - b.payment.refundedVnd);
+export async function createRequestRefund(tx: Db, b: BookingDoc, key: string, amountVnd: number, reasonCode: 'CANCEL_APPROVED' | 'CHANGE_DOWNSIZE', now: Date, requestId?: string): Promise<string | null> {
+  const amount = Math.min(amountVnd, b.payment.paidVnd - b.payment.refundedVnd - (await legRefundedVnd(tx, b.id))); // trừ phần chiều xe đã hoàn riêng
   if (amount <= 0) return null;
-  const pay = (await tx.query<{ id: string }>("SELECT id FROM payments WHERE booking_id = $1 AND status = 'SUCCEEDED' ORDER BY paid_at DESC LIMIT 1", [b.id])).rows[0];
+  const pay = (await tx.query<{ id: string; method: string }>("SELECT id, method FROM payments WHERE booking_id = $1 AND status = 'SUCCEEDED' ORDER BY paid_at DESC LIMIT 1", [b.id])).rows[0];
   if (!pay) return null;
-  const { orderId, requestId: gw } = newVnpOrder(`RF${b.code}`);
+  const { orderId, requestId: gw } = newGatewayOrder(pay.method, `RF${b.code}`);
   const ins = await tx.query<{ id: string }>(
     `INSERT INTO refunds (id, booking_id, hotel_id, payment_id, key, amount_vnd, reason_code, method, status, gateway, due_at, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,'VNPAY','PENDING',$8::jsonb,'infinity',$9,$9) ON CONFLICT (key) DO NOTHING RETURNING id`,
-    [randomUUID(), b.id, b.hotelId, pay.id, key, amount, reasonCode, json({ orderId, requestId: gw }), now],
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$10,'PENDING',$8::jsonb,'infinity',$9,$9) ON CONFLICT (key) DO NOTHING RETURNING id`,
+    [randomUUID(), b.id, b.hotelId, pay.id, key, amount, reasonCode, json({ orderId, requestId: gw }), now, pay.method],
   );
   const id = ins.rows[0]?.id ?? null;
   if (id) await writeAudit({ actor: { type: 'SYSTEM' }, action: 'REFUND.CREATE', entity: { type: 'refund', id }, hotelId: b.hotelId, bookingId: b.id, after: { amountVnd: amount, reasonCode }, requestId }, tx);
@@ -159,31 +172,35 @@ async function applyCancel(tx: Db, cr: ChangeRequestDoc, b: BookingDoc, actor: A
     [b.id, now, json([{ from: b.status, to: 'CANCELLED', at: now, by: actor, reasonCode: 'CANCEL_APPROVED' }])],
   );
   await tx.query("UPDATE room_reservations SET state = 'RELEASED', updated_at = $2 WHERE booking_id = $1 AND state IN ('HOLD','CONFIRMED')", [b.id, now]);
+  // Số hoàn = phần phòng theo báo giá đã duyệt; tiền xe không bao giờ hoàn (báo giá có shuttleRefundVnd = 0).
   await cancelShuttlesForBooking(tx, b.id, actor, 'Booking đã hủy', requestId);
   const refundId = await createRequestRefund(tx, b, `cancel:${cr.id}`, Number(cr.quote.refundVnd ?? 0), 'CANCEL_APPROVED', now, requestId);
   await writeAudit({ actor, action: 'BOOKING.CANCEL', entity: { type: 'booking', id: b.id }, hotelId: b.hotelId, bookingId: b.id, before: { status: b.status }, after: { status: 'CANCELLED' }, requestId }, tx);
+  publishBookingStatus(b, 'CANCELLED');
   return { refundId, newStatus: 'CANCELLED' };
 }
 
 async function applyChange(tx: Db, cr: ChangeRequestDoc, b: BookingDoc, actor: Actor, now: Date, requestId?: string) {
   if (!CHANGEABLE.includes(b.status)) throw new AppError(409, 'BOOKING_NOT_CHANGEABLE', 'Đơn không còn ở trạng thái có thể đổi ngày');
-  const q = cr.quote as { newNights: number; newRoomVnd: number; newServiceFeeVnd: number; newTotalVnd: number; diffVnd: number };
+  const q = cr.quote as { newNights: number; newRoomVnd: number; newServiceFeeVnd: number; newTotalVnd: number; diffVnd: number; shuttleVnd?: number };
+  if ((b.pricing.shuttleVnd ?? 0) !== (q.shuttleVnd ?? 0)) throw new AppError(409, 'QUOTE_STALE', 'Tiền xe của đơn đã thay đổi sau khi gửi yêu cầu; hãy gửi yêu cầu đổi ngày mới');
   const newFrom = new Date(cr.newFrom!);
   const newTo = new Date(cr.newTo!);
-  const line = b.lines[0]!;
-  const rt = (await tx.query<{ totalRooms: number }>('SELECT total_rooms FROM room_types WHERE id = $1 FOR UPDATE', [line.roomTypeId])).rows[0]!;
+  // Khóa mọi loại phòng của đơn theo thứ tự id (cùng thứ tự với createBooking), rồi kiểm tồn từng dòng: thiếu một dòng thì không đổi gì.
+  const totals = new Map((await tx.query<{ id: string; totalRooms: number }>('SELECT id, total_rooms FROM room_types WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE', [b.lines.map((l) => l.roomTypeId)])).rows.map((r) => [r.id, r.totalRooms]));
   const hotel = (await tx.query<{ policy: { cleaningBufferMin?: number } }>('SELECT policy FROM hotels WHERE id = $1', [b.hotelId])).rows[0];
   const resTo = new Date(newTo.getTime() + (hotel?.policy.cleaningBufferMin ?? 0) * 60_000);
-  const qty = b.lines.reduce((s, l) => s + l.qty, 0);
-  if (!(await isRoomAvailable(tx, { roomTypeId: line.roomTypeId, roomTotal: rt.totalRooms, from: newFrom, to: resTo, qty, excludeBookingId: b.id, now }))) {
-    throw new AppError(409, 'SOLD_OUT', 'Không còn phòng trong khoảng ngày mới');
+  const short: string[] = [];
+  for (const l of b.lines) {
+    if (!(await isRoomAvailable(tx, { roomTypeId: l.roomTypeId, roomTotal: totals.get(l.roomTypeId) ?? 0, from: newFrom, to: resTo, qty: l.qty, excludeBookingId: b.id, now }))) short.push(l.roomTypeName);
   }
+  if (short.length) throw new AppError(409, 'SOLD_OUT', `Không còn phòng trong khoảng ngày mới: ${short.join(', ')}. Đơn giữ nguyên, chưa đổi gì.`, { soldOut: short });
   if (q.diffVnd > 0 && b.payment.paidVnd > 0) throw new AppError(409, 'CHANGE_NEEDS_PAYMENT', 'Đổi ngày làm tăng giá nhưng đơn đã thu tiền; chưa hỗ trợ thu thêm');
   // Đổi trên CÙNG hàng giữ chỗ: giữ chỗ mới và nhả chỗ cũ là một thao tác nguyên tử, khách không mất phòng giữa chừng.
   await tx.query('UPDATE room_reservations SET starts_at = $2, ends_at = $3, updated_at = $4 WHERE booking_id = $1 AND state IN (\'HOLD\',\'CONFIRMED\')', [b.id, newFrom, resTo, now]);
   await tx.query(
     `UPDATE bookings SET stay = jsonb_build_object('type','NIGHT','from',$2::timestamptz,'to',$3::timestamptz,'nights',$4::int), stay_from = $2,
-       lines = jsonb_set(lines, '{0,subtotalVnd}', to_jsonb($5::bigint)),
+       lines = (SELECT jsonb_agg(jsonb_set(l, '{subtotalVnd}', to_jsonb(((l->>'unitPriceVnd')::bigint * (l->>'qty')::bigint * $4::int))) ORDER BY o) FROM jsonb_array_elements(lines) WITH ORDINALITY AS t(l, o)),
        pricing = pricing || jsonb_build_object('roomVnd',$5::bigint,'serviceFeeVnd',$6::bigint,'totalVnd',$7::bigint),
        change_count = change_count + 1, updated_at = $8, status_history = status_history || $9::jsonb, v = v + 1 WHERE id = $1`,
     [b.id, newFrom, newTo, q.newNights, q.newRoomVnd, q.newServiceFeeVnd, q.newTotalVnd, now, json([{ from: b.status, to: b.status, at: now, by: actor, reasonCode: 'DATE_CHANGED' }])],

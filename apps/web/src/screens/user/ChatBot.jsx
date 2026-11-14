@@ -4,15 +4,16 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useApp } from '../../state/store';
 import { money } from '../../lib/time';
-import { scrollToId } from './data';
+import { ATTACH, attachFile, describeApiError } from '../../data/user';
+import { scrollToId, setStaysIntent } from './data';
 import { reply } from './botEngine';
 
 gsap.registerPlugin(useGSAP);
 
 const ROBOT = '/images/ai-robot.png';
 const MINI = 'airrest-bot-mini';
-const QUICK = ['Tìm nơi nghỉ gần Nội Bài dưới 700k', 'Tra chuyến bay VN218', 'Theo dõi booking', 'Chính sách hủy', 'Gửi yêu cầu hỗ trợ'];
-const WELCOME = { id: 0, from: 'bot', text: 'Xin chào! Mình là trợ lý AIRREST. Bạn đang gặp sự cố chuyến bay hay cần tìm nơi nghỉ gần sân bay? (Mình trả lời theo kịch bản mô phỏng, không phải AI thật.)' };
+const QUICK = ['Tìm & đặt phòng', 'Tra chuyến bay VN218', 'Theo dõi booking', 'Hủy / đổi ngày', 'Xe đưa đón', 'Gửi khiếu nại'];
+const WELCOME = { id: 0, from: 'bot', text: 'Xin chào! Mình là trợ lý AIRREST. Bạn đang gặp sự cố chuyến bay hay cần tìm nơi nghỉ gần sân bay? ' };
 const CHIP = 'tw:shrink-0 tw:rounded-full tw:border tw:border-blue-200 tw:bg-white tw:px-3 tw:py-2 tw:text-[11px] tw:font-bold tw:text-blue-700 tw:hover:bg-blue-50';
 
 const safe = (fn) => { try { return fn(); } catch { return null; } }; // sessionStorage có thể bị chặn
@@ -30,6 +31,7 @@ export default function ChatBot() {
   const log = useRef(null);
   const input = useRef(null);
   const seq = useRef(1);
+  const mem = useRef({}); // trạng thái hội thoại nhiều lượt (botFlows)
 
   useEffect(() => {
     if (mini) return undefined;
@@ -53,13 +55,25 @@ export default function ChatBot() {
     const q = raw.trim();
     if (!q || typing) return;
     setText(''); push({ from: 'user', text: q }); setTyping(true);
-    const [r] = await Promise.all([reply(q, { airport: state.browseAirport }), new Promise((res) => setTimeout(res, 450))]);
+    const [r] = await Promise.all([reply(q, { airport: state.browseAirport, mem: mem.current }).catch((e) => ({ text: `Mình gặp lỗi: ${e?.message ?? 'không xác định'}. Bạn thử lại giúp mình nhé.` })), new Promise((res) => setTimeout(res, 450))]);
     setTyping(false); push({ from: 'bot', ...r });
+  };
+  // Ảnh/video làm bằng chứng cho ticket vừa gửi: tải lần lượt từng tệp, báo kết quả riêng từng tệp.
+  const attach = async (e, { code, phone }) => {
+    const files = [...e.target.files]; e.target.value = '';
+    if (!files.length || typing) return;
+    setTyping(true);
+    for (const f of files) {
+      push({ from: 'user', text: `📎 ${f.name}` });
+      try { await attachFile(code, phone, f); push({ from: 'bot', text: `Đã nhận ${f.name}.` }); } catch (err) { push({ from: 'bot', text: `${f.name}: ${describeApiError(err)}` }); }
+    }
+    setTyping(false);
   };
   const run = (act) => {
     setOpen(false);
     if (act.type === 'openProperty') dispatch({ type: 'openProperty', id: act.id });
     else if (act.type === 'go') dispatch({ type: 'go', screen: act.screen });
+    else if (act.type === 'book') { setStaysIntent({ airport: act.airport, hotelId: act.hotelId, party: act.party, dates: act.dates }); dispatch({ type: 'go', screen: 'stays' }); }
     else { dispatch({ type: 'go', screen: 'home' }); scrollToId('stays'); return; }
     window.scrollTo({ top: 0 });
   };
@@ -100,7 +114,7 @@ export default function ChatBot() {
   }, { scope: root, dependencies: [messages.length] });
 
   return (
-    <div ref={root} className="tw:fixed tw:bottom-20 tw:right-3 tw:z-[60] tw:md:bottom-6 tw:md:right-6">
+    <div ref={root} data-chat-fab className="tw:fixed tw:bottom-20 tw:right-3 tw:z-[60] tw:md:bottom-6 tw:md:right-6">
       {!open && mini && (
         <button type="button" onClick={openChat} aria-label="Mở trợ lý chat AIRREST" className="tw:grid tw:size-12 tw:cursor-pointer tw:place-items-center tw:rounded-full tw:bg-[#1262e8] tw:text-white tw:shadow-xl tw:hover:bg-[#0b45c6]"><MessageCircle size={22} /></button>
       )}
@@ -124,23 +138,25 @@ export default function ChatBot() {
         <section data-chat role="dialog" aria-label="Trợ lý AIRREST" className="tw:flex tw:h-[70dvh] tw:max-h-[560px] tw:w-[calc(100vw-1.5rem)] tw:flex-col tw:overflow-hidden tw:rounded-3xl tw:bg-white tw:shadow-2xl tw:ring-1 tw:ring-slate-200 tw:sm:w-[380px]">
           <header className="tw:flex tw:items-center tw:gap-3 tw:bg-[#062253] tw:px-4 tw:py-3 tw:text-white">
             <span className="tw:grid tw:size-11 tw:shrink-0 tw:place-items-center tw:overflow-hidden tw:rounded-full tw:bg-white"><img src={ROBOT} alt="" className="tw:size-10 tw:object-contain" /></span>
-            <div className="tw:min-w-0 tw:flex-1"><strong className="tw:block tw:text-sm">Trợ lý AIRREST</strong><span className="tw:text-[10px] tw:text-blue-200">Trả lời theo kịch bản · dữ liệu mô phỏng</span></div>
+            <div className="tw:min-w-0 tw:flex-1"><strong className="tw:block tw:text-sm">Trợ lý AIRREST</strong><span className="tw:text-[11px] tw:text-blue-200">Trả lời theo kịch bản</span></div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Đóng trợ lý chat" className="tw:grid tw:size-9 tw:place-items-center tw:rounded-full tw:bg-white/10 tw:hover:bg-white/20"><X size={16} /></button>
           </header>
 
           <div ref={log} role="log" aria-live="polite" className="tw:flex-1 tw:space-y-3 tw:overflow-y-auto tw:bg-slate-50 tw:p-4">
-            {messages.map((m) => (
+            {messages.map((m, i) => (
               <div data-msg key={m.id} className={`tw:flex ${m.from === 'user' ? 'tw:justify-end' : 'tw:justify-start'}`}>
                 <div className={`tw:max-w-[88%] tw:rounded-2xl tw:px-3.5 tw:py-2.5 tw:text-xs tw:leading-5 ${m.from === 'user' ? 'tw:rounded-br-sm tw:bg-blue-600 tw:text-white' : 'tw:rounded-bl-sm tw:bg-white tw:text-slate-700 tw:shadow-sm tw:ring-1 tw:ring-slate-200'}`}>
                   <p className="tw:whitespace-pre-line">{m.text}</p>
                   {m.hotels && <div className="tw:mt-3 tw:grid tw:gap-2">{m.hotels.map((h) => (
-                    <button type="button" key={h.id} onClick={() => run({ type: 'openProperty', id: h.id })} className="tw:rounded-xl tw:border tw:border-slate-200 tw:bg-slate-50 tw:p-2.5 tw:text-left tw:hover:border-blue-300">
+                    <button type="button" key={h.id} onClick={() => run(h.act ?? { type: 'openProperty', id: h.id })} className="tw:rounded-xl tw:border tw:border-slate-200 tw:bg-slate-50 tw:p-2.5 tw:text-left tw:hover:border-blue-300">
                       <strong className="tw:block tw:text-slate-800">{h.name}</strong>
-                      <span className="tw:text-[10px] tw:text-slate-500">{h.distanceKm} km · {h.travelMinutes} phút đi xe · còn {h.room.availableRooms} phòng</span>
+                      <span className="tw:text-[11px] tw:text-slate-500">{h.distanceKm} km · {h.travelMinutes} phút đi xe · còn {h.room.availableRooms} phòng</span>
                       <span className="tw:mt-1 tw:block tw:font-bold tw:text-blue-700">{money(h.room.price)} / đêm</span>
                     </button>
                   ))}</div>}
                   {m.actions && <div className="tw:mt-3 tw:flex tw:flex-wrap tw:gap-2">{m.actions.map((a) => <button type="button" key={a.label} onClick={() => run(a.act)} className="tw:rounded-full tw:border tw:border-blue-200 tw:bg-blue-50 tw:px-3 tw:py-1.5 tw:text-[11px] tw:font-bold tw:text-blue-700 tw:hover:bg-blue-100">{a.label}</button>)}</div>}
+                  {m.attach && <label className="tw:mt-3 tw:inline-flex tw:min-h-9 tw:cursor-pointer tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-blue-200 tw:bg-blue-50 tw:px-3 tw:py-1.5 tw:text-[11px] tw:font-bold tw:text-blue-700 tw:hover:bg-blue-100"><input type="file" multiple accept={ATTACH.accept} onChange={(e) => attach(e, m.attach)} disabled={typing} className="tw:sr-only" aria-label="Chọn ảnh hoặc video đính kèm" />📎 Chọn ảnh/video</label>}
+                  {m.chips && i === messages.length - 1 && !typing && <div className="tw:mt-3 tw:flex tw:flex-wrap tw:gap-2">{m.chips.map((c) => <button type="button" key={c} onClick={() => send(c)} className="tw:rounded-full tw:border tw:border-slate-300 tw:bg-white tw:px-3 tw:py-1.5 tw:text-[11px] tw:font-semibold tw:text-slate-700 tw:hover:bg-slate-100">{c}</button>)}</div>}
                 </div>
               </div>
             ))}

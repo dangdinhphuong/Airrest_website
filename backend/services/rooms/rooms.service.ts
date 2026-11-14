@@ -1,7 +1,7 @@
 import { canBook, dailyAvailability, dayWindow, maxConcurrent, remainingRooms, type DayAvailability } from '@airrest/business-logic';
 import type { BlockListQuery, CreateBlockBody, CreateRoomTypeBody, PatchRoomTypeBody } from '@airrest/validation';
 import { PERM } from '../../config/permissions';
-import { db, withTransaction, type Db } from '../../database/pg';
+import { db, json, withTransaction, type Db } from '../../database/pg';
 import type { RoomBlockDoc, RoomTypeDoc } from '../../database/types';
 import { AppError, isDuplicateKey } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
@@ -32,10 +32,11 @@ export async function createRoomType(auth: AuthContext, hotelId: string | undefi
       const created = (
         await tx.query<RoomTypeDoc>(
           `INSERT INTO room_types (hotel_id, code, name, capacity, beds, area_m2, total_rooms, pricing, active)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,jsonb_build_object('baseNightVnd', $8::bigint),true) RETURNING *`,
-          [hid, body.code, body.name, body.capacity, body.beds, body.areaM2, body.totalRooms, body.baseNightVnd],
+           VALUES ($1,$2,$3,$4,$5,$6,$7,jsonb_build_object('baseNightVnd', $8::bigint) || CASE WHEN $9::jsonb IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('hourly', $9::jsonb) END,true) RETURNING *`,
+          [hid, body.code, body.name, body.capacity, body.beds, body.areaM2, body.totalRooms, body.baseNightVnd, body.hourly ? json(body.hourly) : null],
         )
       ).rows[0]!;
+      if (body.hourly) await syncHourlyTag(tx, hid);
       await writeAudit({ actor: actorOf(auth), action: 'ROOM_TYPE.CREATE', entity: { type: 'room_type', id: created.id }, hotelId: hid, after: { code: created.code, totalRooms: created.totalRooms }, requestId }, tx);
       return created;
     });
@@ -44,6 +45,14 @@ export async function createRoomType(auth: AuthContext, hotelId: string | undefi
     throw e;
   }
 }
+
+// Cờ HOURLY của khách sạn (bộ lọc "Thuê theo giờ") suy ra từ loại phòng: có ít nhất một loại đang bán bật đặt theo giờ.
+const syncHourlyTag = (tx: Db, hotelId: string) =>
+  tx.query(
+    `UPDATE hotels SET amenities = CASE WHEN EXISTS (SELECT 1 FROM room_types WHERE hotel_id = $1 AND active AND pricing->'hourly'->>'enabled' = 'true')
+         THEN CASE WHEN 'HOURLY' = ANY(amenities) THEN amenities ELSE array_append(amenities, 'HOURLY') END ELSE array_remove(amenities, 'HOURLY') END WHERE id = $1`,
+    [hotelId],
+  );
 
 // Khóa dòng loại phòng (cùng khóa với createBooking) và kiểm tra thuộc khách sạn, chưa ngừng dùng.
 async function lockRoomType(tx: Db, hotelId: string, id: string, allowRetired = false): Promise<RoomTypeDoc> {
@@ -75,18 +84,20 @@ export async function updateRoomType(auth: AuthContext, hotelId: string | undefi
       await tx.query<RoomTypeDoc>(
         `UPDATE room_types SET name = COALESCE($2, name), capacity = COALESCE($3, capacity), beds = COALESCE($4, beds), area_m2 = COALESCE($5, area_m2),
            total_rooms = COALESCE($6, total_rooms), active = COALESCE($7, active),
-           pricing = CASE WHEN $8::bigint IS NULL THEN pricing ELSE jsonb_build_object('baseNightVnd', $8::bigint) END, updated_at = now()
+           pricing = pricing || CASE WHEN $8::bigint IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('baseNightVnd', $8::bigint) END
+                      || CASE WHEN $9::jsonb IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('hourly', $9::jsonb) END, updated_at = now()
          WHERE id = $1 RETURNING *`,
-        [id, patch.name ?? null, patch.capacity ?? null, patch.beds ?? null, patch.areaM2 ?? null, patch.totalRooms ?? null, patch.active ?? null, patch.baseNightVnd ?? null],
+        [id, patch.name ?? null, patch.capacity ?? null, patch.beds ?? null, patch.areaM2 ?? null, patch.totalRooms ?? null, patch.active ?? null, patch.baseNightVnd ?? null, patch.hourly ? json(patch.hourly) : null],
       )
     ).rows[0]!;
+    if (patch.hourly || patch.active !== undefined) await syncHourlyTag(tx, hid);
     await writeAudit(
       {
         actor: actorOf(auth),
         action: 'ROOM_TYPE.UPDATE',
         entity: { type: 'room_type', id },
         hotelId: hid,
-        before: { name: before.name, totalRooms: before.totalRooms, baseNightVnd: before.pricing.baseNightVnd, active: before.active },
+        before: { name: before.name, totalRooms: before.totalRooms, baseNightVnd: before.pricing.baseNightVnd, active: before.active, hourly: before.pricing.hourly },
         after: patch,
         requestId,
       },

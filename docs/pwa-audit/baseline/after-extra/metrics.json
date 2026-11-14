@@ -1,0 +1,2371 @@
+[
+  {
+    "viewport": "375x812",
+    "page": "public-home",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 52,
+    "ctlSmall": 28,
+    "topSmall": [
+      [
+        "button.tw:flex.tw:items-center",
+        8
+      ],
+      [
+        "button.tw:mt-2.tw:block",
+        8
+      ],
+      [
+        "button",
+        6
+      ],
+      [
+        "input.ui-bare",
+        2
+      ],
+      [
+        "button.tw:rounded-xl.tw:border",
+        1
+      ],
+      [
+        "button.tw:rounded-xl.tw:bg-white",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": [
+      "button.tw:shrink-0.tw:border-b-2 right=471",
+      "button.ui-select.tw:ml-2 right=632",
+      "span.ui-select-text right=593",
+      "svg right=617"
+    ]
+  },
+  {
+    "viewport": "375x812",
+    "page": "public-stays",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 49,
+    "ctlSmall": 12,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "input",
+        4
+      ],
+      [
+        "button.tw:min-h-9.tw:px-3",
+        2
+      ]
+    ],
+    "tinyText": 2,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "public-support",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 24,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "public-track",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 17,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "public-login",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 10,
+    "ctlSmall": 6,
+    "topSmall": [
+      [
+        "[auth-continue]",
+        1
+      ],
+      [
+        "[tab-login]",
+        1
+      ],
+      [
+        "[tab-register]",
+        1
+      ],
+      [
+        "[login-username]",
+        1
+      ],
+      [
+        "input",
+        1
+      ],
+      [
+        "button",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": [
+      "div.auth-navy-circle right=442"
+    ]
+  },
+  {
+    "viewport": "430x932",
+    "page": "public-home",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 52,
+    "ctlSmall": 28,
+    "topSmall": [
+      [
+        "button.tw:flex.tw:items-center",
+        8
+      ],
+      [
+        "button.tw:mt-2.tw:block",
+        8
+      ],
+      [
+        "button",
+        6
+      ],
+      [
+        "input.ui-bare",
+        2
+      ],
+      [
+        "button.tw:rounded-xl.tw:border",
+        1
+      ],
+      [
+        "button.tw:rounded-xl.tw:bg-white",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": [
+      "button.tw:shrink-0.tw:border-b-2 right=471",
+      "button.ui-select.tw:ml-2 right=632",
+      "span.ui-select-text right=593",
+      "svg right=617"
+    ]
+  },
+  {
+    "viewport": "430x932",
+    "page": "public-stays",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 49,
+    "ctlSmall": 12,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "input",
+        4
+      ],
+      [
+        "button.tw:min-h-9.tw:px-3",
+        2
+      ]
+    ],
+    "tinyText": 2,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "public-support",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 24,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "public-track",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 17,
+    "ctlSmall": 9,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "public-login",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 10,
+    "ctlSmall": 6,
+    "topSmall": [
+      [
+        "[auth-continue]",
+        1
+      ],
+      [
+        "[tab-login]",
+        1
+      ],
+      [
+        "[tab-register]",
+        1
+      ],
+      [
+        "[login-username]",
+        1
+      ],
+      [
+        "input",
+        1
+      ],
+      [
+        "button",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": [
+      "div.auth-navy-circle right=497"
+    ]
+  },
+  {
+    "viewport": "768x1024",
+    "page": "public-home",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 52,
+    "ctlSmall": 29,
+    "topSmall": [
+      [
+        "button.tw:flex.tw:items-center",
+        8
+      ],
+      [
+        "button.tw:mt-2.tw:block",
+        8
+      ],
+      [
+        "button",
+        6
+      ],
+      [
+        "input.ui-bare",
+        2
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:rounded-xl.tw:border",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "public-stays",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 51,
+    "ctlSmall": 15,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "input",
+        4
+      ],
+      [
+        "button.tw:min-h-9.tw:px-3",
+        2
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 2,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "public-support",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 24,
+    "ctlSmall": 10,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "public-track",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 17,
+    "ctlSmall": 10,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "public-login",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 10,
+    "ctlSmall": 6,
+    "topSmall": [
+      [
+        "[auth-continue]",
+        1
+      ],
+      [
+        "[tab-login]",
+        1
+      ],
+      [
+        "[tab-register]",
+        1
+      ],
+      [
+        "[login-username]",
+        1
+      ],
+      [
+        "input",
+        1
+      ],
+      [
+        "button",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": [
+      "div.auth-navy-circle right=835"
+    ]
+  },
+  {
+    "viewport": "1024x768",
+    "page": "public-home",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 53,
+    "ctlSmall": 30,
+    "topSmall": [
+      [
+        "button.tw:flex.tw:items-center",
+        8
+      ],
+      [
+        "button.tw:mt-2.tw:block",
+        8
+      ],
+      [
+        "button",
+        6
+      ],
+      [
+        "input.ui-bare",
+        2
+      ],
+      [
+        "button.tw:hidden.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "public-stays",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 52,
+    "ctlSmall": 16,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "input",
+        4
+      ],
+      [
+        "button.tw:min-h-9.tw:px-3",
+        2
+      ],
+      [
+        "button.tw:hidden.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ]
+    ],
+    "tinyText": 2,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "public-support",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 25,
+    "ctlSmall": 11,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:hidden.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "public-track",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 18,
+    "ctlSmall": 11,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:hidden.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "public-login",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 10,
+    "ctlSmall": 7,
+    "topSmall": [
+      [
+        "[auth-continue]",
+        1
+      ],
+      [
+        "[tab-login]",
+        1
+      ],
+      [
+        "[tab-register]",
+        1
+      ],
+      [
+        "[login-username]",
+        1
+      ],
+      [
+        "input",
+        1
+      ],
+      [
+        "button",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "public-home",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 53,
+    "ctlSmall": 30,
+    "topSmall": [
+      [
+        "button.tw:flex.tw:items-center",
+        8
+      ],
+      [
+        "button.tw:mt-2.tw:block",
+        8
+      ],
+      [
+        "button",
+        6
+      ],
+      [
+        "input.ui-bare",
+        2
+      ],
+      [
+        "button.tw:hidden.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "public-stays",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 52,
+    "ctlSmall": 16,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "input",
+        4
+      ],
+      [
+        "button.tw:min-h-9.tw:px-3",
+        2
+      ],
+      [
+        "button.tw:hidden.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ]
+    ],
+    "tinyText": 2,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "public-support",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 25,
+    "ctlSmall": 11,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:hidden.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "public-track",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 18,
+    "ctlSmall": 11,
+    "topSmall": [
+      [
+        "button",
+        6
+      ],
+      [
+        "button.tw:hidden.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:hidden.tw:rounded-xl",
+        1
+      ],
+      [
+        "button.tw:inline-flex.tw:items-center",
+        1
+      ],
+      [
+        "button.tw:text-left",
+        1
+      ],
+      [
+        "button.tw:-m-2.tw:shrink-0",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "public-login",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 10,
+    "ctlSmall": 7,
+    "topSmall": [
+      [
+        "[auth-continue]",
+        1
+      ],
+      [
+        "[tab-login]",
+        1
+      ],
+      [
+        "[tab-register]",
+        1
+      ],
+      [
+        "[login-username]",
+        1
+      ],
+      [
+        "input",
+        1
+      ],
+      [
+        "button",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "hotel-overview",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 6,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "hotel-bookings",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 9,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "hotel-rooms",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 4,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "hotel-inventory",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 7,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "hotel-changes",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 5,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "hotel-shuttle",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 5,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "hotel-overview",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 6,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "hotel-bookings",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 9,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "hotel-rooms",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 4,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "hotel-inventory",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 7,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "hotel-changes",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 5,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "hotel-shuttle",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 5,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "hotel-overview",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 6,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "hotel-bookings",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 9,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "hotel-rooms",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 4,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "hotel-inventory",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 7,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "hotel-changes",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 5,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "hotel-shuttle",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 5,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "hotel-overview",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 12,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "hotel-bookings",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 15,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "hotel-rooms",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 10,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "hotel-inventory",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 13,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "hotel-changes",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 11,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "hotel-shuttle",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 11,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "hotel-overview",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 12,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "hotel-bookings",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 15,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "hotel-rooms",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 10,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "hotel-inventory",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 13,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "hotel-changes",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 11,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "hotel-shuttle",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 11,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "admin-dashboard",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 7,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "admin-hotels",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 31,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "admin-bookings",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 41,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "admin-support",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 38,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "admin-accounts",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 27,
+    "ctlSmall": 2,
+    "topSmall": [
+      [
+        "[sub-list]",
+        1
+      ],
+      [
+        "[sub-roles]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "admin-configs",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 35,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "admin-flights",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 100,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "admin-payments",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 9,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[sub-payments]",
+        1
+      ],
+      [
+        "[sub-anomaly]",
+        1
+      ],
+      [
+        "[sub-refunds]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "375x812",
+    "page": "admin-audit",
+    "vw": 375,
+    "sw": 375,
+    "overflowPx": 0,
+    "ctlTotal": 14,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "admin-dashboard",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 7,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "admin-hotels",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 31,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "admin-bookings",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 41,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "admin-support",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 38,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "admin-accounts",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 27,
+    "ctlSmall": 2,
+    "topSmall": [
+      [
+        "[sub-list]",
+        1
+      ],
+      [
+        "[sub-roles]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "admin-configs",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 35,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "admin-flights",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 100,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "admin-payments",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 9,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[sub-payments]",
+        1
+      ],
+      [
+        "[sub-anomaly]",
+        1
+      ],
+      [
+        "[sub-refunds]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "430x932",
+    "page": "admin-audit",
+    "vw": 430,
+    "sw": 430,
+    "overflowPx": 0,
+    "ctlTotal": 14,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "admin-dashboard",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 7,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "admin-hotels",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 31,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "admin-bookings",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 41,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "admin-support",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 38,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "admin-accounts",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 27,
+    "ctlSmall": 2,
+    "topSmall": [
+      [
+        "[sub-list]",
+        1
+      ],
+      [
+        "[sub-roles]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "admin-configs",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 35,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "admin-flights",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 100,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "admin-payments",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 9,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[sub-payments]",
+        1
+      ],
+      [
+        "[sub-anomaly]",
+        1
+      ],
+      [
+        "[sub-refunds]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "768x1024",
+    "page": "admin-audit",
+    "vw": 768,
+    "sw": 768,
+    "overflowPx": 0,
+    "ctlTotal": 14,
+    "ctlSmall": 0,
+    "topSmall": [],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "admin-dashboard",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 15,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "admin-hotels",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 39,
+    "ctlSmall": 24,
+    "topSmall": [
+      [
+        "[open-hotel]",
+        19
+      ],
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[hotel-new]",
+        1
+      ],
+      [
+        "[load-more]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "admin-bookings",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 49,
+    "ctlSmall": 14,
+    "topSmall": [
+      [
+        "[open-booking]",
+        10
+      ],
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[load-more]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "admin-support",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 46,
+    "ctlSmall": 14,
+    "topSmall": [
+      [
+        "[open-ticket]",
+        10
+      ],
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[load-more]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "admin-accounts",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 35,
+    "ctlSmall": 6,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[sub-list]",
+        1
+      ],
+      [
+        "[sub-roles]",
+        1
+      ],
+      [
+        "[account-create-submit]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "admin-configs",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 43,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "admin-flights",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 108,
+    "ctlSmall": 35,
+    "topSmall": [
+      [
+        "button.link-btn",
+        30
+      ],
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[flight-new]",
+        1
+      ],
+      [
+        "[load-more]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "admin-payments",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 17,
+    "ctlSmall": 7,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[sub-payments]",
+        1
+      ],
+      [
+        "[sub-anomaly]",
+        1
+      ],
+      [
+        "[sub-refunds]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1024x768",
+    "page": "admin-audit",
+    "vw": 1024,
+    "sw": 1024,
+    "overflowPx": 0,
+    "ctlTotal": 22,
+    "ctlSmall": 4,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[load-more]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "admin-dashboard",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 15,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "admin-hotels",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 39,
+    "ctlSmall": 25,
+    "topSmall": [
+      [
+        "[open-hotel]",
+        20
+      ],
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[hotel-new]",
+        1
+      ],
+      [
+        "[load-more]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "admin-bookings",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 49,
+    "ctlSmall": 34,
+    "topSmall": [
+      [
+        "[open-booking]",
+        30
+      ],
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[load-more]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "admin-support",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 46,
+    "ctlSmall": 34,
+    "topSmall": [
+      [
+        "[open-ticket]",
+        30
+      ],
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[load-more]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "admin-accounts",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 35,
+    "ctlSmall": 6,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[sub-list]",
+        1
+      ],
+      [
+        "[sub-roles]",
+        1
+      ],
+      [
+        "[account-create-submit]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "admin-configs",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 43,
+    "ctlSmall": 3,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "admin-flights",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 108,
+    "ctlSmall": 35,
+    "topSmall": [
+      [
+        "button.link-btn",
+        30
+      ],
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[flight-new]",
+        1
+      ],
+      [
+        "[load-more]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "admin-payments",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 17,
+    "ctlSmall": 7,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[sub-payments]",
+        1
+      ],
+      [
+        "[sub-anomaly]",
+        1
+      ],
+      [
+        "[sub-refunds]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  },
+  {
+    "viewport": "1280x800",
+    "page": "admin-audit",
+    "vw": 1280,
+    "sw": 1280,
+    "overflowPx": 0,
+    "ctlTotal": 22,
+    "ctlSmall": 4,
+    "topSmall": [
+      [
+        "[logo]",
+        1
+      ],
+      [
+        "[partner-entry]",
+        1
+      ],
+      [
+        "[logout]",
+        1
+      ],
+      [
+        "[load-more]",
+        1
+      ]
+    ],
+    "tinyText": 0,
+    "wide": []
+  }
+]

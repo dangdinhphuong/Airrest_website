@@ -7,6 +7,8 @@ import Configs from './Configs';
 import Flights from './Flights';
 import Payments from './Payments';
 import Audit from './Audit';
+import PayerDelay from './PayerDelay';
+import PayerStatements from './PayerStatements';
 
 // id tab (lib/adminNav.js) -> component.
-export const ADMIN_TAB_UI = { dashboard: Dashboard, hotels: Hotels, bookings: Bookings, support: Support, accounts: Accounts, configs: Configs, flights: Flights, payments: Payments, audit: Audit };
+export const ADMIN_TAB_UI = { dashboard: Dashboard, hotels: Hotels, bookings: Bookings, support: Support, accounts: Accounts, configs: Configs, flights: Flights, payments: Payments, audit: Audit, payerDelay: PayerDelay, payerStatements: PayerStatements };

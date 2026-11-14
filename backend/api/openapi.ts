@@ -52,7 +52,7 @@ export const openapi = {
     { name: 'Hotels (công khai)' },
     { name: 'Bookings (khách)' },
     { name: 'Bookings (lễ tân)' },
-    { name: 'Payments (VNPay)' },
+    { name: 'Payments (VNPay)', description: 'VNPay + MoMo' },
     { name: 'Admin · Tài khoản' },
     { name: 'Admin · Cấu hình' },
     { name: 'Admin · Khách sạn' },
@@ -66,11 +66,14 @@ export const openapi = {
     { name: 'Admin · Support' },
     { name: 'Shuttle (khách)' },
     { name: 'Shuttle (nhân sự)' },
+    { name: 'Fleet (đội xe)' },
+    { name: 'Driver (tài xế)' },
     { name: 'Flights' },
     { name: 'Admin · Booking' },
     { name: 'Admin · Chuyến bay' },
     { name: 'Admin · Dashboard' },
     { name: 'Hotel · Thống kê' },
+    { name: 'Payer · Cổng kết nối', description: 'Đơn vị chi trả: đẩy chuyến delay + hành khách (khóa API), nút mô phỏng, xem chuyến/hành khách của trạm mình' },
   ],
   components: {
     securitySchemes: { bearer: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } },
@@ -80,14 +83,23 @@ export const openapi = {
       CreateBooking: obj(
         {
           hotelId: uuid,
-          roomTypeId: uuid,
-          qty: { type: 'integer', minimum: 1, maximum: 5, default: 1 },
-          paymentMethod: { type: 'string', enum: ['AT_HOTEL', 'VNPAY'], default: 'AT_HOTEL' },
+          rooms: { type: 'array', minItems: 1, maxItems: 10, description: 'Một hoặc nhiều loại phòng CÙNG khách sạn, chung ngày và chung số khách. roomTypeId không trùng, đều active (404 ROOM_TYPE_NOT_FOUND). Thiếu chỗ ở bất kỳ dòng nào -> 409 SOLD_OUT cho cả đơn (details.soldOut[] nêu dòng thiếu). guests <= tổng (capacity × qty) các dòng', items: obj({ roomTypeId: uuid, qty: { type: 'integer', minimum: 1, maximum: 5, default: 1 } }, ['roomTypeId']) },
+          roomTypeId: { ...uuid, description: 'LEGACY: dùng cùng `qty` thay cho `rooms` (quy về một dòng); gửi lẫn với `rooms` -> 422' },
+          qty: { type: 'integer', minimum: 1, maximum: 5, description: 'LEGACY, đi với roomTypeId; mặc định 1' },
+          paymentMethod: { type: 'string', enum: ['AT_HOTEL', 'VNPAY', 'MOMO'], default: 'AT_HOTEL' },
           from: { type: 'string', format: 'date-time' },
           to: { type: 'string', format: 'date-time' },
           guest: ref('Guest'),
+          guests: { type: 'integer', minimum: 1, maximum: 30, default: 1, description: 'TỔNG số người ở (đã gồm trẻ em); <= sức chứa loại phòng × qty, sai -> 422 GUESTS_EXCEED_CAPACITY (details.maxGuests). Cũng là số khách đi xe' },
+          children: { type: 'integer', minimum: 0, maximum: 30, default: 0, description: 'Số trẻ em NẰM TRONG guests; > guests -> 422' },
+          shuttle: obj({
+            legs: { type: 'array', minItems: 1, maxItems: 2, description: 'Mỗi chiều tối đa một lần; chỉ gửi chiều/giờ/điểm đón, KHÔNG gửi giá hay passengers (strict -> 422)', items: obj({
+              direction: { type: 'string', enum: ['TO_HOTEL', 'TO_AIRPORT'] }, pickupAt: { type: 'string', format: 'date-time', description: 'ISO 8601 CÓ offset; trong lưu trú ±24 giờ (422 PICKUP_OUT_OF_STAY_WINDOW)' },
+              airport: { type: 'string', description: 'IATA; mặc định sân bay đầu tiên của khách sạn (422 AIRPORT_NOT_SERVED)' }, location: { type: 'string', maxLength: 200 }, note: { type: 'string', maxLength: 300 },
+            }, ['direction', 'pickupAt']) },
+          }, ['legs']),
         },
-        ['hotelId', 'roomTypeId', 'from', 'to', 'guest'],
+        ['hotelId', 'from', 'to', 'guest'], // cần `rooms` hoặc `roomTypeId`
       ),
       Lookup: obj({ code: { type: 'string', example: 'AR-ABCD1234' }, phone: { type: 'string', example: '0912345678' } }, ['code', 'phone']),
       Payout: obj({ type: { type: 'string', enum: ['BANK', 'MOMO'] }, accountNo: str, accountName: str, bankCode: str }, ['type', 'accountNo', 'accountName']),
@@ -138,6 +150,16 @@ export const openapi = {
     '/v1/me/bookings': {
       get: op({ tag: 'Khách (tài khoản)', summary: 'Đơn của tài khoản khách (mới nhất trước; cursor = nextCursor trang trước)', params: [param('status', 'query'), limit, cursor] }),
     },
+    '/v1/me/profile': {
+      patch: op({
+        tag: 'Khách (tài khoản)',
+        summary: 'Sửa họ tên và/hoặc cấu hình cá nhân (preferences thay nguyên khối; không nhận SĐT/email)',
+        body: body(obj({ fullName: str, preferences: obj({ airport: str, adults: { type: 'integer' }, children: { type: 'integer' }, rooms: { type: 'integer' }, paymentMethod: { type: 'string', enum: ['AT_HOTEL', 'VNPAY', 'MOMO'] } }) })),
+      }),
+    },
+    '/v1/me/tickets': {
+      get: op({ tag: 'Khách (tài khoản)', summary: 'Ticket hỗ trợ gắn với tài khoản (gửi lúc đang đăng nhập); mới nhất trước', params: [limit, cursor] }),
+    },
 
     '/v1/airports': { get: op({ tag: 'Airports (công khai)', summary: 'Danh mục sân bay thương mại Việt Nam', public: true }) },
 
@@ -146,11 +168,20 @@ export const openapi = {
         tag: 'Hotels (công khai)',
         summary: 'Tìm khách sạn theo sân bay',
         public: true,
-        params: [{ ...param('airport', 'query'), required: true, description: 'Mã IATA 3 ký tự, ví dụ HAN' }, limit, cursor, { ...param('from', 'query'), description: 'Đầu cửa sổ tính số phòng còn (ISO), mặc định bây giờ' }, { ...param('to', 'query'), description: 'Cuối cửa sổ (ISO), mặc định from + 24 giờ, tối đa 31 ngày' }],
+        params: [{ ...param('airport', 'query'), description: 'Mã IATA 3 ký tự, ví dụ HAN. Bỏ trống = toàn hệ thống (luôn ở chế độ tìm kiếm, mặc định sort=rating)' }, limit, cursor, { ...param('from', 'query'), description: 'Đầu cửa sổ tính số phòng còn (ISO), mặc định bây giờ' }, { ...param('to', 'query'), description: 'Cuối cửa sổ (ISO), mặc định from + 24 giờ, tối đa 31 ngày' },
+          ...([['sort', 'distance | price | rating (mặc định distance khi có tham số tìm kiếm)'], ['guests', 'Tổng số người (gồm trẻ em), 1-30'], ['rooms', 'Số phòng, 1-5 (mặc định 1)'], ['maxKm', 'Khoảng cách tối đa tới sân bay (km)'], ['priceUnder', 'Giá/đêm của loại phòng đủ chỗ rẻ nhất phải nhỏ hơn giá trị này (VND)'], ['minPrice', 'Giá/đêm tối thiểu (VND, gồm biên)'], ['maxPrice', 'Giá/đêm tối đa (VND, gồm biên)'], ['minRating', 'Điểm đánh giá tối thiểu'], ['minReviews', 'Số lượt đánh giá tối thiểu'], ['shuttle', 'true: chỉ nơi có xe đưa đón'], ['freeCancel', 'true: chỉ nơi hủy miễn phí'], ['hourly', 'true: chỉ nơi cho thuê theo giờ'], ['family', 'true: chỉ nơi có phòng gia đình'], ['reception24', 'true: chỉ nơi có lễ tân 24/24']] as const).map(([n, d]) => ({ ...param(n, 'query'), description: d }))],
       }),
     },
     '/v1/hotels/{id}': { get: op({ tag: 'Hotels (công khai)', summary: 'Chi tiết khách sạn (kèm loại phòng, giá, số phòng còn, cờ tính năng)', public: true, params: [idParam, { ...param('from', 'query'), description: 'Đầu cửa sổ tính số phòng còn (ISO)' }, { ...param('to', 'query'), description: 'Cuối cửa sổ (ISO)' }], extra: { 404: err('Không tìm thấy') } }) },
 
+    '/v1/hotels/{id}/shuttle-quote': {
+      post: op({
+        tag: 'Hotels (công khai)', summary: 'Báo giá xe TRƯỚC khi có đơn: { offered, free, legs[{direction, airport, distanceKm, priceVnd, night}], totalVnd }. Không có xe -> 200 { offered:false }. Giá tính bằng đúng hàm của tạo đơn; pickupAt (tùy chọn) quyết định phụ thu đêm, thiếu = giá ban ngày',
+        public: true, params: [idParam],
+        body: body(obj({ legs: { type: 'array', minItems: 1, maxItems: 2, items: obj({ direction: { type: 'string', enum: ['TO_HOTEL', 'TO_AIRPORT'] }, airport: str, pickupAt: { type: 'string', format: 'date-time' } }, ['direction']) }, passengers: int, guests: int }, ['legs'])),
+        extra: { 404: err('HOTEL_NOT_FOUND'), 422: err('AIRPORT_NOT_SERVED | SHUTTLE_OUT_OF_RANGE | VALIDATION_ERROR') },
+      }),
+    },
     '/v1/bookings': {
       post: op({
         tag: 'Bookings (khách)',
@@ -158,11 +189,20 @@ export const openapi = {
         public: true,
         params: [{ ...param('Idempotency-Key', 'header'), required: true, description: 'Chuỗi duy nhất mỗi lần đặt, gửi lại cùng key sẽ trả kết quả cũ' }],
         body: body(ref('CreateBooking')),
-        extra: { 201: ok('Đã tạo booking (VNPAY kèm paymentLink)'), 409: err('Hết phòng hoặc trùng yêu cầu') },
+        extra: { 201: ok('Đã tạo booking (VNPAY/MOMO kèm paymentLink). booking: guests, children, shuttle{tripType,legCount}, pricing{roomVnd,shuttleVnd,serviceFeeVnd,totalVnd}; shuttles[] khi có xe cùng đơn'), 422: err('SHUTTLE_NOT_OFFERED | GUESTS_EXCEED_CAPACITY | PICKUP_OUT_OF_STAY_WINDOW | AIRPORT_NOT_SERVED | SHUTTLE_OUT_OF_RANGE | VALIDATION_ERROR'), 409: err('Hết phòng, trùng yêu cầu, hoặc cổng tắt (VNPAY_DISABLED/MOMO_DISABLED)') },
       }),
     },
+    '/v1/hotels/{id}/hourly-slots': {
+      get: op({ tag: 'Hotels (công khai)', summary: 'Giờ vào còn trống của loại phòng bật đặt theo giờ trong một ngày (query roomTypeId, date YYYY-MM-DD giờ VN, hours, qty): { slots[{startsAt,endsAt,time,now?,available,reason?: PAST|CLOSED|FULL}], priceVnd, hourly }. 422 HOURLY_NOT_ENABLED / HOURS_OUT_OF_RANGE', public: true }),
+    },
+    '/v1/bookings/quote': {
+      post: op({ tag: 'Bookings (khách)', summary: 'Báo giá trước khi đặt (dòng phòng có thể kind HOURLY + startsAt + hours; đơn toàn giờ không cần from/to; body `rooms[{roomTypeId,qty,kind?,startsAt?,hours?}]` hoặc legacy roomTypeId+qty): { nights, unitPriceVnd (dòng đầu), qty (tổng), rooms[{roomTypeId,roomTypeName,qty,unitPriceVnd,subtotalVnd}], roomVnd, shuttleVnd, serviceFeeVnd, totalVnd, legs[] } (cùng cách tính với tạo đơn, không giữ phòng)', public: true, body: body(obj({ hotelId: str, rooms: { type: 'array', items: obj({ roomTypeId: str, qty: int }, ['roomTypeId']) }, roomTypeId: str, qty: int, from: str, to: str }, ['hotelId', 'from', 'to'])) }),
+    },
+    '/v1/bookings/group-lookup': {
+      post: op({ tag: 'Bookings (khách)', summary: 'Tra cứu cả nhóm delay bằng mã nhóm NH-XXXXXXXX + SĐT một người trong nhóm. { groupCode, status, rooms[{status: WAITING_HOTEL|CONFIRMED|TRANSFERRING|NEEDS_STAFF|CANCELLED, guest (họ tên rút gọn), members, message?; chỉ CONFIRMED mới có hotelName, roomNumbers, checkInAt, checkoutAt, bookingCode (tra tiếp /v1/bookings/lookup)}] }. Sai mã/SĐT -> 404 GROUP_NOT_FOUND chung. groupLookupRateLimit (bộ đếm riêng 10/phút/IP)', public: true, body: body(obj({ groupCode: { type: 'string', example: 'NH-ABCD1234' }, phone: { type: 'string', example: '0912345678' } }, ['groupCode', 'phone'])), extra: { 404: err('GROUP_NOT_FOUND') } }),
+    },
     '/v1/bookings/lookup': {
-      post: op({ tag: 'Bookings (khách)', summary: 'Tra cứu booking bằng mã + SĐT', public: true, body: body(ref('Lookup')), extra: { 404: err('Không tìm thấy') } }),
+      post: op({ tag: 'Bookings (khách)', summary: 'Tra cứu booking bằng mã + SĐT. booking.hotel = { name, address (chuỗi địa chỉ công khai hoặc null), location?{lat,lng} } để khách tự đặt xe; cùng trường `hotel` ở shuttle lookup, GET /v1/track/shuttle và phản hồi tạo đơn', public: true, body: body(ref('Lookup')), extra: { 404: err('Không tìm thấy') } }),
     },
 
     '/v1/hotel/bookings': {
@@ -202,7 +242,37 @@ export const openapi = {
       }),
     },
     '/v1/payments/vnpay/link': {
-      post: op({ tag: 'Payments (VNPay)', summary: 'Lấy lại link thanh toán VNPay', public: true, body: body(ref('Lookup')) }),
+      post: op({ tag: 'Payments (VNPay)', summary: 'Lấy lại link thanh toán (giữ tương thích; giống /v1/payments/link)', public: true, body: body(ref('Lookup')) }),
+    },
+    '/v1/payments/link': {
+      post: op({ tag: 'Payments (VNPay)', summary: 'Lấy lại link thanh toán theo cổng của đơn (VNPay/MoMo). 409 PAYMENT_NOT_AVAILABLE/BOOKING_EXPIRED, 502 VNPAY_UNAVAILABLE/MOMO_UNAVAILABLE', public: true, body: body(ref('Lookup')) }),
+    },
+    '/v1/payments/momo/link': {
+      post: op({ tag: 'Payments (VNPay)', summary: 'Bí danh của /v1/payments/link', public: true, body: body(ref('Lookup')) }),
+    },
+    '/v1/payments/methods': {
+      get: op({
+        tag: 'Payments (VNPay)',
+        summary: 'Cổng thanh toán đang bật (AT_HOTEL luôn có; VNPAY/MOMO theo env, kèm mode mock|live). Không lộ khóa',
+        public: true,
+        res: ok('methods', obj({ methods: { type: 'array', items: obj({ id: str, label: str, mode: str }, ['id', 'label']) } })),
+      }),
+    },
+    '/v1/payments/momo/ipn': {
+      post: op({
+        tag: 'Payments (VNPay)',
+        summary: 'MoMo gọi lại (IPN) bằng POST JSON, xác thực bằng signature HMAC-SHA256. 204 = đã nhận (kể cả lặp/lệch tiền/không thấy đơn), 400 = sai chữ ký',
+        public: true,
+        body: body(obj({ partnerCode: str, orderId: str, requestId: str, amount: int, orderInfo: str, orderType: str, transId: int, resultCode: int, message: str, payType: str, responseTime: int, extraData: str, signature: str }, ['orderId', 'amount', 'resultCode', 'signature'])),
+      }),
+    },
+    '/v1/payments/momo/dev-simulate': {
+      post: op({
+        tag: 'Payments (VNPay)',
+        summary: '[chỉ MOMO_MODE=mock, không production] Giả lập MoMo báo kết quả qua đúng đường IPN (resultCode 0 = thành công)',
+        public: true,
+        body: body(obj({ orderId: str, resultCode: { type: 'integer', default: 0 }, amount: int }, ['orderId']), { orderId: 'AR...', resultCode: 0 }),
+      }),
     },
     '/v1/payments/vnpay/dev-simulate': {
       post: op({
@@ -303,7 +373,7 @@ export const openapi = {
       get: op({ tag: 'Admin · Khách sạn', summary: 'Thống kê khách sạn', perm: 'admin:hotel:read', params: [hotelId, param('from', 'query'), param('to', 'query')] }),
     },
 
-    '/v1/admin/payments': { get: op({ tag: 'Admin · Thanh toán', summary: 'Giao dịch VNPay', perm: 'admin:payment:read', params: [param('anomaly', 'query', { type: 'boolean' }), limit, cursor] }) },
+    '/v1/admin/payments': { get: op({ tag: 'Admin · Thanh toán', summary: 'Giao dịch cổng thanh toán (VNPay/MoMo)', perm: 'admin:payment:read', params: [param('method', 'query', { type: 'string', enum: ['VNPAY', 'MOMO'] }), param('anomaly', 'query', { type: 'boolean' }), limit, cursor] }) },
     '/v1/admin/refunds': { get: op({ tag: 'Admin · Thanh toán', summary: 'Lệnh hoàn tiền', perm: 'admin:payment:read', params: [limit, cursor] }) },
     '/v1/admin/payments/reconcile': { post: op({ tag: 'Admin · Thanh toán', summary: 'Đối soát gọi tay', perm: 'admin:payment:manage' }) },
     '/v1/admin/refunds/{id}/retry': { post: op({ tag: 'Admin · Thanh toán', summary: 'Thử lại lệnh hoàn MANUAL_REQUIRED', perm: 'admin:payment:manage', params: [idParam] }) },
@@ -319,7 +389,7 @@ export const openapi = {
 
     '/v1/hotel/room-types': {
       get: op({ tag: 'Rooms (khách sạn)', summary: 'Danh sách loại phòng', perm: 'booking:read', params: [param('hotelId', 'query', uuid, false), param('includeRetired', 'query', { type: 'boolean' })] }),
-      post: op({ tag: 'Rooms (khách sạn)', summary: 'Tạo loại phòng', perm: 'room:manage', body: body(obj({ code: str, name: str, capacity: int, beds: int, areaM2: int, totalRooms: int, baseNightVnd: int }, ['code', 'name', 'capacity', 'beds', 'totalRooms', 'baseNightVnd'])), extra: { 409: err('Mã trùng') } }),
+      post: op({ tag: 'Rooms (khách sạn)', summary: 'Tạo loại phòng', perm: 'room:manage', body: body(obj({ code: str, name: str, capacity: int, beds: int, areaM2: int, totalRooms: int, baseNightVnd: int, hourly: obj({ enabled: { type: 'boolean' }, firstHourVnd: int, nextHourVnd: int, minHours: int, maxHours: int, cleaningMin: int, openFromHour: int, openToHour: int }, ['enabled']) }, ['code', 'name', 'capacity', 'beds', 'totalRooms', 'baseNightVnd'])), extra: { 409: err('Mã trùng') } }),
     },
     '/v1/hotel/room-types/{id}': {
       patch: op({ tag: 'Rooms (khách sạn)', summary: 'Sửa loại phòng (hạ số phòng dưới số đang giữ -> 409). Loại đã ngừng dùng: chỉ nhận { active: true } để mở bán lại (xóa retiredAt, audit ROOM_TYPE.REACTIVATE; 409 ROOM_TYPE_CODE_EXISTS nếu mã bị loại đang hoạt động dùng); sửa khác -> 409 ROOM_TYPE_RETIRED', perm: 'room:manage', params: [idParam], body: body({ type: 'object' }, { totalRooms: 5 }) }),
@@ -339,7 +409,7 @@ export const openapi = {
     '/v1/admin/bookings': { get: op({ tag: 'Admin · Booking', summary: 'Booking mọi khách sạn (lọc, phân trang)', perm: 'admin:booking:read', params: [param('hotelId', 'query', uuid, false), param('status', 'query'), param('code', 'query'), param('from', 'query'), param('to', 'query'), limit, cursor] }) },
     '/v1/admin/bookings/{id}': { get: op({ tag: 'Admin · Booking', summary: 'Chi tiết booking', perm: 'admin:booking:read', params: [idParam] }) },
 
-    '/v1/change-requests/quote': { post: op({ tag: 'Requests (khách)', summary: 'Báo giá hủy (phí theo gói chính sách)', public: true, body: body(ref('Lookup')) }) },
+    '/v1/change-requests/quote': { post: op({ tag: 'Requests (khách)', summary: 'Báo giá hủy (phí phòng theo gói chính sách; xe đã thu KHÔNG hoàn: shuttleRefundVnd = 0, shuttleKeepVnd = phí xe đã thu)', public: true, body: body(ref('Lookup')) }) },
     '/v1/change-requests': {
       post: op({ tag: 'Requests (khách)', summary: 'Gửi yêu cầu hủy hoặc đổi ngày', public: true, params: [{ ...param('Idempotency-Key', 'header'), required: true }], body: body(obj({ code: str, phone: str, type: { type: 'string', enum: ['CANCEL', 'CHANGE'] }, reasonCode: { type: 'string', enum: ['CHANGE_OF_PLAN', 'FLIGHT_CANCELLED', 'FLIGHT_RESCHEDULED', 'HEALTH', 'OTHER'] }, reasonNote: str, newFrom: { type: 'string', format: 'date-time' }, newTo: { type: 'string', format: 'date-time' } }, ['code', 'phone', 'type', 'reasonCode'])), extra: { 201: ok('Đã tạo'), 409: err('REQUEST_ALREADY_PENDING / BOOKING_NOT_CANCELLABLE') } }),
     },
@@ -351,6 +421,8 @@ export const openapi = {
     '/v1/support': { post: op({ tag: 'Support (khách)', summary: 'Gửi yêu cầu hỗ trợ', public: true, params: [{ ...param('Idempotency-Key', 'header'), required: true }], body: body(obj({ bookingCode: str, phone: str, fullName: str, email: str, subject: str, message: str }, ['phone', 'subject', 'message'])), extra: { 201: ok('Đã tạo') } }) },
     '/v1/support/lookup': { post: op({ tag: 'Support (khách)', summary: 'Xem ticket bằng mã + SĐT', public: true, body: body(obj({ code: str, phone: str }, ['code', 'phone'])) }) },
     '/v1/support/reply': { post: op({ tag: 'Support (khách)', summary: 'Khách trả lời ticket', public: true, params: [{ ...param('Idempotency-Key', 'header'), required: true }], body: body(obj({ code: str, phone: str, message: str }, ['code', 'phone', 'message'])), extra: { 201: ok('Đã gửi') } }) },
+    '/v1/support/attachments/upload-url': { post: op({ tag: 'Support (khách)', summary: 'Xin URL PUT tải ảnh/video đính kèm ticket (ảnh ≤ 5 MB tối đa 5; video mp4 ≤ 30 MB tối đa 1; tối đa 6 tệp)', public: true, params: [{ ...param('Idempotency-Key', 'header'), required: true }], body: body(obj({ code: str, phone: str, contentType: { type: 'string', enum: ['image/jpeg', 'image/png', 'image/webp', 'video/mp4'] }, size: { type: 'integer' } }, ['code', 'phone', 'contentType', 'size'])), extra: { 201: ok('URL PUT ký sẵn, hết hạn 5 phút'), 409: err('ATTACHMENT_LIMIT / TICKET_RESOLVED') } }) },
+    '/v1/support/attachments/confirm': { post: op({ tag: 'Support (khách)', summary: 'Xác nhận đã tải lên: server kiểm tra kích thước/loại thật của tệp', public: true, body: body(obj({ code: str, phone: str, attachmentId: uuid }, ['code', 'phone', 'attachmentId'])), extra: { 409: err('ATTACHMENT_NOT_UPLOADED'), 422: err('ATTACHMENT_INVALID') } }) },
     '/v1/admin/support': { get: op({ tag: 'Admin · Support', summary: 'Hàng đợi ticket', perm: 'support:handle', params: [param('status', 'query'), param('assignee', 'query'), limit, cursor] }) },
     '/v1/admin/support/{id}': {
       get: op({ tag: 'Admin · Support', summary: 'Chi tiết ticket kèm ghi chú nội bộ', perm: 'support:handle', params: [idParam] }),
@@ -358,14 +430,50 @@ export const openapi = {
     },
     '/v1/admin/support/{id}/messages': { post: op({ tag: 'Admin · Support', summary: 'Trả lời công khai hoặc ghi chú nội bộ', perm: 'support:handle', params: [idParam], body: body(obj({ message: str, internal: { type: 'boolean' } }, ['message'])) }) },
 
-    '/v1/shuttle-requests/quote': { post: op({ tag: 'Shuttle (khách)', summary: 'Báo giá xe đưa đón', public: true, body: body(obj({ code: str, phone: str, direction: { type: 'string', enum: ['TO_HOTEL', 'TO_AIRPORT'] }, airport: str, pickupAt: { type: 'string', format: 'date-time' } }, ['code', 'phone', 'direction', 'airport', 'pickupAt'])) }) },
-    '/v1/shuttle-requests': { post: op({ tag: 'Shuttle (khách)', summary: 'Yêu cầu xe đưa đón (gắn booking)', public: true, params: [{ ...param('Idempotency-Key', 'header'), required: true }], body: body(obj({ code: str, phone: str, direction: { type: 'string', enum: ['TO_HOTEL', 'TO_AIRPORT'] }, airport: str, pickupAt: { type: 'string', format: 'date-time' }, location: str, note: str }, ['code', 'phone', 'direction', 'airport', 'pickupAt'])), extra: { 201: ok('Đã tạo') } }) },
-    '/v1/shuttle-requests/lookup': { post: op({ tag: 'Shuttle (khách)', summary: 'Xe của booking', public: true, body: body(ref('Lookup')) }) },
-    '/v1/shuttle-requests/{id}/cancel': { post: op({ tag: 'Shuttle (khách)', summary: 'Khách hủy yêu cầu xe', public: true, params: [idParam], body: body(ref('Lookup')) }) },
+    '/v1/shuttle-requests/quote': { post: op({ tag: 'Shuttle (khách)', summary: 'Báo giá xe đưa đón', public: true, body: body(obj({ code: str, phone: str, direction: { type: 'string', enum: ['TO_HOTEL', 'TO_AIRPORT'] }, airport: str, pickupAt: { type: 'string', format: 'date-time' }, passengers: { type: 'integer', minimum: 1, maximum: 30, description: 'Tùy chọn; mặc định = guests của đơn, không được vượt guests (422 PASSENGERS_EXCEED_GUESTS)' } }, ['code', 'phone', 'direction', 'airport', 'pickupAt'])) }) },
+    '/v1/shuttle-requests': { post: op({ tag: 'Shuttle (khách)', summary: 'Yêu cầu xe đưa đón (gắn booking)', public: true, params: [{ ...param('Idempotency-Key', 'header'), required: true }], body: body(obj({ code: str, phone: str, direction: { type: 'string', enum: ['TO_HOTEL', 'TO_AIRPORT'] }, airport: str, pickupAt: { type: 'string', format: 'date-time' }, passengers: { type: 'integer', minimum: 1, maximum: 30, description: 'Tùy chọn; mặc định = guests của đơn, không được vượt guests (422 PASSENGERS_EXCEED_GUESTS)' }, location: str, note: str }, ['code', 'phone', 'direction', 'airport', 'pickupAt'])), extra: { 201: ok('Đã tạo (điều phối ngay nếu còn <= 30 phút tới giờ đón)') } }) },
+    '/v1/shuttle-requests/call-now': { post: op({ tag: 'Shuttle (khách)', summary: 'Gọi xe ngay (TO_AIRPORT, giờ đón = bây giờ + 15 phút), đơn CONFIRMED/CHECKED_IN', public: true, params: [{ ...param('Idempotency-Key', 'header'), required: true }], body: body(obj({ code: str, phone: str, airport: str, passengers: int, location: str, note: str }, ['code', 'phone'])), extra: { 201: ok('Đã tạo'), 409: err('BOOKING_NOT_ELIGIBLE | SHUTTLE_ALREADY_REQUESTED') } }) },
+    '/v1/shuttle-requests/lookup': { post: op({ tag: 'Shuttle (khách)', summary: 'Xe của booking: { guestToken (2h, dùng cho Socket.IO + GET /v1/track/shuttle), stage, shuttles[{..., passengers, trips[]}], events[{at,type}] }. Chuyến OWN từ ACCEPTED kèm route{approach,ride,source,...} + position{lat,lng,heading,speedKmh,etaSec,phase}. Xe/tài xế chỉ lộ sau khi tài xế nhận; xe ngoài kèm shareUrl/shareHost khi đã nhập và cờ simulated (true = xe ngoài do mô phỏng SHUTTLE_SIM_AUTO tự đặt, giao diện gắn nhãn "Mô phỏng")', public: true, body: body(ref('Lookup')) }) },
+    '/v1/track/shuttle': { get: op({ tag: 'Shuttle (khách)', summary: 'Theo dõi xe bằng Bearer guestToken (từ lookup): { stage, shuttles[].trips[] (route + position khi chuyến OWN từ ACCEPTED), events }. 120 yêu cầu/phút/đơn; token không phải GUEST -> 403, sai/hết hạn -> 401', public: true }) },
+    '/v1/shuttle-requests/{id}/cancel': { post: op({ tag: 'Shuttle (khách)', summary: 'Khách hủy yêu cầu xe (chưa ONBOARD; đã lên xe -> 409 TRIP_ALREADY_STARTED). Không hoàn tiền xe, số tiền đơn đã thu giữ nguyên (đơn AT_HOTEL chưa có tài xế nhận: giảm tổng phải trả)', public: true, params: [idParam], body: body(ref('Lookup')) }) },
     '/v1/hotel/shuttle-requests': { get: op({ tag: 'Shuttle (nhân sự)', summary: 'Danh sách yêu cầu xe', perm: 'shuttle:handle', params: [param('status', 'query'), limit, cursor] }) },
     '/v1/hotel/shuttle-requests/{id}/assign': { post: op({ tag: 'Shuttle (nhân sự)', summary: 'Gán tài xế (nhập tay)', perm: 'shuttle:handle', params: [idParam], body: body(obj({ driverName: str, driverPhone: str }, ['driverName', 'driverPhone'])) }) },
     '/v1/hotel/shuttle-requests/{id}/complete': { post: op({ tag: 'Shuttle (nhân sự)', summary: 'Hoàn tất chuyến xe', perm: 'shuttle:handle', params: [idParam] }) },
     '/v1/hotel/shuttle-requests/{id}/cancel': { post: op({ tag: 'Shuttle (nhân sự)', summary: 'Hủy yêu cầu xe', perm: 'shuttle:handle', params: [idParam], body: body(obj({ note: str }, ['note'])) }) },
+    '/v1/hotel/vehicles': {
+      get: op({ tag: 'Fleet (đội xe)', summary: 'Danh sách xe (kèm tài xế)', perm: 'fleet:manage', params: [param('active', 'query')] }),
+      post: op({ tag: 'Fleet (đội xe)', summary: 'Thêm xe', perm: 'fleet:manage', body: body(obj({ plate: str, seats: int, model: str, active: { type: 'boolean' }, driverId: uuid }, ['plate', 'seats'])), extra: { 201: ok('Đã tạo'), 409: err('PLATE_TAKEN | DRIVER_ALREADY_ASSIGNED') } }),
+    },
+    '/v1/hotel/vehicles/{id}': {
+      patch: op({ tag: 'Fleet (đội xe)', summary: 'Sửa xe (một phần; driverId null = bỏ gán)', perm: 'fleet:manage', params: [idParam], body: body(obj({ plate: str, seats: int, model: str, active: { type: 'boolean' }, driverId: uuid })), extra: { 409: err('PLATE_TAKEN | VEHICLE_IN_USE') } }),
+      delete: op({ tag: 'Fleet (đội xe)', summary: 'Xóa xe: chưa có chuyến -> xóa hẳn; đã có chuyến -> ngừng hoạt động; đang chạy -> 409 VEHICLE_IN_USE', perm: 'fleet:manage', params: [idParam] }),
+    },
+    '/v1/hotel/drivers': {
+      get: op({ tag: 'Fleet (đội xe)', summary: 'Danh sách tài xế', perm: 'fleet:manage', params: [param('active', 'query')] }),
+      post: op({ tag: 'Fleet (đội xe)', summary: 'Tạo tài xế = tài khoản DRIVER (email + mật khẩu ban đầu >= 12 ký tự) + hồ sơ + gán xe', perm: 'fleet:manage', body: body(obj({ email: str, password: str, fullName: str, phone: str, photoKey: str, vehicleId: uuid }, ['email', 'password', 'fullName', 'phone'])), extra: { 201: ok('Đã tạo (không trả mật khẩu)'), 409: err('EMAIL_TAKEN | VEHICLE_HAS_DRIVER') } }),
+    },
+    '/v1/hotel/drivers/{id}': {
+      patch: op({ tag: 'Fleet (đội xe)', summary: 'Sửa tài xế (fullName, phone, photoKey drivers/<năm>/<uuid>.<jpg|png|webp>, active, vehicleId, password)', perm: 'fleet:manage', params: [idParam], body: body(obj({ fullName: str, phone: str, photoKey: str, active: { type: 'boolean' }, vehicleId: uuid, password: str })) }),
+      delete: op({ tag: 'Fleet (đội xe)', summary: 'Xóa tài xế (đã có chuyến -> khóa + ngừng hoạt động)', perm: 'fleet:manage', params: [idParam] }),
+    },
+    '/v1/hotel/shuttle/board': { get: op({ tag: 'Fleet (đội xe)', summary: 'Bảng điều phối: { requests[+trips], alerts (NEEDS_EXTERNAL: deadlineAt, overdue), vehicles[state FREE|BUSY|NO_DRIVER|INACTIVE] }', perm: 'fleet:manage hoặc shuttle:handle', params: [param('status', 'query'), limit] }) },
+    '/v1/hotel/shuttle-trips/{id}': { get: op({ tag: 'Fleet (đội xe)', summary: 'Chi tiết chuyến (xe ngoài: external.simulated = true nếu do mô phỏng tự đặt)', perm: 'fleet:manage hoặc shuttle:handle', params: [idParam] }) },
+    '/v1/hotel/shuttle-trips/{id}/external': { post: op({ tag: 'Fleet (đội xe)', summary: 'Nhập xe ngoài (Grab/Xanh SM): NEEDS_EXTERNAL|ACCEPTED -> ACCEPTED. Nhập tay luôn đặt simulated=false (thắng mô phỏng)', perm: 'fleet:manage hoặc shuttle:handle', params: [idParam], body: body(obj({ provider: { type: 'string', enum: ['GRAB', 'XANHSM', 'OTHER'] }, shareUrl: str, driverName: str, plate: str, phone: str, etaAt: { type: 'string', format: 'date-time' } }, ['provider', 'shareUrl'])), extra: { 422: err('EXTERNAL_LINK_NOT_ALLOWED (https, tên miền trong EXTERNAL_RIDE_LINK_HOSTS, <= 500 ký tự)'), 409: err('NOT_EXTERNAL_TRIP | INVALID_TRANSITION') } }) },
+    '/v1/hotel/shuttle-trips/{id}/reassign': { post: op({ tag: 'Fleet (đội xe)', summary: 'Đổi xe cho chuyến OFFERED/ACCEPTED/NEEDS_EXTERNAL (xe rảnh, đủ chỗ) -> OFFERED', perm: 'fleet:manage hoặc shuttle:handle', params: [idParam], body: body(obj({ vehicleId: uuid }, ['vehicleId'])), extra: { 409: err('VEHICLE_UNAVAILABLE | INVALID_TRANSITION'), 422: err('VEHICLE_TOO_SMALL') } }) },
+    '/v1/hotel/shuttle-trips/{id}/cancel': { post: op({ tag: 'Fleet (đội xe)', summary: 'Hủy chuyến chưa lên xe', perm: 'fleet:manage hoặc shuttle:handle', params: [idParam], body: body(obj({ note: str }, ['note'])) }) },
+    '/v1/hotel/shuttle-trips/{id}/arrived': { post: op({ tag: 'Fleet (đội xe)', summary: 'Xe ngoài đã tới (ACCEPTED|EN_ROUTE -> ARRIVED); xe của khách sạn -> 409 NOT_EXTERNAL_TRIP', perm: 'fleet:manage hoặc shuttle:handle', params: [idParam] }) },
+    '/v1/hotel/shuttle-trips/{id}/onboard': { post: op({ tag: 'Fleet (đội xe)', summary: 'Xe ngoài: khách đã lên xe', perm: 'fleet:manage hoặc shuttle:handle', params: [idParam] }) },
+    '/v1/hotel/shuttle-trips/{id}/dropped-off': { post: op({ tag: 'Fleet (đội xe)', summary: 'Xe ngoài: đã trả khách', perm: 'fleet:manage hoặc shuttle:handle', params: [idParam] }) },
+    '/v1/driver/trips': { get: op({ tag: 'Driver (tài xế)', summary: 'Chuyến của tôi (mặc định đang hoạt động) kèm tên/SĐT khách, điểm đón/đến, giờ đón, số khách', perm: 'trip:drive', params: [param('status', 'query'), limit] }) },
+    '/v1/driver/trips/{id}/accept': { post: op({ tag: 'Driver (tài xế)', summary: 'OFFERED -> ACCEPTED', perm: 'trip:drive', params: [idParam], extra: { 404: err('Không phải chuyến của tôi'), 409: err('INVALID_TRANSITION') } }) },
+    '/v1/driver/trips/{id}/reject': { post: op({ tag: 'Driver (tài xế)', summary: 'OFFERED -> REJECTED (điều lại cho xe khác hoặc chuyển xe ngoài)', perm: 'trip:drive', params: [idParam], body: body(obj({ reason: str })) }) },
+    '/v1/driver/trips/{id}/start': { post: op({ tag: 'Driver (tài xế)', summary: 'ACCEPTED -> EN_ROUTE', perm: 'trip:drive', params: [idParam] }) },
+    '/v1/driver/trips/{id}/arrived': { post: op({ tag: 'Driver (tài xế)', summary: 'EN_ROUTE -> ARRIVED', perm: 'trip:drive', params: [idParam] }) },
+    '/v1/driver/trips/{id}/onboard': { post: op({ tag: 'Driver (tài xế)', summary: 'ARRIVED -> ONBOARD', perm: 'trip:drive', params: [idParam] }) },
+    '/v1/driver/trips/{id}/no-show': { post: op({ tag: 'Driver (tài xế)', summary: 'Khách không có mặt: ARRIVED -> CANCELLED (cancel_note=no_show; yêu cầu xe đóng nếu hết chuyến; phí xe không hoàn)', perm: 'trip:drive', params: [idParam], extra: { 404: err('Không phải chuyến của tôi'), 409: err('INVALID_TRANSITION (chưa ARRIVED)') } }) },
+    '/v1/driver/trips/{id}/dropped-off': { post: op({ tag: 'Driver (tài xế)', summary: 'ONBOARD -> DROPPED_OFF (mọi chuyến xong -> yêu cầu DONE)', perm: 'trip:drive', params: [idParam] }) },
+    '/v1/hotel/bookings/{id}/events': { get: op({ tag: 'Bookings (lễ tân)', summary: 'Nhật ký đơn (seq tăng dần, cursor); trang đầu kèm statusHistory', perm: 'booking:read', params: [idParam, limit, cursor] }) },
+    '/v1/admin/bookings/{id}/events': { get: op({ tag: 'Admin · Booking', summary: 'Nhật ký đơn (mọi khách sạn)', perm: 'admin:booking:read', params: [idParam, limit, cursor] }) },
 
     '/v1/flights/{code}': { get: op({ tag: 'Flights', summary: 'Tra chuyến bay (MÔ PHỎNG, simulated: true)', public: true, params: [param('code', 'path'), param('date', 'query', str, false)], extra: { 404: err('FLIGHT_NOT_FOUND') } }) },
     '/v1/admin/flights': {
@@ -378,6 +486,29 @@ export const openapi = {
     },
     '/v1/admin/flights/{id}': { delete: op({ tag: 'Admin · Chuyến bay', summary: 'Xóa chuyến chưa có lịch sử thay đổi; 204', perm: 'flight:manage', params: [idParam], extra: { 404: err('FLIGHT_NOT_FOUND'), 409: err('FLIGHT_IN_USE') } }), patch: op({ tag: 'Admin · Chuyến bay', summary: 'Đổi giờ/trạng thái (kèm lý do, có lịch sử)', perm: 'flight:manage', params: [idParam], body: body(obj({ status: { type: 'string', enum: ['ONTIME', 'DELAYED', 'CANCELLED'] }, newDepartureAt: { type: 'string', format: 'date-time' }, cause: str, reason: str }, ['status', 'reason'])), extra: { 409: err('FLIGHT_UNCHANGED') } }) },
     '/v1/admin/flights/{id}/changes': { get: op({ tag: 'Admin · Chuyến bay', summary: 'Lịch sử đổi giờ', perm: 'flight:manage', params: [idParam, limit, cursor] }) },
+    '/v1/payer/ingest/flights': {
+      post: op({
+        tag: 'Payer · Cổng kết nối',
+        summary: 'Đẩy chuyến + hành khách (UPSERT idempotent theo mã chuyến + ngày bay và PNR + họ tên). Header `x-payer-key` (không dùng Bearer) + `Idempotency-Key`. Sân bay đi phải thuộc trạm của đơn vị. Mọi lần đẩy ghi payer_ingest_logs. Trả { flight, flightCreated, flightChanged, passengers:{received,created,updated} }',
+        public: true,
+        params: [param('x-payer-key', 'header', str, true), param('Idempotency-Key', 'header', str, true)],
+        body: body(
+          obj({
+            flight: obj({ code: { type: 'string', example: 'VN218' }, airline: str, origin: { type: 'string', example: 'HAN' }, dest: { type: 'string', nullable: true }, scheduledDepartureAt: { type: 'string', format: 'date-time' }, newDepartureAt: { type: 'string', format: 'date-time', nullable: true }, status: { type: 'string', enum: ['DELAYED', 'ONTIME', 'CANCELLED'] }, cause: { type: 'string', enum: ['AIRLINE', 'FORCE', 'UNKNOWN'] } }, ['code', 'airline', 'origin', 'scheduledDepartureAt', 'newDepartureAt', 'status', 'cause']),
+            passengers: { type: 'array', maxItems: 300, items: obj({ pnr: str, fullName: str, age: int, isRepresentative: { type: 'boolean' }, email: str, phone: str, specialNeeds: { type: 'array', items: str } }, ['pnr', 'fullName', 'age']) },
+          }, ['flight', 'passengers']),
+        ),
+        extra: { 401: err('INVALID_API_KEY (thiếu/sai/đã thu hồi)'), 403: err('STATION_NOT_ALLOWED / PAYER_SUSPENDED'), 409: err('FLIGHT_CONFLICT'), 422: err('VALIDATION_ERROR / FLIGHT_TIME_INVALID') },
+      }),
+    },
+    '/v1/payer/simulate-delay': { post: op({ tag: 'Payer · Cổng kết nối', summary: 'Nút "Tạo chuyến bay delay": sinh chuyến + hành khách mô phỏng (simulated=true) cho trạm của tài khoản, đi qua đúng hàm ingest. Cần Idempotency-Key. 201 trả như ingest. Chỉ khi DELAY_SIM_ENABLED (tắt ở production)', perm: 'payer:delay:manage', params: [param('Idempotency-Key', 'header', str, true)], body: body(obj({ delayUntil: { type: 'string', format: 'date-time' } }, ['delayUntil'])), extra: { 403: err('FORBIDDEN / DELAY_SIM_DISABLED'), 409: err('NO_STATION'), 422: err('FLIGHT_TIME_INVALID') } }) },
+    '/v1/payer/flights': { get: op({ tag: 'Payer · Cổng kết nối', summary: 'Chuyến DELAYED của đơn vị (trong trạm của tài khoản), mới nhất trước; { items[{id,seq,code,airline,origin,dest,flightDate,scheduledDepartureAt,newDepartureAt,status,cause,simulated,delayMinutes,paxCount,groupCount}], nextCursor } (keyset theo seq giảm dần)', perm: 'payer:delay:read', params: [limit, cursor] }) },
+    '/v1/payer/flights/{id}/passengers': { get: op({ tag: 'Payer · Cổng kết nối', summary: 'Hành khách của chuyến, gom theo PNR: { flight, total, groups[{pnr,counts{adult,child,infant,total},passengers[]}] }. Chuyến của đơn vị khác -> 404', perm: 'payer:delay:read', params: [idParam], extra: { 404: err('FLIGHT_NOT_FOUND') } }) },
+    '/v1/payer/flights/{id}/batches/preview': { post: op({ tag: 'Payer · Đặt phòng nghỉ', summary: 'Xem trước phương án xếp phòng (KHÔNG ghi DB). Body { passengerIds[] }. Trả { flightId, units[{id,pnr,hotelId,hotelName,cluster,adjacent,connecting,rooms[{roomTypeId,roomTypeName,paxIds,priceVnd}],stay{checkInAt,checkOutAt},totalVnd,contact{fullName,phone,email},phoneMissing}], unplaced[{paxId,pnr,reason}] }. Khung ở = [bây giờ + xe chạy, giờ bay mới - 120\' - xe chạy - 15\']', perm: 'payer:delay:manage', params: [idParam], body: body(obj({ passengerIds: { type: 'array', items: { type: 'string', format: 'uuid' }, minItems: 1, maxItems: 300 } }, ['passengerIds'])), extra: { 404: err('FLIGHT_NOT_FOUND | PASSENGER_NOT_FOUND'), 409: err('FLIGHT_TIME_UNKNOWN | FLIGHT_NOT_DELAYED | FLIGHT_TOO_SOON | PAX_ALREADY_PLACED') } }) },
+    '/v1/payer/flights/{id}/batches': { post: op({ tag: 'Payer · Đặt phòng nghỉ', summary: 'Đặt phòng nghỉ cho khách đã chọn: tạo lô + nhóm theo PNR, mỗi đơn vị đặt = 1 booking PAYER (HOLD 5\') + 1 offer PENDING. Hết phòng thì tự thử KS kế tiếp. Cần Idempotency-Key. 201 trả như GET /v1/payer/batches/{id}', perm: 'payer:delay:manage', params: [idParam, param('Idempotency-Key', 'header', str, true)], body: body(obj({ passengerIds: { type: 'array', items: { type: 'string', format: 'uuid' }, minItems: 1, maxItems: 300 } }, ['passengerIds'])), extra: { 404: err('FLIGHT_NOT_FOUND | PASSENGER_NOT_FOUND'), 409: err('FLIGHT_TIME_UNKNOWN | FLIGHT_NOT_DELAYED | FLIGHT_TOO_SOON | PAX_ALREADY_PLACED'), 422: err('PAX_PHONE_REQUIRED') } }) },
+    '/v1/payer/batches/{id}': { get: op({ tag: 'Payer · Đặt phòng nghỉ', summary: 'Trạng thái lô: { id, flightId, status, simulated, createdAt, groups[{id,code,pnr,noSplit,status}], offers[{id,groupId,groupCode,hotelId,hotelName,roomTypeId,roomTypeName,qty,status,bookingCode,expiresAt,secondsLeft,roomNumbers,transferCount,rejectReason,paxIds}], unplaced[{paxId,pnr,reason}] }. secondsLeft chỉ có khi PENDING. Lô của đơn vị khác -> 404', perm: 'payer:delay:read', params: [idParam], extra: { 404: err('BATCH_NOT_FOUND') } }) },
+    '/v1/payer/passengers/{id}': { patch: op({ tag: 'Payer · Đặt phòng nghỉ', summary: 'Sửa email/SĐT liên hệ của hành khách (chỉ áp dụng cho đơn, dữ liệu gốc của hãng giữ nguyên, có audit). Trả { id, email, phone }', perm: 'payer:delay:manage', params: [idParam], body: body(obj({ email: str, phone: str })), extra: { 404: err('PASSENGER_NOT_FOUND'), 422: err('VALIDATION_ERROR') } }) },
+    '/v1/payer/passengers/{id}/resend-email': { post: op({ tag: 'Payer · Đặt phòng nghỉ', summary: 'Gửi lại email xác nhận phòng cho khách (tới contact_email ?? email). Cần Idempotency-Key. Trả { sent, to }. 404 PASSENGER_NOT_FOUND; 409 OFFER_NOT_CONFIRMED; 422 PASSENGER_EMAIL_REQUIRED; 429 RESEND_LIMIT (tối đa 3 lần/giờ/khách)', perm: 'payer:delay:manage', params: [idParam], extra: { 404: err('PASSENGER_NOT_FOUND'), 409: err('OFFER_NOT_CONFIRMED'), 422: err('PASSENGER_EMAIL_REQUIRED'), 429: err('RESEND_LIMIT') } }) },
     '/v1/admin/dashboard': { get: op({ tag: 'Admin · Dashboard', summary: 'Dashboard toàn hệ thống (khoảng tối đa 92 ngày)', perm: 'admin:dashboard:read', params: [param('from', 'query'), param('to', 'query')] }) },
 
     '/v1/admin/media/upload-url': {

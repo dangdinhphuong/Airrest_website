@@ -27,3 +27,5 @@ export const setOnUnauthorized = (fn) => { onUnauthorized = fn; };
 // null khi cấu hình sai: main.jsx hiện màn lỗi cấu hình thay vì render ứng dụng.
 export const api = apiBase ? createClient({ baseUrl: apiBase, getToken: () => token ?? guestToken, onUnauthorized: () => onUnauthorized?.() }) : null;
 export { describeError };
+// Token hiện tại cho lời gọi cần header Authorization mà không qua JSON (tải file CSV). Không lưu ra nơi khác.
+export const getAuthToken = () => token ?? guestToken;

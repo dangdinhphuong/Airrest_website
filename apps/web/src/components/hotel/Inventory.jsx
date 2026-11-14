@@ -7,6 +7,7 @@ import { PERM } from '../../lib/perms';
 import { describeError } from '../../lib/api';
 import * as H from '../../data/hotel';
 import { ConfirmButton, ListState, fmtDT, needReason, today, useAction, useLoad, usePaged } from './kit';
+import Select from '../Select';
 
 const KIND = { LOCK: 'Khóa bán', MAINTENANCE: 'Bảo trì' };
 
@@ -37,8 +38,8 @@ function BlockForm({ types, onDone, act }) {
     <form className="card" onSubmit={submit} data-testid="block-form">
       <h3>Khóa / bảo trì phòng</h3>
       <div className="grid-2">
-        <Field id="bl-type" label="Loại phòng"><select id="bl-type" value={v.roomTypeId} onChange={set('roomTypeId')} data-testid="bl-type">{types.map((t) => <option key={t.id} value={t.id}>{t.code} - {t.name}</option>)}</select></Field>
-        <Field id="bl-kind" label="Kiểu"><select id="bl-kind" value={v.kind} onChange={set('kind')} data-testid="bl-kind">{Object.entries(KIND).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></Field>
+        <Field id="bl-type" label="Loại phòng"><Select id="bl-type" value={v.roomTypeId} onChange={set('roomTypeId')} data-testid="bl-type">{types.map((t) => <option key={t.id} value={t.id}>{t.code} - {t.name}</option>)}</Select></Field>
+        <Field id="bl-kind" label="Kiểu"><Select id="bl-kind" value={v.kind} onChange={set('kind')} data-testid="bl-kind">{Object.entries(KIND).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</Select></Field>
         <Field id="bl-from" label="Từ"><input id="bl-from" type="datetime-local" value={v.from} onChange={set('from')} required data-testid="bl-from" /></Field>
         <Field id="bl-to" label="Đến"><input id="bl-to" type="datetime-local" value={v.to} min={v.from || undefined} onChange={set('to')} required data-testid="bl-to" /></Field>
         <Field id="bl-qty" label="Số phòng" hint="Để trống = khóa toàn bộ phòng còn trống (không đụng đơn đang có)"><input id="bl-qty" type="number" min="1" max="500" value={v.qty} onChange={set('qty')} data-testid="bl-qty" /></Field>
@@ -74,7 +75,7 @@ export default function Inventory() {
       {types.data && !items.length && <p className="muted" data-testid="empty">Chưa có loại phòng nào.</p>}
       {items.length > 0 && <>
         <div className="filter-bar">
-          <select aria-label="Loại phòng" value={typeId} onChange={(e) => setRt(e.target.value)} data-testid="inv-type">{items.map((t) => <option key={t.id} value={t.id}>{t.code} - {t.name}</option>)}</select>
+          <Select aria-label="Loại phòng" value={typeId} onChange={(e) => setRt(e.target.value)} data-testid="inv-type">{items.map((t) => <option key={t.id} value={t.id}>{t.code} - {t.name}</option>)}</Select>
           <label>Từ <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} data-testid="inv-from" /></label>
           <label>Đến <input type="date" value={to} onChange={(e) => setTo(e.target.value)} data-testid="inv-to" /></label>
         </div>

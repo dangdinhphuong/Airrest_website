@@ -19,6 +19,8 @@ export default defineConfig({
       R2_PUBLIC_BASE_URL: 'https://pub-test.r2.dev',
       VNPAY_ENABLED: 'true',
       VNPAY_MODE: 'mock',
+      MOMO_ENABLED: 'true',
+      MOMO_MODE: 'mock',
       LOG_LEVEL: 'silent',
     },
   },

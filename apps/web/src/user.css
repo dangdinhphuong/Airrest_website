@@ -3,3 +3,15 @@
    có độ ưu tiên 0 như reset, nên thứ tự nạp quyết định bên thắng. */
 @import "tailwindcss/theme.css" prefix(tw);
 @import "tailwindcss/utilities.css" prefix(tw);
+
+/* Thanh chốt đơn cố định ở trang #/stays: đẩy nút trợ lý chat lên trên để không che nút "Đặt ngay". */
+.airrest-user[data-cart-bar] [data-chat-fab] { margin-bottom: 4.5rem; }
+/* Mobile, trang có dòng phòng (#/stays): nút chat dời sang trái, bỏ bong bóng chào, thu nhỏ robot để không che nút − / + ở mép phải của dòng phòng khi cuộn. */
+@media (max-width: 47.99rem) {
+  .airrest-user:has([data-testid="room-row"]) [data-chat-fab] { right: auto; left: 0.75rem; }
+  .airrest-user:has([data-testid="room-row"]) [data-chat-fab] [data-greet] { display: none; }
+  .airrest-user:has([data-testid="room-row"]) [data-chat-fab] [data-robot] { width: 3.5rem; height: 3.5rem; }
+}
+/* Chừa chỗ cuối trang (sau chân trang) để thanh chốt đơn không che nội dung: mobile = thanh điều hướng dưới 4rem + thanh 4.5rem. */
+.airrest-user[data-cart-bar] { padding-bottom: 8.5rem; }
+@media (min-width: 48rem) { .airrest-user[data-cart-bar] { padding-bottom: 4.5rem; } }

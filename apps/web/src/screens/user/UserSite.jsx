@@ -19,7 +19,7 @@ export function Logo({ tone = 'tw:text-[#062253]' }) {
 }
 
 const NAV = 'tw:rounded-lg tw:px-4 tw:py-3 tw:text-sm tw:font-semibold tw:text-slate-600 tw:hover:bg-blue-50 tw:hover:text-blue-700';
-const BOTTOM = 'tw:flex tw:min-h-16 tw:flex-col tw:items-center tw:justify-center tw:gap-1 tw:text-[9px] tw:font-semibold';
+const BOTTOM = 'tw:flex tw:min-h-16 tw:flex-col tw:items-center tw:justify-center tw:gap-1 tw:text-[11px] tw:font-semibold';
 
 // Khung trang người dùng: header, footer và thanh điều hướng dưới (mobile) của AIRREST.
 export default function UserSite({ page, children }) {
@@ -42,7 +42,7 @@ export default function UserSite({ page, children }) {
   return (
     <div ref={root} className="airrest-user tw:min-h-screen tw:bg-white tw:pb-16 tw:text-[#10203a] tw:md:pb-0">
       <header className="tw:sticky tw:top-0 tw:z-50 tw:border-b tw:border-slate-200/80 tw:bg-white/95 tw:backdrop-blur-xl">
-        <nav className="tw:mx-auto tw:flex tw:h-[72px] tw:max-w-[1180px] tw:items-center tw:justify-between tw:px-5" aria-label="Điều hướng chính">
+        <nav className="tw:mx-auto tw:flex tw:h-[72px] tw:max-w-[1480px] tw:items-center tw:justify-between tw:px-5" aria-label="Điều hướng chính">
           <button type="button" onClick={() => go('home')} aria-label="AIRREST, về trang chủ"><Logo /></button>
           <div className="tw:hidden tw:md:flex tw:md:flex-row tw:md:gap-1">
             <button type="button" className={NAV} onClick={() => goSection('how')}>Cách hoạt động</button>
@@ -77,15 +77,15 @@ export default function UserSite({ page, children }) {
             <button type="button" onClick={() => go(state.user ? 'account' : 'login')}>{state.user ? 'Tài khoản' : 'Đăng nhập'}</button>
           </div>
           <div className="tw:grid tw:content-start tw:justify-items-start tw:gap-1 tw:text-xs tw:[&_button]:py-2 tw:text-slate-400"><strong className="tw:text-white">Vận hành</strong><button type="button" onClick={goPartner}>Cổng quản trị & đối tác</button><span>22 sân bay thương mại Việt Nam</span></div>
-          <div className="tw:rounded-xl tw:border tw:border-white/10 tw:p-4"><ShieldCheck className="tw:text-blue-300" /><p className="tw:mt-3 tw:text-[10px] tw:leading-5 tw:text-slate-400">MVP nghiên cứu. Không tích hợp thanh toán thật, hãng bay thật hoặc tồn phòng thời gian thực.</p></div>
+          <div className="tw:rounded-xl tw:border tw:border-white/10 tw:p-4"><ShieldCheck className="tw:text-blue-300" /><p className="tw:mt-3 tw:text-[11px] tw:leading-5 tw:text-slate-400">MVP nghiên cứu. Không tích hợp thanh toán thật, hãng bay thật hoặc tồn phòng thời gian thực.</p></div>
         </div>
       </footer>
 
       <div className="tw:fixed tw:inset-x-0 tw:bottom-0 tw:z-40 tw:grid tw:grid-cols-4 tw:border-t tw:border-slate-200 tw:bg-white tw:pb-[env(safe-area-inset-bottom)] tw:md:hidden">
-        <button type="button" onClick={() => go('home')} className={`${BOTTOM} ${page === 'home' ? 'tw:text-blue-600' : 'tw:text-slate-500'}`}><Plane size={18} />Chuyến bay</button>
-        <button type="button" onClick={() => goSection('stays')} className={`${BOTTOM} tw:text-slate-500`}><Hotel size={18} />Nơi nghỉ</button>
-        <button type="button" onClick={() => go('track')} className={`${BOTTOM} ${page === 'track' ? 'tw:text-blue-600' : 'tw:text-slate-500'}`}><Search size={18} />Booking</button>
-        <button type="button" onClick={() => go('support')} className={`${BOTTOM} ${page === 'support' ? 'tw:text-blue-600' : 'tw:text-slate-500'}`}><Headphones size={18} />Trợ giúp</button>
+        <button type="button" onClick={() => go('home')} aria-current={page === 'home' ? 'page' : undefined} className={`${BOTTOM} ${page === 'home' ? 'tw:text-blue-600' : 'tw:text-slate-500'}`}><Plane size={18} />Chuyến bay</button>
+        <button type="button" onClick={() => goSection('stays')} aria-current={page === 'stays' || page === 'detail' ? 'page' : undefined} className={`${BOTTOM} ${page === 'stays' || page === 'detail' ? 'tw:text-blue-600' : 'tw:text-slate-500'}`}><Hotel size={18} />Nơi nghỉ</button>
+        <button type="button" onClick={() => go('track')} aria-current={page === 'track' ? 'page' : undefined} className={`${BOTTOM} ${page === 'track' ? 'tw:text-blue-600' : 'tw:text-slate-500'}`}><Search size={18} />Booking</button>
+        <button type="button" onClick={() => go('support')} aria-current={page === 'support' ? 'page' : undefined} className={`${BOTTOM} ${page === 'support' ? 'tw:text-blue-600' : 'tw:text-slate-500'}`}><Headphones size={18} />Trợ giúp</button>
       </div>
       <ChatBot />
     </div>

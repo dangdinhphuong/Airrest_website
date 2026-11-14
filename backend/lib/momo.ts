@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { env } from '../config/env';
 import { AppError } from './errors';
+import { newVnpOrder } from './vnpay';
 
 // Cổng MoMo v2 (https://developers.momo.vn). Chữ ký = HMAC-SHA256(secretKey, "k1=v1&k2=v2..."), khóa xếp A→Z.
 // mock: không gọi mạng, dùng khóa sandbox công khai của MoMo; live: dùng khóa trong env, gọi MOMO_ENDPOINT.
@@ -29,7 +30,9 @@ export const signMomo = (kind: keyof typeof FIELDS, p: Params): string =>
 export function verifyMomoIpn(body: Params): boolean {
   const given = typeof body.signature === 'string' ? body.signature : '';
   const want = signMomo('ipn', { ...body, accessKey: momoKeys.accessKey });
-  return given.length === want.length && timingSafeEqual(Buffer.from(given), Buffer.from(want));
+  const a = Buffer.from(given);
+  const b = Buffer.from(want);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 // Dùng cho cổng giả lập: tạo đúng gói IPN mà MoMo sẽ gửi.
@@ -53,6 +56,9 @@ export function buildMomoIpn(o: { orderId: string; requestId: string; amount: nu
 }
 
 // orderId/requestId duy nhất mỗi lần gọi (MoMo không cho dùng lại): [A-Za-z0-9-], < 50 ký tự.
+// Chọn bộ sinh mã theo cổng (dùng cho lệnh hoàn tạo ở nhiều nơi).
+export const newGatewayOrder = (method: string, prefix: string) => (method === 'MOMO' ? newMomoOrder(prefix) : newVnpOrder(prefix));
+
 export const newMomoOrder = (prefix: string) => {
   const id = `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   return { orderId: id, requestId: id };
@@ -85,7 +91,7 @@ async function post<T>(path: string, body: Params): Promise<T> {
 export const momoGateway = {
   async create(p: { orderId: string; requestId: string; amount: number; orderInfo: string }): Promise<MomoCreateResult> {
     if (!live) {
-      return { resultCode: 0, message: 'mock', payUrl: `${env.MOMO_REDIRECT_URL}?mock=1&orderId=${p.orderId}`, deeplink: `momo://mock?orderId=${p.orderId}` };
+      return { resultCode: 0, message: 'mock', payUrl: `${env.MOMO_RETURN_URL}?mock=1&gateway=momo&orderId=${p.orderId}`, deeplink: `momo://mock?orderId=${p.orderId}` };
     }
     const body: Params = {
       partnerCode: momoKeys.partnerCode,
@@ -94,7 +100,7 @@ export const momoGateway = {
       amount: String(p.amount),
       orderId: p.orderId,
       orderInfo: p.orderInfo,
-      redirectUrl: env.MOMO_REDIRECT_URL,
+      redirectUrl: env.MOMO_RETURN_URL,
       ipnUrl: env.MOMO_IPN_URL,
       extraData: '',
       requestType: 'captureWallet',

@@ -34,9 +34,9 @@ authRouter.post('/login', strictRateLimit, validate({ body: loginBody }), async 
 // `auth` giữ nguyên như cũ; `user` thêm thông tin hiển thị (PASSENGER: username, fullName, permissions rỗng).
 authRouter.get('/me', authenticate, async (req, res) => {
   const auth = req.auth!;
-  const a = auth.kind === 'ACCOUNT' ? (await db.query<AccountDoc>('SELECT id, type, full_name, username, email FROM accounts WHERE id = $1', [auth.sub])).rows[0] : undefined;
+  const a = auth.kind === 'ACCOUNT' ? (await db.query<AccountDoc>('SELECT id, type, full_name, username, email, preferences FROM accounts WHERE id = $1', [auth.sub])).rows[0] : undefined;
   res.json({
     auth,
-    ...(a && { user: { id: a.id, type: a.type, fullName: a.fullName, ...(a.username && { username: a.username }), ...(a.email && { email: a.email }), permissions: auth.permissions } }),
+    ...(a && { user: { id: a.id, type: a.type, fullName: a.fullName, ...(a.username && { username: a.username }), ...(a.email && { email: a.email }), ...(a.type === 'PASSENGER' && { preferences: a.preferences ?? {} }), permissions: auth.permissions } }),
   });
 });

@@ -8,6 +8,8 @@ export const PERM = {
   REQUEST_HANDLE: 'request:handle', // duyệt/từ chối yêu cầu đổi/hủy
   SUPPORT_HANDLE: 'support:handle', // xử lý ticket hỗ trợ
   SHUTTLE_HANDLE: 'shuttle:handle', // vận hành xe đưa đón
+  FLEET_MANAGE: 'fleet:manage', // quản lý xe/tài xế, điều phối, nhập xe ngoài
+  TRIP_DRIVE: 'trip:drive', // tài xế thao tác chuyến của MÌNH
   FLIGHT_MANAGE: 'flight:manage', // chỉnh giờ/trạng thái chuyến bay mô phỏng
   ADMIN_DASHBOARD_READ: 'admin:dashboard:read',
   ADMIN_BOOKING_READ: 'admin:booking:read', // admin xem booking của mọi khách sạn (chỉ đọc)
@@ -27,6 +29,12 @@ export const PERM = {
   ADMIN_PAYMENT_READ: 'admin:payment:read', // xem giao dịch cổng thanh toán, lệnh hoàn, giao dịch bất thường
   ADMIN_PAYMENT_MANAGE: 'admin:payment:manage', // đối soát thủ công, thử lại hoàn tiền
   ADMIN_HOTEL_APPROVE_SENSITIVE: 'admin:hotel:approve-sensitive', // ADM-15: duyệt đổi tài khoản nhận tiền (four-eyes)
+
+  // --- Đơn vị chi trả / khách delay chuyến (nhân viên đơn vị chi trả luôn bị khóa theo payer_id/trạm của chính nó) ---
+  PAYER_DELAY_READ: 'payer:delay:read', // xem chuyến delay, hành khách, lô đặt phòng của trạm mình
+  PAYER_DELAY_MANAGE: 'payer:delay:manage', // nhập chuyến/hành khách, chọn khách và đặt phòng nghỉ
+  ADMIN_PAYER_READ: 'admin:payer:read', // admin xem đơn vị chi trả, trạm, giá hợp đồng
+  ADMIN_PAYER_MANAGE: 'admin:payer:manage', // admin tạo/sửa đơn vị chi trả, trạm, tài khoản nhân viên, giá hợp đồng
 } as const;
 
 export type Permission = (typeof PERM)[keyof typeof PERM];

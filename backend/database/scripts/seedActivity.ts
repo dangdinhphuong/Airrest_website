@@ -41,7 +41,7 @@ export async function seedActivity(): Promise<string> {
     const to = new Date(from.getTime() + (1 + Math.floor(rand() * 3)) * day);
     const phone = toE164VN(`0900${String(100000 + i).slice(-6)}`)!; // chuẩn hóa như API (createBooking nhận dữ liệu đã qua zod)
     try {
-      let b = await createBooking({ hotelId: room.hotelId, roomTypeId: room.rid, qty: 1, paymentMethod: 'AT_HOTEL', from, to, guest: { fullName: name(), phone, email: i % 3 ? undefined : `khach${i}@example.com` } } as never);
+      let b = await createBooking({ hotelId: room.hotelId, rooms: [{ roomTypeId: room.rid, qty: 1, kind: 'NIGHT' }], guests: 1, children: 0, paymentMethod: 'AT_HOTEL', from, to, guest: { fullName: name(), phone, email: i % 3 ? undefined : `khach${i}@example.com` } } as never);
       stats.booking++;
       if (b.status === 'PENDING') {
         const roll = i % 10;

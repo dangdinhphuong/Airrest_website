@@ -1,16 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft, CalendarDays, Check, CheckCircle2, Clock3, Headphones, Hotel, LogOut, MapPin, Search, Send, ShieldCheck, Star, UserRound,
 } from 'lucide-react';
 import { useApp } from '../../state/store';
-import { airportName, createTicket, describeApiError, getHotel, getPaymentLink, listAirports, lookupBooking, lookupTicket, replyTicket, simulatePayment, changePassword, describeAuthError, listMyBookings, PASSWORD_MIN, PASSWORD_MAX } from '../../data/user';
+import { ATTACH, airportName, attachFile, createTicket, describeApiError, getHotel, getPaymentLink, listAirports, lookupBooking, lookupBookingFull, lookupGroup, lookupTicket, replyTicket, simulatePayment, simulateMomoPayment, readLastBooking, clearLastBooking, saveLastBooking, PAY_LABEL, changePassword, describeAuthError, listMyBookings, PASSWORD_MIN, PASSWORD_MAX } from '../../data/user';
 import { money } from '../../lib/time';
 import BookingActions from './BookingActions';
-import { parseTrack, scrollToId, setTrackPrefill, takeTrackPrefill, statusCopy, statusTone } from './data';
+import ShuttleTracker from './ShuttleTracker';
+import { loadGuest } from './cart';
+import { endLabel, hhmm } from './HourlyPicker';
+import { normalizeGroup, parseGroupQuery } from './groupLookup';
+import { parseTrack, scrollToId, setTrackPrefill, takeSupportPrefill, takeTicketPrefill, takeTrackPrefill, statusCopy, statusTone } from './data';
+import { EditProfile, MyTickets, Preferences } from './AccountSections';
 
 const PAGE = 'tw:min-h-screen tw:bg-slate-50 tw:px-5 tw:py-8 tw:sm:py-14';
 const BACK = 'tw:inline-flex tw:items-center tw:gap-2 tw:text-xs tw:font-bold tw:text-blue-700';
-const LABEL = 'tw:text-[10px] tw:font-bold tw:uppercase tw:tracking-[.16em]';
+const LABEL = 'tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-[.16em]';
 const TONE = { ok: 'tw:bg-emerald-100 tw:text-emerald-900', bad: 'tw:bg-rose-100 tw:text-rose-900', wait: 'tw:bg-amber-100 tw:text-amber-900' };
 
 const useGo = () => {
@@ -65,7 +70,7 @@ export function HotelDetail() {
         <div>
           <Gallery key={p.id} p={p} />
           <div className="tw:mt-7 tw:rounded-2xl tw:border tw:border-slate-200 tw:bg-white tw:p-6 tw:sm:p-8">
-            <span className="tw:text-[10px] tw:font-bold tw:uppercase tw:tracking-[.16em] tw:text-blue-600">Thông tin khách sạn</span>
+            <span className="tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-[.16em] tw:text-blue-600">Thông tin khách sạn</span>
             <h1 className="tw:mt-2 tw:text-3xl tw:font-bold tw:tracking-tight">{p.name}</h1>
             <div className="tw:mt-3 tw:flex tw:flex-wrap tw:gap-4 tw:text-xs tw:text-slate-500"><span className="tw:flex tw:items-center tw:gap-1"><MapPin size={15} /> {p.address || `Gần sân bay ${apName}`}</span>{p.rating && <span className="tw:flex tw:items-center tw:gap-1 tw:font-bold tw:text-emerald-700"><Star size={14} fill="currentColor" /> {p.rating}/10</span>}</div>
             <p className="tw:mt-6 tw:text-sm tw:leading-7 tw:text-slate-600">{p.description || `Cách sân bay ${apName} ${p.distanceKm} km, khoảng ${p.travelMinutes} phút đi xe.`}</p>
@@ -76,7 +81,7 @@ export function HotelDetail() {
         <aside className="tw:space-y-5">
           <div className="tw:rounded-2xl tw:border tw:border-slate-200 tw:bg-white tw:p-6">
             <h2 className="tw:font-bold">Loại phòng hiện có</h2>
-            {p.rooms.length ? <div className="tw:mt-4 tw:space-y-3">{p.rooms.map((room) => <div key={room.id} className="tw:rounded-xl tw:bg-slate-50 tw:p-4"><div className="tw:flex tw:justify-between tw:gap-3"><strong className="tw:text-sm">{room.name}</strong><strong className="tw:text-sm tw:text-blue-700">{money(room.price)}</strong></div><p className="tw:mt-2 tw:text-[10px] tw:leading-5 tw:text-slate-500">Tối đa {room.maxOccupancy} khách · {room.cancellationPolicy} · {room.availableRooms > 0 ? `còn ${room.availableRooms} phòng` : 'hết phòng'}</p></div>)}</div> : <p className="tw:mt-4 tw:text-xs tw:text-slate-500">Chưa có phòng mở bán.</p>}
+            {p.rooms.length ? <div className="tw:mt-4 tw:space-y-3">{p.rooms.map((room) => <div key={room.id} className="tw:rounded-xl tw:bg-slate-50 tw:p-4"><div className="tw:flex tw:justify-between tw:gap-3"><strong className="tw:text-sm">{room.name}</strong><strong className="tw:text-sm tw:text-blue-700">{money(room.price)}</strong></div><p className="tw:mt-2 tw:text-[11px] tw:leading-5 tw:text-slate-500">Tối đa {room.maxOccupancy} khách · {room.cancellationPolicy} · {room.availableRooms > 0 ? `còn ${room.availableRooms} phòng` : 'hết phòng'}</p></div>)}</div> : <p className="tw:mt-4 tw:text-xs tw:text-slate-500">Chưa có phòng mở bán.</p>}
             <button type="button" onClick={toStays} className="tw:mt-5 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:rounded-xl tw:bg-blue-600 tw:text-xs tw:font-bold tw:text-white">Chọn phòng trên trang chủ</button>
           </div>
           <div className="tw:rounded-2xl tw:bg-[#062253] tw:p-6 tw:text-white"><ShieldCheck className="tw:text-blue-300" /><h2 className="tw:mt-4 tw:font-bold">Điều kiện lưu trú</h2><p className="tw:mt-3 tw:text-xs tw:leading-6 tw:text-blue-100">{p.receptionLabel}</p><p className="tw:mt-3 tw:text-xs tw:leading-6 tw:text-blue-100">{p.freeCancel ? 'Hủy miễn phí theo điều kiện của cơ sở.' : 'Không hoàn hủy. Điều kiện được hiển thị trước khi gửi yêu cầu.'}</p></div>
@@ -87,38 +92,55 @@ export function HotelDetail() {
 }
 
 const dmy = (iso) => new Date(iso).toLocaleDateString('vi-VN');
+// Dòng phòng theo giờ ghi rõ giờ vào - giờ ra; đơn toàn giờ ghi 'ngày, giờ vào → giờ ra' thay vì khoảng ngày.
+const lineText = (l) => `${l.roomTypeName} × ${l.qty ?? 1}${l.kind === 'HOURLY' ? ` · theo giờ ${hhmm(l.startsAt)}–${endLabel(l.startsAt, l.endsAt)} ngày ${dmy(l.startsAt)} (${l.hours} giờ)` : ''}`;
+const stayText = (b) => (b.stay.type === 'HOURLY' ? `${dmy(b.stay.from)}, ${hhmm(b.stay.from)} → ${endLabel(b.stay.from, b.stay.to)}` : `${dmy(b.stay.from)} → ${dmy(b.stay.to)}${b.stay.type === 'MIXED' ? ' (có phòng theo giờ)' : ''}`);
 
-function BookingDetail({ b, phone, onPay, payError }) {
+function BookingDetail({ b, phone, track, onPay, payError, onRelookup }) {
   const go = useGo();
-  const line = b.lines?.[0];
+  const lines = b.lines?.length ? b.lines : [{ roomTypeName: b.roomTypeName, qty: b.qty ?? 1 }]; // đơn nhiều loại phòng: một dòng mỗi loại
+  const rooms = lines.reduce((n, l) => n + (l.qty ?? 1), 0);
   return (
     <section className="tw:mt-6 tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:p-6 tw:shadow-lg tw:sm:p-9">
-      <div className="tw:flex tw:flex-col tw:justify-between tw:gap-4 tw:border-b tw:border-slate-100 tw:pb-6 tw:sm:flex-row tw:sm:items-center"><div><small className="tw:text-slate-500">Mã booking</small><h2 className="tw:mt-1 tw:text-xl tw:font-extrabold tw:tracking-wider">{b.code}</h2></div><span className={`tw:w-fit tw:rounded-full tw:px-4 tw:py-2 tw:text-[10px] tw:font-bold ${TONE[statusTone(b.status)]}`}>{statusCopy(b.status)}</span></div>
+      <div className="tw:flex tw:flex-col tw:justify-between tw:gap-4 tw:border-b tw:border-slate-100 tw:pb-6 tw:sm:flex-row tw:sm:items-center"><div><small className="tw:text-slate-500">Mã booking</small><h2 className="tw:mt-1 tw:text-xl tw:font-extrabold tw:tracking-wider">{b.code}</h2></div><span className={`tw:w-fit tw:rounded-full tw:px-4 tw:py-2 tw:text-[11px] tw:font-bold ${TONE[statusTone(b.status)]}`}>{statusCopy(b.status)}</span></div>
       <div className="tw:mt-6 tw:grid tw:gap-4 tw:sm:grid-cols-2">
-        <div className="tw:flex tw:gap-3 tw:rounded-xl tw:bg-slate-50 tw:p-4"><Hotel className="tw:shrink-0 tw:text-blue-600" /><div><small className="tw:text-slate-500">Nơi nghỉ</small><p className="tw:mt-1 tw:text-sm tw:font-bold">{b.hotel?.name}</p><span className="tw:text-xs tw:text-slate-500">{line?.roomTypeName}{line?.qty > 1 ? ` × ${line.qty}` : ''}</span></div></div>
-        <div className="tw:flex tw:gap-3 tw:rounded-xl tw:bg-slate-50 tw:p-4"><CalendarDays className="tw:shrink-0 tw:text-blue-600" /><div><small className="tw:text-slate-500">Thời gian lưu trú</small><p className="tw:mt-1 tw:text-xs tw:font-bold">{dmy(b.stay.from)} → {dmy(b.stay.to)}</p></div></div>
+        <div className="tw:flex tw:gap-3 tw:rounded-xl tw:bg-slate-50 tw:p-4"><Hotel className="tw:shrink-0 tw:text-blue-600" /><div><small className="tw:text-slate-500">Nơi nghỉ</small><p className="tw:mt-1 tw:text-sm tw:font-bold">{b.hotel?.name}</p><ul data-testid="detail-lines" className="tw:text-xs tw:text-slate-500">{lines.map((l, i) => <li key={`${l.roomTypeId ?? i}-${l.kind ?? 'NIGHT'}`}>{lineText(l)}</li>)}</ul><p data-testid="detail-guests" className="tw:mt-1 tw:text-xs tw:text-slate-600">{b.guests ?? 1} người{b.children > 0 ? ` (trong đó ${b.children} trẻ em)` : ''} · {rooms} phòng</p></div></div>
+        <div className="tw:flex tw:gap-3 tw:rounded-xl tw:bg-slate-50 tw:p-4"><CalendarDays className="tw:shrink-0 tw:text-blue-600" /><div><small className="tw:text-slate-500">{b.stay.type === 'HOURLY' ? 'Thời gian ở (theo giờ)' : 'Thời gian lưu trú'}</small><p data-testid="detail-stay" className="tw:mt-1 tw:text-xs tw:font-bold">{stayText(b)}</p></div></div>
       </div>
-      <div className="tw:mt-5 tw:divide-y tw:divide-slate-100 tw:rounded-xl tw:border tw:border-slate-200 tw:px-4 tw:text-xs"><div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Tiền phòng</span><span>{money(b.pricing.roomVnd)}</span></div>{b.pricing.shuttleVnd > 0 && <div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Xe đưa đón</span><span>{money(b.pricing.shuttleVnd)}</span></div>}<div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Phí dịch vụ</span><span>{money(b.pricing.serviceFeeVnd)}</span></div>{b.pricing.discountVnd > 0 && <div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Giảm giá</span><span>-{money(b.pricing.discountVnd)}</span></div>}<div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Tổng tiền</span><strong>{money(b.pricing.totalVnd)}</strong></div><div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Thanh toán</span><strong>{b.payment.method === 'VNPAY' ? 'VNPay' : 'Tại khách sạn'} · {{ UNPAID: 'chưa thanh toán', PENDING: 'đang xử lý', PAID: 'đã thanh toán', REFUNDED: 'đã hoàn tiền' }[b.payment.status] ?? b.payment.status}</strong></div></div>
+      <div className="tw:mt-5 tw:divide-y tw:divide-slate-100 tw:rounded-xl tw:border tw:border-slate-200 tw:px-4 tw:text-xs"><div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Tiền phòng</span><span>{money(b.pricing.roomVnd)}</span></div>{b.pricing.shuttleVnd > 0 && <div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Xe đưa đón</span><span>{money(b.pricing.shuttleVnd)}</span></div>}<div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Phí dịch vụ</span><span>{money(b.pricing.serviceFeeVnd)}</span></div>{b.pricing.discountVnd > 0 && <div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Giảm giá</span><span>-{money(b.pricing.discountVnd)}</span></div>}<div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Tổng tiền</span><strong>{money(b.pricing.totalVnd)}</strong></div><div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Thanh toán</span><strong>{PAY_LABEL[b.payment.method] ?? b.payment.method} · {{ UNPAID: 'chưa thanh toán', PENDING: 'đang xử lý', PAID: 'đã thanh toán', REFUNDED: 'đã hoàn tiền' }[b.payment.status] ?? b.payment.status}</strong></div></div>
       <div className="tw:mt-5 tw:flex tw:items-start tw:gap-3 tw:rounded-xl tw:bg-blue-50 tw:p-4"><Clock3 className="tw:shrink-0 tw:text-blue-600" /><p className="tw:text-xs tw:leading-6 tw:text-slate-600"><strong className="tw:text-slate-900">Trạng thái hiện tại: {statusCopy(b.status)}.</strong><br />Trạng thái do khách sạn cập nhật và hiển thị tại đây.</p></div>
       {b.decision?.reason && <p className="tw:mt-4 tw:rounded-xl tw:bg-amber-50 tw:p-4 tw:text-xs tw:text-amber-900">Lý do: {b.decision.reason}</p>}
-      {b.status === 'PENDING_PAYMENT' && b.payment.method === 'VNPAY' && <button type="button" onClick={onPay} className="tw:mt-4 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:rounded-xl tw:bg-emerald-600 tw:text-xs tw:font-bold tw:text-white">Thanh toán qua VNPay</button>}
+      {b.status === 'PENDING_PAYMENT' && b.payment.method !== 'AT_HOTEL' && <button type="button" onClick={onPay} className="tw:mt-4 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:rounded-xl tw:bg-emerald-600 tw:text-xs tw:font-bold tw:text-white">Thanh toán / lấy lại liên kết {PAY_LABEL[b.payment.method]}</button>}
       {payError && <p role="alert" className="tw:mt-3 tw:rounded-xl tw:bg-rose-50 tw:p-3 tw:text-xs tw:font-semibold tw:text-rose-700">{payError}</p>}
-      <BookingActions booking={b} phone={phone} />
+      <ShuttleTracker booking={b} phone={phone} initial={track} token={track.guestToken} onRelookup={onRelookup}>
+        {(refresh) => <BookingActions booking={b} phone={phone} onShuttleChange={refresh} />}
+      </ShuttleTracker>
       <div className="tw:mt-6 tw:flex tw:flex-col tw:gap-3 tw:sm:flex-row"><button type="button" onClick={() => go('support')} className="tw:flex tw:min-h-11 tw:flex-1 tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:border tw:border-blue-200 tw:text-xs tw:font-bold tw:text-blue-700"><ShieldCheck size={17} /> Yêu cầu hỗ trợ</button><span className="tw:flex tw:min-h-11 tw:flex-1 tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-emerald-50 tw:text-xs tw:font-bold tw:text-emerald-700"><CheckCircle2 size={17} /> Đã xác minh thông tin</span></div>
     </section>
   );
 }
 
 export function Track() {
-  const [found, setFound] = useState(null); // { booking, phone }
+  const [found, setFound] = useState(null); // { booking, phone, track: { guestToken, stage, shuttles, events } }
   const [error, setError] = useState('');
   const [payError, setPayError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [prefill] = useState(takeTrackPrefill); // từ trang tài khoản: mã booking (+ SĐT nếu có)
-
-  const submit = async (e) => {
-    e.preventDefault();
-    const { ref, phone } = parseTrack(new FormData(e.currentTarget).get('query'));
+  const [group, setGroup] = useState(null); // kết quả tra cứu mã nhóm NH-: { phone, ...normalizeGroup }
+  // Từ trang tài khoản / đặt phòng xong: mã booking (+ SĐT). Mở lại trang giữa chừng: lấy đơn gần nhất trong phiên.
+  const [prefill] = useState(() => { const q = takeTrackPrefill(); if (q) return q; const l = readLastBooking(); return l ? `${l.code} ${l.phone}` : loadGuest().phone; }); // chưa có đơn: điền sẵn SĐT đã nhớ trên thiết bị, khách chỉ cần thêm mã
+  const lookup = async (text) => {
+    const g = parseGroupQuery(text);
+    if (g.groupCode) { // mã nhóm: hỏi SĐT rồi xem cả nhóm
+      setFound(null); setGroup(null); setPayError('');
+      if (!g.phone) { setError('Nhập thêm số điện thoại của người đại diện, ví dụ NH-XXXXXXXX 0912345678.'); return; }
+      setBusy(true);
+      try { setGroup({ phone: g.phone, ...normalizeGroup(await lookupGroup(g.groupCode, g.phone)) }); setError(''); }
+      catch (err) { setError(err.status === 404 ? 'Không tìm thấy nhóm khớp mã và số điện thoại này. Kiểm tra lại thông tin đã nhập.' : err.status === 422 ? 'Mã nhóm có dạng NH- cùng 8 ký tự (ví dụ NH-ABCD1234). Kiểm tra lại mã đã nhập.' : describeApiError(err)); }
+      finally { setBusy(false); }
+      return;
+    }
+    setGroup(null);
+    const { ref, phone } = parseTrack(text);
     setPayError('');
     if (!ref || !phone) {
       setFound(null);
@@ -126,13 +148,17 @@ export function Track() {
       return;
     }
     setBusy(true);
-    try { setFound({ booking: await lookupBooking(ref.toUpperCase(), phone), phone }); setError(''); }
+    try { const { booking, ...track } = await lookupBookingFull(ref.toUpperCase(), phone); setFound({ booking, phone, track }); setError(''); }
     catch (err) { setFound(null); setError(describeApiError(err)); }
     finally { setBusy(false); }
   };
+  const form = useRef(null);
+  const submit = (e) => { e.preventDefault(); lookup(new FormData(e.currentTarget).get('query')); };
+  const relookup = () => lookup(form.current.elements.query.value);
+  useEffect(() => { if ((parseTrack(prefill).ref || parseGroupQuery(prefill).groupCode) && (parseTrack(prefill).phone || parseGroupQuery(prefill).phone)) lookup(prefill); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const pay = async () => {
     setPayError('');
-    try { const link = await getPaymentLink(found.booking.code, found.phone); window.location.assign(link.payUrl); }
+    try { const link = await getPaymentLink(found.booking.code, found.phone); saveLastBooking(found.booking.code, found.phone); window.location.assign(link.payUrl); }
     catch (err) { setPayError(describeApiError(err)); }
   };
 
@@ -141,16 +167,60 @@ export function Track() {
       <div className="tw:mx-auto tw:max-w-3xl">
         <Back />
         <div className="tw:mt-6 tw:overflow-hidden tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:shadow-xl">
-          <div className="tw:bg-[#062253] tw:px-6 tw:py-8 tw:text-white tw:sm:px-9"><span className="tw:text-[10px] tw:font-bold tw:uppercase tw:tracking-[.16em] tw:text-blue-200">Xác minh bắt buộc</span><h1 className="tw:mt-2 tw:text-3xl tw:font-bold tw:tracking-tight">Theo dõi booking</h1><p className="tw:mt-3 tw:max-w-xl tw:text-xs tw:leading-6 tw:text-blue-100">Chi tiết chỉ hiển thị khi mã booking và số điện thoại trùng khớp.</p></div>
-          <form onSubmit={submit} className="tw:grid tw:gap-4 tw:p-6 tw:sm:p-9">
-            <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Mã booking và số điện thoại xác minh<input name="query" required autoComplete="off" defaultValue={prefill} placeholder="AR-XXXXXXXX 0912345678" /></label>
-            <p className="tw:-mt-2 tw:text-[10px] tw:leading-4 tw:text-slate-500">Nhập mã booking kèm số điện thoại đã dùng khi đặt, ví dụ AR-XXXXXXXX 0912345678 (cách nhau một khoảng trắng).</p>
+          <div className="tw:bg-[#062253] tw:px-6 tw:py-8 tw:text-white tw:sm:px-9"><span className="tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-[.16em] tw:text-blue-200">Xác minh bắt buộc</span><h1 className="tw:mt-2 tw:text-3xl tw:font-bold tw:tracking-tight">Theo dõi booking</h1><p className="tw:mt-3 tw:max-w-xl tw:text-xs tw:leading-6 tw:text-blue-100">Chi tiết chỉ hiển thị khi mã booking và số điện thoại trùng khớp.</p></div>
+          <form ref={form} onSubmit={submit} className="tw:grid tw:gap-4 tw:p-6 tw:sm:p-9">
+            <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Mã booking và số điện thoại xác minh<input name="query" required autoComplete="off" defaultValue={prefill} placeholder="AR-XXXXXXXX hoặc NH-XXXXXXXX, kèm số điện thoại" /></label>
+            <p className="tw:-mt-2 tw:text-[11px] tw:leading-4 tw:text-slate-500">Nhập mã booking kèm số điện thoại đã dùng khi đặt, ví dụ AR-XXXXXXXX 0912345678 (cách nhau một khoảng trắng).</p>
             <button disabled={busy} className="tw:flex tw:min-h-11 tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-blue-600 tw:text-xs tw:font-bold tw:text-white tw:disabled:opacity-60"><Search size={17} /> {busy ? 'Đang tra cứu…' : 'Tra cứu booking'}</button>
             {error && <p role="alert" className="tw:rounded-xl tw:bg-rose-50 tw:p-4 tw:text-xs tw:font-semibold tw:text-rose-700">{error}</p>}
           </form>
         </div>
-        {found && <BookingDetail key={found.booking.code} b={found.booking} phone={found.phone} onPay={pay} payError={payError} />}
+        {group && (
+          <section className="tw:mt-6 tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:p-6 tw:shadow-lg tw:sm:p-9" data-testid="group-result">
+            <small className="tw:text-slate-500">Mã nhóm</small><h2 className="tw:mt-1 tw:text-xl tw:font-extrabold tw:tracking-wider">{group.code || parseGroupQuery(form.current?.elements.query.value).groupCode}</h2>
+            {!group.rooms.length && <p className="tw:mt-4 tw:text-xs tw:text-slate-500">Nhóm chưa có phòng nào.</p>}
+            <ul className="tw:mt-4 tw:grid tw:gap-3">
+              {group.rooms.map((r) => (
+                <li key={r.key} className="tw:rounded-xl tw:bg-slate-50 tw:p-4 tw:text-xs" data-testid="group-room">
+                  <div className="tw:flex tw:items-center tw:justify-between tw:gap-3"><strong className="tw:text-sm">{r.guest || 'Phòng nghỉ'}{r.members > 1 && ` + ${r.members - 1} người`}</strong><span className={`tw:rounded-full tw:px-3 tw:py-1 tw:text-[11px] tw:font-bold ${TONE[r.tone]} ${r.needsStaff ? 'tw:ring-2 tw:ring-rose-400' : ''}`}>{r.label}</span></div>
+                  {r.confirmed ? (
+                    <div className="tw:mt-2 tw:space-y-1 tw:text-slate-600">
+                      <p>{r.hotelName}{r.roomNumbers.length > 0 && <> · phòng {r.roomNumbers.join(', ')}</>}</p>
+                      {r.checkInAt && <p>Giờ ở: {dmyHm(r.checkInAt)}{r.checkOutAt && <> → phải rời khách sạn lúc {dmyHm(r.checkOutAt)}</>}</p>}
+                      {r.bookingCode && <button type="button" className="tw:font-bold tw:text-blue-700 tw:underline" onClick={() => { form.current.elements.query.value = `${r.bookingCode} ${group.phone}`; lookup(form.current.elements.query.value); }} data-testid="group-booking-link">Mã đơn {r.bookingCode}: xem chi tiết</button>}
+                    </div>
+                  ) : r.needsStaff ? <p className="tw:mt-2 tw:font-bold tw:text-rose-700">Nhóm của bạn cần nhân viên sân bay hỗ trợ. Vui lòng liên hệ nhân viên sân bay.</p> : null}
+                </li>))}
+            </ul>
+          </section>
+        )}
+        {found && <BookingDetail key={found.booking.code} b={found.booking} phone={found.phone} track={found.track} onPay={pay} payError={payError} onRelookup={relookup} />}
       </div>
+    </div>
+  );
+}
+
+// Chọn ảnh/video đính kèm cho một ticket: tải lần lượt từng tệp, báo kết quả riêng từng tệp (lỗi một tệp không chặn tệp khác).
+function AttachPicker({ code, phone, onDone }) {
+  const [log, setLog] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const pick = async (e) => {
+    const files = [...e.target.files]; e.target.value = '';
+    if (!files.length) return;
+    setBusy(true); setLog([]);
+    const out = [];
+    for (const f of files) {
+      try { await attachFile(code, phone, f); out.push({ ok: true, text: `Đã gửi: ${f.name}` }); } catch (err) { out.push({ ok: false, text: `${f.name}: ${describeApiError(err)}` }); }
+      setLog([...out]);
+    }
+    setBusy(false);
+    await onDone?.().catch(() => {});
+  };
+  return (
+    <div>
+      <label className="tw:inline-flex tw:min-h-11 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-xl tw:border tw:border-slate-300 tw:px-4 tw:text-xs tw:font-bold tw:text-slate-700"><input type="file" multiple accept={ATTACH.accept} onChange={pick} disabled={busy} className="tw:sr-only" data-testid="attach-input" />{busy ? 'Đang tải tệp…' : 'Đính kèm ảnh/video'}</label>
+      <p className="tw:mt-1 tw:text-[11px] tw:text-slate-500">{ATTACH.hint} Vui lòng không gửi giấy tờ tùy thân.</p>
+      {log.map((l, i) => <p key={i} role={l.ok ? 'status' : 'alert'} className={`tw:mt-1 tw:text-[11px] tw:font-semibold ${l.ok ? 'tw:text-emerald-700' : 'tw:text-rose-700'}`}>{l.text}</p>)}
     </div>
   );
 }
@@ -159,7 +229,7 @@ const TICKET_STATUS = { OPEN: ['Đang mở', 'wait'], IN_PROGRESS: ['Đang xử 
 const dmyHm = (iso) => new Date(iso).toLocaleString('vi-VN', { hour12: false, dateStyle: 'short', timeStyle: 'short' });
 
 // Tra cứu ticket bằng mã SP-XXXXXXXX + SĐT, xem hội thoại và trả lời (backend: /v1/support/lookup, /v1/support/reply).
-function TicketLookup({ initialCode = '' }) {
+function TicketLookup({ initialCode = '', initialPhone = '' }) {
   const [t, setT] = useState(null); // { ticket, phone }
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -187,6 +257,12 @@ function TicketLookup({ initialCode = '' }) {
     catch (err) { setRMsg({ ok: false, text: err.code === 'TICKET_RESOLVED' ? 'Ticket đã được giải quyết, không thể trả lời thêm. Hãy gửi yêu cầu mới.' : describeApiError(err) }); }
     finally { setRBusy(false); }
   };
+  // Mở từ 'Yêu cầu hỗ trợ của tôi': đã biết mã + SĐT nên tra luôn.
+  useEffect(() => {
+    if (!initialCode || !initialPhone) return;
+    setBusy(true);
+    lookupTicket(initialCode, initialPhone).then((ticket) => setT({ ticket, phone: initialPhone })).catch((err) => setError(describeApiError(err))).finally(() => setBusy(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const tk = t?.ticket;
   const [stLabel, stTone] = tk ? (TICKET_STATUS[tk.status] ?? [tk.status, 'wait']) : [];
   const closed = tk?.status === 'RESOLVED';
@@ -198,17 +274,19 @@ function TicketLookup({ initialCode = '' }) {
       <p className="tw:mt-2 tw:text-xs tw:leading-6 tw:text-slate-500">Nhập mã ticket (SP-XXXXXXXX) kèm số điện thoại đã dùng khi gửi để xem phản hồi và trả lời.</p>
       <form onSubmit={lookup} className="tw:mt-5 tw:grid tw:gap-4 tw:sm:grid-cols-[1fr_1fr_auto] tw:sm:items-end">
         <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Mã ticket<input name="code" required defaultValue={initialCode} maxLength={11} autoComplete="off" placeholder="SP-XXXXXXXX" className="tw:uppercase" /></label>
-        <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Số điện thoại<input name="phone" type="tel" inputMode="tel" required autoComplete="tel" placeholder="0912345678" /></label>
+        <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Số điện thoại<input name="phone" type="tel" inputMode="tel" required defaultValue={initialPhone} autoComplete="tel" placeholder="0912345678" /></label>
         <button disabled={busy} className="tw:flex tw:min-h-11 tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:text-xs tw:font-bold tw:text-white tw:disabled:opacity-60"><Search size={16} /> {busy ? 'Đang tra cứu…' : 'Tra cứu'}</button>
       </form>
       {error && <p role="alert" className="tw:mt-4 tw:rounded-xl tw:bg-rose-50 tw:p-3 tw:text-xs tw:font-semibold tw:text-rose-700">{error}</p>}
       {tk && (
         <div className="tw:mt-6 tw:border-t tw:border-slate-100 tw:pt-6">
-          <div className="tw:flex tw:flex-col tw:justify-between tw:gap-3 tw:sm:flex-row tw:sm:items-center"><div><small className="tw:text-slate-500">Ticket {tk.code}{tk.bookingCode ? ` · booking ${tk.bookingCode}` : ''}</small><h3 className="tw:mt-1 tw:font-bold">{tk.subject}</h3></div><span className={`tw:w-fit tw:rounded-full tw:px-4 tw:py-2 tw:text-[10px] tw:font-bold ${TONE[stTone]}`}>{stLabel}</span></div>
-          <p className="tw:mt-1 tw:text-[10px] tw:text-slate-500">Gửi lúc {dmyHm(tk.createdAt)}{tk.resolvedAt ? ` · giải quyết lúc ${dmyHm(tk.resolvedAt)}` : ''}</p>
+          <div className="tw:flex tw:flex-col tw:justify-between tw:gap-3 tw:sm:flex-row tw:sm:items-center"><div><small className="tw:text-slate-500">Ticket {tk.code}{tk.bookingCode ? ` · booking ${tk.bookingCode}` : ''}</small><h3 className="tw:mt-1 tw:font-bold">{tk.subject}</h3></div><span className={`tw:w-fit tw:rounded-full tw:px-4 tw:py-2 tw:text-[11px] tw:font-bold ${TONE[stTone]}`}>{stLabel}</span></div>
+          <p className="tw:mt-1 tw:text-[11px] tw:text-slate-500">Gửi lúc {dmyHm(tk.createdAt)}{tk.resolvedAt ? ` · giải quyết lúc ${dmyHm(tk.resolvedAt)}` : ''}</p>
           {tk.messages?.length ? (
-            <ul className="tw:mt-4 tw:space-y-3" aria-label="Hội thoại">{tk.messages.map((m, i) => <li key={i} className={`tw:flex ${m.from === 'GUEST' ? 'tw:justify-end' : 'tw:justify-start'}`}><div className={`tw:max-w-[88%] tw:rounded-2xl tw:px-4 tw:py-3 tw:text-xs tw:leading-5 ${m.from === 'GUEST' ? 'tw:bg-blue-600 tw:text-white' : 'tw:bg-slate-100 tw:text-slate-800'}`}><strong className="tw:block tw:text-[10px] tw:opacity-80">{m.from === 'GUEST' ? 'Bạn' : 'Nhân viên hỗ trợ'} · {dmyHm(m.createdAt)}</strong><p className="tw:mt-1 tw:whitespace-pre-line tw:break-words">{m.body}</p></div></li>)}</ul>
+            <ul className="tw:mt-4 tw:space-y-3" aria-label="Hội thoại">{tk.messages.map((m, i) => <li key={i} className={`tw:flex ${m.from === 'GUEST' ? 'tw:justify-end' : 'tw:justify-start'}`}><div className={`tw:max-w-[88%] tw:rounded-2xl tw:px-4 tw:py-3 tw:text-xs tw:leading-5 ${m.from === 'GUEST' ? 'tw:bg-blue-600 tw:text-white' : 'tw:bg-slate-100 tw:text-slate-800'}`}><strong className="tw:block tw:text-[11px] tw:opacity-80">{m.from === 'GUEST' ? 'Bạn' : 'Nhân viên hỗ trợ'} · {dmyHm(m.createdAt)}</strong><p className="tw:mt-1 tw:whitespace-pre-line tw:break-words">{m.body}</p></div></li>)}</ul>
           ) : <p className="tw:mt-4 tw:rounded-xl tw:bg-slate-50 tw:p-4 tw:text-xs tw:text-slate-500">Chưa có tin nhắn nào.</p>}
+          {tk.attachments?.length > 0 && <ul className="tw:mt-4 tw:grid tw:gap-2 tw:text-xs" aria-label="Tệp đính kèm">{tk.attachments.map((a) => <li key={a.id} className="tw:rounded-xl tw:bg-slate-50 tw:p-3">{a.url ? (a.contentType.startsWith('video/') ? <video src={a.url} controls preload="none" className="tw:max-h-48 tw:w-full tw:rounded-lg" /> : <a href={a.url} target="_blank" rel="noreferrer"><img src={a.url} alt="Ảnh đính kèm" loading="lazy" className="tw:max-h-48 tw:rounded-lg" /></a>) : <span>{a.contentType} · {(a.sizeBytes / 1048576).toFixed(1)} MB</span>}</li>)}</ul>}
+          {!closed && <div className="tw:mt-4"><AttachPicker code={tk.code} phone={t.phone} onDone={async () => setT({ ticket: await lookupTicket(tk.code, t.phone), phone: t.phone })} /></div>}
           <form onSubmit={send} className="tw:mt-5 tw:grid tw:gap-3">
             <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Trả lời<textarea value={reply} onChange={(e) => setReply(e.target.value)} disabled={closed} maxLength={2000} rows={3} placeholder={closed ? 'Ticket đã giải quyết, không thể trả lời thêm.' : 'Nhập nội dung trả lời…'} /></label>
             <button disabled={closed || rBusy} className="tw:flex tw:min-h-11 tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-blue-600 tw:text-xs tw:font-bold tw:text-white tw:disabled:opacity-60"><Send size={16} /> {rBusy ? 'Đang gửi…' : 'Gửi trả lời'}</button>
@@ -224,6 +302,8 @@ export function Support() {
   const [ticket, setTicket] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pre] = useState(() => takeSupportPrefill() ?? {});
+  const [tp] = useState(takeTicketPrefill); // ticket mở từ trang Tài khoản
 
   const submit = async (e) => {
     e.preventDefault();
@@ -243,57 +323,117 @@ export function Support() {
         <div className="tw:mt-6 tw:grid tw:overflow-hidden tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:shadow-xl tw:lg:grid-cols-[.8fr_1.2fr]">
           <aside className="tw:bg-[#062253] tw:p-7 tw:text-white tw:sm:p-9"><span className="tw:grid tw:size-12 tw:place-items-center tw:rounded-xl tw:bg-white/10 tw:text-blue-200"><Headphones /></span><h1 className="tw:mt-6 tw:text-3xl tw:font-bold tw:tracking-tight">Trung tâm hỗ trợ</h1><p className="tw:mt-4 tw:text-xs tw:leading-6 tw:text-blue-100">Gửi yêu cầu về booking, chuyến bay, thanh toán hoặc phương tiện di chuyển.</p><div className="tw:mt-8 tw:space-y-4 tw:text-xs tw:text-blue-100"><p className="tw:flex tw:gap-3"><ShieldCheck size={17} className="tw:shrink-0" /> Không gửi thông tin giấy tờ tùy thân.</p><p className="tw:flex tw:gap-3"><Check size={17} className="tw:shrink-0" /> Ticket bắt đầu ở trạng thái Mở.</p><p className="tw:flex tw:gap-3"><Check size={17} className="tw:shrink-0" /> Phản hồi được nhân viên hỗ trợ cập nhật trong cổng quản trị.</p></div></aside>
           {ticket ? (
-            <div className="tw:grid tw:place-items-center tw:p-8 tw:text-center"><div><span className="tw:mx-auto tw:grid tw:size-16 tw:place-items-center tw:rounded-full tw:bg-emerald-50 tw:text-emerald-600"><Check size={30} /></span><h2 className="tw:mt-5 tw:text-2xl tw:font-bold">Đã tiếp nhận yêu cầu</h2><p className="tw:mt-3 tw:text-xs tw:leading-6 tw:text-slate-500">Mã ticket của bạn là</p><p className="tw:mt-2 tw:text-xl tw:font-extrabold tw:tracking-wider tw:text-blue-700">{ticket}</p><p className="tw:mt-2 tw:text-[10px] tw:text-slate-500">Lưu mã này cùng số điện thoại để theo dõi phản hồi.</p><button type="button" onClick={() => setTicket('')} className="tw:mt-6 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Tạo ticket khác</button></div></div>
+            <div className="tw:grid tw:place-items-center tw:p-8 tw:text-center"><div><span className="tw:mx-auto tw:grid tw:size-16 tw:place-items-center tw:rounded-full tw:bg-emerald-50 tw:text-emerald-600"><Check size={30} /></span><h2 className="tw:mt-5 tw:text-2xl tw:font-bold">Đã tiếp nhận yêu cầu</h2><p className="tw:mt-3 tw:text-xs tw:leading-6 tw:text-slate-500">Mã ticket của bạn là</p><p className="tw:mt-2 tw:text-xl tw:font-extrabold tw:tracking-wider tw:text-blue-700">{ticket}</p><p className="tw:mt-2 tw:text-[11px] tw:text-slate-500">Lưu mã này cùng số điện thoại để theo dõi phản hồi.</p><button type="button" onClick={() => setTicket('')} className="tw:mt-6 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Tạo ticket khác</button></div></div>
           ) : (
             <form onSubmit={submit} className="tw:grid tw:gap-4 tw:p-6 tw:sm:grid-cols-2 tw:sm:p-9">
               <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Họ và tên<input name="fullName" required minLength={2} maxLength={100} autoComplete="name" /></label>
-              <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Số điện thoại<input name="phone" type="tel" inputMode="tel" required pattern="[0-9+ ]{9,15}" title="Từ 9 đến 15 chữ số" autoComplete="tel" /></label>
+              <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Số điện thoại<input name="phone" type="tel" inputMode="tel" required pattern="[0-9+ ]{9,15}" title="Từ 9 đến 15 chữ số" autoComplete="tel" defaultValue={pre.phone} /></label>
               <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Email (không bắt buộc)<input name="email" type="email" maxLength={200} autoComplete="email" /></label>
-              <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Mã booking (nếu có)<input name="bookingCode" pattern="[Aa][Rr]-[0-9A-Za-z]{8}|" title="Dạng AR-7K3M9P2Q" maxLength={11} className="tw:uppercase" /></label>
-              <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700 tw:sm:col-span-2">Tiêu đề<input name="subject" required minLength={3} maxLength={150} /></label>
+              <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Mã booking (nếu có)<input name="bookingCode" pattern="[Aa][Rr]-[0-9A-Za-z]{8}|" title="Dạng AR-7K3M9P2Q" maxLength={11} className="tw:uppercase" defaultValue={pre.bookingCode} /></label>
+              <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700 tw:sm:col-span-2">Tiêu đề<input name="subject" required minLength={3} maxLength={150} defaultValue={pre.subject} /></label>
               <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700 tw:sm:col-span-2">Mô tả<textarea name="message" required minLength={3} maxLength={2000} rows={6} /></label>
               <button disabled={busy} className="tw:flex tw:min-h-11 tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-blue-600 tw:text-xs tw:font-bold tw:text-white tw:disabled:opacity-60 tw:sm:col-span-2"><Send size={16} /> {busy ? 'Đang gửi…' : 'Gửi yêu cầu hỗ trợ'}</button>
               {error && <p role="alert" className="tw:rounded-xl tw:bg-rose-50 tw:p-3 tw:text-xs tw:text-rose-700 tw:sm:col-span-2">{error}</p>}
             </form>
           )}
         </div>
-        <TicketLookup key={ticket} initialCode={ticket} />
+        <TicketLookup key={ticket || tp?.code} initialCode={ticket || tp?.code || ''} initialPhone={ticket ? '' : tp?.phone ?? ''} />
       </div>
     </div>
   );
 }
 
-// Trang VNPay đưa khách về (VNPAY_RETURN_URL = /payment/result). Kết quả chính thức đến từ IPN phía máy chủ; trang này chỉ thông báo.
-// mock=1 (backend VNPAY_MODE=mock): cho bấm giả lập thành công/thất bại; live: đọc vnp_ResponseCode.
+// Trang cổng thanh toán (VNPay/MoMo) đưa khách về (*_RETURN_URL = /payment/result). KHÔNG tin query: kết quả thật lấy bằng tra cứu đơn
+// ({code, phone} lưu lúc đặt); IPN phía máy chủ có thể đến chậm nên tự thử lại vài lần. mock=1: cho bấm giả lập thành công/thất bại.
+const POLL_MS = 8000;
+const POLL_MAX = 4; // ~32 giây, dưới giới hạn 10 yêu cầu/phút
 export function PaymentResult() {
   const q = new URLSearchParams(window.location.search);
+  const momo = q.get('gateway') === 'momo' || (q.has('resultCode') && q.has('orderId'));
+  const gate = momo ? 'MoMo' : 'VNPay';
   const mockOrder = q.get('mock') === '1' ? q.get('orderId') : null;
-  const [outcome, setOutcome] = useState(q.get('vnp_ResponseCode') ? (q.get('vnp_ResponseCode') === '00' ? 'ok' : 'fail') : null);
+  const queryCode = momo ? q.get('resultCode') : q.get('vnp_ResponseCode');
+  const hint = queryCode == null ? null : (queryCode === (momo ? '0' : '00') ? 'ok' : 'fail'); // chưa xác thực
+  const [saved] = useState(readLastBooking);
+  const [info, setInfo] = useState({ s: saved ? 'loading' : 'none', booking: null }); // loading | done | error | none
+  const [simFail, setSimFail] = useState(false);
+  const [simulated, setSimulated] = useState(!mockOrder);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const tries = useRef(0);
   const toTrack = () => window.location.assign('/#/track');
+
+  const check = async () => {
+    if (!saved) return;
+    tries.current += 1;
+    setInfo((v) => ({ ...v, s: 'loading' }));
+    try {
+      const booking = await lookupBooking(saved.code, saved.phone);
+      if (booking.status !== 'PENDING_PAYMENT') clearLastBooking();
+      setInfo({ s: 'done', booking });
+    } catch (err) { setInfo((v) => ({ ...v, s: 'error', msg: describeApiError(err) })); }
+  };
+  useEffect(() => { check(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const status = info.booking?.status;
+  const waiting = info.s === 'done' && status === 'PENDING_PAYMENT';
+  const stopPoll = simFail || hint === 'fail';
+  useEffect(() => {
+    if (!waiting || !simulated || stopPoll || tries.current >= POLL_MAX) return undefined;
+    const t = setTimeout(check, POLL_MS);
+    return () => clearTimeout(t);
+  }, [info, simulated, stopPoll]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const simulate = async (success) => {
     setBusy(true); setError('');
-    try { await simulatePayment(mockOrder, success); setOutcome(success ? 'ok' : 'fail'); }
-    catch (err) { setError(describeApiError(err)); }
+    try {
+      await (momo ? simulateMomoPayment : simulatePayment)(mockOrder, success);
+      setSimFail(!success); setSimulated(true); tries.current = 0;
+      await check();
+    } catch (err) { setError(describeApiError(err)); }
     finally { setBusy(false); }
   };
+  const regetLink = async () => {
+    setBusy(true); setError('');
+    try { window.location.assign((await getPaymentLink(saved.code, saved.phone)).payUrl); }
+    catch (err) { setError(describeApiError(err)); setBusy(false); }
+  };
+
+  const ok = info.s === 'done' && (statusTone(status) === 'ok' || status === 'PENDING');
+  const failed = info.s === 'done' && statusTone(status) === 'bad';
+  const pendingTimeout = waiting && (tries.current >= POLL_MAX || stopPoll);
+  const BOX_OK = 'tw:mt-4 tw:rounded-xl tw:bg-emerald-50 tw:p-4 tw:text-sm tw:text-emerald-800';
+  const BOX_BAD = 'tw:mt-4 tw:rounded-xl tw:bg-rose-50 tw:p-4 tw:text-sm tw:text-rose-800';
+  const BOX_WAIT = 'tw:mt-4 tw:rounded-xl tw:bg-amber-50 tw:p-4 tw:text-sm tw:text-amber-900';
+  const BTN2 = 'tw:mt-3 tw:min-h-11 tw:w-full tw:rounded-xl tw:border tw:border-slate-300 tw:text-xs tw:font-bold tw:disabled:opacity-60';
 
   return (
     <div className={PAGE}>
       <div className="tw:mx-auto tw:max-w-xl tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:p-8 tw:text-center tw:shadow-xl">
-        <h1 className="tw:text-2xl tw:font-bold">Kết quả thanh toán</h1>
-        {outcome === 'ok' && <p role="status" className="tw:mt-4 tw:rounded-xl tw:bg-emerald-50 tw:p-4 tw:text-sm tw:text-emerald-800">Thanh toán thành công. Hệ thống đang xác nhận đơn; dùng mã booking và số điện thoại để xem trạng thái.</p>}
-        {outcome === 'fail' && <p role="alert" className="tw:mt-4 tw:rounded-xl tw:bg-rose-50 tw:p-4 tw:text-sm tw:text-rose-800">Thanh toán chưa thành công. Đơn vẫn được giữ trong thời gian ngắn; bạn có thể thanh toán lại trong “Theo dõi booking”.</p>}
-        {!outcome && mockOrder && (
+        <h1 className="tw:text-2xl tw:font-bold">Kết quả thanh toán {gate}</h1>
+        {saved && <p className="tw:mt-2 tw:text-xs tw:text-slate-500">Mã booking: <strong>{saved.code}</strong></p>}
+        {mockOrder && !ok && !failed && (
           <div className="tw:mt-4">
             <p className="tw:rounded-xl tw:bg-amber-50 tw:p-4 tw:text-sm tw:text-amber-900">Cổng thanh toán giả lập (không phát sinh giao dịch thật). Mã giao dịch: <strong>{mockOrder}</strong></p>
             <div className="tw:mt-4 tw:grid tw:gap-3 tw:sm:grid-cols-2"><button type="button" disabled={busy} onClick={() => simulate(true)} className="tw:min-h-11 tw:rounded-xl tw:bg-emerald-600 tw:text-xs tw:font-bold tw:text-white tw:disabled:opacity-60">Giả lập thanh toán thành công</button><button type="button" disabled={busy} onClick={() => simulate(false)} className="tw:min-h-11 tw:rounded-xl tw:border tw:border-slate-300 tw:text-xs tw:font-bold tw:disabled:opacity-60">Giả lập thất bại</button></div>
           </div>
         )}
-        {!outcome && !mockOrder && <p className="tw:mt-4 tw:rounded-xl tw:bg-slate-50 tw:p-4 tw:text-sm tw:text-slate-600">Không có thông tin giao dịch. Hãy kiểm tra trạng thái trong “Theo dõi booking”.</p>}
+        {info.s === 'loading' && <p role="status" className={BOX_WAIT}>Đang kiểm tra trạng thái đơn…</p>}
+        {info.s === 'error' && <p role="alert" className={BOX_BAD}>Chưa kiểm tra được trạng thái đơn: {info.msg}</p>}
+        {ok && <p role="status" className={BOX_OK}>Thanh toán thành công. Trạng thái đơn: <strong>{statusCopy(status)}</strong>.</p>}
+        {failed && <p role="alert" className={BOX_BAD}>Đơn <strong>{statusCopy(status)}</strong> nên chưa thanh toán được. Hãy đặt lại phòng, hoặc vào “Theo dõi booking” bằng mã booking và số điện thoại để xem chi tiết.</p>}
+        {waiting && !pendingTimeout && <p role="status" className={BOX_WAIT}>Đang chờ xác nhận thanh toán từ {gate}. Trang sẽ tự kiểm tra lại, hoặc bấm “Kiểm tra lại”.</p>}
+        {pendingTimeout && (simFail || hint === 'fail'
+          ? <p role="alert" className={BOX_BAD}>Thanh toán chưa thành công. Đơn vẫn được giữ chỗ trong thời gian ngắn; bạn có thể thử thanh toán lại bằng nút bên dưới hoặc trong “Theo dõi booking”.</p>
+          : <p role="status" className={BOX_WAIT}>Đơn vẫn đang chờ xác nhận thanh toán. Nếu bạn đã thanh toán, hãy kiểm tra lại sau ít phút trong “Theo dõi booking”; nếu chưa, bạn có thể lấy lại liên kết thanh toán.</p>)}
+        {info.s === 'none' && (
+          <>
+            <p className="tw:mt-4 tw:rounded-xl tw:bg-slate-50 tw:p-4 tw:text-sm tw:text-slate-600">Chưa có thông tin đơn trên thiết bị này nên chưa thể xác nhận kết quả. Hãy nhập mã booking và số điện thoại trong “Theo dõi booking” để xem trạng thái thật.</p>
+            {hint && <p className="tw:mt-3 tw:text-xs tw:text-slate-500">Cổng ghi nhận mã kết quả “{queryCode}” ({hint === 'ok' ? 'có vẻ thành công' : 'có vẻ chưa thành công'}), thông tin này chưa được xác thực.</p>}
+          </>
+        )}
         {error && <p role="alert" className="tw:mt-3 tw:rounded-xl tw:bg-rose-50 tw:p-3 tw:text-xs tw:font-semibold tw:text-rose-700">{error}</p>}
+        {saved && info.s !== 'loading' && !ok && !failed && <button type="button" disabled={busy} onClick={() => { tries.current = 0; check(); }} className={BTN2}>Kiểm tra lại</button>}
+        {saved && waiting && (pendingTimeout || mockOrder) && <button type="button" disabled={busy} onClick={regetLink} className={BTN2}>Thanh toán lại / lấy lại liên kết</button>}
         <button type="button" onClick={toTrack} className="tw:mt-6 tw:min-h-11 tw:w-full tw:rounded-xl tw:bg-blue-600 tw:text-sm tw:font-bold tw:text-white">Theo dõi booking</button>
       </div>
     </div>
@@ -325,8 +465,8 @@ function MyBookings() {
           {st.items.map((b) => (
             <li key={b.code}>
               <button type="button" onClick={() => open(b)} data-testid="my-booking-row" className="tw:flex tw:w-full tw:flex-col tw:gap-2 tw:rounded-2xl tw:border tw:border-slate-200 tw:p-4 tw:text-left tw:hover:border-blue-300 tw:sm:flex-row tw:sm:items-center tw:sm:justify-between">
-                <span className="tw:min-w-0"><strong className="tw:block tw:text-sm tw:tracking-wider">{b.code}</strong><span className="tw:mt-1 tw:block tw:truncate tw:text-xs tw:text-slate-600">{b.hotel?.name}</span><span className="tw:mt-1 tw:block tw:text-[11px] tw:text-slate-500">{dmy(b.stay.from)} → {dmy(b.stay.to)}</span></span>
-                <span className={`tw:w-fit tw:shrink-0 tw:rounded-full tw:px-3 tw:py-1.5 tw:text-[10px] tw:font-bold ${TONE[statusTone(b.status)]}`}>{statusCopy(b.status)}</span>
+                <span className="tw:min-w-0"><strong className="tw:block tw:text-sm tw:tracking-wider">{b.code}</strong><span className="tw:mt-1 tw:block tw:truncate tw:text-xs tw:text-slate-600">{b.hotel?.name}</span><span className="tw:mt-1 tw:block tw:text-[11px] tw:text-slate-500">{dmy(b.stay.from)} → {dmy(b.stay.to)}{b.guests ? ` · ${b.guests} người` : ''}</span></span>
+                <span className={`tw:w-fit tw:shrink-0 tw:rounded-full tw:px-3 tw:py-1.5 tw:text-[11px] tw:font-bold ${TONE[statusTone(b.status)]}`}>{statusCopy(b.status)}</span>
               </button>
             </li>
           ))}
@@ -389,9 +529,12 @@ export function Account() {
             <div className="tw:rounded-xl tw:bg-slate-50 tw:p-4"><dt className="tw:text-[11px] tw:text-slate-500">Tên đăng nhập</dt><dd className="tw:mt-1 tw:break-all tw:font-bold">{user.username}</dd></div>
             <div className="tw:rounded-xl tw:bg-slate-50 tw:p-4"><dt className="tw:text-[11px] tw:text-slate-500">Họ và tên</dt><dd className="tw:mt-1 tw:break-words tw:font-bold">{user.fullName || user.username}</dd></div>
           </dl>
+          <EditProfile />
+          <Preferences />
           <MyBookings />
+          <MyTickets />
           <ChangePassword />
-          <div className="tw:mt-8 tw:grid tw:gap-4 tw:sm:grid-cols-2"><button type="button" onClick={() => go('track')} className="tw:flex tw:min-h-20 tw:items-center tw:gap-4 tw:rounded-2xl tw:border tw:border-slate-200 tw:p-5 tw:text-left tw:hover:border-blue-300"><Search className="tw:text-blue-600" /><div><strong className="tw:text-sm">Theo dõi booking</strong><p className="tw:mt-1 tw:text-[10px] tw:text-slate-500">Tra cứu bằng mã và số điện thoại</p></div></button><button type="button" onClick={toStays} className="tw:flex tw:min-h-20 tw:items-center tw:gap-4 tw:rounded-2xl tw:border tw:border-slate-200 tw:p-5 tw:text-left tw:hover:border-blue-300"><CalendarDays className="tw:text-blue-600" /><div><strong className="tw:text-sm">Tìm nơi nghỉ</strong><p className="tw:mt-1 tw:text-[10px] tw:text-slate-500">Xem phòng gần HAN và SGN</p></div></button></div>
+          <div className="tw:mt-8 tw:grid tw:gap-4 tw:sm:grid-cols-2"><button type="button" onClick={() => go('track')} className="tw:flex tw:min-h-20 tw:items-center tw:gap-4 tw:rounded-2xl tw:border tw:border-slate-200 tw:p-5 tw:text-left tw:hover:border-blue-300"><Search className="tw:text-blue-600" /><div><strong className="tw:text-sm">Theo dõi booking</strong><p className="tw:mt-1 tw:text-[11px] tw:text-slate-500">Tra cứu bằng mã và số điện thoại</p></div></button><button type="button" onClick={toStays} className="tw:flex tw:min-h-20 tw:items-center tw:gap-4 tw:rounded-2xl tw:border tw:border-slate-200 tw:p-5 tw:text-left tw:hover:border-blue-300"><CalendarDays className="tw:text-blue-600" /><div><strong className="tw:text-sm">Tìm nơi nghỉ</strong><p className="tw:mt-1 tw:text-[11px] tw:text-slate-500">Xem phòng gần HAN và SGN</p></div></button></div>
           <button type="button" onClick={() => go('home')} className="tw:mt-7 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:rounded-xl tw:bg-blue-600 tw:text-xs tw:font-bold tw:text-white">Về trang chủ</button>
         </div>
       </div>
