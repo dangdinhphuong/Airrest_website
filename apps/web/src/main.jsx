@@ -7,5 +7,6 @@ import './styles.css';
 import './user-reset.css';
 import './user.css';
 import './forms.css';
+import './shell.css';
 
 createRoot(document.getElementById('root')).render(<React.StrictMode>{api ? <App /> : <ConfigError />}</React.StrictMode>);

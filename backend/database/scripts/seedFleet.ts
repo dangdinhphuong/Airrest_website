@@ -3,6 +3,7 @@
 import { env } from '../../config/env';
 import { hashPassword } from '../../lib/password';
 import { closeDb, connectDb, db } from '../pg';
+import { ensureBusinesses } from '../backfillBusinesses';
 import { ensureSystemRoles } from '../../services/systemRoles';
 
 // Số chỗ của từng xe; mỗi xe một tài xế. HAN-01 có đúng 2 xe 4 chỗ (đoàn 5 người -> điều 2 xe).
@@ -23,7 +24,7 @@ export async function seedFleet(password: string): Promise<{ hotels: number; veh
     // Có xe thì phải có tiện ích đưa đón (hotelFeatures đọc tag trong amenities); giữ tag sẵn có nếu đã có.
     await db.query("UPDATE hotels SET amenities = array_append(amenities, 'SHUTTLE_PAID') WHERE id = $1 AND NOT amenities && ARRAY['SHUTTLE','SHUTTLE_FREE','SHUTTLE_PAID']", [hotelId]);
     for (const [i, s] of seats.entries()) {
-      const email = `taixe.${code.toLowerCase()}.${i + 1}@airrest.vn`;
+      const email = `taixe.${code.toLowerCase().replace(/-/g, '')}.${i + 1}@airrest.vn`; // khớp seedAccounts (han01) và TAI_KHOAN_THU.md
       const name = `Mẫu ${NAMES[(p + i) % NAMES.length]}`; // "Mẫu" đứng đầu để chữ cái đại diện (từ cuối tên) vẫn là chữ thật
       const phone = `+8490700${String(100 + p)}`; // SĐT mẫu, tránh đầu +84900 (dấu hiệu khách mẫu của seedActivity)
       const acc = (await db.query<{ id: string }>(
@@ -51,6 +52,7 @@ if (process.argv[1]?.endsWith('seedFleet.ts')) {
     await connectDb();
     const r = await seedFleet(env.SEED_PASSWORD);
     console.log(`Xe mẫu: ${r.vehicles} xe + ${r.vehicles} tài xế ở ${r.hotels} khách sạn (mật khẩu tài xế = SEED_PASSWORD); ${NO_FLEET} cố ý không có xe`);
+    await ensureBusinesses();
     await closeDb();
   })().catch((e) => { console.error(e); process.exit(1); });
 }

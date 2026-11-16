@@ -121,10 +121,15 @@ run('tích hợp: yêu cầu đổi/hủy của khách', () => {
     const stay = (await one<any>('SELECT stay FROM bookings WHERE id = $1', [b2.id]))!.stay;
     expect((await change(b2, new Date(stay.from), new Date(stay.to))).body.error.code).toBe('CHANGE_SAME_DATES');
     const b3 = await mk();
+    // Chính sách hủy chốt trong đơn lúc đặt (flags.cancellationTemplate): đổi chính sách khách sạn sau đó KHÔNG ảnh hưởng đơn cũ, chỉ đơn mang NON_REFUNDABLE mới bị chặn.
     await db.query("UPDATE hotels SET policy = jsonb_set(policy, '{cancellationTemplate}', '\"NON_REFUNDABLE\"') WHERE id = $1", [flexHotel]);
     await setStay(b3.id, new Date(Date.now() + 10 * H));
-    expect((await change(b3, from, new Date(from.getTime() + DAY))).body.error.code).toBe('CHANGE_NOT_ALLOWED');
+    expect((await change(b3, from, new Date(from.getTime() + DAY))).body.error?.code).not.toBe('CHANGE_NOT_ALLOWED');
     await db.query("UPDATE hotels SET policy = jsonb_set(policy, '{cancellationTemplate}', '\"FLEXIBLE\"') WHERE id = $1", [flexHotel]);
+    const b3n = await mk();
+    await db.query("UPDATE bookings SET flags = jsonb_set(flags, '{cancellationTemplate}', '\"NON_REFUNDABLE\"') WHERE id = $1", [b3n.id]);
+    await setStay(b3n.id, new Date(Date.now() + 10 * H));
+    expect((await change(b3n, from, new Date(from.getTime() + DAY))).body.error.code).toBe('CHANGE_NOT_ALLOWED');
     const b4 = await mk();
     expect((await change(b4, from, new Date(from.getTime() + DAY), { reasonCode: 'OTHER' })).body.error.code).toBe('VALIDATION_ERROR');
     expect((await change(b4, from, new Date(from.getTime() - DAY))).status).toBe(422);

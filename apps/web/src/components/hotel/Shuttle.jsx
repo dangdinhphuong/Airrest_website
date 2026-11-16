@@ -1,6 +1,5 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
-import { ErrorBox, Field, Loading, ScreenTitle } from '../Common';
-import { Pill, ReasonAction } from '../partner/ui';
+import { ConfirmAction, DataTable, EmptyState, ErrorState, FilterBar, FormField, Loading, PageHeader, StatusBadge, Tag } from '../ui';
 import { useApp } from '../../state/store';
 import { hasPerm } from '../../lib/access';
 import { PERM } from '../../lib/perms';
@@ -8,7 +7,7 @@ import { money } from '../../lib/time';
 import { describeError } from '../../lib/api';
 import { useLiveData } from '../../lib/useRealtime';
 import * as H from '../../data/hotel';
-import { ConfirmButton, ListState, StatusPill, fmtDT, needReason, useAction, usePaged } from './kit';
+import { fmtDT, useAction, usePaged } from './kit';
 import { DIRECTION, LiveBadge, PROVIDER, TripPill, VEHICLE_STATE, vi } from './fleetKit';
 import Select from '../Select';
 
@@ -44,12 +43,12 @@ function ExternalForm({ trip, busy, onSubmit, onCancel }) {
   return (
     <form className="card ext-form" onSubmit={submit} data-testid="ext-form">
       <div className="grid-2">
-        <Field id={`${id}-p`} label="Hãng xe"><Select id={`${id}-p`} value={v.provider} onChange={set('provider')} data-testid="ext-provider">{Object.entries(PROVIDER).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</Select></Field>
-        <Field id={`${id}-u`} label="Liên kết chia sẻ chuyến (https)" error={err}><input id={`${id}-u`} value={v.shareUrl} onChange={set('shareUrl')} required placeholder="https://" inputMode="url" data-testid="ext-url" /></Field>
-        <Field id={`${id}-n`} label="Tên tài xế (tùy chọn)"><input id={`${id}-n`} value={v.driverName} onChange={set('driverName')} maxLength={100} data-testid="ext-driver" /></Field>
-        <Field id={`${id}-b`} label="Biển số (tùy chọn)"><input id={`${id}-b`} value={v.plate} onChange={set('plate')} maxLength={20} data-testid="ext-plate" /></Field>
-        <Field id={`${id}-t`} label="SĐT tài xế (tùy chọn)"><input id={`${id}-t`} value={v.phone} onChange={set('phone')} inputMode="tel" data-testid="ext-phone" /></Field>
-        <Field id={`${id}-e`} label="Giờ đón dự kiến (tùy chọn)"><input id={`${id}-e`} type="datetime-local" value={v.etaAt} onChange={set('etaAt')} data-testid="ext-eta" /></Field>
+        <FormField id={`${id}-p`} label="Hãng xe"><Select id={`${id}-p`} value={v.provider} onChange={set('provider')} data-testid="ext-provider">{Object.entries(PROVIDER).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</Select></FormField>
+        <FormField id={`${id}-u`} label="Liên kết chia sẻ chuyến (https)" error={err}><input id={`${id}-u`} value={v.shareUrl} onChange={set('shareUrl')} required placeholder="https://" inputMode="url" data-testid="ext-url" /></FormField>
+        <FormField id={`${id}-n`} label="Tên tài xế (tùy chọn)"><input id={`${id}-n`} value={v.driverName} onChange={set('driverName')} maxLength={100} data-testid="ext-driver" /></FormField>
+        <FormField id={`${id}-b`} label="Biển số (tùy chọn)"><input id={`${id}-b`} value={v.plate} onChange={set('plate')} maxLength={20} data-testid="ext-plate" /></FormField>
+        <FormField id={`${id}-t`} label="SĐT tài xế (tùy chọn)"><input id={`${id}-t`} value={v.phone} onChange={set('phone')} inputMode="tel" data-testid="ext-phone" /></FormField>
+        <FormField id={`${id}-e`} label="Giờ đón dự kiến (tùy chọn)"><input id={`${id}-e`} type="datetime-local" value={v.etaAt} onChange={set('etaAt')} data-testid="ext-eta" /></FormField>
       </div>
       <div className="row-actions" style={{ marginTop: 0 }}>
         <button className="btn btn-primary btn-sm" type="submit" disabled={busy} data-testid="ext-save">Lưu xe ngoài</button>
@@ -96,12 +95,12 @@ function TripLine({ t, vehicles, act, go, positions }) {
         {t.status === 'REJECTED' && t.rejectReason && <small>Lý do: {t.rejectReason}</small>}
       </div>
       <div className="row-actions" style={{ marginTop: 6 }}>
-        {next && <ConfirmButton label={next[1]} ask={next[2]} disabled={act.busy} testid={`ext-${next[0]}`} onConfirm={() => go(vi(() => H.staffStep(t.id, next[0])), 'Đã cập nhật chuyến.')} />}
+        {next && <ConfirmAction label={next[1]} ask={next[2]} disabled={act.busy} testid={`ext-${next[0]}`} onConfirm={() => go(vi(() => H.staffStep(t.id, next[0])), 'Đã cập nhật chuyến.')} />}
         {!own && t.status === 'ACCEPTED' && <button type="button" className="btn btn-sm" onClick={() => setForm(form === 'ext' ? null : 'ext')} data-testid="ext-change">Đổi xe ngoài</button>}
         {['OFFERED', 'ACCEPTED', 'NEEDS_EXTERNAL'].includes(t.status) && <button type="button" className="btn btn-sm" onClick={() => setForm(form === 'reassign' ? null : 'reassign')} data-testid="reassign-open">Gán lại xe</button>}
         {own && pos && ['ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'ONBOARD'].includes(t.status) && <button type="button" className="btn btn-sm" onClick={() => setMap(!map)} data-testid="map-toggle">{map ? 'Ẩn bản đồ' : 'Bản đồ'}</button>}
         {own && !pos && t.route && <button type="button" className="btn btn-sm" onClick={() => setMap(!map)} data-testid="map-toggle">{map ? 'Ẩn bản đồ' : 'Bản đồ'}</button>}
-        {CANCELLABLE.includes(t.status) && <ReasonAction label="Hủy chuyến" tone="danger" confirmLabel="Hủy chuyến" placeholder="Ghi chú hủy (tối thiểu 3 ký tự)" testid="trip-cancel" onSubmit={needReason((n) => go(vi(() => H.cancelTrip(t.id, n)), 'Đã hủy chuyến.'))} />}
+        {CANCELLABLE.includes(t.status) && <ConfirmAction label="Hủy chuyến" tone="danger" ask="Hủy chuyến này?" reason={{ label: 'Ghi chú hủy (tối thiểu 3 ký tự)' }} testid="trip-cancel" onConfirm={(n) => go(vi(() => H.cancelTrip(t.id, n)), 'Đã hủy chuyến.')} />}
       </div>
       {form === 'ext' && <ExternalForm trip={t} busy={act.busy} onCancel={() => setForm(null)} onSubmit={(b) => go(vi(() => H.setExternal(t.id, b)), 'Đã đổi thông tin xe ngoài.')} />}
       {form === 'reassign' && (
@@ -123,12 +122,11 @@ function Board({ live }) {
   const act = useAction();
   const go = async (fn, ok) => { const r = await act.run(fn, ok); live.refresh(); return r; };
   if (live.loading && !live.data) return <Loading />;
-  if (live.err && !live.data) return <ErrorBox onRetry={live.reload}>{describeError(live.err)}</ErrorBox>;
+  if (live.err && !live.data) return <ErrorState onRetry={live.reload}>{describeError(live.err)}</ErrorState>;
   const { requests, vehicles, config } = live.data;
   const alerts = requests.flatMap((r) => r.trips.filter((t) => t.status === 'NEEDS_EXTERNAL').map((t) => ({ r, t })));
   return (
     <>
-      <p><LiveBadge conn={live.conn} /></p>
       {act.note}
       {alerts.length > 0 && (
         <section className="ext-alerts" aria-label="Cần gọi xe ngoài" data-testid="ext-alerts">
@@ -137,25 +135,18 @@ function Board({ live }) {
         </section>
       )}
       <h3>Yêu cầu xe đang xử lý</h3>
-      {!requests.length ? <p className="muted" data-testid="empty">Chưa có yêu cầu xe nào cần xử lý.</p> : (
-        <div className="table-wrap"><table className="rights-table">
-          <thead><tr><th>Đơn</th><th>Khách</th><th>Chiều</th><th>Giờ đón</th><th>Khách đi xe</th><th>Chuyến, xe và tài xế</th><th>Trạng thái</th></tr></thead>
-          <tbody>{requests.map((r) => (
-            <tr key={r.id} data-testid="board-row">
-              <td data-label="Đơn"><strong>{r.bookingCode}</strong></td>
-              <td data-label="Khách">{r.guest.fullName}<br /><a href={`tel:${r.guest.phone}`}>{r.guest.phone}</a></td>
-              <td data-label="Chiều">{DIRECTION[r.direction] || r.direction} ({r.airport})</td>
-              <td data-label="Giờ đón">{fmtDT(r.pickupAt)}</td>
-              <td data-label="Khách đi xe">{r.passengers}</td>
-              <td data-label="Chuyến">{r.trips.length ? r.trips.map((t) => <TripLine key={t.id} t={t} vehicles={vehicles} act={act} go={go} positions={live.positions} />) : <span className="muted">Chưa có chuyến (chờ điều phối)</span>}</td>
-              <td data-label="Trạng thái"><StatusPill s={r.status} /></td>
-            </tr>
-          ))}</tbody>
-        </table></div>
-      )}
+      <DataTable rows={requests} rowTestid="board-row" emptyTitle="Chưa có yêu cầu" empty="Chưa có yêu cầu xe nào cần xử lý." columns={[
+        { key: 'code', header: 'Đơn', render: (r) => <strong>{r.bookingCode}</strong> },
+        { key: 'guest', header: 'Khách', render: (r) => <>{r.guest.fullName}<br /><a href={`tel:${r.guest.phone}`}>{r.guest.phone}</a></> },
+        { key: 'dir', header: 'Chiều', render: (r) => `${DIRECTION[r.direction] || r.direction} (${r.airport})` },
+        { key: 'at', header: 'Giờ đón', render: (r) => fmtDT(r.pickupAt) },
+        { key: 'pax', header: 'Khách đi xe', render: (r) => r.passengers },
+        { key: 'trips', header: 'Chuyến, xe và tài xế', render: (r) => (r.trips.length ? r.trips.map((t) => <TripLine key={t.id} t={t} vehicles={vehicles} act={act} go={go} positions={live.positions} />) : <span className="muted">Chưa có chuyến (chờ điều phối)</span>) },
+        { key: 'status', header: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
+      ]} />
       <h3>Xe của khách sạn</h3>
-      {!vehicles.length ? <p className="muted">Khách sạn chưa khai báo xe.</p> : (
-        <ul className="veh-list" data-testid="veh-list">{vehicles.map((v) => { const [t, tone] = VEHICLE_STATE[v.state] || [v.state, 'neutral']; return <li key={v.id} data-testid="veh-item"><strong>{v.plate}</strong> · {v.seats} chỗ{v.model ? ` · ${v.model}` : ''} · {v.driver ? v.driver.name : 'Chưa có tài xế'} <Pill tone={tone}>{t}</Pill></li>; })}</ul>
+      {!vehicles.length ? <EmptyState title="Chưa có xe">Khách sạn chưa khai báo xe.</EmptyState> : (
+        <ul className="veh-list" data-testid="veh-list">{vehicles.map((v) => { const [t, tone] = VEHICLE_STATE[v.state] || [v.state, 'neutral']; return <li key={v.id} data-testid="veh-item"><strong>{v.plate}</strong> · {v.seats} chỗ{v.model ? ` · ${v.model}` : ''} · {v.driver ? v.driver.name : 'Chưa có tài xế'} <Tag tone={tone}>{t}</Tag></li>; })}</ul>
       )}
     </>
   );
@@ -182,34 +173,34 @@ function Legacy({ noTrips }) {
   const act = useAction();
   const list = usePaged((cursor) => H.listShuttles({ status, cursor }), [status]);
   const go = async (fn, ok) => { const r = await act.run(vi(fn), ok); if (r) list.reload(); return r; };
+  const columns = [
+    { key: 'code', header: 'Đơn', render: (s) => <strong>{s.bookingCode}</strong> },
+    { key: 'guest', header: 'Khách', render: (s) => s.guestName },
+    { key: 'dir', header: 'Chiều', render: (s) => `${DIR[s.direction]} (${s.airportIata}, ${s.distanceKm} km)` },
+    { key: 'at', header: 'Giờ đón', render: (s) => fmtDT(s.pickupAt) },
+    { key: 'loc', header: 'Địa điểm / ghi chú', render: (s) => [s.location, s.note, s.cancelNote && `Lý do hủy: ${s.cancelNote}`].filter(Boolean).join(' · ') },
+    { key: 'price', header: 'Giá', render: (s) => money(s.priceVnd) },
+    { key: 'driver', header: 'Tài xế', render: (s) => (s.driver ? `${s.driver.name} · ${s.driver.phone}` : '') },
+    { key: 'status', header: 'Trạng thái', render: (s) => <StatusBadge status={s.status} /> },
+    { key: 'act', header: '', render: (s) => ['REQUESTED', 'ASSIGNED'].includes(s.status) && noTrips.has(s.id) && (
+      <div className="row-actions" style={{ marginTop: 0 }}>
+        <AssignForm s={s} busy={act.busy} onSubmit={(n, p) => go(() => H.assignShuttle(s.id, n, p), 'Đã phân xe.')} />
+        {s.status === 'ASSIGNED' && <ConfirmAction label="Hoàn tất" ask="Xe đã đón xong?" disabled={act.busy} testid="sh-complete" onConfirm={() => go(() => H.completeShuttle(s.id), 'Đã hoàn tất chuyến đưa đón.')} />}
+        <ConfirmAction label="Hủy xe" title="Hủy yêu cầu xe" confirmLabel="Hủy chuyến" tone="danger" ask={`Hủy yêu cầu xe của đơn ${s.bookingCode}?`} reason={{ label: 'Ghi chú hủy (bắt buộc)' }} testid="sh-cancel" onConfirm={(n) => go(() => H.cancelShuttle(s.id, n), 'Đã hủy yêu cầu xe.')} />
+      </div>
+    ) },
+  ];
   return (
     <>
       <h3>Tất cả yêu cầu xe</h3>
-      <div className="filter-bar">
+      <FilterBar testid="sh-filters">
         <Select aria-label="Trạng thái" value={status} onChange={(e) => setStatus(e.target.value)} data-testid="sh-status">
           <option value="">Mọi trạng thái</option><option value="REQUESTED">Chờ phân xe</option><option value="ASSIGNED">Đã phân xe</option><option value="DONE">Hoàn tất</option><option value="CANCELLED">Đã hủy</option>
         </Select>
-      </div>
+      </FilterBar>
       {act.note}
-      <ListState list={list} empty="Chưa có yêu cầu xe nào.">
-        <div className="table-wrap"><table className="rights-table">
-          <thead><tr><th>Đơn</th><th>Khách</th><th>Chiều</th><th>Giờ đón</th><th>Địa điểm / ghi chú</th><th>Giá</th><th>Tài xế</th><th>Trạng thái</th><th /></tr></thead>
-          <tbody>{list.items.map((s) => (
-            <tr key={s.id} data-testid="sh-row">
-              <td data-label="Đơn"><strong>{s.bookingCode}</strong></td><td data-label="Khách">{s.guestName}</td>
-              <td data-label="Chiều">{DIR[s.direction]} ({s.airportIata}, {s.distanceKm} km)</td><td data-label="Giờ đón">{fmtDT(s.pickupAt)}</td>
-              <td data-label="Địa điểm">{[s.location, s.note, s.cancelNote && `Lý do hủy: ${s.cancelNote}`].filter(Boolean).join(' · ')}</td>
-              <td data-label="Giá">{money(s.priceVnd)}</td><td data-label="Tài xế">{s.driver ? `${s.driver.name} · ${s.driver.phone}` : ''}</td>
-              <td data-label="Trạng thái"><StatusPill s={s.status} /></td>
-              <td>{['REQUESTED', 'ASSIGNED'].includes(s.status) && noTrips.has(s.id) && <div className="row-actions" style={{ marginTop: 0 }}>
-                <AssignForm s={s} busy={act.busy} onSubmit={(n, p) => go(() => H.assignShuttle(s.id, n, p), 'Đã phân xe.')} />
-                {s.status === 'ASSIGNED' && <ConfirmButton label="Hoàn tất" ask="Xe đã đón xong?" disabled={act.busy} testid="sh-complete" onConfirm={() => go(() => H.completeShuttle(s.id), 'Đã hoàn tất chuyến đưa đón.')} />}
-                <ReasonAction label="Hủy xe" tone="danger" confirmLabel="Hủy chuyến" placeholder="Ghi chú hủy (bắt buộc)" testid="sh-cancel" onSubmit={needReason((n) => go(() => H.cancelShuttle(s.id, n), 'Đã hủy yêu cầu xe.'))} />
-              </div>}</td>
-            </tr>
-          ))}</tbody>
-        </table></div>
-      </ListState>
+      <DataTable columns={columns} rows={list.items} rowTestid="sh-row" loading={list.loading} error={list.err && describeError(list.err)} onRetry={list.reload}
+        empty="Chưa có yêu cầu xe nào." hasMore={list.next != null} onLoadMore={list.loadMore} loadingMore={list.more} />
     </>
   );
 }
@@ -222,7 +213,7 @@ export default function Shuttle() {
   const noTrips = new Set((live.data?.requests || []).filter((r) => !r.trips.length).map((r) => r.id)); // yêu cầu chưa có chuyến mới được phân xe tay
   return (
     <>
-      <ScreenTitle title="Điều phối xe">Yêu cầu xe của khách, chuyến, tài xế và cảnh báo hết xe.</ScreenTitle>
+      <PageHeader title="Điều phối xe" description="Yêu cầu xe của khách, chuyến, tài xế và cảnh báo hết xe." actions={<LiveBadge conn={live.conn} />} />
       <Board live={live} />
       {legacy && <Legacy noTrips={noTrips} />}
     </>

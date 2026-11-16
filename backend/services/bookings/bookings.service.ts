@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { canBook, hourlyOf, hourlyPrice, hourlyViolation, hourlyWindow, isActive, serviceFee, type Interval } from '@airrest/business-logic';
+import { canBook, hourlyOf, hourlyPrice, hourlyViolation, hourlyWindow, isActive, nonRefundableNightVnd, serviceFee, type Interval } from '@airrest/business-logic';
 import type { BookingQuoteBody, CreateBookingBody, StaffListQuery } from '@airrest/validation';
 import { PERM } from '../../config/permissions';
 import { env } from '../../config/env';
@@ -33,6 +33,7 @@ export const toGuestView = (b: BookingDoc, decision?: BookingDecisionDoc) => ({
   status: b.status,
   hotel: b.hotelSnapshot,
   children: b.guest.children ?? 0, // trẻ em nằm trong `guests` (hiển thị "N người, trong đó M trẻ em")
+  ratePlan: b.flags.cancellationTemplate === 'NON_REFUNDABLE' ? 'NON_REFUNDABLE' : 'STANDARD', // mức giá đã đặt (Không hoàn hủy = hủy không được hoàn tiền)
   guests: b.guest.count ?? 1, // số người ở (đơn cũ = 1); số khách đi xe của từng chiều ở shuttles[].passengers
   shuttle: b.shuttle,
   stay: b.stay,
@@ -62,7 +63,7 @@ export const roomSummary = (lines: Array<{ roomTypeName: string; qty: number }>)
 });
 
 type PricedRow = {
-  roomType: RoomTypeDoc; qty: number; kind: 'NIGHT' | 'HOURLY'; unit: number; subtotal: number;
+  roomType: RoomTypeDoc; qty: number; kind: 'NIGHT' | 'HOURLY'; ratePlan: 'STANDARD' | 'NON_REFUNDABLE'; unit: number; subtotal: number;
   startsAt?: Date; endsAt?: Date; hours?: number; // HOURLY: giờ vào/ra
   from: Date; holdTo: Date; // khoảng chặn tồn: [giờ nhận, giờ trả + dọn phòng)
 };
@@ -75,7 +76,7 @@ async function loadRooms(hotelId: string, rooms: RoomsInput) {
   const missing = ids.filter((id) => !byId.has(id));
   const hotel = !missing.length ? (await db.query<HotelDoc>("SELECT * FROM hotels WHERE id = $1 AND status = 'ACTIVE'", [hotelId])).rows[0] : undefined;
   if (missing.length || !hotel) throw new AppError(404, 'ROOM_TYPE_NOT_FOUND', 'Không tìm thấy loại phòng', missing.length ? { roomTypeIds: missing } : undefined);
-  return { hotel, rows: rooms.map((r) => ({ roomType: byId.get(r.roomTypeId)!, qty: r.qty, kind: r.kind, startsAt: r.startsAt, hours: r.hours })) };
+  return { hotel, rows: rooms.map((r) => ({ roomType: byId.get(r.roomTypeId)!, qty: r.qty, kind: r.kind, startsAt: r.startsAt, hours: r.hours, ratePlan: r.ratePlan ?? 'STANDARD' })) };
 }
 type LoadedRow = Awaited<ReturnType<typeof loadRooms>>['rows'][number];
 
@@ -87,8 +88,10 @@ function priceRows(hotel: HotelDoc, rows: LoadedRow[], input: { from: Date; to: 
   const priced = rows.map((r, i): PricedRow => {
     const { roomType, qty } = r;
     if (r.kind === 'NIGHT') {
-      const unit = roomType.pricing.baseNightVnd;
-      return { roomType, qty, kind: 'NIGHT', unit, subtotal: unit * qty * nights, from: input.from, holdTo: new Date(input.to.getTime() + hotel.policy.cleaningBufferMin * 60_000) };
+      const pct = roomType.pricing.nonRefundablePct;
+      if (r.ratePlan === 'NON_REFUNDABLE' && !pct) throw new AppError(422, 'RATE_PLAN_NOT_OFFERED', `${roomType.name} không có mức giá Không hoàn hủy`, { lineNo: i + 1, roomTypeId: roomType.id, roomTypeName: roomType.name });
+      const unit = r.ratePlan === 'NON_REFUNDABLE' ? nonRefundableNightVnd(roomType.pricing.baseNightVnd, pct!) : roomType.pricing.baseNightVnd;
+      return { roomType, qty, kind: 'NIGHT', ratePlan: r.ratePlan, unit, subtotal: unit * qty * nights, from: input.from, holdTo: new Date(input.to.getTime() + hotel.policy.cleaningBufferMin * 60_000) };
     }
     const at = { lineNo: i + 1, roomTypeId: roomType.id, roomTypeName: roomType.name };
     const cfg = hourlyOf(roomType.pricing);
@@ -102,12 +105,12 @@ function priceRows(hotel: HotelDoc, rows: LoadedRow[], input: { from: Date; to: 
     const { endsAt, holdTo } = hourlyWindow(startsAt, hours, cfg.cleaningMin);
     if (hasNight && (startsAt < input.from || endsAt > input.to)) throw new AppError(422, 'HOURLY_OUT_OF_STAY', 'Giờ ở theo giờ phải nằm trong khoảng nhận - trả phòng của đơn', { ...at, from: input.from, to: input.to });
     const unit = hourlyPrice(cfg, hours);
-    return { roomType, qty, kind: 'HOURLY', unit, subtotal: unit * qty, startsAt, endsAt, hours, from: startsAt, holdTo };
+    return { roomType, qty, kind: 'HOURLY', ratePlan: 'STANDARD', unit, subtotal: unit * qty, startsAt, endsAt, hours, from: startsAt, holdTo };
   });
   return { nights, priced, stayType: (!hasNight ? 'HOURLY' : priced.some((r) => r.kind === 'HOURLY') ? 'MIXED' : 'NIGHT') as 'NIGHT' | 'HOURLY' | 'MIXED' };
 }
 
-const lineView = (r: PricedRow) => ({ roomTypeId: r.roomType.id, roomTypeName: r.roomType.name, qty: r.qty, kind: r.kind, unitPriceVnd: r.unit, subtotalVnd: r.subtotal, ...(r.kind === 'HOURLY' && { startsAt: r.startsAt, endsAt: r.endsAt, hours: r.hours }) });
+const lineView = (r: PricedRow) => ({ roomTypeId: r.roomType.id, roomTypeName: r.roomType.name, qty: r.qty, kind: r.kind, unitPriceVnd: r.unit, subtotalVnd: r.subtotal, ...(r.kind === 'NIGHT' && { ratePlan: r.ratePlan }), ...(r.kind === 'HOURLY' && { startsAt: r.startsAt, endsAt: r.endsAt, hours: r.hours }) });
 
 // Giá đơn tính ở server (phòng + xe + phí dịch vụ): dùng chung cho tạo đơn và báo giá trước khi gửi yêu cầu.
 async function priceBooking(hotel: HotelDoc, rows: LoadedRow[], input: { from: Date; to: Date; shuttle?: CreateBookingBody['shuttle'] }) {
@@ -234,7 +237,7 @@ async function createBookingImpl(input: CreateBookingBody, requestId?: string, a
           guest: { ...input.guest, count: guests, children: input.children },
           hotelSnapshot: { name: hotel.name },
           stay: { type: stayType, from: input.from, to: input.to, nights },
-          lines: priced.map((r, i) => ({ lineNo: i + 1, roomTypeId: r.roomType.id, roomTypeName: r.roomType.name, qty: r.qty, unitPriceVnd: r.unit, subtotalVnd: r.subtotal, reservationId: reservationIds[i]!, kind: r.kind, ...(r.kind === 'HOURLY' && { startsAt: r.startsAt, endsAt: r.endsAt, hours: r.hours }) })),
+          lines: priced.map((r, i) => ({ lineNo: i + 1, roomTypeId: r.roomType.id, roomTypeName: r.roomType.name, qty: r.qty, unitPriceVnd: r.unit, subtotalVnd: r.subtotal, reservationId: reservationIds[i]!, kind: r.kind, ...(r.kind === 'NIGHT' && { ratePlan: r.ratePlan }), ...(r.kind === 'HOURLY' && { startsAt: r.startsAt, endsAt: r.endsAt, hours: r.hours }) })),
           pricing: {
             roomVnd,
             shuttleVnd,
@@ -248,7 +251,7 @@ async function createBookingImpl(input: CreateBookingBody, requestId?: string, a
           ...(holdExpiresAt && { expiresAt: holdExpiresAt }),
           statusHistory: [{ to: status, at: now, by }],
           changeCount: 0,
-          flags: { disputeOpen: false, payoutHeld: false, needsCall: false },
+          flags: { disputeOpen: false, payoutHeld: false, needsCall: false, cancellationTemplate: priced.some((r) => r.ratePlan === 'NON_REFUNDABLE') ? 'NON_REFUNDABLE' : hotel.policy.cancellationTemplate },
           v: 1,
           createdAt: now,
           updatedAt: now,

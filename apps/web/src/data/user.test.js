@@ -1,6 +1,6 @@
 // Luật kiểm tra đăng ký khách phía client (khớp backend). Chạy: npx vitest run apps/web/src/data/user.test.js (từ thư mục gốc monorepo)
 import { describe, expect, it } from 'vitest';
-import { listTopRated, bestRoom, bookingFieldError, buildShuttle, defaultPickup, describeAuthError, guestsSummary, roomFits, validateRegister, weekdayLabel } from './user';
+import { checkAttachments, listTopRated, bestRoom, bookingFieldError, buildShuttle, defaultPickup, describeAuthError, guestsSummary, roomFits, validateRegister, weekdayLabel } from './user';
 
 const ok = { username: 'minhanh', password: 'matkhau123', confirm: 'matkhau123' };
 
@@ -100,5 +100,27 @@ describe('listTopRated', () => {
   it('dưới 4 thì hạ ngưỡng xuống 1 lượt; 0 thì mảng rỗng', async () => {
     expect((await listTopRated(null, {}, 4, mk(2)))[0].id).toBe('1-0');
     expect(await listTopRated(null, {}, 4, async () => [])).toEqual([]);
+  });
+});
+
+describe('checkAttachments (nút "+" trong chat)', () => {
+  const f = (name, type, mb = 1) => ({ name, type, size: mb * 1024 * 1024 });
+  it('nhận ảnh/video đúng loại và dung lượng', () => {
+    const r = checkAttachments([f('a.jpg', 'image/jpeg'), f('b.mp4', 'video/mp4', 20)]);
+    expect(r.ok).toHaveLength(2); expect(r.errors).toEqual([]);
+  });
+  it('từ chối sai loại, quá dung lượng, kèm lý do theo tên tệp', () => {
+    const r = checkAttachments([f('a.pdf', 'application/pdf'), f('b.png', 'image/png', 6), f('c.mp4', 'video/mp4', 31)]);
+    expect(r.ok).toEqual([]);
+    expect(r.errors).toHaveLength(3);
+    expect(r.errors[0]).toMatch(/^a\.pdf:/);
+  });
+  it('tối đa 5 ảnh, 1 video, 6 tệp, tính cả tệp đã chọn trước', () => {
+    const imgs = (n, p = 'i') => Array.from({ length: n }, (_, i) => f(`${p}${i}.jpg`, 'image/jpeg'));
+    expect(checkAttachments(imgs(6)).ok).toHaveLength(5);
+    expect(checkAttachments([f('v2.mp4', 'video/mp4')], [f('v1.mp4', 'video/mp4')]).errors[0]).toMatch(/1 video/);
+    expect(checkAttachments(imgs(2, 'n'), imgs(4)).ok).toHaveLength(1); // đã có 4 ảnh, chỉ thêm được 1
+    expect(checkAttachments([f('x.mp4', 'video/mp4')], imgs(5)).ok).toHaveLength(1); // 5 ảnh + 1 video = đúng 6 tệp: được
+    expect(checkAttachments([f('y.jpg', 'image/jpeg')], [...imgs(5), f('v.mp4', 'video/mp4')]).errors[0]).toMatch(/6 tệp/); // đã đủ 6: tệp thứ 7 bị chặn
   });
 });

@@ -78,6 +78,7 @@ async function handle(o: LiveOffer, p: FlightTimeChange, minLead: number): Promi
 
   // BAY SỚM HƠN: rút ngắn tự động, trừ khi giờ rời mới đã qua / quá sát (không đoán -> báo khẩn).
   if (leave.getTime() < Math.max(Date.now(), new Date(o.stay.from).getTime()) + minLead * 60_000) {
+    await clearProposal(db, o.id); // giờ bay đã sớm hơn giờ rời hiện tại: đề xuất gia hạn cũ không còn đúng
     await ev('DELAY_STAY_SHORTEN_URGENT', { stayTo: stayTo.toISOString(), newLeaveAt: leave.toISOString() });
     return alert(o, 'FLIGHT_EARLIER_URGENT', 'LEAVE_TOO_SOON');
   }

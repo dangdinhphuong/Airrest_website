@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '@airrest/api-client';
 import { describeError } from '../../lib/api';
-import { ErrorBox, Loading } from '../Common';
-import { Pill } from '../partner/ui';
+import { ErrorState, Loading, StatusBadge } from '../ui';
 import { fmtDT } from './kit';
 
 // Lỗi nghiệp vụ của đội xe/chuyến -> tiếng Việt. Dùng: act.run(vi(() => H.x()), 'ok').
@@ -38,7 +37,7 @@ export const TRIP_STATUS = {
   OFFERED: ['Chờ tài xế nhận', 'warn'], ACCEPTED: ['Đã nhận', 'info'], EN_ROUTE: ['Đang tới đón', 'info'], ARRIVED: ['Đã tới điểm đón', 'info'], ONBOARD: ['Đã đón khách', 'ok'],
   DROPPED_OFF: ['Đã trả khách', 'ok'], CANCELLED: ['Đã hủy', 'neutral'], REJECTED: ['Tài xế từ chối', 'error'], NEEDS_EXTERNAL: ['Cần gọi xe ngoài', 'error'],
 };
-export const TripPill = ({ s }) => { const [t, tone] = TRIP_STATUS[s] || [s, 'neutral']; return <Pill tone={tone} data-testid="trip-status">{t}</Pill>; };
+export const TripPill = ({ s }) => <span data-testid="trip-status"><StatusBadge status={s} map={TRIP_STATUS} /></span>;
 export const VEHICLE_STATE = { FREE: ['Rảnh', 'ok'], BUSY: ['Bận', 'warn'], NO_DRIVER: ['Chưa có tài xế', 'neutral'], INACTIVE: ['Ngừng', 'neutral'] };
 export const DIRECTION = { TO_HOTEL: 'Sân bay → khách sạn', TO_AIRPORT: 'Khách sạn → sân bay' };
 export const PROVIDER = { GRAB: 'Grab', XANHSM: 'Xanh SM', OTHER: 'Hãng khác' };
@@ -115,7 +114,7 @@ export function EventLog({ fetchPage }) {
       <h4>Nhật ký đơn</h4>
       {sum && <p data-testid="shuttle-summary"><strong>Xe đưa đón:</strong> {sum.passengers ? `${sum.passengers} khách` : 'có đặt xe'} · {sum.state}</p>}
       {st.loading && <Loading />}
-      {st.err && <ErrorBox title="Không tải được nhật ký" onRetry={() => load(undefined)}>{describeError(st.err)}</ErrorBox>}
+      {st.err && <ErrorState title="Không tải được nhật ký" onRetry={() => load(undefined)}>{describeError(st.err)}</ErrorState>}
       {!st.loading && !st.err && !rows.length && <p className="muted" data-testid="empty">Chưa có sự kiện nào.</p>}
       <ol className="timeline">
         {rows.map((r) => <li key={r.key} data-testid="event-row"><time>{fmtDT(r.at)}</time><span>{r.text}</span><small>{ACTOR[r.who] || r.who || 'Hệ thống'}</small></li>)}

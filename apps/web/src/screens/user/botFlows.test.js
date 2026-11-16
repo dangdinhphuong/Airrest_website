@@ -196,6 +196,7 @@ describe('luồng khiếu nại và tra ticket', () => {
     const r = await say(mem, 'Gửi khiếu nại');
     expect(r.text).toMatch(/SP-ABCD1234/);
     expect(r.attach).toEqual({ code: 'SP-ABCD1234', phone: '0912345678' }); // bot mở bước đính kèm ảnh/video
+    expect(mem.lastTicket).toEqual({ code: 'SP-ABCD1234', phone: '0912345678' }); // nút "+" trong chat gửi thêm tệp vào ticket này
     expect(api.createTicket.mock.calls[0][0]).toMatchObject({ phone: '0912345678', bookingCode: undefined });
     expect(api.createTicket.mock.calls[0][0].subject).toMatch(/^\[Vệ sinh\]/);
   });
@@ -211,6 +212,7 @@ describe('luồng khiếu nại và tra ticket', () => {
     const mem = {};
     expect((await say(mem, 'SP-ABCD1234')).text).toMatch(/số điện thoại/);
     expect((await say(mem, '0912345678')).text).toMatch(/đang được xử lý/);
+    expect(mem.lastTicket).toEqual({ code: 'SP-ABCD1234', phone: '0912345678' });
   });
   it('hỏi không hiểu 2 lần liên tiếp thì chuyển sang khiếu nại', async () => {
     const mem = {};

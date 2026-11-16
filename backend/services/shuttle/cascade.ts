@@ -4,6 +4,7 @@ import { AppError } from '../../lib/errors';
 import { writeAudit } from '../audit';
 import { logBookingEvent } from '../bookings/bookingEvents';
 import { publish, type ShuttleEvent } from './events';
+import { leaveSharedTrips } from './members';
 
 // Chuyến chưa lên xe: hủy được. ONBOARD/DROPPED_OFF là đã bắt đầu/xong.
 const CANCELLABLE_TRIP = ['OFFERED', 'ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'NEEDS_EXTERNAL'];
@@ -13,9 +14,10 @@ const CANCELLABLE_TRIP = ['OFFERED', 'ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'NEEDS_E
  * Trả các sự kiện để caller `publishAll` SAU commit (riêng cascade hủy đơn gọi `publish` trong transaction của caller: `publish` tự hoãn tới sau commit qua afterCommit).
  */
 export async function cancelLiveTrips(tx: Db, requestId: string, actor: Actor, note: string, o: { rejectIfStarted?: boolean; requestId?: string } = {}): Promise<ShuttleEvent[]> {
-  if (o.rejectIfStarted && (await tx.query("SELECT 1 FROM shuttle_trips WHERE request_id = $1 AND status IN ('ONBOARD','DROPPED_OFF')", [requestId])).rowCount > 0) {
+  if (o.rejectIfStarted && (await tx.query("SELECT 1 FROM shuttle_trips t WHERE t.status IN ('ONBOARD','DROPPED_OFF') AND (t.request_id = $1 OR EXISTS (SELECT 1 FROM shuttle_trip_requests l WHERE l.trip_id = t.id AND l.request_id = $1))", [requestId])).rowCount > 0) {
     throw new AppError(409, 'TRIP_ALREADY_STARTED', 'Khách đã lên xe nên không thể hủy');
   }
+  await leaveSharedTrips(tx, requestId, CANCELLABLE_TRIP, actor, note); // chuyến chung nhiều booking: chỉ rời/chuyển quyền dẫn đầu, không hủy chuyến của người khác
   const rows = (
     await tx.query<ShuttleTripDoc>(
       "UPDATE shuttle_trips SET status = 'CANCELLED', cancelled_at = now(), cancel_note = $3, updated_at = now() WHERE request_id = $1 AND status = ANY($2::text[]) RETURNING *",

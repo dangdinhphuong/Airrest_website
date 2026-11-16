@@ -2,7 +2,7 @@ import { withTransaction, db, type Db } from '../../database/pg';
 import { AppError } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
 import { actorOf, writeAudit } from '../audit';
-import { assertPeriod, collectRoomRows, collectShuttleRows, nextPeriod, periodEnded } from './calc';
+import { assertAdjustAmount, assertAdjustTotal, assertPeriod, collectRoomRows, collectShuttleRows, nextPeriod, periodEnded } from './calc';
 
 // (A) Bảng kê tháng Airrest <-> đơn vị chi trả. DRAFT -> SENT -> (DISPUTED) -> LOCKED. Số nguyên VND; tổng = SUM các dòng.
 export type Ctx = { auth: AuthContext; requestId: string };
@@ -76,6 +76,9 @@ export async function sendStatement(c: Ctx, id: string, now = new Date()) {
 }
 
 /** Đơn vị chi trả khiếu nại trong hạn (kèm lý do). Quá hạn/không ở trạng thái đã gửi -> 409. Bảng kê của đơn vị khác -> 404. */
+/** Hoa hồng Airrest–khách sạn: đơn vị chi trả KHÔNG được thấy (bỏ khỏi mọi dữ liệu phía payer). */
+const forPayer = <T extends object>(r: T): Omit<T, 'commissionVnd'> => { const { commissionVnd: _c, ...rest } = r as T & { commissionVnd?: unknown }; return rest; };
+
 export async function disputeStatement(c: Ctx, payerId: string, id: string, reason: string, now = new Date()) {
   return withTransaction(async (tx) => {
     const s = await lockStatementRow(tx, id, payerId);
@@ -84,7 +87,7 @@ export async function disputeStatement(c: Ctx, payerId: string, id: string, reas
     if (now.getTime() > new Date(s.disputeDeadline).getTime()) throw new AppError(409, 'DISPUTE_WINDOW_CLOSED', 'Đã quá hạn khiếu nại');
     const next = (await tx.query("UPDATE payer_statements SET status = 'DISPUTED', dispute_reason = $2, disputed_at = $3, version = version + 1, updated_at = now() WHERE id = $1 RETURNING *", [id, reason, now])).rows[0]!;
     await audit(c, tx, 'PAYER_STATEMENT.DISPUTE', id, brief(s), brief(next), reason);
-    return next;
+    return forPayer(next);
   });
 }
 
@@ -119,7 +122,10 @@ export async function reopenStatement(c: Ctx, id: string, reason: string) {
  */
 export async function addPayerAdjustment(c: Ctx, a: { payerId: string; period: string; amountVnd: number; memo: string; hotelId?: string; bookingId?: string }) {
   const period = assertPeriod(a.period);
-  if (!Number.isSafeInteger(a.amountVnd) || a.amountVnd === 0) throw new AppError(422, 'INVALID_AMOUNT', 'Số tiền điều chỉnh phải là số nguyên VND khác 0');
+  assertAdjustAmount(a.amountVnd);
+  if (!(await db.query('SELECT 1 FROM payers WHERE id = $1', [a.payerId])).rows[0]) throw new AppError(404, 'PAYER_NOT_FOUND', 'Không tìm thấy đơn vị chi trả');
+  if (a.hotelId && !(await db.query('SELECT 1 FROM hotels WHERE id = $1', [a.hotelId])).rows[0]) throw new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');
+  if (a.bookingId && !(await db.query('SELECT 1 FROM bookings WHERE id = $1', [a.bookingId])).rows[0]) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Không tìm thấy đơn đặt phòng');
   return withTransaction(async (tx) => {
     const src = (await tx.query('SELECT status FROM payer_statements WHERE payer_id = $1 AND period = $2', [a.payerId, period])).rows[0];
     if (!src || src.status !== 'LOCKED') throw new AppError(409, 'PERIOD_NOT_LOCKED', 'Kỳ gốc chưa khóa: hãy tạo lại bảng kê thay vì điều chỉnh');
@@ -128,6 +134,7 @@ export async function addPayerAdjustment(c: Ctx, a: { payerId: string; period: s
       await tx.query('INSERT INTO payer_statements (payer_id, period) VALUES ($1,$2) ON CONFLICT (payer_id, period) DO NOTHING', [a.payerId, target]);
       const s = (await tx.query('SELECT * FROM payer_statements WHERE payer_id = $1 AND period = $2 FOR UPDATE', [a.payerId, target])).rows[0]!;
       if (s.status !== 'DRAFT') continue;
+      assertAdjustTotal((await tx.query("SELECT COALESCE(sum(amount_vnd),0)::float8 AS t FROM payer_statement_lines WHERE statement_id = $1 AND kind = 'ADJUSTMENT'", [s.id])).rows[0]!.t, a.amountVnd);
       await tx.query("INSERT INTO payer_statement_lines (statement_id, booking_id, hotel_id, kind, amount_vnd, memo) VALUES ($1,$2,$3,'ADJUSTMENT',$4,$5)", [s.id, a.bookingId ?? null, a.hotelId ?? null, a.amountVnd, `[Kỳ ${period}] ${a.memo}`]);
       const next = await recompute(tx, s.id, true);
       await audit(c, tx, 'PAYER_STATEMENT.ADJUST', s.id, brief(s), { ...brief(next), fromPeriod: period, amountVnd: a.amountVnd }, a.memo);
@@ -147,7 +154,7 @@ export async function listStatements(q: { payerId?: string; period?: string; sta
       [q.payerId ?? null, q.period ?? null, q.status ?? null, q.after ?? null, q.limit + 1, q.excludeDraft ?? false],
     )
   ).rows;
-  const items = rows.slice(0, q.limit);
+  const items = rows.slice(0, q.limit).map((r) => (q.excludeDraft ? forPayer(r) : r)) as typeof rows;
   return { items, nextCursor: rows.length > q.limit ? items[items.length - 1]!.seq : null };
 }
 
@@ -162,7 +169,7 @@ export async function getStatement(id: string, payerId?: string) {
       [id],
     )
   ).rows;
-  return { statement, lines };
+  return payerId ? { statement: forPayer(statement), lines: lines.map(forPayer) } : { statement, lines };
 }
 
 // CSV: ô chữ bắt đầu bằng = + - @ (tab/CR) bị Excel hiểu là công thức -> thêm dấu nháy đơn; số tiền ghi nguyên (số âm hợp lệ).
@@ -173,9 +180,11 @@ const cell = (v: unknown): string => {
 };
 export async function statementCsv(id: string, payerId?: string): Promise<{ filename: string; csv: string }> {
   const { statement: s, lines } = await getStatement(id, payerId);
-  const out = [['kind', 'booking_code', 'group_code', 'flight_code', 'hotel', 'amount_vnd', 'commission_vnd', 'memo']];
   const num = (n: number) => String(n);
+  const head = ['kind', 'booking_code', 'group_code', 'flight_code', 'hotel', 'amount_vnd', 'commission_vnd', 'memo'];
   const rows = lines.map((l: any) => [cell(l.kind), cell(l.bookingCode), cell(l.groupCode), cell(l.flightCode), cell(l.hotelName), num(l.amountVnd), num(l.commissionVnd), cell(l.memo)]);
-  const body = [out[0]!.join(','), ...rows.map((r) => r.join(',')), ['TOTAL', '', '', '', '', num(s.totalVnd), num(s.commissionVnd), cell(`${s.payerName} ${s.period} (${s.status})`)].join(',')];
+  const total = ['TOTAL', '', '', '', '', num(s.totalVnd), num(s.commissionVnd), cell(`${s.payerName} ${s.period} (${s.status})`)];
+  const cut = (r: string[]) => (payerId ? r.filter((_, i) => i !== 6) : r); // payer: bỏ cột commission_vnd
+  const body = [cut(head), ...rows.map(cut), cut(total)].map((r) => r.join(','));
   return { filename: `bang-ke-${s.period}-${s.payerId.slice(0, 8)}.csv`, csv: `﻿${body.join('\r\n')}\r\n` };
 }

@@ -1,16 +1,14 @@
 import React, { useCallback, useState } from 'react';
-import { ScreenTitle } from '../Common';
 import { useApp } from '../../state/store';
 import { hasPerm } from '../../lib/access';
 import { PERM } from '../../lib/perms';
-import { money } from '../../lib/time';
+import { money, vnDayEnd, vnDayStart } from '../../lib/time';
 import { ApiError } from '@airrest/api-client';
 import { describeError } from '../../lib/api';
-import { ErrorBox, Loading } from '../Common';
-import { ReasonAction } from '../partner/ui';
+import { ConfirmAction, DataTable, ErrorState, FilterBar, Loading, Modal, PageHeader, STATUS, StatusBadge } from '../ui';
 import * as H from '../../data/hotel';
 import { EventLog } from './fleetKit';
-import { ConfirmButton, ListState, STATUS, StatusPill, fmtD, fmtDT, needReason, today, useAction, useLoad, usePaged } from './kit';
+import { fmtDT, useAction, useLoad, usePaged } from './kit';
 import Select from '../Select';
 import { lineLabel, stayLabel, stayShort } from '../../lib/bookingText';
 
@@ -24,7 +22,7 @@ function Detail({ id }) {
   const d = useLoad(() => H.getBooking(id), [id]);
   const events = useCallback((cursor) => H.listBookingEvents(id, { cursor }), [id]);
   if (d.loading) return <Loading />;
-  if (d.err) return <ErrorBox onRetry={d.reload}>{describeError(d.err)}</ErrorBox>;
+  if (d.err) return <ErrorState onRetry={d.reload}>{describeError(d.err)}</ErrorState>;
   const { booking: b, decision } = d.data;
   return (
     <div className="card-inner" data-testid="booking-detail">
@@ -51,16 +49,38 @@ export default function Bookings() {
   const act = useAction();
   const list = usePaged((cursor) => H.listBookings({
     status: applied.status, code: applied.code, cursor,
-    from: applied.from && new Date(`${applied.from}T00:00:00`), to: applied.to && new Date(new Date(`${applied.to}T00:00:00`).getTime() + 86400000),
+    from: vnDayStart(applied.from), to: vnDayEnd(applied.to),
   }), [applied]);
   const go = async (fn, ok) => {
     if (await act.run(async () => { try { await fn(); } catch (e) { if (ERR_VI[e?.code]) { if (e.code === 'INVALID_STATE') list.reload(); throw new ApiError(e.status, e.code, ERR_VI[e.code]); } throw e; } }, ok)) list.reload();
   };
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const reset = () => { const z = { status: '', code: '', from: '', to: '' }; setF(z); setApplied(z); };
+  const columns = [
+    { key: 'code', header: 'Mã', render: (b) => <strong>{b.code}</strong> },
+    { key: 'guest', header: 'Khách', render: (b) => b.guest.fullName },
+    { key: 'stay', header: 'Nhận phòng', render: (b) => stayShort(b.stay) },
+    { key: 'lines', header: 'Phòng', render: (b) => b.lines.map((l) => `${l.roomTypeName} x${l.qty}${l.kind === 'HOURLY' ? ` (${l.hours} giờ)` : ''}`).join(', ') },
+    { key: 'total', header: 'Tổng', render: (b) => money(b.pricing.totalVnd) },
+    { key: 'pay', header: 'Thanh toán', render: (b) => pay(b.payment) },
+    { key: 'status', header: 'Trạng thái', render: (b) => <StatusBadge status={b.status} /> },
+    { key: 'act', header: '', render: (b) => (
+      <div className="row-actions" style={{ marginTop: 0 }}>
+        <button type="button" className="btn btn-sm" onClick={() => setOpen(b)} data-testid="bk-detail">Chi tiết</button>
+        {b.status === 'PENDING' && can(PERM.BOOKING_DECIDE) && <>
+          <ConfirmAction label="Xác nhận" ask="Xác nhận đơn này?" disabled={act.busy} testid="bk-confirm" onConfirm={() => go(() => H.confirmBooking(b.id), `Đã xác nhận đơn ${b.code}.`)} />
+          <ConfirmAction label="Từ chối" title="Từ chối đơn" tone="danger" confirmLabel="Từ chối đơn" ask={`Từ chối đơn ${b.code}?`} reason={{ label: 'Lý do từ chối (bắt buộc)' }} testid="bk-reject" onConfirm={(r) => go(() => H.rejectBooking(b.id, r), `Đã từ chối đơn ${b.code}.`)} />
+        </>}
+        {b.status === 'CONFIRMED' && can(PERM.BOOKING_CHECKIN) && <ConfirmAction label="Check-in" ask="Khách đã đến nhận phòng?" disabled={act.busy} testid="bk-checkin" onConfirm={() => go(() => H.checkInBooking(b.id), `Đã check-in đơn ${b.code}.`)} />}
+        {b.status === 'CONFIRMED' && can(PERM.BOOKING_CHECKIN) && <ConfirmAction label="Không đến (No-show)" tone="danger" ask="Khách không đến nhận phòng? Đơn sẽ chuyển sang Không đến." disabled={act.busy} testid="bk-noshow" onConfirm={() => go(() => H.noShowBooking(b.id), `Đã đánh dấu không đến đơn ${b.code}.`)} />}
+        {b.status === 'CHECKED_IN' && can(PERM.BOOKING_CHECKIN) && <ConfirmAction label="Check-out" ask="Khách đã trả phòng?" disabled={act.busy} testid="bk-checkout" onConfirm={() => go(() => H.checkOutBooking(b.id), `Đã check-out đơn ${b.code}.`)} />}
+      </div>
+    ) },
+  ];
   return (
     <>
-      <ScreenTitle title="Đặt phòng">Đơn của khách sạn, mới nhất trước. Ngày lọc theo ngày nhận phòng.</ScreenTitle>
-      <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); setApplied(f); }}>
+      <PageHeader title="Đặt phòng" description="Đơn của khách sạn, mới nhất trước. Ngày lọc theo ngày nhận phòng." />
+      <FilterBar onApply={() => setApplied(f)} onReset={reset}>
         <Select aria-label="Trạng thái" value={f.status} onChange={set('status')} data-testid="bk-status">
           <option value="">Mọi trạng thái</option>
           {Object.entries(STATUS).filter(([k]) => !['APPROVED', 'REQUESTED', 'ASSIGNED', 'DONE'].includes(k)).map(([k, [t]]) => <option key={k} value={k}>{t}</option>)}
@@ -68,40 +88,13 @@ export default function Bookings() {
         <input className="filter-input" aria-label="Mã đơn" placeholder="Mã đơn (tiền tố)" value={f.code} onChange={set('code')} data-testid="bk-code" />
         <label>Từ <input type="date" value={f.from} onChange={set('from')} /></label>
         <label>Đến <input type="date" value={f.to} min={f.from || undefined} onChange={set('to')} /></label>
-        <button className="btn btn-sm btn-primary" type="submit" data-testid="bk-search">Lọc</button>
-      </form>
+      </FilterBar>
       {act.note}
-      <ListState list={list} empty="Chưa có đơn nào khớp bộ lọc.">
-        <div className="table-wrap"><table className="rights-table">
-          <thead><tr><th>Mã</th><th>Khách</th><th>Nhận phòng</th><th>Phòng</th><th>Tổng</th><th>Thanh toán</th><th>Trạng thái</th><th /></tr></thead>
-          <tbody>{list.items.map((b) => (
-            <React.Fragment key={b.id}>
-              <tr data-testid="bk-row">
-                <td data-label="Mã"><strong>{b.code}</strong></td>
-                <td data-label="Khách">{b.guest.fullName}</td>
-                <td data-label="Nhận phòng">{stayShort(b.stay)}</td>
-                <td data-label="Phòng">{b.lines.map((l) => `${l.roomTypeName} x${l.qty}${l.kind === 'HOURLY' ? ` (${l.hours} giờ)` : ''}`).join(', ')}</td>
-                <td data-label="Tổng">{money(b.pricing.totalVnd)}</td>
-                <td data-label="Thanh toán">{pay(b.payment)}</td>
-                <td data-label="Trạng thái"><StatusPill s={b.status} /></td>
-                <td>
-                  <div className="row-actions" style={{ marginTop: 0 }}>
-                    <button type="button" className="btn btn-sm" onClick={() => setOpen(open === b.id ? null : b.id)} data-testid="bk-detail">{open === b.id ? 'Ẩn' : 'Chi tiết'}</button>
-                    {b.status === 'PENDING' && can(PERM.BOOKING_DECIDE) && <>
-                      <ConfirmButton label="Xác nhận" ask="Xác nhận đơn này?" disabled={act.busy} testid="bk-confirm" onConfirm={() => go(() => H.confirmBooking(b.id), `Đã xác nhận đơn ${b.code}.`)} />
-                      <ReasonAction label="Từ chối" tone="danger" confirmLabel="Từ chối đơn" placeholder="Lý do từ chối (bắt buộc)" testid="bk-reject" onSubmit={needReason((r) => go(() => H.rejectBooking(b.id, r), `Đã từ chối đơn ${b.code}.`))} />
-                    </>}
-                    {b.status === 'CONFIRMED' && can(PERM.BOOKING_CHECKIN) && <ConfirmButton label="Check-in" ask="Khách đã đến nhận phòng?" disabled={act.busy} testid="bk-checkin" onConfirm={() => go(() => H.checkInBooking(b.id), `Đã check-in đơn ${b.code}.`)} />}
-                    {b.status === 'CONFIRMED' && can(PERM.BOOKING_CHECKIN) && <ConfirmButton label="Không đến (No-show)" tone="danger" ask="Khách không đến nhận phòng? Đơn sẽ chuyển sang Không đến." disabled={act.busy} testid="bk-noshow" onConfirm={() => go(() => H.noShowBooking(b.id), `Đã đánh dấu không đến đơn ${b.code}.`)} />}
-                    {b.status === 'CHECKED_IN' && can(PERM.BOOKING_CHECKIN) && <ConfirmButton label="Check-out" ask="Khách đã trả phòng?" disabled={act.busy} testid="bk-checkout" onConfirm={() => go(() => H.checkOutBooking(b.id), `Đã check-out đơn ${b.code}.`)} />}
-                  </div>
-                </td>
-              </tr>
-              {open === b.id && <tr><td colSpan={8}><Detail key={`${b.id}-${b.status}`} id={b.id} /></td></tr>}
-            </React.Fragment>
-          ))}</tbody>
-        </table></div>
-      </ListState>
+      <DataTable columns={columns} rows={list.items} rowTestid="bk-row" loading={list.loading} error={list.err && describeError(list.err)} onRetry={list.reload}
+        empty="Chưa có đơn nào khớp bộ lọc." hasMore={list.next != null} onLoadMore={list.loadMore} loadingMore={list.more} />
+      <Modal open={!!open} onClose={() => setOpen(null)} title={open ? `Đơn ${open.code}` : ''} size="lg">
+        {open && <Detail key={`${open.id}-${open.status}`} id={open.id} />}
+      </Modal>
     </>
   );
 }

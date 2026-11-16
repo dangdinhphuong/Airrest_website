@@ -26,7 +26,7 @@ const payerExists = async (id: string) => {
 
 // ---------- Đơn vị ----------
 export const listPayers = async (q: { status?: string; limit: number; after?: number }) => {
-  const rows = (await db.query('SELECT * FROM payers WHERE ($1::text IS NULL OR status = $1) AND ($2::bigint IS NULL OR seq > $2) ORDER BY seq LIMIT $3', [q.status ?? null, q.after ?? null, q.limit + 1])).rows;
+  const rows = (await db.query('SELECT * FROM payers WHERE ($1::text IS NULL OR status = $1) AND ($2::bigint IS NULL OR seq < $2) ORDER BY seq DESC LIMIT $3', [q.status ?? null, q.after ?? null, q.limit + 1])).rows;
   const items = rows.slice(0, q.limit);
   return { items, nextCursor: rows.length > q.limit ? items[items.length - 1].seq : null };
 };

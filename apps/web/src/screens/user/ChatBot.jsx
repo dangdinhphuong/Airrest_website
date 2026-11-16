@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MessageCircle, Send, X } from 'lucide-react';
+import { MessageCircle, Plus, Send, X } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useApp } from '../../state/store';
 import { money } from '../../lib/time';
-import { ATTACH, attachFile, describeApiError } from '../../data/user';
+import { ATTACH, attachFile, checkAttachments, describeApiError } from '../../data/user';
 import { scrollToId, setStaysIntent } from './data';
 import { reply } from './botEngine';
+import { beginComplaint } from './botFlows';
 
 gsap.registerPlugin(useGSAP);
 
@@ -32,6 +33,9 @@ export default function ChatBot() {
   const input = useRef(null);
   const seq = useRef(1);
   const mem = useRef({}); // trạng thái hội thoại nhiều lượt (botFlows)
+  const [staged, setStaged] = useState([]); // tệp đã chọn bằng nút "+", chờ có ticket để đính kèm
+  const stagedRef = useRef([]);
+  const stage = (fn) => { stagedRef.current = fn(stagedRef.current); setStaged(stagedRef.current); };
 
   useEffect(() => {
     if (mini) return undefined;
@@ -57,17 +61,36 @@ export default function ChatBot() {
     setText(''); push({ from: 'user', text: q }); setTyping(true);
     const [r] = await Promise.all([reply(q, { airport: state.browseAirport, mem: mem.current }).catch((e) => ({ text: `Mình gặp lỗi: ${e?.message ?? 'không xác định'}. Bạn thử lại giúp mình nhé.` })), new Promise((res) => setTimeout(res, 450))]);
     setTyping(false); push({ from: 'bot', ...r });
+    if (r.attach && stagedRef.current.length) { const files = stagedRef.current; stage(() => []); await uploadFiles(files, r.attach); } // ticket vừa tạo: gửi các tệp đã chọn trước đó
+    else if (!mem.current.flow && stagedRef.current.length) stage(() => []); // luồng khiếu nại đã đóng mà không có ticket: bỏ tệp chờ
   };
-  // Ảnh/video làm bằng chứng cho ticket vừa gửi: tải lần lượt từng tệp, báo kết quả riêng từng tệp.
-  const attach = async (e, { code, phone }) => {
-    const files = [...e.target.files]; e.target.value = '';
-    if (!files.length || typing) return;
+  // Ảnh/video làm bằng chứng cho một ticket: tải lần lượt từng tệp, báo kết quả riêng từng tệp.
+  const uploadFiles = async (files, { code, phone }) => {
     setTyping(true);
     for (const f of files) {
       push({ from: 'user', text: `📎 ${f.name}` });
       try { await attachFile(code, phone, f); push({ from: 'bot', text: `Đã nhận ${f.name}.` }); } catch (err) { push({ from: 'bot', text: `${f.name}: ${describeApiError(err)}` }); }
     }
     setTyping(false);
+  };
+  const attach = (e, t) => { const files = [...e.target.files]; e.target.value = ''; if (files.length && !typing) uploadFiles(files, t); }; // nút trong tin nhắn sau khi gửi ticket
+  // Nút "+": chọn ảnh/video bất cứ lúc nào. Có ticket vừa gửi/tra thì gửi thẳng vào ticket đó; chưa có thì giữ lại và mở luồng khiếu nại, tự đính kèm khi ticket được tạo.
+  const pick = async (e) => {
+    const picked = [...e.target.files]; e.target.value = '';
+    if (!picked.length || typing) return;
+    const { ok, errors } = checkAttachments(picked, stagedRef.current);
+    if (errors.length) push({ from: 'bot', text: errors.join('\n') });
+    if (!ok.length) return;
+    const m = mem.current;
+    if (m.lastTicket && !m.flow) {
+      push({ from: 'bot', text: `Mình gửi ${ok.length} tệp vào ticket ${m.lastTicket.code}. (Muốn tạo khiếu nại mới, hãy gõ "Gửi khiếu nại" trước rồi chọn tệp.)` });
+      await uploadFiles(ok, m.lastTicket);
+      return;
+    }
+    stage((s) => [...s, ...ok]);
+    if (!m.flow) push({ from: 'bot', ...beginComplaint(m, `Mình đã nhận ${ok.length} tệp, sẽ đính kèm khi bạn gửi khiếu nại. `) });
+    else if (m.flow === 'complaint') push({ from: 'bot', text: `Đã thêm ${ok.length} tệp, sẽ đính kèm khi bạn gửi khiếu nại.` });
+    else push({ from: 'bot', text: `Mình giữ ${ok.length} tệp, sẽ đính kèm khi bạn gửi khiếu nại. Bạn hoàn tất việc đang làm hoặc gõ "Gửi khiếu nại".`, chips: ['Gửi khiếu nại'] });
   };
   const run = (act) => {
     setOpen(false);
@@ -164,7 +187,9 @@ export default function ChatBot() {
           </div>
 
           <div className="tw:flex tw:gap-2 tw:overflow-x-auto tw:border-t tw:border-slate-200 tw:bg-white tw:px-3 tw:py-2 tw:[scrollbar-width:none]">{QUICK.map((q) => <button type="button" key={q} onClick={() => send(q)} className={CHIP}>{q}</button>)}</div>
+          {staged.length > 0 && <div className="tw:flex tw:gap-2 tw:overflow-x-auto tw:border-t tw:border-slate-200 tw:bg-slate-50 tw:px-3 tw:py-2 tw:[scrollbar-width:none]" aria-label="Tệp đã chọn">{staged.map((f, i) => <span key={`${f.name}-${i}`} className="tw:inline-flex tw:max-w-[180px] tw:shrink-0 tw:items-center tw:gap-1 tw:rounded-full tw:bg-white tw:px-3 tw:py-1.5 tw:text-[11px] tw:font-semibold tw:text-slate-700 tw:ring-1 tw:ring-slate-200"><span className="tw:truncate">📎 {f.name}</span><button type="button" onClick={() => stage((s) => s.filter((_, j) => j !== i))} aria-label={`Bỏ tệp ${f.name}`} className="tw:-mr-1 tw:p-1 tw:text-slate-400 tw:hover:text-slate-600"><X size={12} /></button></span>)}</div>}
           <form onSubmit={(e) => { e.preventDefault(); send(text); }} className="tw:flex tw:items-center tw:gap-2 tw:border-t tw:border-slate-200 tw:bg-white tw:p-3">
+            <label title="Đính kèm ảnh/video" className={`tw:grid tw:size-11 tw:shrink-0 tw:cursor-pointer tw:place-items-center tw:rounded-xl tw:border tw:border-slate-300 tw:text-slate-600 tw:hover:bg-slate-50 ${typing ? 'tw:opacity-50' : ''}`}><input type="file" multiple accept={ATTACH.accept} onChange={pick} disabled={typing} className="tw:sr-only" aria-label="Đính kèm ảnh hoặc video" /><Plus size={18} /></label>
             <input ref={input} value={text} onChange={(e) => setText(e.target.value)} maxLength={300} placeholder="Nhập câu hỏi của bạn…" aria-label="Nhập câu hỏi" className="tw:min-w-0 tw:flex-1" />
             <button disabled={!text.trim() || typing} aria-label="Gửi" className="tw:grid tw:size-11 tw:shrink-0 tw:place-items-center tw:rounded-xl tw:bg-blue-600 tw:text-white tw:disabled:opacity-50"><Send size={16} /></button>
           </form>

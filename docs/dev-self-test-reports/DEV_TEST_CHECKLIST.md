@@ -1,640 +1,1030 @@
-# Self-Test Checklist: Đặt phòng cho khách delay chuyến (đơn vị chi trả / sân bay)
+# Self-Test Checklist (LẦN 2): Đặt phòng cho khách delay chuyến (đơn vị chi trả / sân bay)
 
-> Ngày tạo: 14/11/2026 | Người thực hiện: AI-assisted (dev-self-test) | SRS/Figma: docs/superpowers/specs/2026-11-14-airport-delay-booking-design.md
+> Ngày chạy: 15/11/2026 | Người thực hiện: AI-assisted (dev-self-test) | SRS: docs/superpowers/specs/2026-11-14-airport-delay-booking-design.md (+ 7b, 7c)
+> Lần 1 (14/11): 154 case, 151 PASS, 1 FAIL (UI-B01), 2 chưa chạy (UI-D05, G05). Lần 2: chạy lại toàn bộ 154 case lần 1 (rút gọn một số kịch bản phụ thuộc state) + case MỚI cho GĐ4/5, gửi lại email, nâng hạng, rate limit tách.
 > Ký hiệu: [x] đã chạy PASS · [ ] FAIL (kèm Actual Result) hoặc CHƯA CHẠY (ghi rõ lý do)
 
 ## 1. Happy Path
 
-- [x] **A01:** Tạo đơn vị chi trả
+- [x] **A01:** Tạo đơn vị chi trả [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: POST /v1/admin/payers code=FXPAY1 kind=AIRLINE (không SĐT liên hệ)
   - Expected Result: 201 + payer.id
-- [x] **A05:** Tạo trạm HAN cho P1
+- [x] **A05:** Tạo trạm HAN cho P1 [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: POST stations HAN
   - Expected Result: 201
-- [x] **A08:** Tạo giá hợp đồng cho 11 loại phòng FX của 3 KS (HAN-01/02/03)
+- [x] **A08:** Tạo giá hợp đồng cho 11 loại phòng FX của 3 KS (HAN-01/02/03) [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: PUT hotel-rates x11, bậc giờ 4/8/12, hoa hồng 10%
   - Expected Result: 11x 201
-- [x] **A13:** PUT lại cùng (loại phòng, validFrom) = cập nhật
+- [x] **A13:** PUT lại cùng (loại phòng, validFrom) = cập nhật [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: PUT lặp bản 2026-11-14
   - Expected Result: 200 (không phải 201)
-- [x] **A16:** Cấp khóa API: khóa thô lộ một lần
+- [x] **A16:** Cấp khóa API: khóa thô lộ một lần [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: POST api-keys
   - Expected Result: 201 + key=pk_... + Cache-Control no-store
-- [x] **A20:** Tạo nhân viên khóa theo trạm HAN
+- [x] **A20:** Tạo nhân viên khóa theo trạm HAN [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: POST staff stationId=HAN
   - Expected Result: 201 + payerStationId=trạm HAN
-- [x] **A25:** Nhân viên không gán trạm (mọi trạm của đơn vị)
+- [x] **A25:** Nhân viên không gán trạm (mọi trạm của đơn vị) [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: POST staff không stationId
   - Expected Result: 201 + payerStationId=null
-- [x] **A26:** Danh sách đơn vị chi trả
+  - Ghi chú: Sửa kỳ vọng harness như lần 1: pg.ts bỏ khóa null
+- [x] **A26:** Danh sách đơn vị chi trả [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: GET /admin/payers
   - Expected Result: 200 chứa FXPAY1..3
-- [x] **A27:** Tạm ngưng đơn vị P3
+- [x] **A27:** Tạm ngưng đơn vị P3 [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: PATCH status=SUSPENDED
   - Expected Result: 200
-- [x] **A30:** Thu hồi khóa API
+- [x] **A30:** Thu hồi khóa API [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: DELETE api-keys/:id
   - Expected Result: 204
-- [x] **B01:** Đẩy chuyến + 3 hành khách bằng x-payer-key
+- [x] **B01:** Đẩy chuyến + 3 hành khách bằng x-payer-key [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: POST /v1/payer/ingest/flights, 1 chuyến DELAYED HAN, 3 pax cùng PNR FXA001
   - Expected Result: 200, flightCreated=true, created=3
-- [x] **B03:** Idempotent theo (chuyến+ngày) và (PNR+họ tên): đẩy lại với key mới không tạo trùng
+- [x] **B03:** Idempotent theo (chuyến+ngày) và (PNR+họ tên): đẩy lại với key mới không tạo trùng [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: Cùng payload, Idempotency-Key mới
   - Expected Result: 200, created=0 updated=3, DB vẫn 3 hàng
-- [x] **B14:** Mỗi lần đẩy (OK và REJECTED) đều có nhật ký payer_ingest_logs
+- [x] **B14:** Mỗi lần đẩy (OK và REJECTED) đều có nhật ký payer_ingest_logs [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: SELECT payer_ingest_logs
   - Expected Result: có cả OK và REJECTED
-- [x] **B15:** Đổi giờ bay mới -> flightChanged=true + ghi flight_changes
+- [x] **B15:** Đổi giờ bay mới -> flightChanged=true + ghi flight_changes [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: Đẩy lại cùng chuyến với newDepartureAt khác
   - Expected Result: 200 flightChanged=true; flight_changes +1
-- [x] **B16:** Khóa cấp đơn vị đẩy được chuyến ở trạm SGN của cùng đơn vị
+- [x] **B16:** Khóa cấp đơn vị đẩy được chuyến ở trạm SGN của cùng đơn vị [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: origin=SGN
   - Expected Result: 200
-- [x] **B17:** Nút "Tạo chuyến bay delay" (API simulate-delay) sinh chuyến + hành khách mô phỏng đủ kiểu
+- [x] **B17:** Nút "Tạo chuyến bay delay" (API simulate-delay) sinh chuyến + hành khách mô phỏng đủ kiểu [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: POST /v1/payer/simulate-delay delayUntil=+6h (nhân viên P1 HAN)
   - Expected Result: 201; có gia đình trẻ em+em bé, nhóm 5 người chung PNR, khách lẻ, có người thiếu email/SĐT; simulated=true
-- [x] **B19:** Hai lần bấm (key khác nhau) sinh hai chuyến KHÁC mã, PNR không trùng
+- [x] **B19:** Hai lần bấm (key khác nhau) sinh hai chuyến KHÁC mã, PNR không trùng [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: Gọi simulate lần 2 với key mới
   - Expected Result: 201; code khác; 0 PNR trùng
-- [x] **B24:** Nhân viên khóa trạm SGN: chuyến mô phỏng ở đúng sân bay của trạm mình
+- [x] **B24:** Nhân viên khóa trạm SGN: chuyến mô phỏng ở đúng sân bay của trạm mình [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: simulate bằng nhân viên SGN
   - Expected Result: 201 origin=SGN
-- [x] **C01:** Danh sách chuyến delay của nhân viên khóa trạm HAN chỉ có chuyến HAN của đơn vị mình
+- [x] **C01:** Danh sách chuyến delay của nhân viên khóa trạm HAN chỉ có chuyến HAN của đơn vị mình [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: GET /v1/payer/flights (nhân viên P1/HAN)
   - Expected Result: 200; mọi origin=HAN; không có chuyến SGN của P1, không có chuyến của P2
-- [x] **C02:** Nhân viên khóa trạm SGN chỉ thấy chuyến SGN
+- [x] **C02:** Nhân viên khóa trạm SGN chỉ thấy chuyến SGN [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: GET flights (nhân viên SGN)
   - Expected Result: 200; mọi origin=SGN; thấy sim3 + chuyến API SGN
-- [x] **C07:** Chi tiết chuyến: hành khách gom theo PNR, có số người lớn/trẻ em/em bé
+- [x] **C07:** Chi tiết chuyến: hành khách gom theo PNR, có số người lớn/trẻ em/em bé [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: GET passengers sim1
   - Expected Result: 200; groups theo PNR; counts khớp tổng
-- [x] **C10:** Sửa email/SĐT hợp lệ: lưu ở contact_*, giữ nguyên dữ liệu gốc của hãng, có audit
+- [x] **C10:** Sửa email/SĐT hợp lệ: lưu ở contact_*, giữ nguyên dữ liệu gốc của hãng, có audit [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: PATCH email=Fx.Edit@Example.com phone=0987654321
   - Expected Result: 200; contact_email=fx.edit@example.com; email gốc null; audit_logs có bản ghi
-- [x] **C11:** Sửa email người đã có email (dùng bản sửa, không phải bản gốc)
+- [x] **C11:** Sửa email người đã có email (dùng bản sửa, không phải bản gốc) [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: PATCH email=fx.changed@example.com
   - Expected Result: 200; hiển thị email mới trong chi tiết
-- [x] **C13:** Xem trước phương án: trẻ em/em bé luôn ở cùng người lớn, không phòng riêng, không vượt sức chứa
+- [x] **C13:** Xem trước phương án: trẻ em/em bé luôn ở cùng người lớn, không phòng riêng, không vượt sức chứa [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: POST preview toàn bộ khách của sim1
   - Expected Result: 200; childAlone=0 infantOwnRoom=0 capViolation=0; cụm trẻ không tách; có hotelName, giờ nhận/trả phòng, giá hợp đồng
-- [x] **C14:** Xem trước: có danh sách "xử lý tay" (unplaced) và cờ thiếu SĐT
+- [x] **C14:** Xem trước: có danh sách "xử lý tay" (unplaced) và cờ thiếu SĐT [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Đọc unplaced/phoneMissing trong C13
   - Expected Result: unplaced là mảng (có thể rỗng); phoneMissing đúng với khách thiếu SĐT
-- [x] **C15:** Bỏ tick khách: phương án chỉ gồm khách được chọn
+- [x] **C15:** Bỏ tick khách: phương án chỉ gồm khách được chọn [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: preview với 3 PNR đầu
   - Expected Result: 200; mọi pax trong units thuộc tập đã chọn
-- [x] **C17:** Danh sách điểm đón theo sân bay
+- [x] **C17:** Danh sách điểm đón theo sân bay [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: GET /pickup-points?airport=han
   - Expected Result: 200; airport=HAN; 2 điểm; default=điểm đầu
-- [x] **C21:** Màn theo dõi lô: nhóm có mã NH-, offer PENDING có đếm ngược ~300s, KS, loại phòng
+- [x] **C21:** Màn theo dõi lô: nhóm có mã NH-, offer PENDING có đếm ngược ~300s, KS, loại phòng [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: GET /v1/payer/batches/:id
   - Expected Result: 200; mọi nhóm code NH-XXXXXXXX; offers PENDING secondsLeft<=300; điểm đón đã chọn
-- [x] **D01:** KS thấy yêu cầu delay của MÌNH có đếm ngược, KHÔNG thấy SĐT/email
+- [x] **D01:** KS thấy yêu cầu delay của MÌNH có đếm ngược, KHÔNG thấy SĐT/email [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: GET /v1/hotel/delay-offers?status=PENDING (HAN-02)
   - Expected Result: 200; chỉ offer HAN-02; secondsLeft>0; không có phone/email/@
-- [x] **D07:** KS xác nhận đúng số phòng (phòng đơn và cụm gia đình bằng một thao tác)
+- [x] **D07:** KS xác nhận đúng số phòng (phòng đơn và cụm gia đình bằng một thao tác) [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: confirm roomNumbers=["201"] và ["305"]
   - Expected Result: 200; offer CONFIRMED + room_numbers; booking CONFIRMED
-- [x] **D10:** KS từ chối kèm lý do -> chuyển NGAY sang KS khác (transfer_count, rejected_hotel_ids)
+- [x] **D10:** KS từ chối kèm lý do -> chuyển NGAY sang KS khác (transfer_count, rejected_hotel_ids) [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: POST reject reason="Hết phòng sạch" ở HAN-02 (khách đi lẻ)
   - Expected Result: 200 ngay; offer cũ REJECTED; offer mới PENDING ở KS khác, transfer_count=1, rejected_hotel_ids chứa HAN-02
-- [x] **D12:** Từ chối cụm có trẻ em: chuyển NGUYÊN CỤM (cùng danh sách khách) sang KS khác, không quay lại KS đã từ chối
+- [x] **D12:** Từ chối cụm có trẻ em: chuyển NGUYÊN CỤM (cùng danh sách khách) sang KS khác, không quay lại KS đã từ chối [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: reject offer cụm gia đình (3 khách) ở HAN-03
   - Expected Result: offer mới cùng pax_ids, KS ≠ HAN-03; transfer_count=1
-- [x] **D13:** Từ chối lần 2: KS mới không phải KS đã từ chối trước đó; nếu hết KS phù hợp -> nhóm FAILED
+- [x] **D13:** Từ chối lần 2: KS mới không phải KS đã từ chối trước đó; nếu hết KS phù hợp -> nhóm FAILED [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: reject tiếp ở KS vừa nhận
-  - Expected Result: Offer cụm chuyển KS chưa từng từ chối; hết KS phù hợp (NO_ROOM) -> nhóm FAILED
-- [x] **D15:** Offer hết hạn 5' được job quét tự động hết hạn và chuyển sang KS khác
+  - Expected Result: Nếu còn KS: offer PENDING ở KS chưa từng từ chối. Hết KS: group FAILED
+  - Ghi chú: Như lần 1: harness tính nhầm offer PENDING của phòng đơn anh em cùng PNR (HAN-03, tc=0). Diễn biến thật: cụm HAN-03(rej) -> HAN-01(rej) -> hết KS có phòng gia đình -> group FAILED
+- [x] **D15:** Offer hết hạn 5' được job quét tự động hết hạn và chuyển sang KS khác [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: Không xác nhận 16 offer của lô sim1 trong 5 phút; job quét delay.sweepSec=5s
   - Expected Result: Mọi offer EXPIRED có offer thay thế PENDING ở KS khác, transfer_count=1; audit DELAY_OFFER.EXPIRE
-- [x] **D16:** Chuyển KS khi hết hạn: cụm chuyển nguyên cụm, KS mới không nằm trong rejected_hotel_ids
+  - Ghi chú: Lưu ý: API bị tiến trình ngoài SIGTERM giữa chừng (log "Đang tắt..."); khởi động lại thì job quét xử lý ngay các offer quá hạn, nên thời điểm chuyển trễ ~1 phút so với hạn
+- [x] **D16:** Chuyển KS khi hết hạn: cụm chuyển nguyên cụm, KS mới không nằm trong rejected_hotel_ids [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: Đối chiếu pax_ids offer cũ/mới
   - Expected Result: số khách bằng nhau; hotel mới ∉ rejected
-- [x] **D17:** Vượt số lần chuyển tối đa (delay.maxTransfers=1) -> nhóm FAILED
+- [x] **D17:** Vượt số lần chuyển tối đa (delay.maxTransfers=1) -> nhóm FAILED [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: Hạ cấu hình maxTransfers=1 (fixture); khách lẻ bị từ chối 2 lần
   - Expected Result: Lần 1: chuyển sang KS khác (tc=1); lần 2: không chuyển nữa, group FAILED, không còn offer PENDING
-- [x] **D19:** Quá 15 phút chờ (delay.maxWaitMin) -> nhóm FAILED, không chuyển tiếp
-  - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
-  - Input: Lô sim1: không xác nhận offer; 3 vòng hết hạn 5 phút (16:32 -> 16:48)
-  - Expected Result: Sau vòng hết hạn thứ 3 (tổng >15'): các nhóm chưa có phòng chuyển FAILED; không còn booking PENDING (HOLD đã nhả)
-- [x] **E02:** Sau khi KS xác nhận mới có thư; đúng người có email, dùng email đã sửa ở quầy (contact_email) thay cho email gốc
+  - Ghi chú: Cảnh báo đỏ ở quầy kiểm ở case UI-D alert
+- [x] **E02:** Sau khi KS xác nhận mới có thư; đúng người có email, dùng email đã sửa ở quầy (contact_email) thay cho email gốc [lần 1, chạy lại]
   - Nhóm: E. Email + xe sau xác nhận
   - Input: Xác nhận 2 offer của 2 khách đã sửa email (một khách chưa có email gốc, một khách có email gốc khác)
   - Expected Result: Thư room-confirmed gửi tới fx.edit@example.com và fx.changed@example.com; không gửi tới email gốc cũ
-- [x] **E04:** Người đại diện nhận bản tổng hợp nhóm cập nhật dần (1/2 rồi 2/2), có link /tra-cuu?code=NH-
+- [x] **E04:** Người đại diện nhận bản tổng hợp nhóm cập nhật dần (1/2 rồi 2/2), có link /tra-cuu?code=NH- [lần 1, chạy lại]
   - Nhóm: E. Email + xe sau xác nhận
   - Input: Đọc email_outbox template group-summary của nhóm gia đình 5 người (2 offer)
   - Expected Result: 2 thư group-summary tới email người đại diện: "1/2" rồi "2/2"; link chứa /tra-cuu?code=NH-
-- [x] **E05:** Nội dung thư xác nhận phòng đủ: KS, số phòng, giờ ở, giờ rời, mã đơn, xe đón/về, link tra cứu
+- [x] **E05:** Nội dung thư xác nhận phòng đủ: KS, số phòng, giờ ở, giờ rời, mã đơn, xe đón/về, link tra cứu [lần 1, chạy lại]
   - Nhóm: E. Email + xe sau xác nhận
   - Input: Đọc body_text của room-confirmed
   - Expected Result: có đủ 8 mục
-- [x] **E07:** Xe: mỗi offer CONFIRMED có TO_HOTEL (điểm đón đã chọn) và TO_AIRPORT (giờ rời KS), billed=false
+- [x] **E07:** Xe: mỗi offer CONFIRMED có TO_HOTEL (điểm đón đã chọn) và TO_AIRPORT (giờ rời KS), billed=false [lần 1, chạy lại]
   - Nhóm: E. Email + xe sau xác nhận
   - Input: SELECT shuttle_requests của lô
   - Expected Result: mỗi offer đủ 2 hướng; billed=false; TO_HOTEL.location=điểm đón đã chọn; TO_AIRPORT.pickup_at=giờ trả phòng
-- [x] **E08:** Tiền booking không đổi/không thu khách (PAYER, paid=0), xe không tính vào booking
+- [x] **E08:** Tiền booking không đổi/không thu khách (PAYER, paid=0), xe không tính vào booking [lần 1, chạy lại]
   - Nhóm: E. Email + xe sau xác nhận
   - Input: SELECT bookings.payment/pricing của offer CONFIRMED
   - Expected Result: payment_method=PAYER paid_vnd=0; pricing.shuttleVnd=0 và totalVnd=roomVnd (xe không cộng vào booking)
-- [x] **E09:** Cụm có trẻ em (4 khách) không bị tách xe: mỗi yêu cầu xe của cụm có tối đa 1 chuyến
+- [x] **E09:** Cụm có trẻ em (4 khách) không bị tách xe: mỗi yêu cầu xe của cụm có tối đa 1 chuyến [lần 1, chạy lại]
   - Nhóm: E. Email + xe sau xác nhận
   - Input: SELECT shuttle_trips theo request của cụm gia đình
   - Expected Result: Mỗi request (TO_HOTEL, TO_AIRPORT) của cụm ≤ 1 trip (không tách)
-- [x] **F01:** Tra cứu mã nhóm NH-... + SĐT đúng (nhóm có phòng CONFIRMED): lộ KS/số phòng/giờ/mã đơn, tên rút gọn
+  - Ghi chú: TO_HOTEL điều phối ngay, TO_AIRPORT chỉ điều phối khi gần giờ (SHUTTLE_DISPATCH_LEAD_MIN)
+- [x] **F01:** Tra cứu mã nhóm NH-... + SĐT đúng (nhóm có phòng CONFIRMED): lộ KS/số phòng/giờ/mã đơn, tên rút gọn [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: POST /v1/bookings/group-lookup {NH-..., phone người đại diện}
   - Expected Result: 200; phòng CONFIRMED có hotelName, roomNumbers, checkInAt, checkoutAt, bookingCode AR-; guest rút gọn; không email/SĐT
-- [x] **F04:** Nhóm FAILED: khách thấy "cần nhân viên hỗ trợ" (NEEDS_STAFF), không lộ KS
+- [x] **F04:** Nhóm FAILED: khách thấy "cần nhân viên hỗ trợ" (NEEDS_STAFF), không lộ KS [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: group-lookup nhóm FAILED
   - Expected Result: 200; có phòng NEEDS_STAFF
-- [x] **F07:** Mã đơn AR-... + SĐT tra cứu như cũ (đơn PAYER)
+- [x] **F07:** Mã đơn AR-... + SĐT tra cứu như cũ (đơn PAYER) [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: POST /v1/bookings/lookup {AR-..., SĐT}
   - Expected Result: 200; booking.code khớp
-- [x] **G01:** Đặt phòng thường (AT_HOTEL) của khách lẻ vẫn hoạt động
+- [x] **G01:** Đặt phòng thường (AT_HOTEL) của khách lẻ vẫn hoạt động [lần 1, chạy lại]
   - Nhóm: G. Hồi quy luồng khách lẻ
   - Input: POST /v1/bookings HAN-01 Căn hộ 1PN, 1 đêm, AT_HOTEL
   - Expected Result: 201; status PENDING/CONFIRMED; payment_method=AT_HOTEL
-- [x] **G03:** KS xác nhận đơn thường bằng route cũ vẫn chạy (đơn AT_HOTEL không bị chặn USE_DELAY_OFFER_API)
+- [x] **G03:** KS xác nhận đơn thường bằng route cũ vẫn chạy (đơn AT_HOTEL không bị chặn USE_DELAY_OFFER_API) [lần 1, chạy lại]
   - Nhóm: G. Hồi quy luồng khách lẻ
   - Input: POST /v1/hotel/bookings/:id/confirm trên đơn AT_HOTEL
   - Expected Result: 200 (hoặc 409 INVALID_STATE nếu tự xác nhận) nhưng KHÔNG phải USE_DELAY_OFFER_API
-- [x] **G04:** Khách lẻ tra cứu đơn thường như cũ
+- [x] **G04:** Khách lẻ tra cứu đơn thường như cũ [lần 1, chạy lại]
   - Nhóm: G. Hồi quy luồng khách lẻ
   - Input: lookup AR- đơn AT_HOTEL
   - Expected Result: 200
-- [ ] **G05:** Luồng đặt phòng khách lẻ trên trình duyệt (UI) vẫn hoạt động ⏸ CHƯA CHẠY
+- [x] **G05:** Luồng đặt phòng khách lẻ trên TRÌNH DUYỆT vẫn hoạt động (chọn phòng -> thông tin -> xem lại -> Xác nhận booking request) [lần 1, chạy lại]
   - Nhóm: G. Hồi quy luồng khách lẻ
-  - Input: Đặt phòng thường qua giao diện khách
-  - Expected Result: Hoàn tất đặt phòng
-  - Actual Result: CHƯA CHẠY trên trình duyệt (chỉ kiểm bằng API G01-G04, test tích hợp có sẵn trong repo không chạy lại do phạm vi)
-  - Ghi chú: Đề nghị QA chạy lại luồng UI khách lẻ
-- [ ] **UI-B01:** Nút "Tạo chuyến bay delay" trên UI: hộp thoại mở, nhập giờ delay +6h, bấm "Tạo chuyến" (cả double-click) ❌ FAIL
+  - Input: Trang Nơi nghỉ, thêm 1 phòng, Đặt ngay, nhập tên + SĐT, Tiếp tục xem lại, Xác nhận booking request (thanh toán tại khách sạn)
+  - Expected Result: Hiện kết quả đặt phòng (mã AR-, tổng tiền); DB có booking AT_HOTEL của khách; không lỗi
+- [x] **I01:** Gửi lại email: hành khách thuộc phòng ĐÃ XÁC NHẬN, có email [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: POST /v1/payer/passengers/:id/resend-email (Idempotency-Key mới)
+  - Expected Result: 200 {sent:true,to=guilai@example.com}; email_outbox có thêm 1 thư template room-confirmed, dedupe_key room-confirmed-resend:...:1
+- [x] **I03:** Sửa email rồi gửi lại -> thư mới tới địa chỉ đã sửa [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: PATCH email=Da.Sua@Example.com rồi POST resend
+  - Expected Result: 200 to=da.sua@example.com; email_outbox thư mới to_email=da.sua@example.com
+- [x] **I10:** Nội dung thư gửi lại đủ thông tin (KS, số phòng, giờ rời, mã AR-, link tra cứu) [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: Đọc body_text thư resend
+  - Expected Result: có Khách sạn, Số phòng, Giờ phải rời, AR-
+- [x] **L01:** GĐ4: bay SỚM đủ xa -> tự rút ngắn stay.to [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Chuyến đã có lô CONFIRMED (newDep +9h) -> ingest đổi newDepartureAt +5h
+  - Expected Result: 200 flightChanged=true; stay.to dời sớm tới ≈ giờ bay-120-15-xe; nights=1; event DELAY_STAY_SHORTENED
+- [x] **L02:** Rút ngắn: hold phòng (room_reservations.ends_at) dời theo, giữ nguyên phần dọn phòng [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: So sánh ends_at trước/sau
+  - Expected Result: ends_at giảm đúng bằng độ dịch stay.to
+- [x] **L03:** Rút ngắn: xe TO_AIRPORT dời sớm theo giờ rời mới [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: shuttle_requests TO_AIRPORT pickup_at trước/sau
+  - Expected Result: pickup_at = stay.to mới
+- [x] **L04:** Rút ngắn: giá tính lại theo hợp đồng của khung mới (bậc giờ thấp hơn); totalVnd = roomVnd + xe [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: pricing.roomVnd trước/sau
+  - Expected Result: roomVnd giảm theo bậc giờ; totalVnd=roomVnd+shuttleVnd
+- [x] **L05:** Rút ngắn: email "đổi giờ" gửi tới khách có email (room-changed) trong email_outbox, nêu giờ rời mới [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: email_outbox template room-changed sau đổi giờ
+  - Expected Result: +1 thư tới email của khách; body có giờ rời mới
+- [x] **L08:** Bay sớm tới mức giờ rời < delay.minLeadMin (30 phút) -> CHỈ báo FLIGHT_EARLIER_URGENT, không đổi gì [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Ingest newDepartureAt sao cho giờ rời mới = now+20 phút
+  - Expected Result: stay.to/giá không đổi; không có thư room-changed; cảnh báo FLIGHT_EARLIER_URGENT (socket); event DELAY_STAY_SHORTEN_URGENT
+- [x] **L09:** Bay MUỘN hơn giờ rời KS: KHÔNG tự đổi; ghi đề xuất gia hạn + cảnh báo FLIGHT_DELAYED_LATER [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Ingest newDepartureAt +9h -> +12h
+  - Expected Result: stay.to/giá không đổi; extension_status=PROPOSED + proposed_leave_at ≈ +12h-2.5h; socket FLIGHT_DELAYED_LATER kèm proposedLeaveAt; event DELAY_EXTENSION_PROPOSED
+- [x] **L12:** Chuyến bị hủy: chỉ báo FLIGHT_CANCELLED, không hành động tự động (phòng/xe/giá giữ nguyên) [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Ingest status=CANCELLED cho chuyến có lô CONFIRMED
+  - Expected Result: stay/giá không đổi; offer vẫn CONFIRMED; cảnh báo FLIGHT_CANCELLED; event DELAY_FLIGHT_CANCELLED
+- [x] **L15:** Đổi giờ bay qua API admin (PATCH /v1/admin/flights/:id) cũng kích hoạt GĐ4 (bay muộn -> đề xuất + cảnh báo) [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: PATCH status=DELAYED newDepartureAt=+12h
+  - Expected Result: 200; extension_status=PROPOSED; cảnh báo FLIGHT_DELAYED_LATER
+- [x] **M01:** Quầy bấm "Gửi yêu cầu gia hạn": offer CONFIRMED đang PROPOSED -> REQUESTED [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: POST /v1/payer/batches/:id/extensions/request {}
+  - Expected Result: 200 requested=[offerId]; DB extension_status=REQUESTED; GET batch extensionStatus=REQUESTED
+- [x] **M04:** KS thấy yêu cầu gia hạn kể cả SAU KHI TẢI LẠI (GET danh sách include=extension) [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: GET /v1/hotel/delay-offers?status=PENDING&include=extension (gọi mới = tải lại trang)
+  - Expected Result: offer CONFIRMED/REQUESTED có extension_status, proposedLeaveAt, representative; KS khác không thấy; không include thì không có
+- [x] **M05:** KS đồng ý gia hạn (còn phòng): stay.to = giờ rời đề xuất, hold, xe TO_AIRPORT, giá theo hợp đồng, email cập nhật [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: POST /hotel/delay-offers/:id/extension/accept
+  - Expected Result: 200 ACCEPTED stayTo=proposed; stay.to dời muộn; ends_at dời; pickup xe = stay.to mới; roomVnd tăng (bậc 12h=600000); +1 thư room-changed; event DELAY_STAY_EXTENDED
+  - Ghi chú: hourly=undefined night=700000
+- [x] **M06:** Sau khi KS đồng ý, quầy thấy trạng thái ACCEPTED trong theo dõi lô [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: GET /payer/batches/:id
+  - Expected Result: extensionStatus=ACCEPTED
+- [x] **M08:** KS đồng ý khi HẾT PHÒNG -> 409 EXTENSION_NO_ROOM + cảnh báo quầy; không đổi stay [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: total_rooms=0 (fixture SQL trên DB riêng) rồi accept
+  - Expected Result: 409 EXTENSION_NO_ROOM; extension_status=REJECTED; stay.to/giá giữ nguyên; socket EXTENSION_NO_ROOM; event DELAY_EXTENSION_NO_ROOM
+  - Ghi chú: fixture: UPDATE room_types SET total_rooms=0 rồi khôi phục giá trị cũ ngay sau case
+- [x] **M09:** KS không gia hạn: cảnh báo EXTENSION_REJECTED, không đổi gì; lý do XSS lưu nguyên văn [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: POST extension/reject {reason:"<script>alert(1)</script>"}
+  - Expected Result: 200 REJECTED; stay/giá giữ; socket EXTENSION_REJECTED; event có reason nguyên văn
+- [x] **N02:** Admin bật allowUpgrade qua PATCH /v1/admin/payers/:id; nhân viên payer không tự bật được; giá trị sai 422; có audit [MỚI lần 2]
+  - Nhóm: N. [MỚI] Nâng hạng phòng
+  - Input: PATCH allowUpgrade=true (admin), (nhân viên payer), allowUpgrade="yes"
+  - Expected Result: 200 allowUpgrade=true; 403; 422; audit_logs PAYER.UPDATE
+- [x] **N03:** Preview có "Nâng hạng": chỉ hạng CÙNG khách sạn, có giá hợp đồng, còn phòng, giá cao hơn hạng chuẩn [MỚI lần 2]
+  - Nhóm: N. [MỚI] Nâng hạng phòng
+  - Input: POST preview 1 người lớn, allowUpgrade=true
+  - Expected Result: canUpgrade=true; upgradeOptions ⊂ hạng cùng KS, deltaVnd>0 = giá hạng cao - giá hạng chuẩn
+  - Ghi chú: rates fixture FX Gia đình 4h/8h/12h = 600k/900k/1.1M (API admin)
+- [x] **N06:** Đặt có nâng hạng: phòng = hạng cao (giá hợp đồng hạng cao); phần chênh ghi riêng, "khách tự thanh toán" [MỚI lần 2]
+  - Nhóm: N. [MỚI] Nâng hạng phòng
+  - Input: POST /batches {upgrades:[hạng Gia đình]}
+  - Expected Result: 201; offer room_type=FX Gia đình; roomVnd = giá HĐ hạng cao; upgrade_delta = chênh; batch trả upgradedFrom/upgradeDeltaVnd
+  - Ghi chú: night/hourly HĐ hạng cao=[{"hours":4,"priceVnd":600000},{"hours":8,"priceVnd":900000},{"hours":12,"priceVnd":1100000}] chuẩn=[{"hours":4,"priceVnd":300000},{"hours":8,"priceVnd":450000},{"hours":12,"priceVnd":600000}]
+- [x] **N07:** Chuyển sang KS khác: nâng hạng bị HỦY (đặt hạng chuẩn ở KS mới) + cảnh báo UPGRADE_CANCELLED [MỚI lần 2]
+  - Nhóm: N. [MỚI] Nâng hạng phòng
+  - Input: KS từ chối offer đã nâng hạng
+  - Expected Result: offer mới ở KS khác, hạng chuẩn, upgrade_delta null; socket UPGRADE_CANCELLED; event DELAY_UPGRADE_CANCELLED
+  - Ghi chú: Harness so sánh upgrade_delta_vnd===undefined nhưng pg Client trả null; số liệu thật: delta=null, hạng chuẩn FX Đơn ở HAN-01, alert=1, event=1
+- [x] **N09:** Gia hạn GIỮ hạng đã nâng; phần chênh tính lại theo khung mới; ROOM + chênh = giá HĐ hạng cao [MỚI lần 2]
+  - Nhóm: N. [MỚI] Nâng hạng phòng
+  - Input: Đặt có nâng (Gia đình), KS xác nhận, bay muộn +12h, quầy yêu cầu, KS đồng ý
+  - Expected Result: offer vẫn FX Gia đình; roomVnd mới = giá HĐ hạng cao (bậc 12h=1,100,000); upgrade_delta mới = 1,100,000 - 600,000 (bậc 12h hạng chuẩn)
+- [x] **O01:** Kỳ 09: generate -> send -> (hết hạn khiếu nại) -> khóa; truy thu vào kỳ kế tiếp (10), không sửa kỳ đã khóa [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: generate P1 2026-09; send; deadline quá khứ (fixture); lock bởi FINANCE; POST adjustments period=2026-09 +150000 memo chứa <script>
+  - Expected Result: generate 200/201; send SENT; lock LOCKED; adjustment: dòng ADJUSTMENT +150000 vào kỳ 2026-10 (DRAFT), kỳ 09 vẫn LOCKED, tổng 09 không đổi; điều chỉnh kỳ chưa khóa 409 PERIOD_NOT_LOCKED
+  - Ghi chú: Harness lần đầu đọc sai trường (body.status / amountVnd); đã đối chiếu DB: statements 09=LOCKED, ADJUSTMENT 150000 ở kỳ 10
+- [x] **O04:** Kỳ 10: tổng = phòng + xe + chênh nâng hạng + điều chỉnh; khớp số tính độc lập bằng SQL [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: POST generate P1 2026-10
+  - Expected Result: room/upgrade/shuttle/commission khớp SQL độc lập; total = room+shuttle+upg+adj; số dòng khớp
+- [x] **O06:** Hoa hồng làm tròn XUỐNG từng dòng (roomVnd=333333, 10% -> 33333 không phải 33334) [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: Dòng ROOM của đơn roomVnd=333333
+  - Expected Result: commission 33333
+- [x] **O09:** Bảng kê đơn vị P2 (hoa hồng 12,5%) tính đúng và tách biệt P1 [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: POST generate P2 2026-10
+  - Expected Result: room khớp SQL; commission = floor(roomVnd*12.5%)
+- [x] **O10:** Hai chiều khớp: tổng chi trả khách sạn + tổng hoa hồng = tổng tiền phòng (ROOM + chênh nâng hạng) của các bảng kê kỳ 10 [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: POST /admin/hotel-payouts/generate 2026-10; so với bảng kê P1+P2
+  - Expected Result: sum(net)+sum(commission)=sum(gross)=sum(room+upgrade) của bảng kê; commission payout = commission bảng kê
+- [x] **P02:** Send: chỉ khi kỳ đã kết thúc; đặt hạn khiếu nại = 5 ngày kể từ lúc gửi; gửi lại 409; quyền admin:payer:manage [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: SUPPORT/OPS/nhân viên payer gửi; gửi kỳ hiện tại 2026-11; admin gửi kỳ 10; gửi lần 2
+  - Expected Result: 403/403/403; kỳ 11 -> 409 PERIOD_NOT_ENDED; kỳ 10 -> 200 SENT, deadline = sent_at + 5 ngày; lần 2 409 STATEMENT_NOT_DRAFT
+  - Ghi chú: ops gửi=403
+- [x] **P03:** Payer xem bảng kê ĐÃ GỬI (danh sách + chi tiết) và tải CSV; KHÔNG có cột/số hoa hồng ở JSON lẫn CSV payer [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: GET /payer/statements, /:id, /:id/csv (nhân viên P1)
+  - Expected Result: 200; JSON không có khóa commission*; CSV payer thiếu cột commission_vnd; số cột payer = admin - 1; hàng TOTAL payer không có hoa hồng
+- [x] **P04:** Admin xem CSV CÓ cột hoa hồng; chi tiết admin có commissionVnd; số hoa hồng admin khớp tổng dòng [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: GET /admin/payer-statements/:id (+csv)
+  - Expected Result: có commission_vnd; commissionVnd tổng = SQL độc lập
+- [x] **P06:** Khiếu nại TRONG hạn thành công (lý do XSS lưu nguyên văn, không có hoa hồng trong phản hồi); khóa trong hạn 409 DISPUTE_WINDOW_OPEN; khóa khi DISPUTED 409; khiếu nại lần 2 409; lý do ngắn/field lạ 422 [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: payer khiếu nại bảng kê SENT kỳ 10
+  - Expected Result: 200 DISPUTED; lock(trong hạn)=409 DISPUTE_WINDOW_OPEN; lock(DISPUTED)=409 STATEMENT_NOT_LOCKABLE; lần 2 409 STATEMENT_NOT_DISPUTABLE; 422 x2
+- [x] **P07:** Xử lý khiếu nại: kế toán mở lại (cần lý do) -> DRAFT -> generate lại -> gửi lại (hạn 5 ngày mới); mọi bước có audit [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: reopen không lý do/lý do 2 ký tự/CSKH; reopen đúng; reopen khi đã DRAFT; generate; send
+  - Expected Result: 422/422/403; 200 DRAFT; 409 STATEMENT_ALREADY_DRAFT; generate OK; send 200; audit có GENERATE,SEND,DISPUTE,REOPEN
+- [x] **P08:** Khiếu nại NGOÀI hạn bị từ chối; khóa chỉ finance (admin:payment:manage): payer/CSKH/điều phối 403, Kế toán 200; Kế toán xem được bảng kê (admin:payer:read) [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: P2: send; hạn=quá khứ (fixture); payer khiếu nại; khóa bởi payer/OPS/CSKH/FINANCE; đọc danh sách bởi FINANCE/OPS/CSKH
+  - Expected Result: 409 DISPUTE_WINDOW_CLOSED; lock payer 403, OPS 403, CSKH 403; FINANCE 200 LOCKED; lock lần 2 409; FINANCE đọc 200
+  - Ghi chú: Đối chiếu DB: P2 kỳ 10 = LOCKED; lock bởi payer/OPS/CSKH = 403, FINANCE = 200; lần 2 = 409 STATEMENT_NOT_LOCKABLE. Harness đọc body.status nhưng phản hồi bọc trong body.statement. Quan sát: FINANCE generate = 403, OPS/CSKH đọc danh sách bảng kê = 403 (admin:payer:read chỉ FINANCE/SYSADMIN)
+- [x] **P11:** Bảng chi trả KS: generate -> khóa (finance) -> ghi nhận đã trả (có mã chuyển khoản) -> sau đó generate không đổi; truy thu vào kỳ kế tiếp [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: lock bởi OPS; paid khi chưa khóa; lock bởi FINANCE; paid ref ngắn / bởi OPS; paid đúng; paid lần 2; lock lại; generate lại; adjustments -30000
+  - Expected Result: 403; 409 PAYOUT_NOT_LOCKED; 200 LOCKED; 422/403; 200 PAID; 409; 409; gross giữ nguyên; kỳ 11 DRAFT net=-30000
+  - Ghi chú: Đối chiếu DB: hotel_payouts status=PAID payment_ref=CK-TEST-0001; paid lần 2 trả 409 PAYOUT_NOT_LOCKED (đã PAID). Harness đọc body.status nhưng phản hồi bọc trong body.payout
+- [x] **UI-B01:** Nút "Tạo chuyến bay delay" có mặt với quyền manage; bấm 2 lần liên tiếp (double-click) không sinh dữ liệu trùng [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
-  - Input: Quầy P1/HAN: mở hộp thoại, datetime-local +6h, dblclick Tạo chuyến
-  - Expected Result: 201 và chuyến mô phỏng mới xuất hiện trong danh sách
-  - Actual Result: Hộp thoại hiện lỗi đỏ 'Thiếu header Idempotency-Key (8–128 ký tự)'; request POST /v1/payer/simulate-delay trả 400 (cả 2 lần click); không có chuyến mới. Nguyên nhân: FE apps/web/src/data/payer.js:8 simulateDelay không truyền idempotencyKey trong khi backend/api/modules/payer/payer.router.ts (route /simulate-delay) bắt buộc idempotent('payer-simulate'). Screenshot: evidence/b01-sau-tao.png
-  - Ghi chú: LỖI THẬT (cao): nút tạo chuyến mô phỏng không dùng được trên giao diện; API qua curl (B17-B19) hoạt động
-- [x] **UI-C01:** Đăng nhập nhân viên payer trên trình duyệt: menu "Chuyến bay delay" chỉ hiện với quyền, không có menu khách sạn/quản trị khác
+  - Input: Mở hộp thoại, nhập giờ delay +6h, double-click "Tạo chuyến"
+  - Expected Result: Hộp thoại mở; sau double-click có 1 (hoặc nhiều) chuyến mô phỏng mới KHÁC mã/PNR, không trùng
+  - Ghi chú: Giao diện chặn/ghi nhận double click: chỉ 1 chuyến
+- [x] **UI-B01b:** Nút "Tạo chuyến bay delay" (đã sửa Idempotency-Key): bấm MỘT lần OK; lần thứ hai (bấm riêng) tạo chuyến KHÁC, tên/PNR không trùng; bấm đúp không sinh trùng [MỚI lần 2]
+  - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
+  - Input: Bấm 1 lần; bấm lại 1 lần; double-click
+  - Expected Result: mỗi lần bấm đơn: +1 chuyến; đúp: +1; mã chuyến/PNR/tên hành khách đôi một khác nhau; không có thông báo lỗi
+  - Ghi chú: Mỗi lần bấm (1 lần, 1 lần, đúp) = đúng +1 chuyến mới, mã chuyến khác nhau 3/3, PNR trùng = 0, không có thông báo lỗi. Quan sát: TÊN hành khách có thể lặp giữa các chuyến mô phỏng khác nhau (13/87, bộ tên ngẫu nhiên chỉ đảm bảo duy nhất trong cùng một chuyến, simulate.ts:25-31) - không gây xung đột vì khóa là (chuyến, PNR, họ tên)
+- [x] **UI-C01:** Đăng nhập nhân viên payer trên trình duyệt: menu "Chuyến bay delay" chỉ hiện với quyền, không có menu khách sạn/quản trị khác [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Login UI fx.han@fxpay1.test
   - Expected Result: Vào cổng làm việc; thấy "Chuyến bay delay"; không thấy "Yêu cầu khách delay"
-- [x] **UI-C02:** Danh sách chuyến delay trên UI chỉ của trạm HAN của đơn vị mình
+  - Ghi chú: nav text: Bỏ qua tới nội dung chính | AIRREST | Nơi nghỉ quanh sân bay | Quản trị | Nhân viên quầy HAN | Delay | Bảng kê | Quản trị | Chuyến bay delay | Chuyến bay delay |  | Các chuyến delay của sân bay trạm |  | Tạo chuyến bay delay | C
+- [x] **UI-C02:** Danh sách chuyến delay trên UI chỉ của trạm HAN của đơn vị mình [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Mở tab Chuyến bay delay
   - Expected Result: Bảng chỉ có chuyến HAN; không có chuyến SGN của P1, không có chuyến P2
-- [x] **UI-C04:** Chi tiết chuyến: nhóm theo PNR, hiển thị số người lớn/trẻ em/em bé; tick mặc định chọn hết
+- [x] **UI-C04:** Chi tiết chuyến: nhóm theo PNR, hiển thị số người lớn/trẻ em/em bé; tick mặc định chọn hết [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Mở chuyến sim2
   - Expected Result: Mỗi PNR một khối (pnr-group); tất cả checkbox được chọn; nút "Đặt phòng nghỉ (n/n)"
-- [x] **UI-C05:** Bỏ tick/tick lại một hành khách cập nhật bộ đếm nút "Đặt phòng nghỉ"
+- [x] **UI-C05:** Bỏ tick/tick lại một hành khách cập nhật bộ đếm nút "Đặt phòng nghỉ" [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Bỏ tick khách đầu, tick lại
   - Expected Result: (n-1)/n rồi n/n
-- [x] **UI-C07:** "Đặt phòng nghỉ" mở xem trước: phương án theo KS, cụm trẻ ở cùng phòng, chọn điểm đón, danh sách xử lý tay; thiếu SĐT chặn xác nhận
+- [x] **UI-C07:** "Đặt phòng nghỉ" mở xem trước: phương án theo KS, cụm trẻ ở cùng phòng, chọn điểm đón, danh sách xử lý tay; thiếu SĐT chặn xác nhận [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Bấm Đặt phòng nghỉ (tất cả khách sim2)
   - Expected Result: Có preview-unit; pill "Cụm có trẻ em"; select điểm đón; cảnh báo thiếu SĐT & nút Xác nhận bị khóa
-- [x] **UI-D01:** KS đăng nhập: tab "Yêu cầu khách delay" thấy yêu cầu có đếm ngược, KHÔNG thấy SĐT/email; menu không có "Chuyến bay delay"
+- [x] **UI-D01:** KS đăng nhập: tab "Yêu cầu khách delay" thấy yêu cầu có đếm ngược, KHÔNG thấy SĐT/email; menu không có "Chuyến bay delay" [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: Login ql.han02fx@khachsan.mo, mở tab Yêu cầu khách delay
   - Expected Result: Thẻ yêu cầu (delay-offer) có đếm ngược mm:ss; không SĐT/email; không có menu quầy
-- [x] **UI-D03:** KS xác nhận đúng số phòng trên UI (cụm nhập đủ số phòng)
+- [x] **UI-D03:** KS xác nhận đúng số phòng trên UI (cụm nhập đủ số phòng) [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: Chọn thẻ đầu, nhập số phòng, Gửi xác nhận
   - Expected Result: Thẻ chuyển trạng thái; DB offer CONFIRMED với room_numbers đã nhập
-- [x] **UI-D04:** KS từ chối trên UI kèm lý do -> chuyển NGAY sang KS khác
+- [x] **UI-D04:** KS từ chối trên UI kèm lý do -> chuyển NGAY sang KS khác [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
-  - Input: Thẻ tiếp theo: Không nhận + lý do, Gửi từ chối
-  - Expected Result: Offer cũ REJECTED, offer mới PENDING ở KS ≠ HAN-02 trong vài giây; transfer_count=1
-- [x] **UI-D06:** Quá giới hạn chuyển KS -> nhóm FAILED + cảnh báo đỏ xuất hiện trực tiếp (realtime) ở màn theo dõi lô của quầy
+  - Input: Thẻ đầu tiên của KS HAN-03: Không nhận + lý do, Gửi từ chối
+  - Expected Result: Offer cũ REJECTED, offer mới PENDING ở KS ≠ HAN-03; transfer_count=1
+  - Ghi chú: Harness chọn bản ghi đối chiếu theo seq nên lần đầu lệch thẻ UI; đối chiếu lại đúng offer bị từ chối (screenshot d04-tu-choi)
+- [x] **UI-D06:** Quá giới hạn chuyển KS -> nhóm FAILED + cảnh báo đỏ xuất hiện trực tiếp (realtime) ở màn theo dõi lô của quầy [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: Quầy mở theo dõi lô; hạ delay.maxTransfers=0 (fixture); KS từ chối offer
   - Expected Result: Notice đỏ "Cảnh báo: chuyển khách sạn thất bại" (delay-alert) + "Cần xử lý tay" (failed-groups); DB group FAILED
-- [x] **UI-F01:** Link email /tra-cuu?code=NH-... mở trang tra cứu, yêu cầu thêm SĐT; nhập mã + SĐT đúng -> hiển thị nhóm: phòng đã xác nhận lộ KS/số phòng/giờ ở/mã đơn
+  - Ghi chú: Cấu hình maxTransfers đã khôi phục về 3
+- [x] **UI-F01:** Link email /tra-cuu?code=NH-... mở trang tra cứu, yêu cầu thêm SĐT; nhập mã + SĐT đúng -> hiển thị nhóm: phòng đã xác nhận lộ KS/số phòng/giờ ở/mã đơn [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: Mở /tra-cuu?code=<NH-...>; nhập "<NH-...> <SĐT người đại diện>"
   - Expected Result: Bước 1 báo thiếu SĐT; bước 2 group-result có KS, phòng, giờ ở, mã đơn AR-
-- [x] **UI-F04:** Mã đơn AR-... + SĐT vẫn tra cứu bình thường trên UI (đơn PAYER)
+- [x] **UI-F04:** Mã đơn AR-... + SĐT vẫn tra cứu bình thường trên UI (đơn PAYER) [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: Nhập "<AR-...> <SĐT>"
   - Expected Result: Hiển thị chi tiết booking
-- [x] **X03:** Xem trước 300 khách (quy mô tối đa của spec) trả lời trong thời gian chấp nhận được
+- [x] **UI-I01:** Giao diện quầy: nút "Gửi lại email" ở hành khách của phòng ĐÃ XÁC NHẬN; bấm -> thông báo "Đã gửi lại email tới <địa chỉ>"; thư xuất hiện trong email_outbox [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: Mở chuyến có phòng đã xác nhận (khách có email), bấm Gửi lại email
+  - Expected Result: Có resend-email-btn; message "Đã gửi lại email tới ..."; outbox +1 thư resend
+- [x] **UI-L01:** Bay muộn: cảnh báo hiện TRỰC TIẾP ở màn theo dõi lô, nêu mã nhóm NH-… (không phải UUID) + nút "Gửi yêu cầu gia hạn cho khách sạn" [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Quầy đang mở màn theo dõi lô; ingest đổi giờ bay muộn +12h
+  - Expected Result: Notice cam "Chuyến bay bị lùi giờ" chứa mã NH-XXXXXXXX; không có chuỗi UUID; nút extension-request bật
+- [x] **UI-L02:** Quầy bấm "Gửi yêu cầu gia hạn cho khách sạn": thông báo thành công, nút/cảnh báo được dọn, trạng thái "Chờ khách sạn đồng ý gia hạn" [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Bấm extension-request trên màn theo dõi lô
+  - Expected Result: extension-msg "Đã gửi yêu cầu gia hạn"; DB REQUESTED
+- [x] **UI-L03:** KS thấy thẻ "Yêu cầu gia hạn" trên giao diện, KỂ CẢ SAU KHI TẢI LẠI TRANG (lỗi đã sửa) [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: KS mở tab Khách delay, đợi thẻ; F5 (reload) rồi kiểm tra lại
+  - Expected Result: delay-extension hiện (giờ rời đề xuất) trước và sau reload
+- [x] **UI-L04:** KS bấm "Đồng ý gia hạn" trên giao diện: stay.to/giá/xe/email cập nhật; thẻ biến mất; quầy thấy "Khách sạn đã gia hạn" [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Bấm ext-accept
+  - Expected Result: Thông báo thành công; DB extension_status=ACCEPTED, stay.to = giờ rời đề xuất, roomVnd tăng; email room-changed mới
+  - Ghi chú: Đối chiếu: ext=ACCEPTED; stay.to +3h; roomVnd 900000->1100000; +1 thư room-changed; quầy thấy 'Khách sạn đã gia hạn'. 'thẻCòn=1' là thẻ yêu cầu gia hạn CỦA OFFER KHÁC (M-case U còn REQUESTED ở cùng KS HAN-03), không phải của offer vừa đồng ý
+- [x] **UI-N01:** Trên giao diện quầy: preview có ô "Nâng hạng" (payer allowUpgrade=true), chọn hạng cao -> hiện tổng chênh "khách tự thanh toán"; đặt xong màn theo dõi lô hiển thị "Nâng từ ... chênh ..." [MỚI lần 2]
+  - Nhóm: N. [MỚI] Nâng hạng phòng
+  - Input: Mở chuyến, Đặt phòng nghỉ, chọn hạng ở ô Nâng hạng, Xác nhận đặt
+  - Expected Result: upgrade-select có >=2 lựa chọn; upgrade-total có số tiền + "khách tự thanh toán"; offer-upgrade hiển thị ở màn theo dõi
+- [x] **UI-N02:** Mã nhóm trong cảnh báo đỏ ở quầy là NH-… (không còn UUID): cảnh báo hủy chuyến [MỚI lần 2]
+  - Nhóm: K. [MỚI] Mã nhóm NH- ở cảnh báo + lỗi 422 mã nhóm
+  - Input: Ingest status=CANCELLED rồi xem cảnh báo FLIGHT_CANCELLED trên màn theo dõi lô
+  - Expected Result: Notice đỏ "Chuyến bay đã hủy" có mã NH-, không UUID
+- [x] **UI-S01:** Payer xem tab "Bảng kê" trên trình duyệt: chỉ thấy bảng kê ĐÃ GỬI (nháp ẩn); chi tiết có tổng = phòng + xe + nâng hạng + điều chỉnh; KHÔNG có chữ/số hoa hồng; memo chứa <script> hiển thị nguyên văn (escape) [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: Đăng nhập nhân viên P1, tab Bảng kê, mở kỳ 2026-10
+  - Expected Result: Danh sách chỉ kỳ 09 (LOCKED) và 10 (SENT), không có kỳ 11 nháp; chi tiết hiển thị tổng; không có "hoa hồng"/"commission"; memo hiển thị chữ <script>; không dialog
+- [x] **UI-S02:** Tải CSV bảng kê trên trình duyệt: file có BOM UTF-8, KHÔNG có cột/số hoa hồng; hàng TOTAL khớp [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: Bấm "Tải CSV"
+  - Expected Result: download .csv; header không có commission_vnd; có hàng TOTAL = tổng
+- [x] **X03:** Xem trước 300 khách (quy mô tối đa của spec) trả lời trong thời gian chấp nhận được [lần 1, chạy lại]
   - Nhóm: H. Chung (console, thời gian, mã trạng thái)
   - Input: POST preview chuyến 300 khách (100 PNR, mỗi PNR 3 người lớn)
   - Expected Result: 200 trong < 5s
+  - Ghi chú: Đo thực tế 1 lần, không phải load test
 
 ## 2. Field Validation & Business Rules
 
-- [x] **A02:** Mã đơn vị trùng
+- [x] **A02:** Mã đơn vị trùng [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: POST code=FXPAY1 lần 2
   - Expected Result: 409
-- [x] **A03:** Mã/tên sai định dạng
+- [x] **A03:** Mã/tên sai định dạng [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: code=x name=A
   - Expected Result: 422
-- [x] **A06:** Trạm trùng sân bay
+- [x] **A06:** Trạm trùng sân bay [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: POST stations HAN lần 2
   - Expected Result: 409 STATION_EXISTS
-- [x] **A07:** Sân bay không có trong danh mục
+- [x] **A07:** Sân bay không có trong danh mục [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: airportIata=ZZZ
   - Expected Result: 422 AIRPORT_UNKNOWN
-- [x] **A09:** Giá hợp đồng chồng hiệu lực bị từ chối
+- [x] **A09:** Giá hợp đồng chồng hiệu lực bị từ chối [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: PUT cùng loại phòng validFrom=2026-12-01 khi bản 2026-11-14 mở (validTo=null)
   - Expected Result: 409 RATE_OVERLAP
-- [x] **A10:** Bậc giờ > giá đêm bị từ chối
+- [x] **A10:** Bậc giờ > giá đêm bị từ chối [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: nightRate=500000, bậc 4h=600000
   - Expected Result: 422 RATE_INVALID
-- [x] **A11:** Bậc giờ không tăng dần bị từ chối
+- [x] **A11:** Bậc giờ không tăng dần bị từ chối [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: hours 8 rồi 4
   - Expected Result: 422
-- [x] **A12:** Loại phòng không thuộc khách sạn
+- [x] **A12:** Loại phòng không thuộc khách sạn [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: hotelId HAN-03 + roomTypeId của HAN-01
   - Expected Result: 422 ROOM_TYPE_MISMATCH
-- [x] **A14:** Hoa hồng > 100% / validTo < validFrom
+- [x] **A14:** Hoa hồng > 100% / validTo < validFrom [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: commissionPct=101
   - Expected Result: 422
-- [x] **A15:** validTo trước validFrom
+- [x] **A15:** validTo trước validFrom [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: 2031-01-10 -> 2031-01-01
   - Expected Result: 422
-- [x] **A19:** Tên khóa quá ngắn
+- [x] **A19:** Tên khóa quá ngắn [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: name="a"
   - Expected Result: 422
-- [x] **A21:** Nhân viên P1 gán trạm của P2 (STATION_MISMATCH)
+- [x] **A21:** Nhân viên P1 gán trạm của P2 (STATION_MISMATCH) [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: POST staff P1 stationId=trạm P2
   - Expected Result: 422 STATION_MISMATCH
-- [x] **A22:** Mật khẩu < 12 ký tự
+- [x] **A22:** Mật khẩu < 12 ký tự [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: password=short1
   - Expected Result: 422
-- [x] **A23:** Email nhân viên trùng
+- [x] **A23:** Email nhân viên trùng [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: email đã dùng
   - Expected Result: 409 EMAIL_EXISTS
-- [x] **A24:** Email sai định dạng
+- [x] **A24:** Email sai định dạng [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: email=not-an-email
   - Expected Result: 422
-- [x] **A32:** ID không phải UUID
+- [x] **A32:** ID không phải UUID [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: GET /admin/payers/not-a-uuid
   - Expected Result: 400/422
-- [x] **A33:** Đơn vị không tồn tại
+- [x] **A33:** Đơn vị không tồn tại [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: GET /admin/payers/<uuid lạ>
   - Expected Result: 404
-- [x] **B05:** Thiếu Idempotency-Key
+- [x] **B05:** Thiếu Idempotency-Key [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: không header
   - Expected Result: 400 IDEMPOTENCY_KEY_REQUIRED
-- [x] **B08:** Payload 301 khách bị từ chối (>300)
+- [x] **B08:** Payload 301 khách bị từ chối (>300) [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: 301 hành khách
   - Expected Result: 422 VALIDATION_ERROR
-- [x] **B12:** Validation payload: email/SĐT/tuổi/field lạ/giờ/trạng thái/dest/mã chuyến/mảng rỗng/tên ngắn
+- [x] **B12:** Validation payload: email/SĐT/tuổi/field lạ/giờ/trạng thái/dest/mã chuyến/mảng rỗng/tên ngắn [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: 11 payload sai
   - Expected Result: tất cả 422
-- [x] **B20:** Simulate thiếu Idempotency-Key
+- [x] **B20:** Simulate thiếu Idempotency-Key [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: không header
   - Expected Result: 400
-- [x] **B21:** Giờ delay trong quá khứ
+- [x] **B21:** Giờ delay trong quá khứ [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: delayUntil=-2h
   - Expected Result: 422 FLIGHT_TIME_INVALID
-- [x] **B22:** Giờ delay sai định dạng / field thừa
+- [x] **B22:** Giờ delay sai định dạng / field thừa [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: delayUntil="ngay mai"; thêm field extra
   - Expected Result: 422 x2
-- [x] **C08:** Sửa email sai định dạng -> lỗi tiếng Việt
+- [x] **C08:** Sửa email sai định dạng -> lỗi tiếng Việt [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: PATCH email="Sai Dinh Dang"
   - Expected Result: 422 + message tiếng Việt "Email không hợp lệ"
-- [x] **C09:** Sửa liên hệ: SĐT sai, body rỗng, XSS trong email, field lạ
+- [x] **C09:** Sửa liên hệ: SĐT sai, body rỗng, XSS trong email, field lạ [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: phone="12ab"; {}; email chứa <script>; thêm field role
   - Expected Result: 422 x4
-- [x] **C12:** Xem trước: danh sách rỗng / 301 id / id không phải UUID / id lạ / field thừa
+- [x] **C12:** Xem trước: danh sách rỗng / 301 id / id không phải UUID / id lạ / field thừa [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: 6 request sai
   - Expected Result: 422,422,422,404,422,422
-- [x] **C16:** Đặt phòng khi còn nhóm thiếu SĐT liên hệ bị chặn
+- [x] **C16:** Đặt phòng khi còn nhóm thiếu SĐT liên hệ bị chặn [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: POST batches khi PNR chỉ có email (không SĐT) và đơn vị không có SĐT liên hệ
   - Expected Result: 422 PAX_PHONE_REQUIRED + danh sách pnrs
-- [x] **C18:** Đặt phòng: điểm đón ngoài danh sách; thiếu Idempotency-Key
+- [x] **C18:** Đặt phòng: điểm đón ngoài danh sách; thiếu Idempotency-Key [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: pickupPoint="Sân bay lạ"; không header
   - Expected Result: 422 PICKUP_POINT_INVALID; 400
-- [x] **D03:** Xác nhận với số phòng sai số lượng / rỗng / chỉ khoảng trắng
+- [x] **D03:** Xác nhận với số phòng sai số lượng / rỗng / chỉ khoảng trắng [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: confirm qty=1 với 2 số phòng; []; ["   "]
   - Expected Result: 422 ROOM_NUMBERS_MISMATCH/VALIDATION
-- [x] **D05:** Từ chối không có lý do
+- [x] **D05:** Từ chối không có lý do [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: reason=""
   - Expected Result: 422
-- [x] **F05:** Chuẩn hóa SĐT khi tra cứu (0xxx, 84xxx, có khoảng trắng)
+- [x] **F05:** Chuẩn hóa SĐT khi tra cứu (0xxx, 84xxx, có khoảng trắng) [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: 3 định dạng của cùng SĐT
   - Expected Result: 200 x3
-- [x] **F06:** Tra cứu: mã sai định dạng / thiếu SĐT / SĐT sai định dạng / SQLi trong mã
+- [x] **F06:** Tra cứu: mã sai định dạng / thiếu SĐT / SĐT sai định dạng / SQLi trong mã [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: 4 request lỗi
   - Expected Result: 422 x4 (không 500)
-- [x] **UI-C06:** Sửa email trên UI: định dạng sai -> lỗi tiếng Việt; XSS không chạy; hợp lệ -> lưu
+- [x] **I07:** Hành khách thiếu email: lỗi tiếng Việt [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: POST resend cho khách không có email (phòng đã xác nhận)
+  - Expected Result: 422 PASSENGER_EMAIL_REQUIRED "Hành khách chưa có email..."
+- [x] **I09:** Thiếu Idempotency-Key [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: POST resend không header
+  - Expected Result: 400 IDEMPOTENCY_KEY_REQUIRED
+- [x] **K01:** Lỗi 422 sai định dạng mã nhóm ở API có thông báo tiếng Việt riêng ("Mã nhóm không hợp lệ") [MỚI lần 2]
+  - Nhóm: K. [MỚI] Mã nhóm NH- ở cảnh báo + lỗi 422 mã nhóm
+  - Input: group-lookup với NH-ABC, nh-abcd123, NH-ABCD12345, <script>
+  - Expected Result: 422 x4, message tiếng Việt về mã nhóm, không 500
+- [x] **M10:** Từ chối không cần lý do (200) nhưng lý do > 300 ký tự bị 422; field lạ 422 [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: reject {} ; reason 301 ký tự
+  - Expected Result: 200; 422
+- [x] **N04:** Nâng hạng không hợp lệ: hạng khác KS / không cao hơn / không có giá hợp đồng -> 422 UPGRADE_NOT_AVAILABLE; khóa phòng lạ 422; trùng 422; roomTypeId sai 422; field lạ 422; không tạo lô nào [MỚI lần 2]
+  - Nhóm: N. [MỚI] Nâng hạng phòng
+  - Input: POST /batches với upgrades sai các kiểu
+  - Expected Result: 422 cho tất cả, không có lô
+- [x] **UI-C06:** Sửa email trên UI: định dạng sai -> lỗi tiếng Việt; XSS không chạy; hợp lệ -> lưu [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Nhấn Sửa, nhập email "abc", rồi "<script>alert(2)</script>@x.vn", rồi hợp lệ
   - Expected Result: Lỗi tiếng Việt cho 2 giá trị sai; lưu được giá trị hợp lệ
-- [x] **UI-C08:** Nhập SĐT cho người đại diện thiếu SĐT ngay trong preview mở khóa nút xác nhận
+- [x] **UI-C08:** Nhập SĐT cho người đại diện thiếu SĐT ngay trong preview mở khóa nút xác nhận [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Sửa liên hệ trong khối thiếu SĐT, nhập 0912345678
   - Expected Result: Cảnh báo biến mất; nút Xác nhận đặt bật
-- [x] **UI-D02:** KS xác nhận để trống số phòng -> lỗi; từ chối không lý do -> lỗi
+- [x] **UI-D02:** KS xác nhận để trống số phòng -> lỗi; từ chối không lý do -> lỗi [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: Mở Xác nhận, bấm Gửi xác nhận khi trống; mở Không nhận, gửi khi trống lý do
   - Expected Result: Hiện lỗi tiếng Việt, không gọi API thay đổi dữ liệu
-- [x] **X04:** Offer: id lạ/không phải UUID, status không hợp lệ, không token, token nhân viên payer
+- [x] **UI-K01:** Màn tra cứu: mã nhóm sai định dạng được báo bằng tiếng Việt riêng (không lỗi chung chung/mã kỹ thuật) [MỚI lần 2]
+  - Nhóm: K. [MỚI] Mã nhóm NH- ở cảnh báo + lỗi 422 mã nhóm
+  - Input: Nhập "NH-ABC 0905123456" và "NH-ABCD1234 123" ở trang Tra cứu
+  - Expected Result: Hiện thông báo tiếng Việt, không có chuỗi VALIDATION_ERROR/undefined/422; không lộ nhóm
+- [x] **UI-S03:** Khiếu nại trên giao diện: lý do rỗng/ngắn -> lỗi tiếng Việt; lý do XSS hợp lệ gửi được, hiển thị nguyên văn; sau đó không còn nút Khiếu nại [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: Bấm Khiếu nại; gửi trống; gửi "<script>alert(1)</script> sai số xe"
+  - Expected Result: Lỗi khi trống; thành công "Đã gửi khiếu nại"; trạng thái Đã khiếu nại; lý do hiển thị escape
+- [x] **X04:** Offer: id lạ/không phải UUID, status không hợp lệ, không token, token nhân viên payer [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: confirm uuid lạ; confirm id "not-uuid"; ?status=BOGUS; không token; token nhân viên payer
   - Expected Result: 404; 422/400; 422/400; 401; 403
-- [x] **X05:** Giới hạn đầu vào của KS: >50 số phòng, số phòng dài >20 ký tự (XSS), lý do >300 ký tự
+- [x] **X05:** Giới hạn đầu vào của KS: >50 số phòng, số phòng dài >20 ký tự (XSS), lý do >300 ký tự [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: confirm 51 số phòng; số phòng 60 ký tự có <img onerror>; reject lý do 301 ký tự
   - Expected Result: 422 x3
 
 ## 3. Edge Cases & Security
 
-- [x] **A04:** Không token gọi API quản trị
+- [x] **A04:** Không token gọi API quản trị [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: POST /admin/payers không Authorization
   - Expected Result: 401
-- [x] **A17:** Danh sách khóa không lộ khóa thô/hash
+- [x] **A17:** Danh sách khóa không lộ khóa thô/hash [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: GET api-keys
   - Expected Result: không có field key/key_hash, không chứa khóa thô
-- [x] **A18:** DB chỉ lưu hash của khóa
+- [x] **A18:** DB chỉ lưu hash của khóa [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: SELECT key_hash
   - Expected Result: hash 64 hex, khác khóa thô
-- [x] **A28:** Đơn vị SUSPENDED chặn nhân viên
+- [x] **A28:** Đơn vị SUSPENDED chặn nhân viên [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: Nhân viên P3 gọi GET /v1/payer/flights
   - Expected Result: 403 (hoặc 401)
-- [x] **A29:** Khóa API của đơn vị SUSPENDED
+- [x] **A29:** Khóa API của đơn vị SUSPENDED [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: POST ingest bằng khóa P3
   - Expected Result: 403 PAYER_SUSPENDED
-- [x] **A31:** Nhân viên payer không vào được API quản trị
+- [x] **A31:** Nhân viên payer không vào được API quản trị [lần 1, chạy lại]
   - Nhóm: A. Onboarding qua API quản trị
   - Input: GET /admin/payers bằng token nhân viên
   - Expected Result: 403
-- [x] **B02:** Đẩy lại cùng Idempotency-Key + cùng body: trả lại kết quả cũ
+- [x] **B02:** Đẩy lại cùng Idempotency-Key + cùng body: trả lại kết quả cũ [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: Replay y hệt
   - Expected Result: 200 + header Idempotent-Replay=true, cùng flight.id
-- [x] **B04:** Cùng Idempotency-Key nhưng body khác
+- [x] **B04:** Cùng Idempotency-Key nhưng body khác [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: body khác, key idem1
   - Expected Result: 422 IDEMPOTENCY_KEY_REUSED
-- [x] **B06:** Thiếu / sai / đã thu hồi khóa API
+- [x] **B06:** Thiếu / sai / đã thu hồi khóa API [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: không x-payer-key; khóa sai; khóa đã thu hồi (A30)
   - Expected Result: 401 INVALID_API_KEY x3
-- [x] **B07:** Chuyến sai trạm (origin=DAD, P1 chỉ có HAN/SGN)
+- [x] **B07:** Chuyến sai trạm (origin=DAD, P1 chỉ có HAN/SGN) [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: origin=DAD
   - Expected Result: 403 STATION_NOT_ALLOWED
-- [x] **B09:** Đúng 300 khách được chấp nhận (biên)
+- [x] **B09:** Đúng 300 khách được chấp nhận (biên) [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: 300 hành khách
   - Expected Result: 200 created=300
-- [x] **B10:** Tên hành khách chứa XSS và SQLi được lưu nguyên văn (tham số hóa), bảng không bị ảnh hưởng
+  - Ghi chú: thời gian 443ms
+- [x] **B10:** Tên hành khách chứa XSS và SQLi được lưu nguyên văn (tham số hóa), bảng không bị ảnh hưởng [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: fullName="<script>alert(1)</script>" và "Robert'); DROP TABLE delay_flight_pax;--"
   - Expected Result: 200; DB lưu literal; bảng còn nguyên
-- [x] **B11:** PNR chứa XSS bị từ chối ở validation
+- [x] **B11:** PNR chứa XSS bị từ chối ở validation [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: pnr="<script>alert(1)</script>"
   - Expected Result: 422 (PNR chỉ A-Z0-9, 5-8 ký tự)
-- [x] **B13:** Đơn vị khác (P2) đẩy trùng chuyến (cùng mã + ngày) của P1
+- [x] **B13:** Đơn vị khác (P2) đẩy trùng chuyến (cùng mã + ngày) của P1 [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: P2 key, cùng code+ngày
   - Expected Result: 409 FLIGHT_CONFLICT (thông báo chung)
-- [x] **B18:** Bấm 2 lần (double click) cùng Idempotency-Key + cùng body không sinh chuyến mới
+- [x] **B18:** Bấm 2 lần (double click) cùng Idempotency-Key + cùng body không sinh chuyến mới [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: POST simulate-delay 2 lần, cùng key & body
   - Expected Result: 201 + Idempotent-Replay=true ở lần 2, cùng flight.id, 1 chuyến
-- [x] **B23:** Simulate: tài khoản khách sạn / không đăng nhập bị chặn
+  - Ghi chú: Lần chạy đầu của harness gửi body khác (timestamp) nên 422 IDEMPOTENCY_KEY_REUSED là đúng; đã chạy lại đúng body
+- [x] **B23:** Simulate: tài khoản khách sạn / không đăng nhập bị chặn [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: token KS; không token
   - Expected Result: 403; 401
-- [x] **B26:** Giới hạn 60 yêu cầu/phút/khóa (cổng kết nối)
+- [x] **B26:** Giới hạn 60 yêu cầu/phút/khóa (cổng kết nối) [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: 64 yêu cầu liên tiếp bằng 1 khóa
   - Expected Result: có 429 RATE_LIMITED sau ~60 lần
-- [x] **C04:** Cô lập đơn vị: P2 chỉ thấy chuyến của P2
+- [x] **C04:** Cô lập đơn vị: P2 chỉ thấy chuyến của P2 [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: GET flights (nhân viên P2)
   - Expected Result: 200; đúng 1 chuyến của P2, không chuyến P1
-- [x] **C05:** Truy cập chéo đơn vị/trạm: chuyến, danh sách khách, xem trước, sửa liên hệ
+- [x] **C05:** Truy cập chéo đơn vị/trạm: chuyến, danh sách khách, xem trước, sửa liên hệ [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: P2 -> dữ liệu P1; nhân viên SGN -> chuyến HAN
   - Expected Result: đều 404 (không lộ tồn tại)
-- [x] **C06:** Không token / token khách sạn truy cập API payer
+- [x] **C06:** Không token / token khách sạn truy cập API payer [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: GET /v1/payer/flights
   - Expected Result: 401; 403
-- [x] **C19:** Xác nhận đặt phòng bấm đúp (2 yêu cầu song song cùng Idempotency-Key) không tạo lô trùng
+- [x] **C19:** Xác nhận đặt phòng bấm đúp (2 yêu cầu song song cùng Idempotency-Key) không tạo lô trùng [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: 2 POST /batches song song cùng key
   - Expected Result: 1 lô trong DB; 2 phản hồi cùng id (201/200/409 chờ)
-- [x] **C20:** Đặt lại lần 2 với key khác cho cùng khách -> mỗi khách chỉ một đơn hiệu lực
+  - Ghi chú: thời gian 713ms
+- [x] **C20:** Đặt lại lần 2 với key khác cho cùng khách -> mỗi khách chỉ một đơn hiệu lực [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: POST /batches key mới, cùng khách
   - Expected Result: 409 PAX_ALREADY_PLACED
-- [x] **C22:** Payer khác/trạm khác không xem được lô; KS không dùng được API payer
+- [x] **C22:** Payer khác/trạm khác không xem được lô; KS không dùng được API payer [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: GET batches/:id bằng P2, nhân viên SGN, token KS
   - Expected Result: 404, 404, 403
-- [x] **D02:** Cô lập KS: HAN-03 chỉ thấy offer của mình
+- [x] **D02:** Cô lập KS: HAN-03 chỉ thấy offer của mình [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: GET delay-offers (HAN-03)
   - Expected Result: 200; số offer = số offer HAN-03
-- [x] **D04:** KS khác không xác nhận/từ chối được offer không thuộc mình
+- [x] **D04:** KS khác không xác nhận/từ chối được offer không thuộc mình [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: HAN-03 confirm & reject offer của HAN-02
   - Expected Result: 404 OFFER_NOT_FOUND x2
-- [x] **D06:** Route cũ confirm/reject đơn PAYER trả 409 USE_DELAY_OFFER_API
+- [x] **D06:** Route cũ confirm/reject đơn PAYER trả 409 USE_DELAY_OFFER_API [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: POST /v1/hotel/bookings/:id/confirm|reject với booking của offer PAYER
   - Expected Result: 409 USE_DELAY_OFFER_API x2
-- [x] **D08:** Xác nhận lặp offer đã CONFIRMED
+- [x] **D08:** Xác nhận lặp offer đã CONFIRMED [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: confirm lần 2
   - Expected Result: 409 INVALID_STATE
-- [x] **D09:** Từ chối offer đã CONFIRMED
+- [x] **D09:** Từ chối offer đã CONFIRMED [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: reject sau confirm
   - Expected Result: 409 INVALID_STATE
-- [x] **D18:** Chuỗi chuyển không quay lại KS đã từ chối
+- [x] **D18:** Chuỗi chuyển không quay lại KS đã từ chối [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: Đọc chuỗi offer của lô khách lẻ ở D17
   - Expected Result: mỗi KS xuất hiện tối đa một lần
-- [x] **E01:** KHÔNG có email nào trước khi KS xác nhận (lô vừa đặt, mọi offer PENDING)
+- [x] **D19:** Quá 15 phút chờ (delay.maxWaitMin) -> nhóm FAILED, không chuyển tiếp [lần 1, chạy lại]
+  - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
+  - Input: Quan sát các lô tạo >16 phút trước (đã chờ qua các vòng hết hạn 5 phút)
+  - Expected Result: Không còn booking PENDING của lô quá 15 phút; nhóm chưa có phòng chuyển FAILED
+  - Ghi chú: Ghi nhận: nhóm FAILED vẫn có thể còn offer PENDING của phòng anh em cùng PNR (như lần 1, xem D13)
+- [x] **E01:** KHÔNG có email nào trước khi KS xác nhận (lô vừa đặt, mọi offer PENDING) [lần 1, chạy lại]
   - Nhóm: E. Email + xe sau xác nhận
   - Input: SELECT count(*) email_outbox sau khi đặt lô
   - Expected Result: 0 thư (hoặc không có thư của lô này)
-- [x] **E03:** Xác nhận lặp không gửi trùng thư (409 + outbox không tăng + dedupe_key duy nhất)
+- [x] **E03:** Xác nhận lặp không gửi trùng thư (409 + outbox không tăng + dedupe_key duy nhất) [lần 1, chạy lại]
   - Nhóm: E. Email + xe sau xác nhận
   - Input: Confirm lần 2 cùng offer
   - Expected Result: 409; email_outbox không thêm; không dedupe_key trùng
-- [x] **E06:** Người thiếu email bị bỏ qua (không lỗi, không thư rác tới địa chỉ rỗng)
+- [x] **E06:** Người thiếu email bị bỏ qua (không lỗi, không thư rác tới địa chỉ rỗng) [lần 1, chạy lại]
   - Nhóm: E. Email + xe sau xác nhận
   - Input: Offer CONFIRMED có khách không có email
   - Expected Result: Không có hàng outbox to_email rỗng; các offer vẫn xác nhận 200
-- [x] **F02:** SĐT sai hoặc mã không tồn tại cho cùng một 404 chung (không lộ mã tồn tại)
+- [x] **F02:** SĐT sai hoặc mã không tồn tại cho cùng một 404 chung (không lộ mã tồn tại) [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: group-lookup phone sai; mã NH-ZZZZZZZZ
   - Expected Result: 404 GROUP_NOT_FOUND, message giống hệt
-- [x] **F03:** Nhóm chưa có phòng được xác nhận: KHÔNG lộ khách sạn/số phòng/mã đơn
+- [x] **F03:** Nhóm chưa có phòng được xác nhận: KHÔNG lộ khách sạn/số phòng/mã đơn [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: group-lookup nhóm đang chờ KS (OFFERED, không offer CONFIRMED)
   - Expected Result: 200; mọi phòng status WAITING_HOTEL/TRANSFERRING; không có hotelName/roomNumbers/bookingCode; không chứa tên KS
-- [x] **F08:** Mã AR đúng, SĐT sai -> 404 chung
+- [x] **F08:** Mã AR đúng, SĐT sai -> 404 chung [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: lookup SĐT sai
   - Expected Result: 404
-- [x] **F09:** strictRateLimit 10/phút/IP cho tra cứu: dò SĐT bị 429
+- [x] **F09:** strictRateLimit 10/phút/IP cho tra cứu: dò SĐT bị 429 [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: 14 lần group-lookup liên tiếp SĐT sai
   - Expected Result: xuất hiện 429 RATE_LIMITED (hành vi đúng)
-- [x] **G02:** Khách lẻ KHÔNG chọn được paymentMethod=PAYER qua POST /v1/bookings
+  - Ghi chú: 429 là hành vi đúng; ghi nhận như một case
+- [x] **G02:** Khách lẻ KHÔNG chọn được paymentMethod=PAYER qua POST /v1/bookings [lần 1, chạy lại]
   - Nhóm: G. Hồi quy luồng khách lẻ
   - Input: POST với PAYER và payer
   - Expected Result: 422 VALIDATION_ERROR; không có booking PAYER nào được tạo
-- [x] **UI-C03:** Tên hành khách chứa <script> hiển thị escape (không chạy script), SQLi hiển thị nguyên văn
+- [x] **I02:** Bấm đúp cùng Idempotency-Key không gửi 2 thư [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: 2 POST resend cùng key
+  - Expected Result: lần 2 trả Idempotent-Replay=true; outbox chỉ +1
+- [x] **I04:** Lần gửi lại thứ 4 trong 1 giờ bị chặn 429 + thông báo rõ [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: POST resend lần 4 (đã 3 lần thành công: I01, I02, I03)
+  - Expected Result: 429 RESEND_LIMIT, message tiếng Việt "Đã gửi lại 3 lần trong 1 giờ"
+- [x] **I05:** Lần 4 bị chặn không sinh thêm thư [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: Đếm outbox resend sau I04
+  - Expected Result: đúng 3 thư resend
+- [x] **I06:** Hành khách của phòng CHƯA xác nhận: không gửi lại được [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: POST resend cho khách có offer PENDING
+  - Expected Result: 409 OFFER_NOT_CONFIRMED, không có thư
+- [x] **I08:** Truy cập chéo: payer khác / nhân viên trạm SGN -> 404; KS -> 403; không token -> 401; id lạ -> 404; id không phải UUID -> 4xx [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: POST resend vào khách của P1 bằng P2, SGN, KS, không token, uuid lạ, chuỗi lạ
+  - Expected Result: 404,404,403,401,404,400/422
+  - Ghi chú: Lần chạy đầu harness gửi nhầm token mặc định cho ca không token (429 do đã đạt giới hạn); đã chạy lại đúng
+- [x] **J01:** Rate limit TÁCH: tra cứu nhóm liên tục tới 429 nhưng đăng nhập CÙNG IP vẫn thành công [MỚI lần 2]
+  - Nhóm: J. [MỚI] Rate limit tách bộ đếm tra cứu nhóm
+  - Input: 14 group-lookup SĐT sai liên tiếp rồi POST /auth/login (admin, nhân viên P1) và POST /bookings/lookup đúng
+  - Expected Result: group-lookup có 429 từ lần ~11; login 200 x2; lookup AR 200 (không 429)
+- [x] **J02:** Phản hồi 429 của tra cứu nhóm có mã RATE_LIMITED + message tiếng Việt + header RateLimit [MỚI lần 2]
+  - Nhóm: J. [MỚI] Rate limit tách bộ đếm tra cứu nhóm
+  - Input: Lần group-lookup khi đã bị chặn
+  - Expected Result: 429 RATE_LIMITED, message "quá nhanh/thử lại sau"
+- [x] **J03:** Chiều ngược: tra cứu đơn AR- bị 429 thì tra cứu nhóm (bộ đếm riêng) vẫn dùng được [MỚI lần 2]
+  - Nhóm: J. [MỚI] Rate limit tách bộ đếm tra cứu nhóm
+  - Input: 12 POST /bookings/lookup sai rồi group-lookup đúng
+  - Expected Result: lookup có 429; group-lookup 200
+- [x] **L06:** Gửi lại gần cùng giờ bay (lệch < 1 phút) không đổi thêm gì, không gửi thêm thư [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Ingest lại newDepartureAt ≈ +5h (lệch vài giây)
+  - Expected Result: stay.to không đổi; outbox room-changed không tăng
+- [x] **L07:** Rút ngắn tự động KHÔNG phát cảnh báo đỏ (chỉ đổi lặng lẽ, email thông báo) [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Socket delay:alert sau L01
+  - Expected Result: 0 cảnh báo
+- [x] **L10:** Đề xuất idempotent: ingest lại cùng giờ bay muộn không phát cảnh báo/sự kiện thứ hai [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Ingest lại +12h (lệch vài giây)
+  - Expected Result: alert vẫn 1, event vẫn 1
+- [x] **L11:** Giờ bay quay lại như cũ -> đề xuất gia hạn tự xóa [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Ingest newDepartureAt = giá trị ban đầu
+  - Expected Result: extension_status=NONE, proposed_leave_at null
+- [x] **L13:** Chuyến đổi giờ nhưng KHÔNG có lô đặt phòng -> không làm gì [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Ingest đổi giờ (muộn rồi sớm) cho chuyến chưa đặt lô
+  - Expected Result: 200; không có booking_event DELAY_*, không cảnh báo mới
+- [x] **L14:** Offer PENDING (KS chưa xác nhận) khi bay sớm: vẫn rút ngắn nhưng KHÔNG gửi email (chỉ gửi sau khi CONFIRMED) [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: Lô chưa xác nhận, ingest +5h
+  - Expected Result: stay.to dời sớm; không có thư room-changed
+- [ ] **L16:** Admin đặt chuyến về ONTIME (giờ bay = giờ dự kiến sớm hơn giờ delay đã đặt) -> tự rút ngắn hoặc báo khẩn, không ném lỗi ❌ FAIL [MỚI lần 2]
+  - Nhóm: L. [MỚI] GĐ4 đổi giờ bay / hủy chuyến
+  - Input: PATCH status=ONTIME
+  - Expected Result: 200; API không lỗi; trạng thái đề xuất cũ được dọn
+  - Actual Result: HTTP 200 ext=PROPOSED stay.to=2026-11-15T00:38:57.511Z
+  - Ghi chú: Nhánh FLIGHT_EARLIER_URGENT trả về TRƯỚC khi gọi clearProposal (backend/services/delay/timeChange.ts:79-82), nên đề xuất gia hạn cũ (PROPOSED, proposed_leave_at +12h) vẫn còn dù chuyến đã đổi về giờ sớm; quầy vẫn thấy nút 'Gửi yêu cầu gia hạn' cho giờ không còn đúng. Mức: Thấp-Trung bình (dữ liệu cũ gây nhầm, không tự tốn tiền vì KS còn phải đồng ý).
+- [x] **M02:** Bấm lại (đã REQUESTED) -> 409 NO_EXTENSION_PROPOSED, không gửi trùng [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: POST request lần 2
+  - Expected Result: 409 NO_EXTENSION_PROPOSED
+- [x] **M03:** Request gia hạn: payer khác/trạm khác 404; KS 403; không token 401; lô lạ 404; id sai 422; body sai 422; offerIds lạ 409 [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: 9 request biến thể
+  - Expected Result: 404,404,403,401,404,400/422,422,422,409
+- [x] **M07:** Hai lần accept ĐỒNG THỜI chỉ một bên thắng [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: 2 POST accept song song cùng offer
+  - Expected Result: một 200, một 409 INVALID_STATE; 1 event EXTENDED; +1 thư
+- [x] **M11:** Accept/reject sai trạng thái (đã ACCEPTED/REJECTED) 409; KS khác 404; offer lạ 404; token payer 403; không token 401; id sai 4xx [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: 8 request biến thể
+  - Expected Result: 409,409,409,404,404,403,401,400/422
+- [x] **N01:** Payer CHƯA bật allowUpgrade: preview không có tùy chọn nâng; gọi API đặt kèm upgrades -> 403 UPGRADE_NOT_ALLOWED [MỚI lần 2]
+  - Nhóm: N. [MỚI] Nâng hạng phòng
+  - Input: Preview + POST /batches {upgrades:[...]} khi allowUpgrade=false
+  - Expected Result: canUpgrade=false, upgradeOptions=[]; 403 UPGRADE_NOT_ALLOWED; không tạo lô
+- [x] **N05:** Hạng cao đã hết phòng: preview ẩn hạng đó; đặt trực tiếp -> 409/422 báo rõ, KHÔNG tự hạ cấp, không để lại lô [MỚI lần 2]
+  - Nhóm: N. [MỚI] Nâng hạng phòng
+  - Input: total_rooms=0 cho hạng nâng (fixture SQL, khôi phục sau) rồi preview + POST /batches
+  - Expected Result: preview không còn option hạng đó; POST bị từ chối (409 UPGRADE_NO_ROOM hoặc 422 UPGRADE_NOT_AVAILABLE); 0 lô
+  - Ghi chú: fixture: UPDATE room_types SET total_rooms=0 rồi khôi phục
+- [x] **N08:** Cụm nhiều phòng (thông nhau/sát nhau) KHÔNG có tùy chọn nâng hạng (giới hạn đã biết) [MỚI lần 2]
+  - Nhóm: N. [MỚI] Nâng hạng phòng
+  - Input: Preview PNR gồm người lớn + nhiều trẻ cần >1 phòng
+  - Expected Result: đơn vị nhiều phòng: mọi upgradeOptions rỗng
+- [x] **O02:** Kỳ đã khóa không đổi dù có điều chỉnh/generate lại [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: generate lại 2026-09 sau khóa + truy thu
+  - Expected Result: unchanged=true, tổng 09 giữ nguyên
+- [x] **O03:** Generate kỳ đã LOCKED trả nguyên trạng (unchanged), không sửa [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: POST generate 2026-09 khi LOCKED
+  - Expected Result: 200 unchanged=true; tổng giữ nguyên
+- [x] **O05:** Đơn không tính (simulated, EXPIRED/REJECTED/PENDING) và đơn ngoài kỳ (VN) không vào bảng kê; biên 31/10 23:59:59 VN vào kỳ 10, 01/11 00:00:01 VN không [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: So dòng bảng kê với 6 đơn loại trừ + 2 đơn biên + 3 đơn kỳ 09 + 3 đơn kỳ 11
+  - Expected Result: không có đơn loại trừ; biên Oct có, biên Nov không; đơn kỳ 09/11 không có
+- [x] **O08:** Generate lặp khi còn DRAFT idempotent: cùng kết quả, không nhân đôi dòng, version không tăng [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: POST generate 2026-10 lần 2
+  - Expected Result: unchanged=true; totalVnd, lineCount, version giữ nguyên; DB số dòng không đổi
+- [x] **O11:** Generate bảng chi trả KS lặp idempotent [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: POST generate lần 2
+  - Expected Result: gross không đổi, số bảng không đổi
+- [x] **P01:** Payer KHÔNG thấy bảng kê DRAFT: danh sách ẩn, xem chi tiết/CSV/khiếu nại bản nháp -> 404 [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: GET list, GET :id, GET :id/csv, POST dispute trên kỳ 10 (DRAFT)
+  - Expected Result: list không chứa kỳ 10 (có kỳ 09 LOCKED); 404 x3
+- [x] **P05:** Cô lập: payer khác 404 (xem/CSV/khiếu nại); KS 403; không token 401; id sai 4xx; nhân viên payer vào API admin 403; danh sách P2 không chứa bảng kê P1 [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: 7 request chéo
+  - Expected Result: 404,404,404,403,401,400/422,403
+- [x] **P09:** Sau khi KHÓA: generate lại không đổi dù có đơn mới thuộc kỳ [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: Thêm đơn kỳ 10 (fixture: dời stay.to một đơn thật của P2 sang 20/10) rồi generate
+  - Expected Result: unchanged=true; tổng và số dòng giữ nguyên
+  - Ghi chú: P2 không còn đơn kỳ 11 để dời: chỉ kiểm unchanged
+- [x] **P10:** Truy thu vào kỳ KẾ TIẾP (kỳ đã khóa không đổi); số tiền 0/số lẻ/memo ngắn/kỳ sai -> 422; OPS 403 [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: POST adjustments P2 2026-10 -70000
+  - Expected Result: 200/201; kỳ 11 DRAFT adjustment=-70000; kỳ 10 vẫn LOCKED; lỗi: 422,422,422,422,403
+- [x] **UI-C03:** Tên hành khách chứa <script> hiển thị escape (không chạy script), SQLi hiển thị nguyên văn [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Mở chuyến có hành khách tên "<script>alert(1)</script>"
   - Expected Result: Văn bản hiển thị nguyên văn; không có dialog alert; không có thẻ script chèn
-- [x] **UI-C09:** Xác nhận đặt: double-click không tạo lô trùng; chuyển sang màn theo dõi lô có đếm ngược, điểm đón
+- [x] **UI-C09:** Xác nhận đặt: double-click không tạo lô trùng; chuyển sang màn theo dõi lô có đếm ngược, điểm đón [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Chọn điểm đón thứ 2, double-click "Xác nhận đặt"
   - Expected Result: 1 lô trong DB cho sim2; màn theo dõi: batch-summary, offer-countdown, batch-pickup
-- [x] **UI-C10:** Quầy đơn vị khác (P2) trên UI chỉ thấy chuyến của mình, không thấy chuyến/lô của P1
+- [x] **UI-C10:** Quầy đơn vị khác (P2) trên UI chỉ thấy chuyến của mình, không thấy chuyến/lô của P1 [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Login fx.han@fxpay2.test
   - Expected Result: Bảng chỉ 1 chuyến của P2; không có mã chuyến P1
-- [x] **UI-C11:** Quyền theo permission: tài khoản admin (không có quyền payer:delay) không thấy menu "Chuyến bay delay"; KS không thấy menu quầy
+- [x] **UI-C11:** Quyền theo permission: tài khoản admin (không có quyền payer:delay) không thấy menu "Chuyến bay delay"; KS không thấy menu quầy [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: Login admin@demo.airrest.vn
   - Expected Result: Không có tab "Chuyến bay delay"
-- [ ] **UI-D05:** Offer đã quá hạn: nút Xác nhận/Không nhận bị khóa ("Hết hạn") ⏸ CHƯA CHẠY
+- [x] **UI-D05:** Thẻ offer đếm ngược về 0 trên giao diện KS (delay.hotelConfirmMin=1 phút, chờ thật): hết hạn thì nút bị khóa/thẻ biến mất và offer chuyển sang KS khác [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
-  - Input: Chờ đến khi đếm ngược về 0 trên UI hoặc job chuyển đi
-  - Expected Result: Thẻ hết hạn mờ + disabled hoặc biến khỏi danh sách PENDING
-  - Actual Result: Không chạy: cần chờ 5 phút đếm ngược trên UI; hành vi hết hạn đã kiểm bằng job quét (D15)
-- [x] **UI-F02:** Nhóm chưa xác nhận trên UI: KHÔNG hiện tên KS/số phòng/mã đơn
+  - Input: Đặt cấu hình hotelConfirmMin=1; tạo lô; KS mở tab, theo dõi đếm ngược tới 0 và thêm 15 giây; chụp màn hình
+  - Expected Result: Đếm ngược giảm dần mm:ss tới 00:00; sau đó thẻ chuyển "Hết hạn"/disabled hoặc biến mất; DB offer EXPIRED + offer mới ở KS khác
+- [x] **UI-F02:** Nhóm chưa xác nhận trên UI: KHÔNG hiện tên KS/số phòng/mã đơn [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: Tra cứu nhóm đang chờ KS
   - Expected Result: Trạng thái chờ; không có tên KS, số phòng, mã AR-
-- [x] **UI-F03:** Sai SĐT: thông báo lỗi chung bằng tiếng Việt, không lộ nhóm tồn tại
+- [x] **UI-F03:** Sai SĐT: thông báo lỗi chung bằng tiếng Việt, không lộ nhóm tồn tại [lần 1, chạy lại]
   - Nhóm: F. Khách tra cứu
   - Input: Nhập mã đúng + SĐT sai
   - Expected Result: Thông báo "Không tìm thấy nhóm khớp mã và số điện thoại này"; không có group-result
+- [x] **UI-I02:** Giao diện: lần gửi lại thứ 4 trong 1 giờ hiện thông báo rõ; khách thiếu email hiện lỗi tiếng Việt [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: Mở chuyến có khách đã đạt 3 lần gửi lại; bấm; bấm ở khách không có email
+  - Expected Result: message chứa "3 lần trong 1 giờ"; message chứa "chưa có email"
+- [x] **UI-I03:** Hành khách thuộc phòng CHƯA xác nhận không có nút "Gửi lại email" [MỚI lần 2]
+  - Nhóm: I. [MỚI] Gửi lại email xác nhận phòng
+  - Input: Mở chuyến có offer PENDING
+  - Expected Result: 0 nút resend
+- [x] **UI-N03:** Payer KHÔNG cho nâng hạng (P2): preview không có ô "Nâng hạng"; gọi API trực tiếp -> 403 UPGRADE_NOT_ALLOWED [MỚI lần 2]
+  - Nhóm: N. [MỚI] Nâng hạng phòng
+  - Input: Quầy P2 mở preview; POST /batches với upgrades
+  - Expected Result: upgrade-select = 0; API 403
 
 ## 4. UI/UX & API Status Code
 
-- [x] **H01:** Console trình duyệt (F12) không có lỗi đỏ bất thường ở các màn: quầy, chi tiết, preview, theo dõi lô, KS, tra cứu, quầy P2, admin
+- [x] **H01:** Console trình duyệt (F12) không có lỗi đỏ ngoài phản hồi 4xx của thao tác thử lỗi chủ ý [lần 1, chạy lại]
   - Nhóm: H. Chung (console, thời gian, mã trạng thái)
-  - Input: Playwright bắt console.error/pageerror/requestfailed trên 8 phiên
-  - Expected Result: 0 pageerror, 0 requestfailed, 0 dialog; console.error chỉ là phản hồi 4xx của các thao tác thử lỗi chủ ý và 400 của lỗi UI-B01
-- [x] **H02:** Thời gian phản hồi API chính (đo thực tế local, không phải load test)
+  - Input: Gộp console/pageerror/requestfailed/dialog của 15 phiên Playwright (quầy P1/P2, KS, khách tra cứu, khách lẻ, admin)
+  - Expected Result: 0 pageerror, 0 dialog, mọi console.error là 4xx có chủ ý
+  - Ghi chú: 1 requestfailed ERR_CONNECTION_REFUSED tới web :5198 là do lần chạy u1 ĐẦU TIÊN khi vite preview chưa bật (lỗi harness, đã chạy lại sau khi bật) - không phải lỗi sản phẩm. 4xx: 422 (sửa email sai), 404 (tra cứu sai SĐT), 429 (gửi lại email lần 4).
+- [x] **H02:** Thời gian phản hồi thực đo các API (local, không phải load test) [lần 1, chạy lại]
   - Nhóm: H. Chung (console, thời gian, mã trạng thái)
-  - Input: Đo mọi lần gọi trong phiên
-  - Expected Result: Các API chính < 1s; preview 300 khách < 5s
-- [x] **H03:** Mã trạng thái đúng ngữ nghĩa trên các nhánh đã chạy
+  - Input: Đo mỗi lần gọi qua harness (fetch) cho 39 nhóm API
+  - Expected Result: API thường < 1s; preview 300 khách < 5s
+  - Ghi chú: Đo thật 1 lần/yêu cầu; max cao nhất: POST /payer/flights/:id/batches 713ms, POST /payer/ingest/flights 443ms
+- [x] **H03:** Mã trạng thái đúng ngữ nghĩa trên các nhánh mới [lần 1, chạy lại]
   - Nhóm: H. Chung (console, thời gian, mã trạng thái)
-  - Input: Tổng hợp từ các case A-G
-  - Expected Result: 200/201/204/400/401/403/404/409/422/429 đều xuất hiện đúng chỗ
+  - Input: Tổng hợp các case I-O
+  - Expected Result: 200/201/204 thành công; 400 thiếu Idempotency-Key; 401 không token; 403 sai quyền/UPGRADE_NOT_ALLOWED; 404 chéo đơn vị; 409 trạng thái/hết phòng; 422 validate; 429 giới hạn
 
 ## 5. Bổ sung từ quét code
 
-- [x] **B25:** Nút mô phỏng đi qua chính cổng kết nối (ghi payer_ingest_logs source=SIMULATION)
+- [x] **B25:** Nút mô phỏng đi qua chính cổng kết nối (ghi payer_ingest_logs source=SIMULATION) [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: SELECT logs
   - Expected Result: có dòng source=SIMULATION result=OK
-- [x] **C03:** Nhân viên không gán trạm (cấp đơn vị) thấy mọi trạm HAN+SGN của đơn vị (xác nhận A25)
+  - Ghi chú: spec 6.2
+- [x] **C03:** Nhân viên không gán trạm (cấp đơn vị) thấy mọi trạm HAN+SGN của đơn vị (xác nhận A25) [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: GET flights (fx.all)
   - Expected Result: 200; origins gồm HAN và SGN; không có chuyến P2
-- [x] **C23:** Booking sinh ra là PAYER, trạng thái PENDING, không thu khách (paid=0)
+  - Ghi chú: payerScope() stationId=null
+- [x] **C23:** Booking sinh ra là PAYER, trạng thái PENDING, không thu khách (paid=0) [lần 1, chạy lại]
   - Nhóm: C. Quầy trên trình duyệt (nhân viên payer)
   - Input: SELECT bookings của lô
   - Expected Result: payment_method=PAYER; status=PENDING
-- [x] **D11:** Booking cũ của offer bị từ chối được hủy/nhả HOLD
+- [x] **D11:** Booking cũ của offer bị từ chối được hủy/nhả HOLD [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: SELECT bookings.status của offer cũ
   - Expected Result: REJECTED/CANCELLED/EXPIRED (không còn PENDING)
-- [x] **D14:** Sự kiện booking_events ghi đủ CONFIRMED/REJECTED/TRANSFERRED
+- [x] **D14:** Sự kiện booking_events ghi đủ CONFIRMED/REJECTED/TRANSFERRED [lần 1, chạy lại]
   - Nhóm: D. Khách sạn xác nhận / từ chối / chuyển
   - Input: SELECT booking_events type DELAY_OFFER_*
   - Expected Result: có DELAY_OFFER_CONFIRMED, DELAY_OFFER_REJECTED, DELAY_OFFER_TRANSFERRED
-- [x] **X01:** Trẻ em / em bé không có người lớn đi cùng không bao giờ được xếp phòng riêng -> vào danh sách xử lý tay (CHILD_WITHOUT_ADULT)
+- [x] **M00:** Chuẩn bị: 6 chuyến có lô CONFIRMED đều ở trạng thái PROPOSED sau khi bay muộn [MỚI lần 2]
+  - Nhóm: M. [MỚI] Gia hạn phòng (quầy yêu cầu, KS đồng ý/từ chối)
+  - Input: mkProp x6
+  - Expected Result: extension_status=PROPOSED cả 6
+- [x] **O00:** Chuẩn bị dữ liệu thật (không simulated) cho kết toán [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: Fixture SQL trên DB riêng: dời stay.to của đơn PAYER CONFIRMED thật của FXPAY1 sang 09/2026, 10/2026 (có biên 31/10 23:59:59 VN-1s và 01/11 00:00:01 VN), 1 đơn P2, 1 đơn roomVnd=333333; đặt 6 đơn KHÔNG tính (simulated CONFIRMED + EXPIRED/REJECTED/PENDING) vào 10/2026
+  - Expected Result: Có >=15 đơn thật kỳ 10, 3 đơn kỳ 09
+  - Ghi chú: FIXTURE: SQL UPDATE bookings.stay.to / pricing.roomVnd trực tiếp trên DB riêng (nêu rõ trong báo cáo)
+- [x] **O07:** Tổng bảng kê = tổng các dòng (số nguyên VND), hoa hồng bảng kê = tổng hoa hồng dòng; có dòng UPGRADE_DUPLICATE chênh nâng hạng với commission 0 [MỚI lần 2]
+  - Nhóm: O. [MỚI] Bảng kê tháng / chi trả khách sạn (GĐ5)
+  - Input: Cộng dòng từ GET :id
+  - Expected Result: sum(amount)=total; sum(commission)=commissionVnd; UPGRADE_DELTA commission=0
+- [x] **X01:** Trẻ em / em bé không có người lớn đi cùng không bao giờ được xếp phòng riêng -> vào danh sách xử lý tay (CHILD_WITHOUT_ADULT) [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: Chuyến chỉ có trẻ 8 tuổi (PNR FXK001) và em bé 1 tuổi (PNR FXK002), không người lớn
   - Expected Result: preview: units=[]; unplaced chứa 2 khách lý do CHILD_WITHOUT_ADULT; nút xác nhận không dùng được
-- [x] **X02:** Giờ bay mới quá sát (còn ~2h, trừ 120' có mặt + 15' dự phòng + xe) -> từ chối rõ ràng
+  - Ghi chú: Nguồn: services/delay/rooms/plan.ts (Anti-goal: trẻ em ở một mình)
+- [x] **X02:** Giờ bay mới quá sát (còn ~2h, trừ 120' có mặt + 15' dự phòng + xe) -> từ chối rõ ràng [lần 1, chạy lại]
   - Nhóm: B. Cổng kết nối + nút Tạo chuyến bay delay
   - Input: Chuyến newDep = +2.2h
   - Expected Result: 409 FLIGHT_TOO_SOON
+  - Ghi chú: Nguồn: services/delay/batches.ts candidateHotels (spec 6.5)

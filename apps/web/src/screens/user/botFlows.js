@@ -349,6 +349,7 @@ async function complaintFlow(text, n, mem) {
     const hit = CATS.find((c) => n.includes(norm(c)) || norm(c).includes(n.trim()) && n.trim().length > 3);
     if (hit) { s.cat = hit; return complaintNext(mem); }
     if (text.trim().length >= 15) { s.cat = 'Khác'; s.desc = text.trim().slice(0, 1800); return s.phone ? complaintSummary(mem) : askPhone(mem); }
+    if (text.trim().length >= 6) { s.cat = 'Khác'; return complaintNext(mem); } // gõ tự do (kể cả sai chính tả): coi là loại "Khác", mô tả chi tiết ở bước sau
     return { text: 'Bạn chọn loại vấn đề giúp mình nhé.', chips: CATS };
   }
   if (mem.step === 'ref') {
@@ -372,6 +373,7 @@ async function complaintFlow(text, n, mem) {
     if (!YES.test(n)) return { text: 'Bạn gửi khiếu nại chứ?', chips: ['Gửi khiếu nại', 'Thôi, không gửi'] };
     try {
       const t = await createTicket({ bookingCode: s.ref, phone: s.phone, subject: `[${s.cat}] ${s.desc}`.slice(0, 150), message: s.desc });
+      mem.lastTicket = { code: t.code, phone: s.phone }; // để nút "+" trong chat gửi thêm tệp vào đúng ticket này
       return end(mem, { text: `Đã tiếp nhận. Mã ticket của bạn: ${t.code}. Hãy lưu mã này cùng số điện thoại để tra cứu và bổ sung thông tin tại trung tâm hỗ trợ.\nBạn có ảnh/video làm bằng chứng không? Bấm nút bên dưới để chọn tệp. ${ATTACH.hint} Vui lòng không gửi giấy tờ tùy thân.`, attach: { code: t.code, phone: s.phone }, actions: [{ label: 'Mở trung tâm hỗ trợ', act: { type: 'go', screen: 'support' } }] });
     } catch (e) { return end(mem, { text: `Chưa gửi được: ${describeApiError(e)}`, actions: [{ label: 'Mở trung tâm hỗ trợ', act: { type: 'go', screen: 'support' } }] }); }
   }
@@ -384,6 +386,7 @@ export async function beginTicket(mem, code, phone) {
   if (!phone) { mem.flow = 'ticket'; mem.step = 'phone'; mem.s = { code }; return { text: `Bạn gửi giúp mình số điện thoại đã dùng khi tạo ticket ${code}.` }; }
   try {
     const t = await lookupTicket(code, phone);
+    mem.lastTicket = { code: t.code, phone };
     return end(mem, { text: `Ticket ${t.code}: ${TICKET_STATUS[t.status] ?? t.status}. Muốn bổ sung thông tin, bạn vào trung tâm hỗ trợ.`, actions: [{ label: 'Mở trung tâm hỗ trợ', act: { type: 'go', screen: 'support' } }] });
   } catch (e) { return end(mem, { text: e.status === 404 ? 'Mình không tìm thấy ticket khớp mã và số điện thoại này.' : describeApiError(e) }); }
 }

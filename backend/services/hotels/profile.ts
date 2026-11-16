@@ -15,6 +15,10 @@ export interface HotelProfilePatch {
   description?: string;
   phone?: string;
   receptionCloseHour?: number | null;
+  checkInTime?: string;
+  checkOutTime?: string;
+  childPolicy?: string | null;
+  petsAllowed?: boolean;
   cancellationTemplate?: 'FLEXIBLE' | 'STANDARD' | 'NON_REFUNDABLE';
   amenities?: string[];
   images?: string[];
@@ -28,7 +32,7 @@ const view = (h: HotelDoc) => ({
   contact: { phone: h.contact?.phone ?? null, email: h.contact?.email ?? null },
   airports: h.airports,
   amenities: h.amenities,
-  policy: { cancellationTemplate: h.policy.cancellationTemplate, receptionCloseHour: h.policy.receptionCloseHour ?? null, cleaningBufferMin: h.policy.cleaningBufferMin, noShowGraceMin: h.policy.noShowGraceMin ?? null },
+  policy: { cancellationTemplate: h.policy.cancellationTemplate, receptionCloseHour: h.policy.receptionCloseHour ?? null, cleaningBufferMin: h.policy.cleaningBufferMin, noShowGraceMin: h.policy.noShowGraceMin ?? null, checkInTime: h.policy.checkInTime ?? null, checkOutTime: h.policy.checkOutTime ?? null, childPolicy: h.policy.childPolicy ?? null, petsAllowed: h.policy.petsAllowed ?? null },
   images: imageViews(h.images),
   updatedAt: h.updatedAt,
 });
@@ -55,6 +59,10 @@ export async function updateHotelProfile(auth: AuthContext, patch: HotelProfileP
       if (patch.receptionCloseHour === null) delete policy.receptionCloseHour;
       else policy.receptionCloseHour = patch.receptionCloseHour;
     }
+    if (patch.checkInTime) policy.checkInTime = patch.checkInTime;
+    if (patch.checkOutTime) policy.checkOutTime = patch.checkOutTime;
+    if (patch.childPolicy !== undefined) { if (patch.childPolicy === null || patch.childPolicy === '') delete policy.childPolicy; else policy.childPolicy = patch.childPolicy; }
+    if (patch.petsAllowed !== undefined) policy.petsAllowed = patch.petsAllowed;
     const contact = patch.phone ? { ...(before.contact ?? {}), phone: patch.phone } : before.contact;
     const next = (
       await tx.query<HotelDoc>(

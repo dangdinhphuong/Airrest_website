@@ -7,14 +7,16 @@ export const hasAll = (session, ps = []) => ps.every((p) => hasPerm(session, p))
 export const hasAny = (session, ps = []) => ps.some((p) => hasPerm(session, p));
 
 // Tab hiển thị khi có ĐỦ mọi quyền trong `need` (khớp requirePermission của backend) và, nếu có `any`, ít nhất một quyền trong `any`.
-export const visibleTabs = (session, tabs) => tabs.filter((t) => hasAll(session, t.need) && (!t.any || hasAny(session, t.any)));
+// Chủ doanh nghiệp chưa có khách sạn đang chọn (hotelId rỗng) chỉ thấy tab `noHotel` (tạo khách sạn đầu tiên).
+export const visibleTabs = (session, tabs) => tabs.filter((t) => hasAll(session, t.need) && (!t.any || hasAny(session, t.any)) && (!(session?.business && !session.hotelId) || t.noHotel));
 
 // Khu vực làm việc được vào, theo quyền: khách sạn cần tài khoản gắn khách sạn (hotelId) và ít nhất một tab; quản trị cần ít nhất một tab quản trị.
 export function areasOf(session) {
   if (!session) return [];
   const a = [];
-  if (visibleTabs(session, adminTabs).length) a.push('admin');
-  if (session.hotelId && visibleTabs(session, hotelTabs).length) a.push('hotel');
+  const real = (tabs) => visibleTabs(session, tabs).filter((t) => !t.common); // tab dùng chung (Cài đặt) không tự mở khu vực
+  if (real(adminTabs).length) a.push('admin');
+  if ((session.hotelId || session.business) && real(hotelTabs).length) a.push('hotel');
   return a;
 }
 

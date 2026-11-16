@@ -27,9 +27,10 @@ const ELIGIBLE = ['PENDING', 'CONFIRMED', 'CHECKED_IN'];
 async function price(b: BookingDoc, i: ShuttleQuoteBody, now: Date, checkWindow: boolean) {
   if (!ELIGIBLE.includes(b.status)) throw new AppError(409, 'BOOKING_NOT_ELIGIBLE', 'Đơn không còn hiệu lực để yêu cầu xe');
   const passengers = resolvePassengers(b.guest.count ?? 1, i.passengers);
-  const hotel = (await db.query<Pick<HotelDoc, 'airports'>>('SELECT airports FROM hotels WHERE id = $1', [b.hotelId])).rows[0];
+  const hotel = (await db.query<Pick<HotelDoc, 'airports' | 'amenities' | 'policy'>>('SELECT airports, amenities, policy FROM hotels WHERE id = $1', [b.hotelId])).rows[0];
   const p = await priceLeg(hotel?.airports ?? [], i, now, checkWindow ? b.stay : undefined);
-  return { ...p, passengers };
+  // Khách sạn miễn phí xe: giá lưu/báo = 0 (giống quoteHotelShuttle).
+  return { ...p, priceVnd: hotel && hotelFeatures(hotel).shuttle === 'free' ? 0 : p.priceVnd, passengers };
 }
 
 export async function quoteShuttle(i: ShuttleQuoteBody) {

@@ -57,8 +57,8 @@ export async function listFlights(q: { code?: string; date?: string; status?: st
   if (q.code) add('code = ?', q.code);
   if (q.date) add('flight_date = ?::date', q.date);
   if (q.status) add('status = ?', q.status);
-  if (q.cursor !== undefined) add('seq > ?', q.cursor);
-  const rows = (await db.query<FlightDoc>(`SELECT ${FLIGHT_COLS} FROM flights ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY seq LIMIT ${q.limit + 1}`, params)).rows;
+  if (q.cursor !== undefined) add('seq < ?', q.cursor);
+  const rows = (await db.query<FlightDoc>(`SELECT ${FLIGHT_COLS} FROM flights ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY seq DESC LIMIT ${q.limit + 1}`, params)).rows;
   const items = rows.slice(0, q.limit);
   const cfg = await getConfig('flight.thresholds', now);
   return {

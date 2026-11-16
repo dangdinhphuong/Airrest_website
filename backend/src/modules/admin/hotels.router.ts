@@ -60,7 +60,7 @@ const listQuery = z.object({
 const reasonBody = z.object({ reason: z.string().trim().min(3).max(500) });
 const payoutBody = z.discriminatedUnion('type', [
   z.object({ type: z.literal('MOMO'), accountNo: z.string().regex(/^\+?\d{9,15}$/, 'SĐT ví MoMo không hợp lệ'), accountName: z.string().trim().min(2).max(100) }),
-  z.object({ type: z.literal('BANK'), accountNo: z.string().regex(/^\d{6,20}$/, 'Số tài khoản không hợp lệ'), accountName: z.string().trim().min(2).max(100), bankCode: z.string().trim().min(2).max(20) }),
+  z.object({ type: z.literal('BANK'), accountNo: z.string().regex(/^\d{6,20}$/, 'Số tài khoản không hợp lệ'), accountName: z.string().trim().min(2).max(100), bankCode: z.string().trim().min(2).max(20).optional() }),
 ]);
 const statsQuery = z.object({ from: z.coerce.date().optional(), to: z.coerce.date().optional() });
 
@@ -267,7 +267,7 @@ adminHotelsRouter.put('/hotels/:id/payout-account', manage, validate({ params: i
   const pending: NonNullable<HotelDoc['payoutAccount']>['pendingChange'] = {
     type: b.type,
     labelMasked: maskLabel(b.type, b.accountNo),
-    detailsEnc: encryptJson({ accountNo: b.accountNo, accountName: b.accountName, ...(b.type === 'BANK' && { bankCode: b.bankCode }) }),
+    detailsEnc: encryptJson({ accountNo: b.accountNo, accountName: b.accountName, ...(b.type === 'BANK' && b.bankCode && { bankCode: b.bankCode }) }),
     requestedBy: new ObjectId(req.auth!.sub),
     requestedAt: new Date(),
   };

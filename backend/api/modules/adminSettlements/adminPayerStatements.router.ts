@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { PERM } from '../../../config/permissions';
 import type { AuthContext } from '../../../lib/jwt';
 import { idParams, limitQuery, seqCursor, uuid } from '../../../lib/zod';
+import { MAX_ADJUSTMENT_VND } from '../../../services/settlement/calc';
 import * as svc from '../../../services/settlement/statements';
 import { authenticate, requirePermission } from '../../middleware/auth';
 import { idempotent } from '../../middleware/idempotency';
@@ -21,7 +22,7 @@ const period = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Kỳ phải có dạ
 const listQuery = z.object({ payerId: uuid.optional(), period: period.optional(), status: z.enum(['DRAFT', 'SENT', 'DISPUTED', 'LOCKED']).optional(), limit: limitQuery, after: seqCursor.optional() });
 const generateBody = z.object({ payerId: uuid, period }).strict();
 const reasonBody = z.object({ reason: z.string().trim().min(3).max(500) }).strict();
-const adjustBody = z.object({ payerId: uuid, period, amountVnd: z.number().int().refine((n) => n !== 0, 'Số tiền phải khác 0'), memo: z.string().trim().min(3).max(300), hotelId: uuid.optional(), bookingId: uuid.optional() }).strict();
+const adjustBody = z.object({ payerId: uuid, period, amountVnd: z.number().int().refine((n) => n !== 0, 'Số tiền phải khác 0').refine((n) => Math.abs(n) <= MAX_ADJUSTMENT_VND, `Tối đa ${MAX_ADJUSTMENT_VND} VND mỗi lần`), memo: z.string().trim().min(3).max(300), hotelId: uuid.optional(), bookingId: uuid.optional() }).strict();
 
 adminPayerStatementsRouter.get('/', ...read, validate({ query: listQuery }), async (req, res) => {
   res.json(await svc.listStatements(req.valid.query as z.infer<typeof listQuery>));

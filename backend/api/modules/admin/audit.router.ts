@@ -20,7 +20,7 @@ const auditQuery = z
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
     limit: limitQuery,
-    cursor: seqCursor.optional(), // id của dòng cuối trang trước (tăng dần theo thời điểm ghi)
+    cursor: seqCursor.optional(), // id của dòng cuối trang trước (mới nhất trước: lấy dòng có id nhỏ hơn)
   })
   .refine((q) => !q.entityId || q.entityType, { message: 'entityId cần đi kèm entityType', path: ['entityType'] });
 

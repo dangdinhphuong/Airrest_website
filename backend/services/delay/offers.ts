@@ -198,13 +198,13 @@ export async function transferOffer(offerId: string, reason: string): Promise<{ 
 }
 
 /** Danh sách offer của khách sạn (hoặc mọi KS với admin scope). Không PII ngoài tên người đại diện + số khách + loại phòng. */
-export async function listHotelOffers(auth: AuthContext, status?: string) {
+export async function listHotelOffers(auth: AuthContext, status?: string, includeExtension = false) {
   const scope = hotelScope(auth);
   return (await db.query(
-    `SELECT o.id, o.group_id, o.status, o.qty, o.expires_at, o.room_numbers, o.transfer_count, rt.name AS room_type,
+    `SELECT o.id, o.group_id, o.status, o.qty, o.expires_at, o.room_numbers, o.transfer_count, o.extension_status, o.proposed_leave_at, o.extension_requested_at, rt.name AS room_type,
             b.guest->>'fullName' AS representative, (b.guest->>'count')::int AS guests,
             GREATEST(0, floor(extract(epoch FROM o.expires_at - now())))::int AS seconds_left
      FROM delay_room_offers o JOIN room_types rt ON rt.id = o.room_type_id LEFT JOIN bookings b ON b.id = o.booking_id
-     WHERE ($1::uuid IS NULL OR o.hotel_id = $1) AND ($2::text IS NULL OR o.status = $2)
-     ORDER BY o.seq DESC LIMIT 100`, [scope.hotelId ?? null, status ?? null])).rows;
+     WHERE ($1::uuid IS NULL OR o.hotel_id = $1) AND ($2::text IS NULL OR o.status = $2 OR ($3::boolean AND o.status = 'CONFIRMED' AND o.extension_status = 'REQUESTED')) -- include=extension: thêm offer đang xin gia hạn
+     ORDER BY o.seq DESC LIMIT 100`, [scope.hotelId ?? null, status ?? null, includeExtension])).rows;
 }

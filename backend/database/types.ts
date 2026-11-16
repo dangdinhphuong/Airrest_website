@@ -18,6 +18,8 @@ export interface AccountDoc {
   fullName: string;
   status: 'INVITED' | 'ACTIVE' | 'LOCKED';
   hotelId?: string;
+  businessId?: string; // chỉ tài khoản chủ doanh nghiệp
+  phone?: string;
   payerId?: string; // chỉ PAYER
   payerStationId?: string; // chỉ PAYER; null = cấp đơn vị
   roleIds: string[];
@@ -64,11 +66,12 @@ export interface HotelDoc {
   location: { type: 'Point'; coordinates: [number, number] };
   airports: Array<{ iata: string; km: number; minutes: number }>;
   amenities: string[];
-  policy: { cancellationTemplate: 'FLEXIBLE' | 'STANDARD' | 'NON_REFUNDABLE'; cleaningBufferMin: number; noShowGraceMin?: number; receptionCloseHour?: number };
+  policy: { cancellationTemplate: 'FLEXIBLE' | 'STANDARD' | 'NON_REFUNDABLE'; cleaningBufferMin: number; noShowGraceMin?: number; receptionCloseHour?: number; checkInTime?: string; checkOutTime?: string; childPolicy?: string; petsAllowed?: boolean };
   approval: { manual: boolean; manualUntil?: Date | string };
   rating: { avg: number; count: number };
   slug?: string;
   ownerAccountId?: string;
+  businessId?: string;
   description?: string;
   address?: { line: string; ward?: string; district?: string; city: string; country: string };
   contact?: { phone: string; email?: string };
@@ -86,7 +89,7 @@ export interface RoomTypeDoc {
   hotelId: string;
   name: string;
   totalRooms: number;
-  pricing: { baseNightVnd: Money; hourly?: HourlyConfig }; // hourly: cấu hình đặt theo giờ (xem business-logic/hourly.ts)
+  pricing: { baseNightVnd: Money; hourly?: HourlyConfig; nonRefundablePct?: number }; // hourly: cấu hình đặt theo giờ (xem business-logic/hourly.ts)
   active: boolean;
   code?: string;
   capacity: number;
@@ -96,6 +99,43 @@ export interface RoomTypeDoc {
   bedType: BedType;
   connecting: boolean;
   family: boolean;
+  description?: string;
+  view?: string;
+  amenities: string[];
+  smoking: boolean;
+  maxAdults?: number;
+  maxChildren?: number;
+  images: string[]; // khóa R2 có thứ tự, ảnh đầu = ảnh bìa
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FloorDoc {
+  id: string;
+  hotelId: string;
+  name: string;
+  level: number;
+  sortOrder: number;
+  note?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Phòng riêng lẻ. Tồn kho vẫn đếm theo loại (room_types.total_rooms), đơn không gán vào phòng cụ thể.
+export interface RoomDoc {
+  id: string;
+  hotelId: string;
+  floorId: string;
+  roomTypeId: string;
+  number: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  note?: string;
+  view?: string;
+  smoking?: boolean;
+  maxAdults?: number;
+  maxChildren?: number;
+  amenitiesExtra: string[];
+  images: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -286,6 +326,7 @@ export interface BookingDoc {
     subtotalVnd: Money;
     reservationId: string;
     kind: 'NIGHT' | 'HOURLY'; // đơn cũ không lưu -> bookingFromRow trả NIGHT
+    ratePlan?: 'STANDARD' | 'NON_REFUNDABLE'; // mức giá đã đặt (chỉ dòng đêm); đơn cũ không lưu = STANDARD
     startsAt?: Date | string; // chỉ HOURLY: giờ vào, giờ ra = endsAt = startsAt + hours
     endsAt?: Date | string;
     hours?: number;
@@ -298,7 +339,8 @@ export interface BookingDoc {
   checkedInAt?: Date;
   statusHistory: Array<{ from?: BookingStatus; to: BookingStatus; at: Date | string; by: Actor; reasonCode?: string }>;
   changeCount: number;
-  flags: { disputeOpen: boolean; payoutHeld: boolean; needsCall: boolean };
+  // cancellationTemplate: chính sách hủy chốt lúc đặt (đổi chính sách khách sạn sau đó không ảnh hưởng đơn cũ); đơn cũ không có -> dùng chính sách hiện tại của khách sạn
+  flags: { disputeOpen: boolean; payoutHeld: boolean; needsCall: boolean; cancellationTemplate?: 'FLEXIBLE' | 'STANDARD' | 'NON_REFUNDABLE' };
   batchId?: string; // đơn thuộc lô delay (payment.method = PAYER)
   groupId?: string;
   simulated?: boolean; // cột mặc định false; bookingFromRow giữ nguyên, đơn tạo trong service chưa điền
@@ -540,6 +582,24 @@ export interface DelayRoomOfferDoc {
   proposedLeaveAt?: Date;
   extensionRequestedAt?: Date;
   extensionRespondedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BusinessDoc {
+  id: string;
+  seq: number;
+  code?: string;
+  name: string;
+  taxCode?: string;
+  representative?: string;
+  email?: string;
+  phone?: string;
+  status: 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED';
+  rejectReason?: string;
+  approvedBy?: string;
+  approvedAt?: Date;
+  rejectedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

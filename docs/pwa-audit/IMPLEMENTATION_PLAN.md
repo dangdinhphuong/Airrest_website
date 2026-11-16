@@ -196,3 +196,8 @@ Giữ thứ tự 1→5. Điều chỉnh theo audit:
 - **Đo lại 100 màn** (`baseline/retest/`, API khởi động sạch, không dải CORS): tràn ngang **0/100**; điều khiển <44px: 375 và 430 là 51%→14%, 768 là 44%→15%, 1024 là 39%→33%, 1280 là 43%→40%; chữ <11px ở 375: `public-home` 58→0, `public-stays` 89→2.
 - **Manifest:** Chrome đọc 0 lỗi, không tài nguyên 4xx, installability chỉ báo `in-incognito`.
 - **Build:** thành công.
+
+## Cập nhật 2026-11-16: định tuyến theo đường dẫn + trang chi tiết khách sạn
+- Định tuyến đổi từ hash (`#/stays`) sang đường dẫn thật: `lib/routes.js` (`/`, `/noi-nghi`, `/khach-san/<id>`, `/tra-cuu`, `/ho-tro`, `/tai-khoan`, `/dang-nhap`, `/doi-tac/khach-san[/<tab>]`, `/quan-tri[/<tab>]`, `/payment/result`). Link hash cũ vẫn mở được (đổi sang link chuẩn). Cần rewrite SPA ở máy chủ: Render đã có (`render.yaml`), `vite` dev tự fallback.
+- Trang `/khach-san/<id>` tải lại được và chia sẻ được; có nút "Sao chép liên kết".
+- Kiểm bằng Chrome: vào thẳng từng link, Back/Forward, link hash cũ, đường lạ -> trang chủ, khách sạn không tồn tại -> thông báo.

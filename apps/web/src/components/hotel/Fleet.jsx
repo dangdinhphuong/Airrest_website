@@ -1,9 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { ErrorBox, Field, Loading, ScreenTitle } from '../Common';
-import { Pill, SubTabs } from '../partner/ui';
+import { ConfirmAction, DataTable, ErrorState, FormField, Loading, Modal, PageHeader, Tabs, Tag, Toolbar } from '../ui';
 import { describeError } from '../../lib/api';
 import * as H from '../../data/hotel';
-import { ConfirmButton, useAction, useLoad } from './kit';
+import { useAction, useLoad } from './kit';
 import { Avatar, vi, viText } from './fleetKit';
 import Select from '../Select';
 
@@ -35,18 +34,17 @@ function VehicleForm({ initial, drivers, busy, onSubmit, onCancel }) {
   const set = (k) => (e) => setV({ ...v, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   const editing = !!initial.id;
   return (
-    <form className="card" data-testid="vehicle-form" onSubmit={(e) => { e.preventDefault(); onSubmit({ plate: v.plate, seats: Number(v.seats), model: v.model, active: v.active, ...(editing ? { driverId: v.driverId || null } : v.driverId ? { driverId: v.driverId } : {}) }); }}>
-      <h3>{editing ? `Sửa xe ${initial.plate}` : 'Thêm xe'}</h3>
+    <form data-testid="vehicle-form" onSubmit={(e) => { e.preventDefault(); onSubmit({ plate: v.plate, seats: Number(v.seats), model: v.model, active: v.active, ...(editing ? { driverId: v.driverId || null } : v.driverId ? { driverId: v.driverId } : {}) }); }}>
       <div className="grid-2">
-        <Field id="vh-plate" label="Biển số"><input id="vh-plate" value={v.plate} onChange={set('plate')} required minLength={4} data-testid="vh-plate" /></Field>
-        <Field id="vh-seats" label="Số chỗ (không gồm tài xế)"><input id="vh-seats" type="number" min="1" max="50" value={v.seats} onChange={set('seats')} required data-testid="vh-seats" /></Field>
-        <Field id="vh-model" label="Loại xe (tùy chọn)"><input id="vh-model" value={v.model} onChange={set('model')} maxLength={100} data-testid="vh-model" /></Field>
-        <Field id="vh-driver" label="Tài xế phụ trách">
+        <FormField id="vh-plate" label="Biển số"><input id="vh-plate" value={v.plate} onChange={set('plate')} required minLength={4} data-testid="vh-plate" /></FormField>
+        <FormField id="vh-seats" label="Số chỗ (không gồm tài xế)"><input id="vh-seats" type="number" min="1" max="50" value={v.seats} onChange={set('seats')} required data-testid="vh-seats" /></FormField>
+        <FormField id="vh-model" label="Loại xe (tùy chọn)"><input id="vh-model" value={v.model} onChange={set('model')} maxLength={100} data-testid="vh-model" /></FormField>
+        <FormField id="vh-driver" label="Tài xế phụ trách">
           <Select id="vh-driver" value={v.driverId} onChange={set('driverId')} data-testid="vh-driver">
             <option value="">Chưa gán tài xế</option>
             {drivers.map((d) => <option key={d.accountId} value={d.accountId}>{d.fullName}{d.vehicleId && d.vehicleId !== initial.id ? ' (đang gán xe khác)' : ''}</option>)}
           </Select>
-        </Field>
+        </FormField>
       </div>
       <label><input type="checkbox" checked={v.active} onChange={set('active')} data-testid="vh-active" /> Đang hoạt động</label>
       <div className="row-actions">
@@ -64,29 +62,29 @@ function Vehicles({ vehicles, drivers, reload }) {
     const id = form.id;
     if (await act.run(vi(() => (id ? H.patchVehicle(id, body) : H.createVehicle(body))), id ? 'Đã lưu xe.' : 'Đã tạo xe.')) { setForm(null); reload(); }
   };
+  const columns = [
+    { key: 'plate', header: 'Biển số', render: (v) => <strong>{v.plate}</strong> },
+    { key: 'seats', header: 'Số chỗ' },
+    { key: 'model', header: 'Loại xe', render: (v) => v.model || '' },
+    { key: 'driver', header: 'Tài xế', render: (v) => (v.driver ? <span className="who"><Avatar name={v.driver.name} url={v.driver.photoUrl} size={28} />{v.driver.name}</span> : <span className="muted">Chưa gán</span>) },
+    { key: 'active', header: 'Trạng thái', render: (v) => (v.active ? <Tag tone="ok">Hoạt động</Tag> : <Tag>Ngừng</Tag>) },
+    { key: 'act', header: '', render: (v) => (
+      <div className="row-actions" style={{ marginTop: 0 }}>
+        <button type="button" className="btn btn-sm" onClick={() => setForm({ id: v.id, plate: v.plate, seats: String(v.seats), model: v.model || '', active: v.active, driverId: v.driver?.accountId || '' })} data-testid="vh-edit">Sửa</button>
+        {v.driver && <ConfirmAction label="Bỏ tài xế" ask="Bỏ gán tài xế khỏi xe này?" disabled={act.busy} testid="vh-unassign" onConfirm={async () => { if (await act.run(vi(() => H.patchVehicle(v.id, { driverId: null })), 'Đã bỏ gán tài xế.')) reload(); }} />}
+        <ConfirmAction label="Ngừng / xóa" tone="danger" ask="Xe chưa có chuyến sẽ bị xóa, xe đã có chuyến sẽ chuyển sang ngừng hoạt động. Tiếp tục?" disabled={act.busy} testid="vh-del"
+          onConfirm={async () => { if (await act.run(vi(() => H.deleteVehicle(v.id)), (r) => (r.deleted ? 'Đã xóa xe.' : 'Xe đã có lịch sử chuyến nên được chuyển sang ngừng hoạt động.'))) reload(); }} />
+      </div>
+    ) },
+  ];
   return (
     <>
-      <div className="filter-bar"><button className="btn btn-sm btn-primary" type="button" onClick={() => setForm({ plate: '', seats: '4', model: '', active: true, driverId: '' })} data-testid="vh-new">Thêm xe</button></div>
+      <Toolbar end={<button className="btn btn-sm btn-primary" type="button" onClick={() => setForm({ plate: '', seats: '4', model: '', active: true, driverId: '' })} data-testid="vh-new">Thêm xe</button>} />
       {act.note}
-      {form && <VehicleForm key={form.id || 'new'} initial={form} drivers={drivers} busy={act.busy} onCancel={() => setForm(null)} onSubmit={save} />}
-      {!vehicles.length ? <p className="muted" data-testid="empty">Chưa có xe nào.</p> : (
-        <div className="table-wrap"><table className="rights-table">
-          <thead><tr><th>Biển số</th><th>Số chỗ</th><th>Loại xe</th><th>Tài xế</th><th>Trạng thái</th><th /></tr></thead>
-          <tbody>{vehicles.map((v) => (
-            <tr key={v.id} data-testid="vh-row">
-              <td data-label="Biển số"><strong>{v.plate}</strong></td><td data-label="Số chỗ">{v.seats}</td><td data-label="Loại xe">{v.model || ''}</td>
-              <td data-label="Tài xế">{v.driver ? <span className="who"><Avatar name={v.driver.name} url={v.driver.photoUrl} size={28} />{v.driver.name}</span> : <span className="muted">Chưa gán</span>}</td>
-              <td data-label="Trạng thái">{v.active ? <Pill tone="ok">Hoạt động</Pill> : <Pill>Ngừng</Pill>}</td>
-              <td><div className="row-actions" style={{ marginTop: 0 }}>
-                <button type="button" className="btn btn-sm" onClick={() => setForm({ id: v.id, plate: v.plate, seats: String(v.seats), model: v.model || '', active: v.active, driverId: v.driver?.accountId || '' })} data-testid="vh-edit">Sửa</button>
-                {v.driver && <ConfirmButton label="Bỏ tài xế" ask="Bỏ gán tài xế khỏi xe này?" disabled={act.busy} testid="vh-unassign" onConfirm={async () => { if (await act.run(vi(() => H.patchVehicle(v.id, { driverId: null })), 'Đã bỏ gán tài xế.')) reload(); }} />}
-                <ConfirmButton label="Ngừng / xóa" tone="danger" ask="Xe chưa có chuyến sẽ bị xóa, xe đã có chuyến sẽ chuyển sang ngừng hoạt động. Tiếp tục?" disabled={act.busy} testid="vh-del"
-                  onConfirm={async () => { if (await act.run(vi(() => H.deleteVehicle(v.id)), (r) => (r.deleted ? 'Đã xóa xe.' : 'Xe đã có lịch sử chuyến nên được chuyển sang ngừng hoạt động.'))) reload(); }} />
-              </div></td>
-            </tr>
-          ))}</tbody>
-        </table></div>
-      )}
+      <Modal open={!!form} onClose={() => setForm(null)} title={form?.id ? `Sửa xe ${form.plate}` : 'Thêm xe'} size="md">
+        {form && <VehicleForm key={form.id || 'new'} initial={form} drivers={drivers} busy={act.busy} onCancel={() => setForm(null)} onSubmit={save} />}
+      </Modal>
+      <DataTable columns={columns} rows={vehicles} rowTestid="vh-row" emptyTitle="Chưa có xe" empty="Chưa có xe nào." />
     </>
   );
 }
@@ -122,8 +120,7 @@ function DriverForm({ initial, vehicles, busy, onSubmit, onCancel }) {
     onSubmit(body);
   };
   return (
-    <form className="card" onSubmit={submit} data-testid="driver-form" autoComplete="off">
-      <h3>{editing ? `Sửa tài xế ${initial.fullName}` : 'Thêm tài xế'}</h3>
+    <form onSubmit={submit} data-testid="driver-form" autoComplete="off">
       <div className="driver-photo">
         <Avatar name={v.fullName || '?'} url={preview || initial.photoUrl} size={72} />
         <div>
@@ -134,18 +131,18 @@ function DriverForm({ initial, vehicles, busy, onSubmit, onCancel }) {
         </div>
       </div>
       <div className="grid-2">
-        {!editing && <Field id="dr-email" label="Email đăng nhập"><input id="dr-email" type="email" value={v.email} onChange={set('email')} required autoComplete="off" data-testid="dr-email" /></Field>}
-        <Field id="dr-name" label="Họ tên"><input id="dr-name" value={v.fullName} onChange={set('fullName')} required minLength={2} data-testid="dr-name" /></Field>
-        <Field id="dr-phone" label="Số điện thoại"><input id="dr-phone" value={v.phone} onChange={set('phone')} required inputMode="tel" data-testid="dr-phone" /></Field>
-        <Field id="dr-pw" label={editing ? 'Mật khẩu mới (để trống nếu không đổi)' : 'Mật khẩu ban đầu (tối thiểu 12 ký tự)'} hint="Mật khẩu chỉ hiển thị khi nhập, hệ thống không hiện lại sau khi lưu.">
+        {!editing && <FormField id="dr-email" label="Email đăng nhập"><input id="dr-email" type="email" value={v.email} onChange={set('email')} required autoComplete="off" data-testid="dr-email" /></FormField>}
+        <FormField id="dr-name" label="Họ tên"><input id="dr-name" value={v.fullName} onChange={set('fullName')} required minLength={2} data-testid="dr-name" /></FormField>
+        <FormField id="dr-phone" label="Số điện thoại"><input id="dr-phone" value={v.phone} onChange={set('phone')} required inputMode="tel" data-testid="dr-phone" /></FormField>
+        <FormField id="dr-pw" label={editing ? 'Mật khẩu mới (để trống nếu không đổi)' : 'Mật khẩu ban đầu (tối thiểu 12 ký tự)'} hint="Mật khẩu chỉ hiển thị khi nhập, hệ thống không hiện lại sau khi lưu.">
           <input id="dr-pw" type="password" value={v.password} onChange={set('password')} required={!editing} minLength={12} autoComplete="new-password" data-testid="dr-pw" />
-        </Field>
-        <Field id="dr-veh" label="Xe được gán (tùy chọn)">
+        </FormField>
+        <FormField id="dr-veh" label="Xe được gán (tùy chọn)">
           <Select id="dr-veh" value={v.vehicleId} onChange={set('vehicleId')} data-testid="dr-vehicle">
             <option value="">Chưa gán xe</option>
             {vehicles.filter((x) => x.active).map((x) => <option key={x.id} value={x.id} disabled={!!x.driver && x.driver.accountId !== initial.accountId}>{x.plate} · {x.seats} chỗ{x.driver && x.driver.accountId !== initial.accountId ? ` (đã có ${x.driver.name})` : ''}</option>)}
           </Select>
-        </Field>
+        </FormField>
       </div>
       {editing && <label><input type="checkbox" checked={v.active} onChange={set('active')} data-testid="dr-active" /> Cho phép đăng nhập và nhận chuyến (bỏ chọn = khóa)</label>}
       <div className="row-actions">
@@ -164,30 +161,29 @@ function Drivers({ drivers, vehicles, reload }) {
     const id = form.accountId;
     if (await act.run(vi(() => (id ? H.patchDriver(id, body) : H.createDriver(body))), id ? 'Đã lưu tài xế.' : 'Đã tạo tài xế.')) { setForm(null); reload(); }
   };
+  const columns = [
+    { key: 'name', header: 'Tài xế', render: (d) => <span className="who"><Avatar name={d.fullName} url={d.photoUrl} size={32} />{d.fullName}</span> },
+    { key: 'phone', header: 'SĐT' },
+    { key: 'email', header: 'Email' },
+    { key: 'veh', header: 'Xe', render: (d) => plateOf(d.vehicleId) || <span className="muted">Chưa gán</span> },
+    { key: 'active', header: 'Trạng thái', render: (d) => (d.active ? <Tag tone="ok">Hoạt động</Tag> : <Tag tone="error">Đã khóa</Tag>) },
+    { key: 'act', header: '', render: (d) => (
+      <div className="row-actions" style={{ marginTop: 0 }}>
+        <button type="button" className="btn btn-sm" onClick={() => setForm({ accountId: d.accountId, fullName: d.fullName, phone: d.phone, photoUrl: d.photoUrl, password: '', vehicleId: d.vehicleId || '', active: d.active })} data-testid="dr-edit">Sửa</button>
+        <ConfirmAction label={d.active ? 'Khóa' : 'Mở khóa'} ask={d.active ? 'Khóa tài khoản tài xế này?' : 'Mở khóa tài xế này?'} disabled={act.busy} testid="dr-toggle" onConfirm={async () => { if (await act.run(vi(() => H.patchDriver(d.accountId, { active: !d.active })), d.active ? 'Đã khóa tài xế.' : 'Đã mở khóa tài xế.')) reload(); }} />
+        <ConfirmAction label="Xóa" tone="danger" ask="Tài xế chưa có chuyến sẽ bị xóa hẳn, đã có chuyến sẽ bị khóa để giữ lịch sử. Tiếp tục?" disabled={act.busy} testid="dr-del"
+          onConfirm={async () => { if (await act.run(vi(() => H.deleteDriver(d.accountId)), (r) => (r.deleted ? 'Đã xóa tài xế.' : 'Tài xế đã có lịch sử chuyến nên được khóa và ngừng hoạt động.'))) reload(); }} />
+      </div>
+    ) },
+  ];
   return (
     <>
-      <div className="filter-bar"><button className="btn btn-sm btn-primary" type="button" onClick={() => setForm({ email: '', password: '', fullName: '', phone: '', vehicleId: '' })} data-testid="dr-new">Thêm tài xế</button></div>
+      <Toolbar end={<button className="btn btn-sm btn-primary" type="button" onClick={() => setForm({ email: '', password: '', fullName: '', phone: '', vehicleId: '' })} data-testid="dr-new">Thêm tài xế</button>} />
       {act.note}
-      {form && <DriverForm key={form.accountId || 'new'} initial={form} vehicles={vehicles} busy={act.busy} onCancel={() => setForm(null)} onSubmit={save} />}
-      {!drivers.length ? <p className="muted" data-testid="empty">Chưa có tài xế nào.</p> : (
-        <div className="table-wrap"><table className="rights-table">
-          <thead><tr><th>Tài xế</th><th>SĐT</th><th>Email</th><th>Xe</th><th>Trạng thái</th><th /></tr></thead>
-          <tbody>{drivers.map((d) => (
-            <tr key={d.accountId} data-testid="dr-row">
-              <td data-label="Tài xế"><span className="who"><Avatar name={d.fullName} url={d.photoUrl} size={32} />{d.fullName}</span></td>
-              <td data-label="SĐT">{d.phone}</td><td data-label="Email">{d.email}</td>
-              <td data-label="Xe">{plateOf(d.vehicleId) || <span className="muted">Chưa gán</span>}</td>
-              <td data-label="Trạng thái">{d.active ? <Pill tone="ok">Hoạt động</Pill> : <Pill tone="error">Đã khóa</Pill>}</td>
-              <td><div className="row-actions" style={{ marginTop: 0 }}>
-                <button type="button" className="btn btn-sm" onClick={() => setForm({ accountId: d.accountId, fullName: d.fullName, phone: d.phone, photoUrl: d.photoUrl, password: '', vehicleId: d.vehicleId || '', active: d.active })} data-testid="dr-edit">Sửa</button>
-                <ConfirmButton label={d.active ? 'Khóa' : 'Mở khóa'} ask={d.active ? 'Khóa tài khoản tài xế này?' : 'Mở khóa tài xế này?'} disabled={act.busy} testid="dr-toggle" onConfirm={async () => { if (await act.run(vi(() => H.patchDriver(d.accountId, { active: !d.active })), d.active ? 'Đã khóa tài xế.' : 'Đã mở khóa tài xế.')) reload(); }} />
-                <ConfirmButton label="Xóa" tone="danger" ask="Tài xế chưa có chuyến sẽ bị xóa hẳn, đã có chuyến sẽ bị khóa để giữ lịch sử. Tiếp tục?" disabled={act.busy} testid="dr-del"
-                  onConfirm={async () => { if (await act.run(vi(() => H.deleteDriver(d.accountId)), (r) => (r.deleted ? 'Đã xóa tài xế.' : 'Tài xế đã có lịch sử chuyến nên được khóa và ngừng hoạt động.'))) reload(); }} />
-              </div></td>
-            </tr>
-          ))}</tbody>
-        </table></div>
-      )}
+      <Modal open={!!form} onClose={() => setForm(null)} title={form?.accountId ? `Sửa tài xế ${form.fullName}` : 'Thêm tài xế'} size="md">
+        {form && <DriverForm key={form.accountId || 'new'} initial={form} vehicles={vehicles} busy={act.busy} onCancel={() => setForm(null)} onSubmit={save} />}
+      </Modal>
+      <DataTable columns={columns} rows={drivers} rowKey={(d) => d.accountId} rowTestid="dr-row" emptyTitle="Chưa có tài xế" empty="Chưa có tài xế nào." />
     </>
   );
 }
@@ -201,10 +197,10 @@ export default function Fleet() {
   const err = veh.err || drv.err;
   return (
     <>
-      <ScreenTitle title="Đội xe">Xe và tài xế của khách sạn. Tài xế đăng nhập bằng email và mật khẩu ban đầu bạn đặt.</ScreenTitle>
-      <SubTabs label="Đội xe" value={tab} onChange={setTab} tabs={[['vehicles', 'Xe'], ['drivers', 'Tài xế']]} />
+      <PageHeader title="Đội xe" description="Xe và tài xế của khách sạn. Tài xế đăng nhập bằng email và mật khẩu ban đầu bạn đặt." />
+      <Tabs label="Đội xe" value={tab} onChange={setTab} tabs={[{ id: 'vehicles', label: 'Xe' }, { id: 'drivers', label: 'Tài xế' }]} />
       {(veh.loading || drv.loading) && !veh.data && <Loading />}
-      {err && <ErrorBox onRetry={reload}>{describeError(err)}</ErrorBox>}
+      {err && <ErrorState onRetry={reload}>{describeError(err)}</ErrorState>}
       {veh.data && drv.data && (tab === 'vehicles'
         ? <Vehicles vehicles={veh.data.items} drivers={drv.data.items} reload={reload} />
         : <Drivers drivers={drv.data.items} vehicles={veh.data.items} reload={reload} />)}

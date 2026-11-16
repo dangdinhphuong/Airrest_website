@@ -9,5 +9,5 @@ export default function Hotel() {
   const { state } = useApp();
   const tab = resolveTab(visibleTabs(state.session, hotelTabs), state.partnerTab);
   const Tab = HOTEL_TAB_UI[tab];
-  return Tab ? <Tab key={tab} /> : null;
+  return Tab ? <Tab key={`${tab}:${state.session.hotelId ?? ''}`} /> : null;
 }

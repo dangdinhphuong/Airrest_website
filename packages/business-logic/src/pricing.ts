@@ -1,5 +1,8 @@
 const roundTo = (n: number, step: number) => Math.round(n / step) * step;
 
+// Giá/đêm của mức "Không hoàn hủy" = giá cơ bản giảm pct%, làm tròn 1.000 đ (pct do khách sạn đặt trên loại phòng, 1-50).
+export const nonRefundableNightVnd = (baseNightVnd: number, pct: number): number => roundTo((baseNightVnd * (100 - pct)) / 100, 1000);
+
 export interface ServiceFeeParams {
   bps: number;
   minVnd: number;

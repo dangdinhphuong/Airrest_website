@@ -19,7 +19,7 @@ export function hotelFeatures(h: Pick<HotelDoc, 'amenities' | 'policy'>) {
   };
 }
 
-export type PublicRoom = { id: string; hotelId: string; name: string; capacity: number; beds: number; areaM2: number; baseNightVnd: number; roomsLeft: number; hourly?: HourlyConfig | null };
+export type PublicRoom = { id: string; hotelId: string; name: string; capacity: number; beds: number; areaM2: number; baseNightVnd: number; nonRefundablePct?: number; roomsLeft: number; hourly?: HourlyConfig | null };
 
 // Loại phòng đang bán + số phòng còn trong cửa sổ [from, to) (sweep-line như lúc đặt phòng). Mỗi loại phòng 2 truy vấn, giới hạn bởi limit của danh sách.
 export async function publicRooms(hotelIds: string[], window: { from: Date; to: Date }, now = new Date()): Promise<Map<string, PublicRoom[]>> {
@@ -29,7 +29,7 @@ export async function publicRooms(hotelIds: string[], window: { from: Date; to: 
   await Promise.all(
     rts.map(async (rt) => {
       const used = intervalsForCheck(await loadActiveIntervals(db, rt.id, window.from, window.to, now), now);
-      const room: PublicRoom = { id: rt.id, hotelId: rt.hotelId, name: rt.name, capacity: rt.capacity, beds: rt.beds, areaM2: rt.areaM2, baseNightVnd: Number(rt.pricing.baseNightVnd), roomsLeft: Math.max(0, remainingRooms(rt.totalRooms, used, window)), hourly: hourlyOf(rt.pricing) };
+      const room: PublicRoom = { id: rt.id, hotelId: rt.hotelId, name: rt.name, capacity: rt.capacity, beds: rt.beds, areaM2: rt.areaM2, baseNightVnd: Number(rt.pricing.baseNightVnd), ...(rt.pricing.nonRefundablePct && { nonRefundablePct: rt.pricing.nonRefundablePct }), roomsLeft: Math.max(0, remainingRooms(rt.totalRooms, used, window)), hourly: hourlyOf(rt.pricing) };
       byHotel.set(rt.hotelId, [...(byHotel.get(rt.hotelId) ?? []), room]);
     }),
   );

@@ -49,3 +49,21 @@ export const groupLookupRateLimit = rateLimit({
   legacyHeaders: false,
   message: tooMany,
 });
+
+// Đăng ký doanh nghiệp công khai (ghi DB + băm mật khẩu): chặn spam hồ sơ theo IP.
+export const businessRegisterRateLimit = rateLimit({
+  windowMs: 10 * 60_000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: tooMany,
+});
+
+// Đổi mật khẩu nhân sự: bộ đếm riêng (10/phút/IP), tách khỏi đăng nhập để không khóa chéo.
+export const staffPasswordRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: tooMany,
+});

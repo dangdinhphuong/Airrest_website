@@ -1,5 +1,8 @@
-import React, { useEffect, useRef } from 'react';
-import { AlertTriangle, CheckCircle2, Info, Loader2, RefreshCw, SearchX } from 'lucide-react';
+import React from 'react';
+import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
+import { EmptyState, ErrorState, Loading as UiLoading } from './ui/states';
+import { PageHeader } from './ui/PageHeader';
+import { FormField } from './ui/FormField';
 
 export function SimBadge({ children = 'Dữ liệu mô phỏng', tone = 'sim' }) {
   return <span className={`badge badge-${tone}`}>{children}</span>;
@@ -16,55 +19,12 @@ export function Notice({ tone = 'info', title, children, onClose, role }) {
   );
 }
 
-export function Loading({ label = 'Đang tải…' }) {
-  return <div className="loading" role="status" aria-live="polite"><Loader2 className="spin" size={22} aria-hidden="true" /> {label}</div>;
-}
-
-export function ErrorBox({ title = 'Không tải được dữ liệu', children, onRetry }) {
-  return (
-    <div className="state-box state-error" role="alert">
-      <AlertTriangle size={28} aria-hidden="true" />
-      <h3>{title}</h3>
-      <p>{children}</p>
-      {onRetry && <button type="button" className="btn btn-primary" onClick={onRetry}><RefreshCw size={16} aria-hidden="true" /> Thử lại</button>}
-    </div>
-  );
-}
-
-export function EmptyBox({ title, children, actions }) {
-  return (
-    <div className="state-box" role="status">
-      <SearchX size={28} aria-hidden="true" />
-      <h3>{title}</h3>
-      <p>{children}</p>
-      {actions && <div className="row-actions">{actions}</div>}
-    </div>
-  );
-}
-
-// Đưa focus về tiêu đề khi đổi màn hình (hỗ trợ bàn phím và trình đọc màn hình).
-export function ScreenTitle({ kicker, title, children }) {
-  const ref = useRef(null);
-  useEffect(() => { ref.current?.focus({ preventScroll: true }); window.scrollTo({ top: 0 }); }, []);
-  return (
-    <div className="screen-head">
-      <h1 ref={ref} tabIndex={-1}>{title}</h1>
-      {kicker && <span className="kicker kicker-sub">{kicker}</span>}
-      {children && <p className="lead">{children}</p>}
-    </div>
-  );
-}
-
-export function Field({ id, label, hint, error, children }) {
-  return (
-    <div className={`field ${error ? 'has-error' : ''}`}>
-      <label htmlFor={id}>{label}</label>
-      {children}
-      {hint && !error && <small id={`${id}-hint`}>{hint}</small>}
-      {error && <small id={`${id}-err`} className="field-error" role="alert">{error}</small>}
-    </div>
-  );
-}
+// Lớp mỏng: các component dưới đây đã chuyển sang components/ui (xem ui/README.md); giữ tên cũ để tab chưa migrate vẫn chạy.
+export const Loading = UiLoading;
+export const ErrorBox = (p) => <ErrorState {...p} />;
+export const EmptyBox = (p) => <EmptyState {...p} />;
+export const ScreenTitle = ({ kicker, title, children, actions }) => <PageHeader title={title} kicker={kicker} description={children} actions={actions} />;
+export const Field = (p) => <FormField {...p} />;
 
 export function SourceLine({ children }) {
   return <p className="source-line">{children}</p>;

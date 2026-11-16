@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { ScreenTitle } from '../Common';
-import { Pill } from '../partner/ui';
+import { DataTable, PageHeader, StatusBadge, Tag } from '../ui';
 import { useApp } from '../../state/store';
 import { patchTicket, sendTicketMessage } from '../../data/admin';
-import { Act, Back, Filters, LoadView, PagedView, Table, dt, useLoad, usePaged, useRun } from './kit';
+import { Act, Filters, LoadView, cols, dt, pagedProps, useLoad, usePaged, useRun } from './kit';
 
 const ST = { OPEN: ['Mới', 'warn'], IN_PROGRESS: ['Đang xử lý', 'info'], RESOLVED: ['Đã xử lý', 'ok'], CLOSED: ['Đã đóng', 'neutral'] };
 const DONE = ['RESOLVED', 'CLOSED'];
@@ -18,7 +17,7 @@ const authorOf = (m) => {
   return a.name || (a.type === 'GUEST' ? 'Khách' : 'Nhân viên');
 };
 const authorMeta = (m) => (m.author?.type === 'GUEST' ? 'Khách' : `Nhân viên${!m.author?.name && m.author?.id ? ` · Mã nhân viên ${String(m.author.id).slice(0, 8)}` : ''}`);
-const St = ({ s }) => <Pill tone={ST[s]?.[1]}>{ST[s]?.[0] || s}</Pill>;
+const St = ({ s }) => <StatusBadge status={s} map={ST} />;
 
 function Detail({ id, onBack }) {
   const { state } = useApp();
@@ -34,10 +33,9 @@ function Detail({ id, onBack }) {
   };
   return (
     <>
-      <Back onClick={onBack} />
-      <LoadView r={r}>{({ ticket: t, messages, attachments = [] }) => (
+      <LoadView r={r} head={<PageHeader title="Hỗ trợ" back={{ onClick: onBack }} />}>{({ ticket: t, messages, attachments = [] }) => (
         <div data-testid="ticket-detail">
-          <h2>{t.code} · {t.subject} <St s={t.status} /></h2>
+          <PageHeader title={`${t.code} · ${t.subject}`} description={<St s={t.status} />} back={{ onClick: onBack }} />
           <p className="muted">Liên hệ: {t.contact?.fullName} · {t.contact?.phone}{t.bookingCode ? ` · đơn ${t.bookingCode}` : ''}{who(t)}</p>
           {node}
           <div className="row-actions">
@@ -46,7 +44,7 @@ function Detail({ id, onBack }) {
             {!DONE.includes(t.status) && t.assigneeId !== state.session?.id && <Act label="Nhận xử lý" confirm="Giao ticket cho bạn?" onDo={() => patch({ assigneeId: state.session.id }, 'Đã giao cho bạn.')} testid="t-assign" />}
           </div>
           <section className="card"><h3>Tin nhắn</h3>
-            {messages.map((m) => <div key={m.id} className="card-inner" data-testid="msg"><strong>{authorOf(m)} <small>({authorMeta(m)}) · {dt(m.createdAt)}</small> {m.internal && <Pill tone="warn">Nội bộ</Pill>}</strong><span>{m.body}</span></div>)}
+            {messages.map((m) => <div key={m.id} className="card-inner" data-testid="msg"><strong>{authorOf(m)} <small>({authorMeta(m)}) · {dt(m.createdAt)}</small> {m.internal && <Tag tone="warn">Nội bộ</Tag>}</strong><span>{m.body}</span></div>)}
           </section>
           {attachments.length > 0 && <section className="card" data-testid="ticket-attachments"><h3>Tệp đính kèm của khách ({attachments.length})</h3>
             {attachments.map((a) => <div key={a.id} className="card-inner">{a.url ? (a.contentType.startsWith('video/') ? <video src={a.url} controls preload="none" style={{ maxWidth: '100%', maxHeight: 280 }} /> : <a href={a.url} target="_blank" rel="noreferrer"><img src={a.url} alt="Ảnh khách đính kèm" loading="lazy" style={{ maxWidth: '100%', maxHeight: 280 }} /></a>) : <span className="muted">{a.contentType} · {(a.sizeBytes / 1048576).toFixed(1)} MB (không tải được URL xem)</span>}</div>)}
@@ -68,14 +66,13 @@ export default function Support() {
   const [q, setQ] = useState({});
   const [sel, setSel] = useState(null);
   const p = usePaged('/support', q);
-  if (sel) return <><ScreenTitle title="Hỗ trợ" /><Detail id={sel} onBack={() => { setSel(null); p.reload(); }} /></>;
+  if (sel) return <Detail id={sel} onBack={() => { setSel(null); p.reload(); }} />;
   return (
     <>
-      <ScreenTitle title="Hỗ trợ">Hàng đợi ticket</ScreenTitle>
+      <PageHeader title="Hỗ trợ" description="Hàng đợi ticket" />
       <Filters fields={[['status', 'Trạng thái', 'text', Object.entries(ST).map(([k, [t]]) => [k, t])], ['assignee', 'Người xử lý', 'text', [['me', 'Của tôi']]]]} onApply={setQ} />
-      <PagedView p={p} empty="Không có ticket nào.">
-        <Table rows={p.items} cols={[['Mã', (t) => <button type="button" className="link-btn" onClick={() => setSel(t.id)} data-testid="open-ticket">{t.code}</button>], ['Chủ đề', (t) => t.subject], ['Trạng thái', (t) => <St s={t.status} />], ['SĐT', (t) => t.contactPhoneMasked], ['Tạo lúc', (t) => dt(t.createdAt)]]} />
-      </PagedView>
+      <DataTable empty="Không có ticket nào." {...pagedProps(p)}
+        columns={cols([['Mã', (t) => <button type="button" className="link-btn" onClick={() => setSel(t.id)} data-testid="open-ticket">{t.code}</button>], ['Chủ đề', (t) => t.subject], ['Trạng thái', (t) => <St s={t.status} />], ['SĐT', (t) => t.contactPhoneMasked], ['Tạo lúc', (t) => dt(t.createdAt)]])} />
     </>
   );
 }

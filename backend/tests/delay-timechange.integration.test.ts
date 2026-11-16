@@ -8,7 +8,7 @@ import { PERM } from '../config/permissions';
 import { signAccountToken } from '../lib/jwt';
 import { createPayerBooking } from '../services/bookings/bookings.service';
 import { delayBus, type DelayEvent } from '../services/delay/events';
-import { confirmOffer } from '../services/delay/offers';
+import { confirmOffer, listHotelOffers } from '../services/delay/offers';
 import { onFlightTimeChanged } from '../services/delay/timeChange';
 import { updateFlight } from '../services/flights/flights.service';
 import { closeDb, count, db, freshDb, mkHotel, mkRoomType, mkStaff, one, systemRoleId } from './support/db';
@@ -121,6 +121,11 @@ run('tích hợp: đổi giờ bay / hủy chuyến sau khi đặt phòng (GĐ4)
     expect(rq.body.requested).toEqual([{ offerId: s.offerId, groupId: s.groupId, proposedLeaveAt: leave.toISOString() }]);
     expect(events.find((e) => e.type === 'extension')).toMatchObject({ hotelId: hotel, payload: { offerId: s.offerId } });
     expect((await request(app).post(url).set(bearer(payerTok)).send({})).status).toBe(409); // gửi trùng
+    // tải lại trang: GET list trả extensionStatus/proposedLeaveAt; chỉ include=extension mới kèm offer CONFIRMED đang xin gia hạn
+    const inc = (await listHotelOffers(authOf(hotel), 'PENDING', true)).find((x: any) => x.id === s.offerId) as any;
+    expect(inc).toMatchObject({ status: 'CONFIRMED', extensionStatus: 'REQUESTED' });
+    expect(new Date(inc.proposedLeaveAt).getTime()).toBe(leave.getTime());
+    expect((await listHotelOffers(authOf(hotel), 'PENDING')).some((x: any) => x.id === s.offerId)).toBe(false);
 
     expect((await request(app).post(`/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(otherHotelTok))).status).toBe(404);
     const ok = await request(app).post(`/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(hotelTok));
@@ -129,6 +134,7 @@ run('tích hợp: đổi giờ bay / hủy chuyến sau khi đặt phòng (GĐ4)
     expect((await resEnd(s.bookingId)).getTime()).toBe(leave.getTime());
     expect((await toAirport(s.bookingId)).pickupAt.getTime()).toBe(leave.getTime());
     expect(await offerRow(s.offerId)).toMatchObject({ extensionStatus: 'ACCEPTED' });
+    expect((await listHotelOffers(authOf(hotel), 'PENDING', true)).some((x: any) => x.id === s.offerId)).toBe(false);
     expect(await count('booking_events', "booking_id = $1 AND type = 'DELAY_STAY_EXTENDED'", [s.bookingId])).toBe(1);
     expect(await count('email_outbox', "booking_id = $1 AND template = 'room-changed'", [s.bookingId])).toBe(1);
     expect((await one<any>('SELECT pricing FROM bookings WHERE id = $1', [s.bookingId]))!.pricing.roomVnd).toBe(450_000); // 1 đêm giá hợp đồng

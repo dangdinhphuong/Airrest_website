@@ -117,7 +117,7 @@ export async function dispatchRequest(requestId: string, actor: Actor = SYSTEM):
     const no = (reason: Extract<DispatchOutcome, { dispatched: false }>['reason']) => ({ o: { dispatched: false, reason } as DispatchOutcome, events: [] });
     if (!req) return no('NOT_FOUND');
     if (req.status !== 'REQUESTED') return no('NOT_REQUESTED');
-    if ((await tx.query('SELECT 1 FROM shuttle_trips WHERE request_id = $1 LIMIT 1', [requestId])).rowCount > 0) return no('ALREADY_DISPATCHED');
+    if ((await tx.query('SELECT 1 FROM shuttle_trips WHERE request_id = $1 UNION ALL SELECT 1 FROM shuttle_trip_requests WHERE request_id = $1 LIMIT 1', [requestId])).rowCount > 0) return no('ALREADY_DISPATCHED');
     const b = (await tx.query<{ status: string }>('SELECT status FROM bookings WHERE id = $1', [req.bookingId])).rows[0];
     if (!b || !['CONFIRMED', 'CHECKED_IN'].includes(b.status)) return no('BOOKING_NOT_ELIGIBLE');
     const r = await allocateTrips(tx, req, req.passengers, [], actor);
@@ -140,7 +140,7 @@ export async function dispatchDueForBooking(bookingId: string, now = new Date())
 }
 
 // Yêu cầu REQUESTED chưa có chuyến nào, giờ đón - LEAD <= now, và chưa quá cũ (giờ đón > now - cửa sổ xe) để không điều xe cho yêu cầu đã trôi qua.
-const DUE_SQL = `SELECT id FROM shuttle_requests s WHERE status = 'REQUESTED' AND pickup_at <= $1 AND pickup_at > $2 AND NOT EXISTS (SELECT 1 FROM shuttle_trips t WHERE t.request_id = s.id)
+const DUE_SQL = `SELECT id FROM shuttle_requests s WHERE status = 'REQUESTED' AND pickup_at <= $1 AND pickup_at > $2 AND NOT EXISTS (SELECT 1 FROM shuttle_trips t WHERE t.request_id = s.id) AND NOT EXISTS (SELECT 1 FROM shuttle_trip_requests l WHERE l.request_id = s.id)
   AND EXISTS (SELECT 1 FROM bookings b WHERE b.id = s.booking_id AND b.status IN ('CONFIRMED','CHECKED_IN'))`;
 const dueFrom = (now: Date) => new Date(now.getTime() + env.SHUTTLE_DISPATCH_LEAD_MIN * 60_000);
 const dueTo = (now: Date) => new Date(now.getTime() - env.SHUTTLE_VEHICLE_WINDOW_MIN * 60_000);

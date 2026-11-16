@@ -9,6 +9,9 @@ import { hotelShuttleQuoteBody, type HotelShuttleQuoteBody } from '@airrest/vali
 import { quoteHotelShuttle } from '../../../services/shuttle/shuttle.service';
 import { hotelFeatures, hourlySlots, publicRooms, searchHotels } from '../../../services/hotels/catalog';
 import { imageViews } from '../../../services/hotels/profile';
+import { createReview, listReviews } from '../../../services/hotels/reviews';
+import { strictRateLimit } from '../../middleware/rateLimit';
+import { lookupBody } from '@airrest/validation';
 
 export const hotelsRouter = Router();
 
@@ -47,6 +50,8 @@ function windowOf(q: { from?: Date; to?: Date }) {
 }
 
 const idParams = z.object({ id: uuid });
+
+const stayPolicy = (p: HotelDoc['policy']) => ({ checkInTime: p.checkInTime ?? null, checkOutTime: p.checkOutTime ?? null, childPolicy: p.childPolicy ?? null, petsAllowed: p.petsAllowed ?? null });
 
 // Chỉ trả trường công khai. Không bao giờ trả payoutAccount, contact nội bộ, incidentScore.
 const PUBLIC_COLS = 'id, seq, name, code, location, airports, amenities, rating, policy, address, description, images';
@@ -87,7 +92,13 @@ hotelsRouter.get('/:id', validate({ params: idParams, query: idQuery }), async (
   const hotel = (await db.query<HotelDoc>(`SELECT ${PUBLIC_COLS} FROM hotels WHERE id = $1 AND status = 'ACTIVE'`, [id])).rows[0];
   if (!hotel) throw new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');
   const roomTypes = (await db.query<RoomTypeDoc>('SELECT * FROM room_types WHERE hotel_id = $1 AND active', [hotel.id])).rows;
-  res.json({ hotel: toPublic(hotel), roomTypes, rooms: (await publicRooms([hotel.id], window)).get(hotel.id) ?? [], window });
+  const detail = new Map(roomTypes.map((rt) => [rt.id, rt]));
+  const rooms = ((await publicRooms([hotel.id], window)).get(hotel.id) ?? []).map((r) => {
+    const rt = detail.get(r.id);
+    return { ...r, description: rt?.description ?? null, view: rt?.view ?? null, smoking: rt?.smoking ?? false, amenities: rt?.amenities ?? [], images: imageViews(rt?.images) };
+  });
+  const stats = (await db.query<{ floors: number; totalRooms: number }>('SELECT (SELECT count(*)::int FROM floors WHERE hotel_id = $1) AS floors, COALESCE(sum(total_rooms), 0)::int AS total_rooms FROM room_types WHERE hotel_id = $1 AND active', [hotel.id])).rows[0]!;
+  res.json({ hotel: { ...toPublic(hotel), stay: stayPolicy(hotel.policy), stats }, rooms, window });
 });
 
 // Báo giá xe TRƯỚC khi có đơn (bước đặt phòng). Công khai, chỉ chịu giới hạn chung của /v1 (không strictRateLimit); không lộ dữ liệu nội bộ.
@@ -106,4 +117,17 @@ const slotsQuery = z.object({
 hotelsRouter.get('/:id/hourly-slots', validate({ params: idParams, query: slotsQuery }), async (req, res) => {
   const { id } = req.valid.params as z.infer<typeof idParams>;
   res.json(await hourlySlots(id, req.valid.query as z.infer<typeof slotsQuery>));
+});
+
+const reviewsQuery = z.object({ limit: z.coerce.number().int().min(1).max(50).default(10), cursor: seqCursor.optional() });
+hotelsRouter.get('/:id/reviews', validate({ params: idParams, query: reviewsQuery }), async (req, res) => {
+  const { id } = req.valid.params as z.infer<typeof idParams>;
+  res.json(await listReviews(id, req.valid.query as z.infer<typeof reviewsQuery>));
+});
+
+// Đánh giá bằng mã đơn + SĐT của đơn đã trả phòng (như tra cứu đơn nên dùng strictRateLimit chống dò mã).
+const reviewBody = lookupBody.extend({ score: z.number().int().min(1).max(10), comment: z.string().trim().max(1000).optional() });
+hotelsRouter.post('/:id/reviews', strictRateLimit, validate({ params: idParams, body: reviewBody }), async (req, res) => {
+  const { id } = req.valid.params as z.infer<typeof idParams>;
+  res.status(201).json({ review: await createReview(id, req.valid.body as z.infer<typeof reviewBody>) });
 });

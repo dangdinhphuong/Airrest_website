@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { ScreenTitle, Notice, Field } from '../Common';
-import { Pill, SubTabs } from '../partner/ui';
+import { Notice } from '../Common';
+import { ConfirmDialog, DataTable, FormField as Field, Modal, PageHeader, StatusBadge, Tabs } from '../ui';
 import { useApp } from '../../state/store';
 import { createAccount, patchAccount, resetPassword } from '../../data/admin';
 import Roles from './Roles';
-import { Act, Filters, LoadView, PagedView, Table, dt, tempPassword, useLoad, usePaged, useRun } from './kit';
+import { Act, Filters, cols, dt, pagedProps, tempPassword, useLoad, usePaged, useRun } from './kit';
 import Select from '../Select';
 
 const ST = { ACTIVE: ['Hoạt động', 'ok'], LOCKED: ['Đã khóa', 'error'], INVITED: ['Mới mời', 'warn'] };
 
-function Create({ roles, onDone, onShown }) {
+function Create({ roles, onDone, onShown, onClose }) {
   const [f, setF] = useState({ email: '', fullName: '', roleId: roles[0]?.id || '', password: tempPassword() });
   const { run, busy, node } = useRun();
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -17,11 +17,11 @@ function Create({ roles, onDone, onShown }) {
     e.preventDefault();
     const pw = f.password;
     const x = await run(() => createAccount(f), 'Đã tạo tài khoản.');
-    if (x.ok) { onShown({ email: f.email, pw }); setF({ ...f, email: '', fullName: '', password: tempPassword() }); onDone(); }
+    if (x.ok) { onShown({ email: f.email, pw }); setF({ ...f, email: '', fullName: '', password: tempPassword() }); onDone(); onClose(); }
   };
   return (
-    <form onSubmit={submit} className="card" data-testid="account-create">
-      <h3>Tạo tài khoản quản trị</h3>
+    <Modal open onClose={onClose} title="Tạo tài khoản quản trị" size="lg">
+    <form onSubmit={submit} data-testid="account-create">
       {node}
       <div className="grid-2">
         <Field id="ac-email" label="Email"><input id="ac-email" type="email" required value={f.email} onChange={set('email')} /></Field>
@@ -31,6 +31,7 @@ function Create({ roles, onDone, onShown }) {
       </div>
       <button className="btn btn-primary" disabled={busy} data-testid="account-create-submit">Tạo tài khoản</button>
     </form>
+    </Modal>
   );
 }
 
@@ -42,6 +43,7 @@ export default function Accounts() {
   const roles = useLoad('/roles');
   const { run, node } = useRun();
   const [shown, setShown] = useState(null);
+  const [creating, setCreating] = useState(false);
   const [pending, setPending] = useState(null); // { a, role }: chờ xác nhận đổi vai trò
   const roleName = (id) => (roles.data?.items || []).find((r) => r.id === id)?.name || id;
   const roleIdOf = (a) => a.roleId || (roles.data?.items || []).find((r) => r.system && r.key === a.adminRole)?.id || '';
@@ -50,33 +52,28 @@ export default function Accounts() {
   const roleOpts = (roles.data?.items || []).map((r) => [r.id, r.name]);
   return (
     <>
-      <ScreenTitle title="Tài khoản và vai trò">Tài khoản quản trị</ScreenTitle>
-      <SubTabs label="Mục" value={tab} onChange={(t) => { setTab(t); roles.reload(); if (t === 'list') p.reload(); }} tabs={[['list', 'Tài khoản'], ['roles', 'Vai trò và quyền']]} />
+      <PageHeader title="Tài khoản và vai trò" description="Tài khoản quản trị"
+        actions={tab === 'list' && roles.data && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)} data-testid="account-new">Tạo tài khoản</button>}>
+        <Tabs label="Mục" value={tab} onChange={(t) => { setTab(t); roles.reload(); if (t === 'list') p.reload(); }} tabs={[{ id: 'list', label: 'Tài khoản' }, { id: 'roles', label: 'Vai trò và quyền' }]} />
+      </PageHeader>
       {tab === 'roles' ? <Roles /> : (
         <>
           {node}
           {shown && <Notice tone="warn" title="Mật khẩu tạm, chỉ hiện một lần" onClose={() => setShown(null)}><code data-testid="temp-pw">{shown.pw}</code> cho {shown.email}. Hãy chuyển qua kênh an toàn.</Notice>}
-          {roles.data && <Create roles={roles.data.items} onDone={p.reload} onShown={setShown} />}
+          {creating && roles.data && <Create roles={roles.data.items} onDone={p.reload} onShown={setShown} onClose={() => setCreating(false)} />}
           <Filters fields={[['q', 'Tìm email / tên'], ['status', 'Trạng thái', 'text', Object.entries(ST).map(([k, [t]]) => [k, t])], ['roleId', 'Vai trò', 'text', roleOpts]]} onApply={setQ} />
-          {pending && (
-            <Notice tone="warn" title="Xác nhận đổi vai trò">
-              Đổi vai trò của <strong>{pending.a.email}</strong> từ <strong>{pending.a.roleName || pending.a.adminRole || '—'}</strong> sang <strong>{roleName(pending.role)}</strong>? Quyền của tài khoản sẽ thay đổi ngay.
-              <div className="row-actions">
-                <button type="button" className="btn btn-sm btn-primary" onClick={async () => { const x = pending; setPending(null); await act(() => patchAccount(x.a.id, { roleId: x.role }), 'Đã đổi vai trò.'); }} data-testid="acc-role-confirm">Xác nhận đổi</button>
-                <button type="button" className="btn btn-sm" onClick={() => setPending(null)} data-testid="acc-role-cancel">Huỷ</button>
-              </div>
-            </Notice>
-          )}
-          <PagedView p={p} empty="Không có tài khoản.">
-            <Table rows={p.items} cols={[['Email', (a) => a.email], ['Họ tên', (a) => a.fullName], ['Vai trò', (a) => a.roleName || a.adminRole || '—'], ['Trạng thái', (a) => <Pill tone={ST[a.status]?.[1]}>{ST[a.status]?.[0] || a.status}</Pill>], ['Tạo lúc', (a) => dt(a.createdAt)],
+          <ConfirmDialog open={!!pending} onClose={() => setPending(null)} testid="acc-role" title="Xác nhận đổi vai trò" variant="warning" confirmLabel="Đổi vai trò"
+            description={pending && `Đổi vai trò của ${pending.a.email} từ ${pending.a.roleName || pending.a.adminRole || '—'} sang ${roleName(pending.role)}? Quyền của tài khoản sẽ thay đổi ngay.`}
+            onConfirm={async () => { const x = pending; await act(() => patchAccount(x.a.id, { roleId: x.role }), 'Đã đổi vai trò.'); }} />
+          <DataTable empty="Không có tài khoản." {...pagedProps(p)}
+            columns={cols([['Email', (a) => a.email], ['Họ tên', (a) => a.fullName], ['Vai trò', (a) => a.roleName || a.adminRole || '—'], ['Trạng thái', (a) => <StatusBadge status={a.status} map={ST} />], ['Tạo lúc', (a) => dt(a.createdAt)],
               ['', (a) => a.id === state.session?.id ? <small>(bạn)</small> : (
                 <span className="inline-form">
                   {a.status === 'LOCKED' ? <Act label="Mở khóa" confirm="Mở khóa tài khoản?" onDo={() => act(() => patchAccount(a.id, { status: 'ACTIVE' }), 'Đã mở khóa.')} testid="acc-unlock" />
                     : <Act label="Khóa" danger confirm="Khóa tài khoản này?" onDo={() => act(() => patchAccount(a.id, { status: 'LOCKED' }), 'Đã khóa tài khoản.')} testid="acc-lock" />}
                   <Select aria-label="Đổi vai trò" value={roleIdOf(a)} onChange={(e) => setPending({ a, role: e.target.value })} data-testid="acc-role">{roleOpts.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</Select>
                   <Act label="Đặt lại mật khẩu" danger confirm="Tạo mật khẩu tạm mới? Mật khẩu cũ mất hiệu lực." onDo={() => reset(a)} testid="acc-reset" />
-                </span>)]]} />
-          </PagedView>
+                </span>)]])} />
         </>
       )}
     </>

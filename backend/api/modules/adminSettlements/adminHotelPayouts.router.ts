@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { PERM } from '../../../config/permissions';
 import type { AuthContext } from '../../../lib/jwt';
 import { idParams, limitQuery, seqCursor, uuid } from '../../../lib/zod';
+import { MAX_ADJUSTMENT_VND } from '../../../services/settlement/calc';
 import * as svc from '../../../services/settlement/payouts';
 import type { Ctx } from '../../../services/settlement/statements';
 import { authenticate, requirePermission } from '../../middleware/auth';
@@ -20,7 +21,7 @@ const idOf = (req: { valid: { params?: unknown } }) => (req.valid.params as { id
 
 const period = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Kỳ phải có dạng 'YYYY-MM'");
 const listQuery = z.object({ hotelId: uuid.optional(), period: period.optional(), status: z.enum(['DRAFT', 'LOCKED', 'PAID']).optional(), limit: limitQuery, after: seqCursor.optional() });
-const adjustBody = z.object({ hotelId: uuid, period, amountVnd: z.number().int().refine((n) => n !== 0, 'Số tiền phải khác 0'), memo: z.string().trim().min(3).max(300), bookingId: uuid.optional() }).strict();
+const adjustBody = z.object({ hotelId: uuid, period, amountVnd: z.number().int().refine((n) => n !== 0, 'Số tiền phải khác 0').refine((n) => Math.abs(n) <= MAX_ADJUSTMENT_VND, `Tối đa ${MAX_ADJUSTMENT_VND} VND mỗi lần`), memo: z.string().trim().min(3).max(300), bookingId: uuid.optional() }).strict();
 
 adminHotelPayoutsRouter.get('/', ...read, validate({ query: listQuery }), async (req, res) => {
   res.json(await svc.listHotelPayouts(req.valid.query as z.infer<typeof listQuery>));

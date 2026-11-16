@@ -27,8 +27,9 @@ type Template = 'FLEXIBLE' | 'STANDARD' | 'NON_REFUNDABLE';
 // Xe đặt cùng đơn tách riêng khỏi chính sách phòng: KHÔNG hoàn tiền xe (khách không đi), phần xe đã thu hiển thị là 'giữ lại'.
 // Phần PHÒNG tính đúng như cũ trên (phòng + phí DV) -> đơn không chọn xe cho kết quả y hệt trước đây.
 async function cancelQuoteFor(b: BookingDoc, now: Date, q: Db = db) {
-  const hotel = (await db.query<Pick<HotelDoc, 'policy'>>('SELECT policy FROM hotels WHERE id = $1', [b.hotelId])).rows[0];
-  const template = ((hotel?.policy as { cancellationTemplate?: Template } | undefined)?.cancellationTemplate ?? 'FLEXIBLE') as Template;
+  // Chính sách chốt lúc đặt (flags.cancellationTemplate); đơn cũ chưa lưu thì theo chính sách hiện tại của khách sạn.
+  const hotel = b.flags.cancellationTemplate ? undefined : (await db.query<Pick<HotelDoc, 'policy'>>('SELECT policy FROM hotels WHERE id = $1', [b.hotelId])).rows[0];
+  const template = (b.flags.cancellationTemplate ?? (hotel?.policy as { cancellationTemplate?: Template } | undefined)?.cancellationTemplate ?? 'FLEXIBLE') as Template;
   const cfg = await getConfig('cancellation.fee', now);
   const tier = cfg.value[template] as CancellationTier;
   const paid = b.payment.paidVnd;

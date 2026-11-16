@@ -4,7 +4,7 @@ import { useApp } from '../../state/store';
 import { describeApiError, getHotel, listAirports, listHotels } from '../../data/user';
 import { isoDate, money } from '../../lib/time';
 import { peekStaysIntent, clearStaysIntent, partyFromPrefs } from './data';
-import { cartTotal, emptyCart, hasNight, loadCart, reconcile, saveCart, setQty, totalRooms, changesHotel } from './cart';
+import { cartTotal, emptyCart, hasNight, loadCart, reconcile, saveCart, setQty, switchesPlan, totalRooms, changesHotel } from './cart';
 import BookingModal from './BookingModal';
 import RoomRow from './RoomRow';
 import GuestsPicker from './GuestsPicker';
@@ -108,6 +108,7 @@ export default function Stays() {
 
   const changeQty = (h, room, q, opt) => {
     if (changesHotel(cart, h) && q > 0) setNotice(`Mỗi đơn chỉ đặt một khách sạn: giỏ của ${cart.hotelName} đã được thay bằng giỏ của ${h.name}.`);
+    else if (q > 0 && opt?.plan && cart.hotelId === h.id && switchesPlan(cart, opt.plan)) setNotice('Một đơn chỉ dùng một mức giá: các phòng theo đêm đã chọn ở mức khác đã được bỏ khỏi giỏ.');
     else setNotice('');
     setCart((c) => setQty(c, h, room, q, Date.now(), opt));
   };

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ErrorBox, Loading, ScreenTitle } from '../Common';
+import { ErrorState, FilterBar, Loading, PageHeader, STATUS } from '../ui';
 import { Kpi } from '../partner/ui';
 import { describeError } from '../../lib/api';
 import { getStats } from '../../data/hotel';
 import { money } from '../../lib/time';
-import { STATUS, fmtD, fmtDT, today, useLoad } from './kit';
+import { fmtD, fmtDT, today, useLoad } from './kit';
 
 // GET /v1/hotel/stats?from&to: mọi số liệu theo ngày nhận phòng; mặc định 30 ngày trước đến 30 ngày sau hôm nay (tối đa 92 ngày).
 export default function Overview() {
@@ -15,13 +15,13 @@ export default function Overview() {
   const d = s.data;
   return (
     <>
-      <ScreenTitle title="Tổng quan">Phòng hiện tại; đơn và doanh thu tính theo ngày nhận phòng trong khoảng chọn (tối đa 92 ngày).</ScreenTitle>
-      <div className="filter-bar">
+      <PageHeader title="Tổng quan" description="Phòng hiện tại; đơn và doanh thu tính theo ngày nhận phòng trong khoảng chọn (tối đa 92 ngày)." />
+      <FilterBar testid="ov-filters">
         <label>Từ <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} data-testid="ov-from" /></label>
         <label>Đến <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} data-testid="ov-to" /></label>
-      </div>
+      </FilterBar>
       {s.loading && <Loading />}
-      {s.err && <ErrorBox onRetry={s.reload}>{describeError(s.err)}</ErrorBox>}
+      {s.err && <ErrorState onRetry={s.reload}>{describeError(s.err)}</ErrorState>}
       {d && !s.loading && (
         <>
           <p className="muted">Số liệu phòng tại {fmtDT(d.asOf)}. Đơn và doanh thu theo ngày nhận phòng: {fmtD(d.revenue.from)} đến {fmtD(d.revenue.to)}.</p>

@@ -26,6 +26,16 @@ export const commissionOf = (amountVnd: number, pct: number): number => {
   return Math.floor((amountVnd * Math.round(pct * 100)) / 10_000);
 };
 
+/** Trần |số tiền| một lần điều chỉnh (VND); tổng cộng dồn các dòng điều chỉnh của một kỳ không được vượt Number.MAX_SAFE_INTEGER. */
+export const MAX_ADJUSTMENT_VND = 1_000_000_000;
+export const assertAdjustAmount = (n: number): void => {
+  if (!Number.isSafeInteger(n) || n === 0) throw new AppError(422, 'INVALID_AMOUNT', 'Số tiền điều chỉnh phải là số nguyên VND khác 0');
+  if (Math.abs(n) > MAX_ADJUSTMENT_VND) throw new AppError(422, 'AMOUNT_TOO_LARGE', `Số tiền điều chỉnh tối đa ${MAX_ADJUSTMENT_VND.toLocaleString('en-US')} VND mỗi lần`);
+};
+export const assertAdjustTotal = (current: number, add: number): void => {
+  if (Math.abs(Number(current) + add) > Number.MAX_SAFE_INTEGER) throw new AppError(422, 'ADJUSTMENT_TOTAL_TOO_LARGE', 'Tổng điều chỉnh của kỳ vượt giới hạn cho phép');
+};
+
 export const BILLABLE = ['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'NO_SHOW']; // NO_SHOW vẫn tính: khách sạn đã giữ phòng
 const VN = "'Asia/Ho_Chi_Minh'";
 

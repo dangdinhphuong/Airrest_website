@@ -40,57 +40,6 @@ function useLoad(fn, key) {
   return st;
 }
 
-function Gallery({ p }) {
-  const imgs = p.images?.length ? p.images : [p.image];
-  const [i, setI] = useState(0);
-  const [bad, setBad] = useState({});
-  const ok = imgs.filter((u) => !bad[u]);
-  const cur = ok[Math.min(i, ok.length - 1)] ?? p.image;
-  return (
-    <div>
-      <div className="tw:relative tw:h-[340px] tw:overflow-hidden tw:rounded-3xl tw:sm:h-[460px]"><img src={cur} alt={p.name} onError={() => setBad((b) => ({ ...b, [cur]: true }))} className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /></div>
-      {ok.length > 1 && <div className="tw:mt-3 tw:flex tw:gap-2 tw:overflow-x-auto" role="group" aria-label="Ảnh khách sạn">{ok.map((u, k) => <button type="button" key={u} onClick={() => setI(k)} aria-label={`Ảnh ${k + 1}`} aria-pressed={u === cur} className={`tw:relative tw:h-16 tw:w-24 tw:shrink-0 tw:overflow-hidden tw:rounded-xl tw:border-2 ${u === cur ? 'tw:border-blue-600' : 'tw:border-transparent'}`}><img src={u} alt="" className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /></button>)}</div>}
-    </div>
-  );
-}
-
-export function HotelDetail() {
-  const { state, dispatch } = useApp();
-  const { data: p, error, loading } = useLoad(async (signal) => { await listAirports().catch(() => {}); return getHotel(state.propertyId, signal); }, state.propertyId);
-  const toStays = () => { dispatch({ type: 'go', screen: 'home' }); scrollToId('stays'); };
-  if (loading || error || !p) {
-    return <div className={PAGE}><div className="tw:mx-auto tw:max-w-[1080px]"><Back to="home">Quay lại danh sách</Back><p role={error ? 'alert' : 'status'} className="tw:mt-6 tw:rounded-2xl tw:bg-white tw:p-8 tw:text-sm tw:text-slate-600">{loading ? 'Đang tải thông tin nơi nghỉ…' : error || 'Không tìm thấy nơi nghỉ này.'}</p></div></div>;
-  }
-  const apName = airportName(p.airportCode);
-
-  return (
-    <div className="tw:min-h-screen tw:bg-slate-50 tw:pb-16">
-      <div className="tw:mx-auto tw:max-w-[1080px] tw:px-5 tw:py-8"><Back to="home">Quay lại danh sách</Back></div>
-      <section className="tw:mx-auto tw:grid tw:max-w-[1080px] tw:gap-7 tw:px-5 tw:lg:grid-cols-[1.2fr_.8fr]">
-        <div>
-          <Gallery key={p.id} p={p} />
-          <div className="tw:mt-7 tw:rounded-2xl tw:border tw:border-slate-200 tw:bg-white tw:p-6 tw:sm:p-8">
-            <span className="tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-[.16em] tw:text-blue-600">Thông tin khách sạn</span>
-            <h1 className="tw:mt-2 tw:text-3xl tw:font-bold tw:tracking-tight">{p.name}</h1>
-            <div className="tw:mt-3 tw:flex tw:flex-wrap tw:gap-4 tw:text-xs tw:text-slate-500"><span className="tw:flex tw:items-center tw:gap-1"><MapPin size={15} /> {p.address || `Gần sân bay ${apName}`}</span>{p.rating && <span className="tw:flex tw:items-center tw:gap-1 tw:font-bold tw:text-emerald-700"><Star size={14} fill="currentColor" /> {p.rating}/10</span>}</div>
-            <p className="tw:mt-6 tw:text-sm tw:leading-7 tw:text-slate-600">{p.description || `Cách sân bay ${apName} ${p.distanceKm} km, khoảng ${p.travelMinutes} phút đi xe.`}</p>
-            <h2 className="tw:mt-7 tw:font-bold">Tiện ích</h2>
-            <div className="tw:mt-3 tw:grid tw:gap-2 tw:sm:grid-cols-2">{p.amenities.map((item) => <span key={item} className="tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-slate-600"><Check size={15} className="tw:text-emerald-600" /> {item}</span>)}</div>
-          </div>
-        </div>
-        <aside className="tw:space-y-5">
-          <div className="tw:rounded-2xl tw:border tw:border-slate-200 tw:bg-white tw:p-6">
-            <h2 className="tw:font-bold">Loại phòng hiện có</h2>
-            {p.rooms.length ? <div className="tw:mt-4 tw:space-y-3">{p.rooms.map((room) => <div key={room.id} className="tw:rounded-xl tw:bg-slate-50 tw:p-4"><div className="tw:flex tw:justify-between tw:gap-3"><strong className="tw:text-sm">{room.name}</strong><strong className="tw:text-sm tw:text-blue-700">{money(room.price)}</strong></div><p className="tw:mt-2 tw:text-[11px] tw:leading-5 tw:text-slate-500">Tối đa {room.maxOccupancy} khách · {room.cancellationPolicy} · {room.availableRooms > 0 ? `còn ${room.availableRooms} phòng` : 'hết phòng'}</p></div>)}</div> : <p className="tw:mt-4 tw:text-xs tw:text-slate-500">Chưa có phòng mở bán.</p>}
-            <button type="button" onClick={toStays} className="tw:mt-5 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:rounded-xl tw:bg-blue-600 tw:text-xs tw:font-bold tw:text-white">Chọn phòng trên trang chủ</button>
-          </div>
-          <div className="tw:rounded-2xl tw:bg-[#062253] tw:p-6 tw:text-white"><ShieldCheck className="tw:text-blue-300" /><h2 className="tw:mt-4 tw:font-bold">Điều kiện lưu trú</h2><p className="tw:mt-3 tw:text-xs tw:leading-6 tw:text-blue-100">{p.receptionLabel}</p><p className="tw:mt-3 tw:text-xs tw:leading-6 tw:text-blue-100">{p.freeCancel ? 'Hủy miễn phí theo điều kiện của cơ sở.' : 'Không hoàn hủy. Điều kiện được hiển thị trước khi gửi yêu cầu.'}</p></div>
-        </aside>
-      </section>
-    </div>
-  );
-}
-
 const dmy = (iso) => new Date(iso).toLocaleDateString('vi-VN');
 // Dòng phòng theo giờ ghi rõ giờ vào - giờ ra; đơn toàn giờ ghi 'ngày, giờ vào → giờ ra' thay vì khoảng ngày.
 const lineText = (l) => `${l.roomTypeName} × ${l.qty ?? 1}${l.kind === 'HOURLY' ? ` · theo giờ ${hhmm(l.startsAt)}–${endLabel(l.startsAt, l.endsAt)} ngày ${dmy(l.startsAt)} (${l.hours} giờ)` : ''}`;
@@ -361,7 +310,7 @@ export function PaymentResult() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const tries = useRef(0);
-  const toTrack = () => window.location.assign('/#/track');
+  const toTrack = () => window.location.assign('/tra-cuu');
 
   const check = async () => {
     if (!saved) return;

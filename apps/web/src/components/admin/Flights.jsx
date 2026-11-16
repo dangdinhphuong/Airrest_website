@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { ScreenTitle, Field, Notice } from '../Common';
-import { Pill } from '../partner/ui';
+import { Notice } from '../Common';
+import { DataTable, FormField as Field, Modal, PageHeader, StatusBadge } from '../ui';
 import { useApp } from '../../state/store';
 import { hasPerm } from '../../lib/access';
 import { PERM } from '../../lib/perms';
 import { createFlight, deleteFlight, patchFlight } from '../../data/admin';
-import { Act, AirportSelect, Filters, PagedView, Table, dt, isoOrUndef, useAirports, usePaged, useRun } from './kit';
+import { Act, AirportSelect, Filters, cols, dt, isoOrUndef, pagedProps, useAirports, usePaged, useRun } from './kit';
 import Select from '../Select';
 
 const ST = { ONTIME: ['Đúng giờ', 'ok'], DELAYED: ['Trễ', 'warn'], CANCELLED: ['Hủy', 'error'] };
@@ -14,7 +14,7 @@ const toLocalInput = (v) => { if (!v) return ''; const x = new Date(v); x.setMin
 
 function Changes({ id }) {
   const p = usePaged(`/flights/${id}/changes`, {});
-  return <PagedView p={p} empty="Chưa có thay đổi nào."><Table rowKey={(r) => r.seq ?? r.id ?? r.at} rows={p.items} cols={[['Lúc', (r) => dt(r.createdAt)], ['Trạng thái', (r) => `${ST[r.statusBefore]?.[0] || r.statusBefore} → ${ST[r.statusAfter]?.[0] || r.statusAfter}`], ['Giờ bay', (r) => `${dt(r.fromAt)} → ${dt(r.toAt)}`], ['Lý do', (r) => r.reason]]} /></PagedView>;
+  return <DataTable rowKey={(r) => r.seq ?? r.id ?? r.at} empty="Chưa có thay đổi nào." {...pagedProps(p)} columns={cols([['Lúc', (r) => dt(r.createdAt)], ['Trạng thái', (r) => `${ST[r.statusBefore]?.[0] || r.statusBefore} → ${ST[r.statusAfter]?.[0] || r.statusAfter}`], ['Giờ bay', (r) => `${dt(r.fromAt)} → ${dt(r.toAt)}`], ['Lý do', (r) => r.reason]])} />;
 }
 
 function Edit({ f, onDone }) {
@@ -30,8 +30,8 @@ function Edit({ f, onDone }) {
     if (r.ok) onDone(true);
   };
   return (
-    <form onSubmit={save} className="card" data-testid="flight-edit">
-      <h3>Sửa {f.code} · {f.flightDate}</h3>
+    <Modal open onClose={onDone} title={`Sửa ${f.code} · ${f.flightDate}`} size="lg">
+    <form onSubmit={save} data-testid="flight-edit">
       {node}
       <div className="grid-2">
         <div className="field"><label htmlFor="fl-st">Trạng thái</label><Select id="fl-st" value={status} onChange={(e) => setStatus(e.target.value)}>{Object.entries(ST).map(([k, [t]]) => <option key={k} value={k}>{t}</option>)}</Select></div>
@@ -41,6 +41,7 @@ function Edit({ f, onDone }) {
       </div>
       <div className="row-actions"><button className="btn btn-primary" disabled={busy} data-testid="flight-save">Lưu</button><button type="button" className="btn" onClick={onDone}>Đóng</button></div>
     </form>
+    </Modal>
   );
 }
 
@@ -56,8 +57,8 @@ function Create({ onDone, onCancel }) {
     if (r.ok) onDone();
   };
   return (
-    <form onSubmit={submit} className="card" data-testid="flight-create">
-      <h3>Tạo chuyến bay</h3>
+    <Modal open onClose={onCancel} title="Tạo chuyến bay" size="lg">
+    <form onSubmit={submit} data-testid="flight-create">
       {node}{airErr && <p className="field-error" role="alert">{airErr}</p>}
       <div className="grid-2">
         <Field id="cf-code" label="Mã chuyến (vd VN218)"><input id="cf-code" required value={v.code} onChange={set('code')} maxLength={8} data-testid="cf-code" /></Field>
@@ -70,6 +71,7 @@ function Create({ onDone, onCancel }) {
       <Field id="cf-reason" label="Lý do (bắt buộc)"><input id="cf-reason" required minLength={3} maxLength={200} value={v.reason} onChange={set('reason')} data-testid="cf-reason" /></Field>
       <div className="row-actions"><button className="btn btn-primary" disabled={busy} data-testid="flight-create-submit">Tạo chuyến</button><button type="button" className="btn" onClick={onCancel}>Đóng</button></div>
     </form>
+    </Modal>
   );
 }
 
@@ -85,18 +87,17 @@ export default function Flights() {
   const p = usePaged('/flights', q);
   return (
     <>
-      <ScreenTitle title="Chuyến bay">Chỉnh giờ và trạng thái, có lịch sử</ScreenTitle>
-      {manage && !creating && <div className="row-actions" style={{ marginTop: 0 }}><button type="button" className="btn btn-sm btn-primary" onClick={() => { setEdit(null); setHist(null); setCreating(true); }} data-testid="flight-new">Tạo chuyến</button></div>}
+      <PageHeader title="Chuyến bay" description="Chỉnh giờ và trạng thái, có lịch sử"
+        actions={manage && <button type="button" className="btn btn-primary" onClick={() => { setEdit(null); setHist(null); setCreating(true); }} data-testid="flight-new">Tạo chuyến</button>} />
       {creating && <Create onCancel={() => setCreating(false)} onDone={() => { setCreating(false); setDone('Đã tạo chuyến bay.'); p.reload(); }} />}
       {del.node}
       {done && <Notice tone="ok" onClose={() => setDone('')}><span data-testid="flight-done">{done}</span></Notice>}
       <Filters fields={[['code', 'Mã chuyến (VN218)'], ['date', 'Ngày (YYYY-MM-DD)'], ['status', 'Trạng thái', 'text', Object.entries(ST).map(([k, [t]]) => [k, t])]]} onApply={setQ} />
       {edit && <Edit f={edit} onDone={(ok) => { setEdit(null); if (ok === true) setDone('Đã cập nhật chuyến bay.'); p.reload(); }} />}
-      {hist && <section className="card" data-testid="flight-history"><div className="card-head"><h3>Lịch sử {hist.code} · {hist.flightDate}</h3><button type="button" className="link-btn" onClick={() => setHist(null)}>Đóng</button></div><Changes id={hist.id} /></section>}
-      <PagedView p={p} empty="Không có chuyến bay khớp bộ lọc.">
-        <Table rows={p.items} cols={[['Chuyến', (f) => f.code], ['Ngày', (f) => f.flightDate], ['Tuyến', (f) => `${f.origin} → ${f.dest}`], ['Giờ dự kiến', (f) => dt(f.scheduledDepartureAt)], ['Giờ hiệu lực', (f) => dt(f.effectiveDepartureAt)], ['Trạng thái', (f) => <Pill tone={ST[f.status]?.[1]}>{ST[f.status]?.[0]}{f.delayMinutes ? ` ${f.delayMinutes}p` : ''}</Pill>], ['Nguyên nhân', (f) => CAUSE[f.cause] || '—'],
-          ['', (f) => <span className="inline-form"><button type="button" className="btn btn-sm" onClick={() => { setHist(null); setCreating(false); setEdit(f); }} data-testid="flight-edit-open">Sửa</button><button type="button" className="link-btn" onClick={() => { setEdit(null); setHist(f); }}>Lịch sử</button>{manage && <Act label="Xóa" danger confirm="Xóa chuyến bay này? Chỉ xóa được chuyến chưa có lịch sử thay đổi." testid="flight-delete" onDo={async () => { const r = await del.run(() => deleteFlight(f.id), `Đã xóa chuyến ${f.code}.`); if (r.ok) p.reload(); return r; }} />}</span>]]} />
-      </PagedView>
+      {hist && <Modal open onClose={() => setHist(null)} title={`Lịch sử ${hist.code} · ${hist.flightDate}`} size="lg"><div data-testid="flight-history"><Changes id={hist.id} /></div></Modal>}
+      <DataTable empty="Không có chuyến bay khớp bộ lọc." {...pagedProps(p)}
+        columns={cols([['Chuyến', (f) => f.code], ['Ngày', (f) => f.flightDate], ['Tuyến', (f) => `${f.origin} → ${f.dest}`], ['Giờ dự kiến', (f) => dt(f.scheduledDepartureAt)], ['Giờ hiệu lực', (f) => dt(f.effectiveDepartureAt)], ['Trạng thái', (f) => <StatusBadge status={f.status} map={f.delayMinutes ? { [f.status]: [`${ST[f.status]?.[0] || f.status} ${f.delayMinutes}p`, ST[f.status]?.[1]] } : ST} />], ['Nguyên nhân', (f) => CAUSE[f.cause] || '—'],
+          ['', (f) => <span className="inline-form"><button type="button" className="btn btn-sm" onClick={() => { setHist(null); setCreating(false); setEdit(f); }} data-testid="flight-edit-open">Sửa</button><button type="button" className="link-btn" onClick={() => { setEdit(null); setHist(f); }}>Lịch sử</button>{manage && <Act label="Xóa" danger confirm="Xóa chuyến bay này? Chỉ xóa được chuyến chưa có lịch sử thay đổi." testid="flight-delete" onDo={async () => { const r = await del.run(() => deleteFlight(f.id), `Đã xóa chuyến ${f.code}.`); if (r.ok) p.reload(); return r; }} />}</span>]])} />
     </>
   );
 }

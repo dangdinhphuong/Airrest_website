@@ -5,7 +5,8 @@ export interface AuthContext {
   kind: 'ACCOUNT' | 'GUEST';
   sub: string;
   accountType?: 'HOTEL' | 'DRIVER' | 'ADMIN' | 'PASSENGER' | 'PAYER';
-  hotelId?: string;
+  hotelId?: string; // khách sạn đang làm việc
+  businessId?: string; // chỉ tài khoản chủ doanh nghiệp
   payerId?: string; // chỉ accountType = PAYER
   payerStationId?: string; // chỉ PAYER; vắng = cấp đơn vị (mọi trạm)
   permissions: string[];
@@ -15,7 +16,8 @@ export interface AuthContext {
 type Expires = SignOptions['expiresIn'];
 
 // Token chỉ chứa định danh. Quyền + hotelId được nạp lại ở máy chủ (lib/authz.ts) để token luôn nhỏ và quyền luôn mới.
-export const signAccountToken = (ctx: { sub: string; accountType: NonNullable<AuthContext['accountType']> }): string =>
+// hotelId (tùy chọn) = khách sạn đang làm việc của chủ nhiều khách sạn; máy chủ vẫn kiểm khách sạn đó thuộc doanh nghiệp ở mỗi request.
+export const signAccountToken = (ctx: { sub: string; accountType: NonNullable<AuthContext['accountType']>; hotelId?: string }): string =>
   jwt.sign({ ...ctx, kind: 'ACCOUNT' }, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN as Expires });
 
 // Token ngắn hạn cho khách vãng lai sau khi tra cứu đơn đúng (mã + SĐT) -> dùng cho Socket.io.

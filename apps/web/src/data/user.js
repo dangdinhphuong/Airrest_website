@@ -4,7 +4,7 @@ import { api, apiBase, asGuest, describeError } from '../lib/api';
 
 const IMAGES = ['/images/hotel-1.jpg', '/images/hotel-2.jpg', '/images/hotel-3.jpg'];
 // Tag trong hotels.amenities -> nhãn hiển thị (xem backend/services/hotels/catalog.ts).
-const AMENITY_LABEL = {
+export const AMENITY_LABEL = {
   HOT_WATER: 'Tắm nước nóng', WIFI: 'Wifi', LUGGAGE: 'Gửi hành lý', AIR_CON: 'Điều hòa', KITCHENETTE: 'Bếp nhỏ',
   SHUTTLE_FREE: 'Xe đưa đón miễn phí', SHUTTLE_PAID: 'Xe đưa đón có phí', SHUTTLE: 'Xe đưa đón', '24H_RECEPTION': 'Lễ tân 24/24', HOURLY: 'Thuê theo giờ', FAMILY_ROOM: 'Phòng gia đình',
 };
@@ -25,8 +25,12 @@ export function describeApiError(e) {
 
 const receptionLabel = (f) => (f.reception24 ? 'Lễ tân 24/24' : f.receptionCloseHour != null ? `Nhận khách đến ${String(f.receptionCloseHour % 24).padStart(2, '0')}:00` : 'Liên hệ khách sạn để biết giờ nhận khách');
 
+// Giá/đêm của mức Không hoàn hủy: khớp backend (giảm pct%, làm tròn 1.000đ); giá chốt cuối do server tính.
+export const nonRefundableNight = (base, pct) => Math.round((base * (100 - pct)) / 100 / 1000) * 1000;
+
 function roomView(r, freeCancel) {
-  return { id: r.id, name: r.name, price: r.baseNightVnd, maxOccupancy: r.capacity, beds: r.beds, areaM2: r.areaM2, cancellationPolicy: freeCancel ? 'Hủy miễn phí' : 'Không hoàn hủy', availableRooms: r.roomsLeft, hourly: r.hourly?.enabled ? r.hourly : null };
+  return { id: r.id, name: r.name, price: r.baseNightVnd, nonRefundablePct: r.nonRefundablePct ?? null, nonRefundablePrice: r.nonRefundablePct ? nonRefundableNight(r.baseNightVnd, r.nonRefundablePct) : null, maxOccupancy: r.capacity, beds: r.beds, areaM2: r.areaM2, cancellationPolicy: freeCancel ? 'Hủy miễn phí' : 'Không hoàn hủy', availableRooms: r.roomsLeft, hourly: r.hourly?.enabled ? r.hourly : null,
+    description: r.description ?? '', view: r.view ?? '', smoking: !!r.smoking, amenities: r.amenities ?? [], images: (r.images ?? []).map((x) => x?.url).filter(Boolean) };
 }
 
 // Khách sạn từ API -> dạng hiển thị của thẻ nơi nghỉ. `room` = loại phòng rẻ nhất còn phòng (hoặc rẻ nhất nếu hết).
@@ -43,6 +47,8 @@ export function toHotelView(h, iata) {
     rating: h.rating?.count ? Number(h.rating.avg).toFixed(1) : null,
     amenities: h.amenities.map((a) => AMENITY_LABEL[a]).filter(Boolean),
     shuttleAvailable: f.shuttle !== 'none', shuttleMode: f.shuttle, airports: h.airports.map((a) => a.iata), freeCancel: f.freeCancel, hourly: f.hourly, familyRoom: f.family, reception24: f.reception24,
+    ratingCount: h.rating?.count ?? 0, lat: h.location?.coordinates?.[1], lng: h.location?.coordinates?.[0],
+    airportList: [...h.airports].sort((a, b) => a.km - b.km), stay: h.stay ?? null, stats: h.stats ?? null, amenityTags: h.amenities,
     receptionLabel: receptionLabel(f), address: h.address?.line ?? '', description: h.description ?? '',
     room: rooms.find((r) => r.availableRooms > 0) ?? rooms[0], rooms,
   };
@@ -69,6 +75,11 @@ export async function getHotel(id, signal, window) {
   const { hotel, rooms } = await api.get(`/v1/hotels/${id}`, { signal, ...(window && { query: window }) });
   return toHotelView({ ...hotel, rooms }, hotel.airports[0]?.iata);
 }
+
+// Đánh giá của khách (công khai). `cursor` = nextCursor của trang trước.
+export const getReviews = (id, cursor, signal) => api.get(`/v1/hotels/${id}/reviews`, { auth: false, signal, query: { limit: 5, ...(cursor && { cursor }) } });
+// Gửi đánh giá bằng mã đơn + SĐT của đơn đã trả phòng; điểm 1-10.
+export const postReview = (id, body) => api.post(`/v1/hotels/${id}/reviews`, body, { auth: false });
 
 const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : null);
 
@@ -219,6 +230,19 @@ export function checkAttachment(file) {
   if (!ATTACH.accept.split(',').includes(file.type)) return 'Chỉ nhận ảnh JPG/PNG/WebP hoặc video MP4.';
   const max = (file.type.startsWith('video/') ? ATTACH.maxVideoMb : ATTACH.maxImageMb) * 1024 * 1024;
   return file.size > max ? `Tệp quá lớn (tối đa ${file.type.startsWith('video/') ? ATTACH.maxVideoMb : ATTACH.maxImageMb} MB).` : null;
+}
+// Lọc danh sách tệp khách chọn: giữ tệp hợp lệ (đúng loại/dung lượng, không vượt 5 ảnh, 1 video, 6 tệp tính cả `have` đã chọn trước đó), còn lại ghi lý do. Máy chủ vẫn kiểm lại.
+export function checkAttachments(files, have = []) {
+  const ok = []; const errors = [];
+  let images = have.filter((f) => !f.type.startsWith('video/')).length; let videos = have.length - images;
+  for (const f of files) {
+    const bad = checkAttachment(f);
+    const video = f.type.startsWith('video/');
+    const limit = bad ? null : have.length + ok.length >= 6 ? 'Tối đa 6 tệp mỗi yêu cầu.' : video ? (videos >= 1 ? 'Chỉ đính kèm tối đa 1 video.' : null) : (images >= 5 ? 'Chỉ đính kèm tối đa 5 ảnh.' : null);
+    if (bad || limit) { errors.push(`${f.name}: ${bad ?? limit}`); continue; }
+    ok.push(f); if (video) videos++; else images++;
+  }
+  return { ok, errors };
 }
 // Xin URL → PUT thẳng lên kho lưu trữ → xác nhận (máy chủ kiểm kích thước/loại thật). Ném ApiError, dùng describeApiError để hiển thị.
 export async function attachFile(code, phone, file) {

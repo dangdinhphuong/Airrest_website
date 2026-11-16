@@ -4,8 +4,11 @@ import { useApp } from '../state/store';
 import { loginStaff, logoutStaff } from '../data/auth';
 import { areasOf } from '../lib/access';
 import { describeError, setAuthToken, setGuestToken } from '../lib/api';
+import BusinessRegister from './BusinessRegister';
+import { BUSINESS_LOGIN_MSG } from '../data/business';
 import { FULLNAME_MAX, PASSWORD_MIN, USERNAME_MAX, describeAuthError, loginPassenger, registerPassenger, validateRegister } from '../data/user';
 
+const PAYER_SUSPENDED_MSG = 'Đơn vị chi trả của bạn đang bị tạm ngưng. Vui lòng liên hệ Airrest để được kích hoạt lại.';
 
 function PasswordInput({ id, value, onChange, autoComplete, invalid, show, onToggle, placeholder }) {
   return (
@@ -43,6 +46,7 @@ export default function Login() {
   const [show, setShow] = useState(false);
   const [staff, setStaff] = useState({ email: '', password: '' });
   const [busy, setBusy] = useState(false);
+  const [bizReg, setBizReg] = useState(false); // đang xem form đăng ký doanh nghiệp (tab Nhân sự)
 
   const set = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -104,7 +108,7 @@ export default function Login() {
       const area = areasOf(s)[0]; // vào khu vực đầu tiên mà quyền cho phép
       if (!area) { logoutStaff(); setErrors({ staff: 'Tài khoản chưa được cấp quyền vào cổng làm việc nào. Liên hệ quản trị.' }); return; }
       dispatch({ type: 'login', session: { ...s, area } });
-    } catch (err) { setErrors({ staff: describeError(err) }); }
+    } catch (err) { setErrors({ staff: err?.code === 'PAYER_SUSPENDED' ? PAYER_SUSPENDED_MSG : BUSINESS_LOGIN_MSG[err?.code] || describeError(err) }); }
     finally { setBusy(false); }
   };
 
@@ -195,12 +199,14 @@ export default function Login() {
             </div>
           )}
 
-          {accountType === 'admin' ? (
+          {accountType === 'admin' && bizReg ? (
+            <BusinessRegister onBack={() => { setBizReg(false); setErrors({}); }} />
+          ) : accountType === 'admin' ? (
             <form onSubmit={submitStaff} noValidate data-testid="staff-form">
               <span className="section-kicker">Cổng nhân sự</span>
               <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#062253', margin: '8px 0 8px' }}>Đăng nhập nhân sự</h2>
               <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 20px', lineHeight: 1.6 }}>
-                Tài khoản khách sạn và quản trị do AIRREST cấp, không tự đăng ký. Chức năng hiển thị theo quyền được cấp cho tài khoản.
+                Tài khoản quản trị do AIRREST cấp; doanh nghiệp khách sạn tự đăng ký hồ sơ để được duyệt. Chức năng hiển thị theo quyền được cấp cho tài khoản.
               </p>
               <div className="hero-input-field">
                 <label htmlFor="s-email">Email</label>
@@ -219,6 +225,10 @@ export default function Login() {
               <button type="submit" className="hero-submit-btn" disabled={busy} data-testid="staff-submit" style={{ marginTop: '16px' }}>
                 {busy ? 'Đang đăng nhập…' : 'Đăng nhập'} <ArrowRight size={17} style={{ marginLeft: 'auto' }} />
               </button>
+              <p style={{ textAlign: 'center', fontSize: '12.5px', color: '#64748b', marginTop: '16px' }}>
+                Là doanh nghiệp khách sạn?{' '}
+                <button type="button" className="link-btn" onClick={() => { setBizReg(true); setErrors({}); }} style={{ fontWeight: '700' }} data-testid="biz-open">Đăng ký doanh nghiệp</button>
+              </p>
             </form>
           ) : (
             <div>

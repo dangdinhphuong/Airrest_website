@@ -23,7 +23,7 @@ export function label(v) {
   return String(v);
 }
 
-// ---- Yêu cầu gia hạn lưu trú (sự kiện realtime 'delay:extension') ----
+// ---- Yêu cầu gia hạn lưu trú (GET /delay-offers?include=extension; sự kiện 'delay:extension' chỉ kích hoạt làm mới) ----
 const EXT_ERR = {
   EXTENSION_NO_ROOM: 'Khách sạn đã hết phòng trong khung gia hạn nên không thể đồng ý. Hệ thống đã ghi nhận và báo quầy.',
   INVALID_STATE: 'Yêu cầu gia hạn này đã được xử lý hoặc không còn chờ phản hồi.',
@@ -33,12 +33,10 @@ export const extensionErr = (e) => EXT_ERR[e?.code] || (e?.status === 404 ? 'Kh�
 // Giờ Việt Nam bất kể múi giờ máy người dùng.
 export const fmtVN = (v) => (v ? new Date(v).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false }) : '—');
 
-// Thêm/cập nhật yêu cầu từ sự kiện; cùng offerId thì ghi đè (đề xuất lại), giữ thứ tự mới nhất trước. Không đổi mảng gốc.
-export function addExtension(list, p) {
-  if (!p?.offerId) return list;
-  return [{ offerId: p.offerId, groupId: p.groupId, proposedLeaveAt: p.proposedLeaveAt, at: p.at, result: null }, ...list.filter((x) => x.offerId !== p.offerId)];
-}
-export const setExtensionResult = (list, offerId, result) => list.map((x) => (x.offerId === offerId ? { ...x, result } : x));
+// Yêu cầu gia hạn đọc từ GET /delay-offers?include=extension: chỉ offer extensionStatus='REQUESTED'; ACCEPTED/REJECTED biến mất ở lần làm mới sau.
+export const extensionsOf = (items) => (items || []).filter((o) => o.extensionStatus === 'REQUESTED' && o.proposedLeaveAt).map((o) => ({ offerId: o.id, groupId: o.groupId, proposedLeaveAt: o.proposedLeaveAt, at: o.extensionRequestedAt }));
+// Danh sách offer chờ xác nhận (không kèm offer CONFIRMED đang xin gia hạn).
+export const pendingOffersOf = (items) => (items || []).filter((o) => o.status === 'PENDING');
 
 // Lý do từ chối gia hạn tùy chọn, tối đa 300 ký tự: trả { ok, reason? }.
 export function checkExtReason(v) {

@@ -231,6 +231,7 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     expect((await call('post', `/v1/hotel/shuttle-trips/${x.id}/external`, staff, { provider: 'GRAB', shareUrl: 'https://grab.com/s/2' })).body.trip.external.provider).toBe('GRAB'); // đổi xe ngoài
     expect((await call('post', `/v1/hotel/shuttle-trips/${x.id}/cancel`, staff, { note: 'Khách tự đi' })).body.trip.status).toBe('CANCELLED');
     expect((await call('post', `/v1/hotel/shuttle-trips/${x.id}/cancel`, staff, { note: 'Khách tự đi' })).status).toBe(409);
+    expect(await one<any>('SELECT status FROM shuttle_requests WHERE id = $1', [rid2])).toMatchObject({ status: 'CANCELLED' }); // hủy chuyến duy nhất -> đóng yêu cầu, không treo REQUESTED
   });
 
   it('quyền: tài xế chỉ thấy/nhận chuyến của mình (người khác, khách sạn khác -> 404); thiếu fleet:manage -> 403; tài xế không vào cổng khách sạn', async () => {

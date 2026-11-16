@@ -1,4 +1,7 @@
 // Danh mục quyền, ĐỒNG BỘ với backend/config/permissions.ts. Truy cập chỉ dựa trên quyền, không chặn theo tên vai trò.
+// Quyền chỉ thuộc cổng khách sạn / chủ doanh nghiệp: KHÔNG hiện trong danh mục quyền của cổng quản trị (tab Vai trò của admin).
+export const HOTEL_PORTAL_ONLY = ['hotel:staff:manage', 'hotel:role:manage', 'business:hotel:manage', 'business:report:read'];
+
 export const PERM = {
   BOOKING_READ: 'booking:read',
   BOOKING_CHECKIN: 'booking:checkin',
@@ -29,4 +32,8 @@ export const PERM = {
   PAYER_DELAY_MANAGE: 'payer:delay:manage',
   ADMIN_PAYER_READ: 'admin:payer:read',
   ADMIN_PAYER_MANAGE: 'admin:payer:manage',
+  BUSINESS_HOTEL_MANAGE: 'business:hotel:manage',
+  BUSINESS_REPORT_READ: 'business:report:read',
+  HOTEL_STAFF_MANAGE: 'hotel:staff:manage',
+  HOTEL_ROLE_MANAGE: 'hotel:role:manage',
 };

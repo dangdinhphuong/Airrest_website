@@ -13,11 +13,16 @@ export const hotelProfileRouter = Router();
 hotelProfileRouter.use(authenticate);
 const need = requirePermission(PERM.ROOM_MANAGE);
 
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const patchBody = z
   .object({
     description: z.string().trim().max(5000),
     phone: z.string().trim().min(8).max(20),
     receptionCloseHour: z.number().int().min(0).max(26).nullable(),
+    checkInTime: z.string().regex(HHMM, 'Giờ phải dạng HH:MM'),
+    checkOutTime: z.string().regex(HHMM, 'Giờ phải dạng HH:MM'),
+    childPolicy: z.string().trim().max(500).nullable(),
+    petsAllowed: z.boolean(),
     cancellationTemplate: z.enum(['FLEXIBLE', 'STANDARD', 'NON_REFUNDABLE']),
     amenities: z.array(z.string().trim().min(1).max(40)).max(40),
     images: z.array(z.string().regex(HOTEL_IMAGE_KEY_RE, 'Khóa ảnh không hợp lệ')).max(MAX_HOTEL_IMAGES),

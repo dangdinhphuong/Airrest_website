@@ -1,12 +1,13 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ScreenTitle, Notice, Loading, ErrorBox, EmptyBox } from '../Common';
+import { Notice } from '../Common';
+import { EmptyState, ErrorState, Loading, PageHeader } from '../ui';
 import { describeError } from '../../lib/api';
 import { useApp } from '../../state/store';
 import { useLiveData } from '../../lib/useRealtime';
 import { fmtCountdown, remainingSeconds, useNow } from '../../lib/countdown';
 import * as H from '../../data/hotel';
 import { fmtDT } from './kit';
-import { URGENT_SECONDS, addExtension, checkExtReason, checkRoomNumbers, delayOfferErr, extensionErr, fmtVN, label, setExtensionResult } from './hotelDelay';
+import { URGENT_SECONDS, checkExtReason, checkRoomNumbers, delayOfferErr, extensionErr, extensionsOf, fmtVN, label, pendingOffersOf } from './hotelDelay';
 
 const err = (e) => delayOfferErr(e) || describeError(e);
 
@@ -82,6 +83,7 @@ function Offer({ o, left, onDone, onError }) {
 }
 
 const RESULT = { ACCEPTED: 'Đã đồng ý gia hạn.', REJECTED: 'Đã từ chối gia hạn.', NO_ROOM: 'Hết phòng trong khung gia hạn, không gia hạn được.', DONE: 'Yêu cầu đã được xử lý ở nơi khác.' };
+// Kết quả hiện ở thông báo chung; thẻ tự biến mất khi làm mới thấy extensionStatus đã đổi.
 
 // Yêu cầu gia hạn: quầy đề xuất giờ rời mới cho nhóm khách đã được xác nhận phòng.
 function Extension({ x, onResult }) {
@@ -103,11 +105,11 @@ function Extension({ x, onResult }) {
     run(() => H.rejectExtension(x.offerId, r.reason), 'REJECTED');
   };
   return (
-    <section className="card" style={{ borderColor: x.result ? undefined : '#b45309' }} data-testid="delay-extension">
+    <section className="card" style={{ borderColor: '#b45309' }} data-testid="delay-extension">
       <div className="card-head"><h3>Yêu cầu gia hạn</h3></div>
       <p style={{ margin: '4px 0' }}>Giờ rời mới đề xuất: <b data-testid="ext-leave">{fmtVN(x.proposedLeaveAt)}</b> (giờ Việt Nam)</p>
       <small>Nhóm {x.groupId ? String(x.groupId).slice(0, 8) : '—'} · nhận lúc {fmtVN(x.at)}</small>
-      {x.result ? <p role="status" data-testid="ext-result" style={{ margin: '8px 0 0' }}><b>{RESULT[x.result]}</b></p> : !reject ? (
+      {!reject ? (
         <div className="row-actions">
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => run(() => H.acceptExtension(x.offerId), 'ACCEPTED')} data-testid="ext-accept">{busy ? 'Đang gửi…' : 'Đồng ý gia hạn'}</button>
           <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setReject(true)} data-testid="ext-reject-open">Không gia hạn</button>
@@ -128,27 +130,26 @@ export default function DelayOffers() {
   const { state } = useApp();
   const [flash, setFlash] = useState('');
   const seen = useRef(new Set());
-  // Backend chưa trả extensionStatus trong GET /delay-offers: danh sách này chỉ có từ sự kiện, mất khi tải lại trang.
-  const [exts, setExts] = useState([]);
   const live = useLiveData(() => H.listDelayOffers('PENDING'), [], state.session?.id, {
     pollMs: 5000,
-    refreshOn: (n) => n === 'delay:offer' || n === 'delay:offer:closed',
+    refreshOn: (n) => n === 'delay:offer' || n === 'delay:offer:closed' || n === 'delay:extension',
     onEvent: (n, p) => {
-      if (n === 'delay:extension' && p?.offerId) { setExts((l) => addExtension(l, p)); beep(); }
+      if (n === 'delay:extension' && p?.offerId) beep();
       if (n === 'delay:offer' && p?.offerId && !seen.current.has(p.offerId)) { seen.current.add(p.offerId); beep(); }
     },
   });
   const now = useNow();
   const at = useMemo(() => Date.now(), [live.data]); // eslint-disable-line react-hooks/exhaustive-deps
-  const items = live.data?.items || [];
+  const items = pendingOffersOf(live.data?.items);
+  const exts = extensionsOf(live.data?.items);
   return (
     <>
-      <ScreenTitle title="Yêu cầu khách delay">Khách bị hoãn chuyến cần chỗ nghỉ. Hãy trả lời trong 5 phút, quá hạn hệ thống chuyển cho khách sạn khác.</ScreenTitle>
+      <PageHeader title="Yêu cầu khách delay" description="Khách bị hoãn chuyến cần chỗ nghỉ. Hãy trả lời trong 5 phút, quá hạn hệ thống chuyển cho khách sạn khác." />
       {flash && <Notice tone="ok" onClose={() => setFlash('')}>{flash}</Notice>}
-      {exts.map((x) => <Extension key={x.offerId} x={x} onResult={(id, r) => setExts((l) => setExtensionResult(l, id, r))} />)}
-      {live.err && !live.data ? <ErrorBox onRetry={live.reload}>{describeError(live.err)}</ErrorBox>
+      {exts.map((x) => <Extension key={x.offerId} x={x} onResult={(id, r) => { setFlash(RESULT[r]); live.refresh(); }} />)}
+      {live.err && !live.data ? <ErrorState onRetry={live.reload}>{describeError(live.err)}</ErrorState>
         : live.loading && !live.data ? <Loading />
-        : !items.length ? <EmptyBox title="Chưa có yêu cầu">Hiện không có yêu cầu giữ phòng nào đang chờ. Trang tự cập nhật.</EmptyBox>
+        : !items.length ? <EmptyState title="Chưa có yêu cầu">Hiện không có yêu cầu giữ phòng nào đang chờ. Trang tự cập nhật.</EmptyState>
         : items.map((o) => <Offer key={o.id} o={o} left={remainingSeconds(o.secondsLeft, at, now)} onDone={() => { setFlash('Đã gửi phản hồi.'); live.refresh(); }} onError={() => live.refresh()} />)}
     </>
   );

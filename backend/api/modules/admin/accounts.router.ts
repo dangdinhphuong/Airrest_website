@@ -97,8 +97,8 @@ accountsRouter.get('/accounts', need, validate({ query: listQuery }), async (req
     const n = params.push(escapeLike(q));
     where.push(`(a.email ILIKE '%' || $${n} || '%' OR a.full_name ILIKE '%' || $${n} || '%')`);
   }
-  if (after !== undefined) add('seq > ?', after);
-  const items = (await db.query<AccountDoc>(`${ADMIN_SELECT} WHERE ${where.join(' AND ')} ORDER BY a.seq LIMIT ${limit + 1}`, params)).rows;
+  if (after !== undefined) add('seq < ?', after);
+  const items = (await db.query<AccountDoc>(`${ADMIN_SELECT} WHERE ${where.join(' AND ')} ORDER BY a.seq DESC LIMIT ${limit + 1}`, params)).rows;
   const page = items.slice(0, limit);
   res.json({ items: page.map(pub), nextCursor: items.length > limit ? page[page.length - 1]?.seq : null });
 });

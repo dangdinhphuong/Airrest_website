@@ -10,16 +10,18 @@ function parseBase(u) {
 
 export const apiBase = parseBase(import.meta.env.VITE_API_BASE_URL);
 
-// Hai phiên không bao giờ cùng tồn tại: `token` = nhân sự (chỉ trong bộ nhớ); `guestToken` = khách (sessionStorage, tải lại trang vẫn còn).
+// Hai phiên không bao giờ cùng tồn tại: `token` = nhân sự; `guestToken` = khách. Cả hai nằm trong sessionStorage (tải lại trang/đi qua trang chủ vẫn còn; đóng tab là mất).
 const GUEST_KEY = 'airrest.guest.token';
+const STAFF_KEY = 'airrest.staff.token';
 const store = (fn) => { try { return fn(window.sessionStorage); } catch { return null; } }; // sessionStorage có thể bị chặn
-let token = null;
+let token = store((s) => s.getItem(STAFF_KEY));
 let guestToken = store((s) => s.getItem(GUEST_KEY));
 let onUnauthorized = null;
 export const setGuestToken = (t) => { guestToken = t || null; store((s) => (t ? s.setItem(GUEST_KEY, t) : s.removeItem(GUEST_KEY))); };
 export const getGuestToken = () => guestToken;
 // Đặt token nhân sự (null = xóa). Có token nhân sự thì bỏ phiên khách để không gửi nhầm.
-export const setAuthToken = (t) => { token = t; if (t) setGuestToken(null); };
+export const setAuthToken = (t) => { token = t || null; store((s) => (t ? s.setItem(STAFF_KEY, t) : s.removeItem(STAFF_KEY))); if (t) setGuestToken(null); };
+export const hasStaffToken = () => !!token;
 // true khi đang là khách (không có phiên nhân sự): dùng cho lời gọi công khai nhưng muốn gắn tài khoản khách (đặt phòng).
 export const asGuest = () => !token && !!guestToken;
 export const setOnUnauthorized = (fn) => { onUnauthorized = fn; };

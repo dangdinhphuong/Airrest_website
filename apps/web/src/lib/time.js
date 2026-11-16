@@ -21,3 +21,6 @@ export const fmtDuration = (min) => {
 };
 export const minutesOfDay = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
 export const money = (v) => `${new Intl.NumberFormat('vi-VN').format(v)}đ`;
+// Biên ngày lọc theo giờ Việt Nam (UTC+7, không DST), không phụ thuộc múi giờ máy: 'YYYY-MM-DD' -> 00:00 ngày đó / 00:00 ngày kế tiếp.
+export const vnDayStart = (ymd) => (ymd ? new Date(`${ymd}T00:00:00+07:00`) : undefined);
+export const vnDayEnd = (ymd) => (ymd ? new Date(vnDayStart(ymd).getTime() + 86400000) : undefined);

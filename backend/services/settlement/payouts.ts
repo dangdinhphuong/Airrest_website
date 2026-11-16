@@ -1,7 +1,7 @@
 import { db, withTransaction, type Db } from '../../database/pg';
 import { AppError } from '../../lib/errors';
 import { actorOf, writeAudit } from '../audit';
-import { assertPeriod, collectRoomRows, nextPeriod } from './calc';
+import { assertAdjustAmount, assertAdjustTotal, assertPeriod, collectRoomRows, nextPeriod } from './calc';
 import type { Ctx } from './statements';
 
 // (B) Bảng chi trả tháng Airrest -> từng khách sạn. DRAFT -> LOCKED -> PAID. net = gross - hoa hồng (hoa hồng làm tròn xuống TỪNG dòng, xem calc.commissionOf).
@@ -83,7 +83,9 @@ export async function markPaid(c: Ctx, id: string, paymentRef: string, now = new
  */
 export async function addHotelAdjustment(c: Ctx, a: { hotelId: string; period: string; amountVnd: number; memo: string; bookingId?: string }) {
   const period = assertPeriod(a.period);
-  if (!Number.isSafeInteger(a.amountVnd) || a.amountVnd === 0) throw new AppError(422, 'INVALID_AMOUNT', 'Số tiền điều chỉnh phải là số nguyên VND khác 0');
+  assertAdjustAmount(a.amountVnd);
+  if (!(await db.query('SELECT 1 FROM hotels WHERE id = $1', [a.hotelId])).rows[0]) throw new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');
+  if (a.bookingId && !(await db.query('SELECT 1 FROM bookings WHERE id = $1', [a.bookingId])).rows[0]) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Không tìm thấy đơn đặt phòng');
   return withTransaction(async (tx) => {
     const src = (await tx.query('SELECT status FROM hotel_payouts WHERE hotel_id = $1 AND period = $2', [a.hotelId, period])).rows[0];
     if (!src || src.status === 'DRAFT') throw new AppError(409, 'PERIOD_NOT_LOCKED', 'Kỳ gốc chưa khóa: hãy tạo lại bảng chi trả thay vì điều chỉnh');
@@ -92,6 +94,7 @@ export async function addHotelAdjustment(c: Ctx, a: { hotelId: string; period: s
       await tx.query('INSERT INTO hotel_payouts (hotel_id, period) VALUES ($1,$2) ON CONFLICT (hotel_id, period) DO NOTHING', [a.hotelId, target]);
       const p = (await tx.query('SELECT * FROM hotel_payouts WHERE hotel_id = $1 AND period = $2 FOR UPDATE', [a.hotelId, target])).rows[0]!;
       if (p.status !== 'DRAFT') continue;
+      assertAdjustTotal((await tx.query("SELECT COALESCE(sum(gross_vnd),0)::float8 AS t FROM hotel_payout_lines WHERE payout_id = $1 AND kind = 'ADJUSTMENT'", [p.id])).rows[0]!.t, a.amountVnd);
       await tx.query("INSERT INTO hotel_payout_lines (payout_id, booking_id, kind, gross_vnd, commission_vnd, net_vnd, memo) VALUES ($1,$2,'ADJUSTMENT',$3,0,$3,$4)", [p.id, a.bookingId ?? null, a.amountVnd, `[Kỳ ${period}] ${a.memo}`]);
       const next = await recompute(tx, p.id, true);
       await audit(c, tx, 'HOTEL_PAYOUT.ADJUST', p.id, brief(p), { ...brief(next), fromPeriod: period, amountVnd: a.amountVnd }, a.memo);
@@ -119,6 +122,31 @@ export async function getHotelPayout(id: string) {
   if (!payout) throw notFound();
   const lines = (
     await db.query('SELECT l.id, l.kind, l.booking_id, b.code AS booking_code, l.payer_id, l.group_code, l.gross_vnd, l.commission_vnd, l.net_vnd, l.memo FROM hotel_payout_lines l LEFT JOIN bookings b ON b.id = l.booking_id WHERE l.payout_id = $1 ORDER BY l.seq', [id])
+  ).rows;
+  return { payout, lines };
+}
+
+// --- Khách sạn xem bảng chi trả CỦA MÌNH (chỉ đọc): chỉ LOCKED/PAID (không lộ DRAFT), bỏ cột nội bộ (người khóa/trả, payer_id).
+const HOTEL_VISIBLE = "('LOCKED','PAID')";
+const HOTEL_COLS = 'p.id, p.seq, p.period, p.status, p.gross_vnd, p.commission_vnd, p.net_vnd, p.line_count, p.locked_at, p.paid_at, p.payment_ref';
+
+export async function listOwnPayouts(hotelId: string, q: { period?: string; limit: number; after?: number }) {
+  const rows = (
+    await db.query<{ seq: number }>(
+      `SELECT ${HOTEL_COLS} FROM hotel_payouts p WHERE p.hotel_id = $1 AND p.status IN ${HOTEL_VISIBLE} AND ($2::text IS NULL OR p.period = $2) AND ($3::bigint IS NULL OR p.seq < $3) ORDER BY p.seq DESC LIMIT $4`,
+      [hotelId, q.period ?? null, q.after ?? null, q.limit + 1],
+    )
+  ).rows;
+  const items = rows.slice(0, q.limit);
+  return { items, nextCursor: rows.length > q.limit ? items[items.length - 1]!.seq : null };
+}
+
+/** Bảng của khách sạn khác / bản nháp đều trả 404 như không tồn tại (không lộ sự tồn tại). */
+export async function getOwnPayout(hotelId: string, id: string) {
+  const payout = (await db.query(`SELECT ${HOTEL_COLS} FROM hotel_payouts p WHERE p.id = $1 AND p.hotel_id = $2 AND p.status IN ${HOTEL_VISIBLE}`, [id, hotelId])).rows[0];
+  if (!payout) throw notFound();
+  const lines = (
+    await db.query('SELECT l.id, l.kind, l.booking_id, b.code AS booking_code, l.gross_vnd, l.commission_vnd, l.net_vnd, l.memo FROM hotel_payout_lines l LEFT JOIN bookings b ON b.id = l.booking_id WHERE l.payout_id = $1 ORDER BY l.seq', [id])
   ).rows;
   return { payout, lines };
 }

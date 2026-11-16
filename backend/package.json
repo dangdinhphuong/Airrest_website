@@ -15,6 +15,7 @@
     "storage:check": "tsx --env-file-if-exists=.env scripts/storage-check.ts",
     "db:seed": "tsx --env-file-if-exists=.env database/scripts/seed.ts",
     "db:seed:fleet": "tsx --env-file-if-exists=.env database/scripts/seedFleet.ts",
+    "db:seed:accounts": "tsx --env-file-if-exists=.env database/scripts/seedAccounts.ts",
     "db:migrate": "tsx --env-file-if-exists=.env database/scripts/migrate.ts",
     "dev:db": "tsx scripts/dev-db.ts"
   },

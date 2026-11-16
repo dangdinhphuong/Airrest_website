@@ -36,7 +36,7 @@ export function parseTrack(text) {
   return { ref, phone: n >= 9 && n <= 15 ? cand : null }; // SĐT 9-15 chữ số; ngắn hơn là số khác (giá, ngày...)
 }
 
-// Cuộn mượt tới một khu vực (không dùng href="#id" vì ứng dụng đang dùng hash cho định tuyến).
+// Cuộn mượt tới một khu vực (không dùng href="#id" để không đổi đường dẫn của trang).
 export const scrollToId = (id, block = 'start') => window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block }), 40);
 
 // Truyền "AR-XXXXXXXX [SĐT]" từ trang tài khoản sang trang Theo dõi (đọc một lần).

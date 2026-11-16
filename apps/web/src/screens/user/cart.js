@@ -1,5 +1,6 @@
 // Giỏ phòng của khách (một khách sạn một giỏ) + thông tin khách nhớ trên thiết bị. Hàm thuần, có test ở cart.test.js.
 // Dạng giỏ: { hotelId, hotelName, savedAt, lines: [{ roomTypeId, name, qty, price, maxOccupancy }] }; giỏ rỗng có hotelId null.
+// Dòng theo đêm thêm { ratePlan: 'NON_REFUNDABLE' } khi khách chọn mức Không hoàn hủy (rẻ hơn; một đơn một mức cho các dòng đêm); không có = Linh hoạt, `price` = giá của mức đã chọn.
 // Dòng theo giờ (nhà nghỉ) thêm { kind: 'HOURLY', startsAt (ISO), hours }; `price` = giá MỘT phòng cho cả `hours` giờ. Dòng theo đêm KHÔNG có kind (mặc định NIGHT, `price` = giá/đêm).
 // Một dòng cho mỗi (loại phòng, kind): cùng loại phòng được đặt cả đêm lẫn giờ trong một đơn.
 export const MAX_LINES = 10; // khớp rooms[] tối đa của backend
@@ -15,6 +16,14 @@ const same = (l, id, kind) => l.roomTypeId === id && kindOf(l) === kind;
 // Theo giờ: tồn từng khung giờ do backend báo (hourly-slots), nên chỉ chặn ở mức tối đa mỗi dòng.
 export const maxQty = (room, kind = 'NIGHT') => (kind === 'HOURLY' ? MAX_QTY : Math.min(MAX_QTY, room.availableRooms));
 export const qtyOf = (cart, roomTypeId, kind = 'NIGHT') => cart.lines.find((l) => same(l, roomTypeId, kind))?.qty ?? 0;
+export const NR = 'NON_REFUNDABLE';
+export const planOf = (l) => l.ratePlan ?? 'STANDARD';
+// Mức giá của giỏ = mức của các dòng đêm (giỏ chỉ giờ hoặc rỗng = Linh hoạt).
+export const cartPlan = (cart) => { const n = cart.lines.find((l) => !isHourly(l)); return n ? planOf(n) : 'STANDARD'; };
+// Giá/đêm của loại phòng theo mức; null = loại phòng không bán mức này.
+export const nightPriceOf = (room, plan) => (plan === NR ? room.nonRefundablePrice ?? null : room.price);
+// Chọn mức khác với các dòng đêm đang có thì các dòng đêm cũ bị bỏ (một đơn một mức).
+export const switchesPlan = (cart, plan) => cart.lines.some((l) => !isHourly(l) && planOf(l) !== plan);
 export const hourlyLineOf = (cart, roomTypeId) => cart.lines.find((l) => same(l, roomTypeId, 'HOURLY'));
 export const hourlyPriceOf = (cfg, hours) => cfg.firstHourVnd + (hours - 1) * cfg.nextHourVnd; // giờ đầu + (giờ - 1) × giờ tiếp theo
 export const endsAtOf = (startsAt, hours) => new Date(Date.parse(startsAt) + hours * 3600_000).toISOString();
@@ -29,7 +38,7 @@ export const hourlySpan = (cart) => {
   const hs = cart.lines.filter(isHourly);
   return hs.length ? { from: Math.min(...hs.map((l) => Date.parse(l.startsAt))), to: Math.max(...hs.map((l) => Date.parse(l.startsAt) + l.hours * 3600_000)) } : null;
 };
-export const toApiRooms = (cart) => cart.lines.map((l) => (isHourly(l) ? { roomTypeId: l.roomTypeId, qty: l.qty, kind: 'HOURLY', startsAt: l.startsAt, hours: l.hours } : { roomTypeId: l.roomTypeId, qty: l.qty }));
+export const toApiRooms = (cart) => cart.lines.map((l) => (isHourly(l) ? { roomTypeId: l.roomTypeId, qty: l.qty, kind: 'HOURLY', startsAt: l.startsAt, hours: l.hours } : { roomTypeId: l.roomTypeId, qty: l.qty, ...(planOf(l) === NR && { ratePlan: NR }) }));
 // 'Standard × 2, Phòng giờ × 1 (3 giờ)': dòng theo giờ ghi rõ số giờ.
 export const roomsText = (lines) => lines.map((l) => `${l.roomTypeName ?? l.name} × ${l.qty}${isHourly(l) ? ` (${l.hours} giờ)` : ''}`).join(', ');
 
@@ -37,7 +46,12 @@ export const roomsText = (lines) => lines.map((l) => `${l.roomTypeName ?? l.name
 // Sang khách sạn khác thì bắt đầu giỏ mới. Chặn quá tồn, quá 5 phòng/dòng, quá 10 dòng.
 export function setQty(cart, hotel, room, qty, now = Date.now(), opt) {
   const kind = opt?.kind ?? 'NIGHT';
-  const base = cart.hotelId === hotel.id ? cart : emptyCart();
+  let base = cart.hotelId === hotel.id ? cart : emptyCart();
+  const plan = kind === 'HOURLY' ? 'STANDARD' : opt?.plan ?? cartPlan(base);
+  if (kind === 'NIGHT') {
+    if (nightPriceOf(room, plan) == null) return base; // loại phòng không có mức này
+    if (switchesPlan(base, plan)) base = { ...base, lines: base.lines.filter(isHourly) };
+  }
   const q = Math.max(0, Math.min(Math.floor(qty), maxQty(room, kind)));
   const rest = base.lines.filter((l) => !same(l, room.id, kind));
   const had = rest.length !== base.lines.length;
@@ -45,7 +59,7 @@ export function setQty(cart, hotel, room, qty, now = Date.now(), opt) {
   if (q && !had && rest.length >= MAX_LINES) return base;
   const line = kind === 'HOURLY'
     ? { roomTypeId: room.id, name: room.name, qty: q, price: hourlyPriceOf(room.hourly, opt.hours), maxOccupancy: room.maxOccupancy, kind, startsAt: opt.startsAt, hours: opt.hours }
-    : { roomTypeId: room.id, name: room.name, qty: q, price: room.price, maxOccupancy: room.maxOccupancy };
+    : { roomTypeId: room.id, name: room.name, qty: q, price: nightPriceOf(room, plan), maxOccupancy: room.maxOccupancy, ...(plan === NR && { ratePlan: NR }) };
   const lines = q ? (had ? base.lines.map((l) => (same(l, room.id, kind) ? line : l)) : [...base.lines, line]) : rest;
   return lines.length ? { hotelId: hotel.id, hotelName: hotel.name, savedAt: now, lines } : emptyCart();
 }
@@ -62,7 +76,7 @@ export function roomNote(room, people) {
 }
 
 // Loại phòng rẻ nhất còn thêm được 1 phòng (để gợi ý khi khách vượt sức chứa).
-export const suggestExtraRoom = (hotel, cart) => hotel.rooms.filter((r) => maxQty(r) > qtyOf(cart, r.id)).sort((a, b) => a.price - b.price)[0] ?? null;
+export const suggestExtraRoom = (hotel, cart) => hotel.rooms.filter((r) => maxQty(r) > qtyOf(cart, r.id) && nightPriceOf(r, cartPlan(cart)) != null).sort((a, b) => a.price - b.price)[0] ?? null;
 
 // Đối chiếu giỏ với dữ liệu khách sạn mới tải: bỏ dòng không còn/hết phòng, cắt qty theo tồn, cập nhật giá/sức chứa.
 // hotel null (khách sạn không còn) -> giỏ rỗng. dropped = tên các loại phòng đã bỏ.
@@ -78,8 +92,8 @@ export function reconcile(cart, hotel, now = Date.now()) {
       lines.push({ ...l, name: r.name, qty: Math.min(l.qty, MAX_QTY), price: hourlyPriceOf(r.hourly, l.hours), maxOccupancy: r.maxOccupancy });
       continue;
     }
-    if (!r || r.availableRooms <= 0) { dropped.push(l.name); continue; }
-    lines.push({ roomTypeId: r.id, name: r.name, qty: Math.min(l.qty, maxQty(r)), price: r.price, maxOccupancy: r.maxOccupancy });
+    if (!r || r.availableRooms <= 0 || nightPriceOf(r, planOf(l)) == null) { dropped.push(l.name); continue; }
+    lines.push({ roomTypeId: r.id, name: r.name, qty: Math.min(l.qty, maxQty(r)), price: nightPriceOf(r, planOf(l)), maxOccupancy: r.maxOccupancy, ...(planOf(l) === NR && { ratePlan: NR }) });
   }
   return { cart: lines.length ? { ...cart, hotelName: hotel.name, lines } : emptyCart(), dropped };
 }

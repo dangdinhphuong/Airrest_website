@@ -6,39 +6,52 @@ import type { RoomBlockDoc, RoomTypeDoc } from '../../database/types';
 import { AppError, isDuplicateKey } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
 import { actorOf, writeAudit } from '../audit';
+import { imageViews } from '../hotels/profile';
 import { intervalsForCheck, loadActiveIntervals } from './availability';
 
 const FIVE_YEARS_MS = 5 * 365 * 24 * 3600_000;
 
 // Token khách sạn: luôn dùng hotelId của chính nó, bỏ qua tham số. Quyền xem mọi khách sạn (Admin): bắt buộc nêu hotelId.
-export function resolveHotelId(auth: AuthContext, hotelId?: string): string {
+export async function resolveHotelId(auth: AuthContext, hotelId?: string): Promise<string> {
   if (auth.permissions.includes(PERM.HOTEL_SCOPE_ALL)) {
     if (!hotelId) throw new AppError(422, 'HOTEL_ID_REQUIRED', 'Cần nêu hotelId');
+    if (!(await db.query('SELECT 1 FROM hotels WHERE id = $1', [hotelId])).rows[0]) throw new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');
     return hotelId;
   }
   if (!auth.hotelId) throw new AppError(403, 'FORBIDDEN', 'Tài khoản không gắn với khách sạn nào');
   return auth.hotelId;
 }
 
-export async function listRoomTypes(auth: AuthContext, q: { hotelId?: string; includeRetired: boolean }): Promise<RoomTypeDoc[]> {
-  const hotelId = resolveHotelId(auth, q.hotelId);
-  return (await db.query<RoomTypeDoc>(`SELECT * FROM room_types WHERE hotel_id = $1 ${q.includeRetired ? '' : 'AND retired_at IS NULL'} ORDER BY retired_at NULLS FIRST, code`, [hotelId])).rows;
+// Ảnh trả về dạng view {key, url}; managedByRooms = tồn đang do danh sách phòng quản lý (có ít nhất 1 dòng trong rooms).
+type RoomTypeView = Omit<RoomTypeDoc, 'images'> & { images: ReturnType<typeof imageViews>; roomCount: number; managedByRooms: boolean };
+const toView = (rt: RoomTypeDoc, roomCount: number): RoomTypeView => ({ ...rt, images: imageViews(rt.images), roomCount, managedByRooms: roomCount > 0 });
+const roomCountOf = async (tx: Db, id: string) => (await tx.query<{ n: number }>('SELECT count(*) AS n FROM rooms WHERE room_type_id = $1', [id])).rows[0]!.n;
+
+export async function listRoomTypes(auth: AuthContext, q: { hotelId?: string; includeRetired: boolean }): Promise<RoomTypeView[]> {
+  const hotelId = await resolveHotelId(auth, q.hotelId);
+  const rows = (
+    await db.query<RoomTypeDoc & { roomCount: number }>(
+      `SELECT t.*, (SELECT count(*) FROM rooms r WHERE r.room_type_id = t.id) AS room_count FROM room_types t WHERE t.hotel_id = $1 ${q.includeRetired ? '' : 'AND t.retired_at IS NULL'} ORDER BY t.retired_at NULLS FIRST, t.code`,
+      [hotelId],
+    )
+  ).rows;
+  return rows.map(({ roomCount, ...rt }) => toView(rt as RoomTypeDoc, roomCount));
 }
 
-export async function createRoomType(auth: AuthContext, hotelId: string | undefined, body: CreateRoomTypeBody, requestId?: string): Promise<RoomTypeDoc> {
-  const hid = resolveHotelId(auth, hotelId);
+export async function createRoomType(auth: AuthContext, hotelId: string | undefined, body: CreateRoomTypeBody, requestId?: string): Promise<RoomTypeView> {
+  const hid = await resolveHotelId(auth, hotelId);
   try {
     return await withTransaction(async (tx) => {
       const created = (
         await tx.query<RoomTypeDoc>(
-          `INSERT INTO room_types (hotel_id, code, name, capacity, beds, area_m2, total_rooms, pricing, active)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,jsonb_build_object('baseNightVnd', $8::bigint) || CASE WHEN $9::jsonb IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('hourly', $9::jsonb) END,true) RETURNING *`,
-          [hid, body.code, body.name, body.capacity, body.beds, body.areaM2, body.totalRooms, body.baseNightVnd, body.hourly ? json(body.hourly) : null],
+          `INSERT INTO room_types (hotel_id, code, name, capacity, beds, area_m2, total_rooms, pricing, active, description, view, amenities, smoking, max_adults, max_children, images)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,jsonb_build_object('baseNightVnd', $8::bigint) || CASE WHEN $9::jsonb IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('hourly', $9::jsonb) END || CASE WHEN $17::int IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('nonRefundablePct', $17::int) END,true,$10,$11,$12::text[],$13,$14,$15,$16::jsonb) RETURNING *`,
+          [hid, body.code, body.name, body.capacity, body.beds, body.areaM2, body.totalRooms, body.baseNightVnd, body.hourly ? json(body.hourly) : null, body.description ?? null, body.view ?? null, body.amenities ?? [], body.smoking ?? false, body.maxAdults ?? null, body.maxChildren ?? null, json(body.images ?? []), body.nonRefundablePct ?? null],
         )
       ).rows[0]!;
       if (body.hourly) await syncHourlyTag(tx, hid);
       await writeAudit({ actor: actorOf(auth), action: 'ROOM_TYPE.CREATE', entity: { type: 'room_type', id: created.id }, hotelId: hid, after: { code: created.code, totalRooms: created.totalRooms }, requestId }, tx);
-      return created;
+      return toView(created, 0);
     });
   } catch (e) {
     if (isDuplicateKey(e)) throw new AppError(409, 'ROOM_CODE_TAKEN', 'Mã loại phòng đã tồn tại trong khách sạn');
@@ -69,13 +82,16 @@ async function peakCommitted(tx: Db, roomTypeId: string, now: Date): Promise<num
   return maxConcurrent(intervalsForCheck(r, now), { from: now, to });
 }
 
-export async function updateRoomType(auth: AuthContext, hotelId: string | undefined, id: string, patch: PatchRoomTypeBody, requestId?: string): Promise<RoomTypeDoc> {
-  const hid = resolveHotelId(auth, hotelId);
+export async function updateRoomType(auth: AuthContext, hotelId: string | undefined, id: string, patch: PatchRoomTypeBody, requestId?: string): Promise<RoomTypeView> {
+  const hid = await resolveHotelId(auth, hotelId);
   // Mở bán lại: chỉ khi body đúng là { active: true } (UI 'Bán lại'); mọi sửa đổi khác trên loại đã ngừng dùng vẫn bị chặn.
   const reactivate = patch.active === true && Object.keys(patch).length === 1;
   return withTransaction(async (tx) => {
     const before = await lockRoomType(tx, hid, id, reactivate);
-    if (before.retiredAt) return reactivateRoomType(tx, auth, hid, before, requestId);
+    if (before.retiredAt) return toView(await reactivateRoomType(tx, auth, hid, before, requestId), await roomCountOf(tx, id));
+    const roomCount = await roomCountOf(tx, id);
+    // Loại đã có phòng riêng lẻ: total_rooms = số phòng ACTIVE, chỉ đổi qua danh sách phòng.
+    if (roomCount > 0 && patch.totalRooms !== undefined && patch.totalRooms !== before.totalRooms) throw new AppError(409, 'TOTAL_MANAGED_BY_ROOMS', 'Tổng số phòng do danh sách phòng quản lý, hãy thêm/ngừng/xóa phòng thay vì sửa số', { totalRooms: before.totalRooms });
     if (patch.totalRooms !== undefined && patch.totalRooms < before.totalRooms) {
       const peak = await peakCommitted(tx, id, new Date());
       if (patch.totalRooms < peak) throw new AppError(409, 'ROOM_TOTAL_BELOW_RESERVED', `Số phòng không được thấp hơn số đang giữ/đặt/khóa (${peak})`, { peak });
@@ -84,10 +100,18 @@ export async function updateRoomType(auth: AuthContext, hotelId: string | undefi
       await tx.query<RoomTypeDoc>(
         `UPDATE room_types SET name = COALESCE($2, name), capacity = COALESCE($3, capacity), beds = COALESCE($4, beds), area_m2 = COALESCE($5, area_m2),
            total_rooms = COALESCE($6, total_rooms), active = COALESCE($7, active),
-           pricing = pricing || CASE WHEN $8::bigint IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('baseNightVnd', $8::bigint) END
-                      || CASE WHEN $9::jsonb IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('hourly', $9::jsonb) END, updated_at = now()
+           description = $10, view = $11, amenities = $12::text[], smoking = $13, max_adults = $14, max_children = $15, images = $16::jsonb,
+           pricing = ((pricing || CASE WHEN $8::bigint IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('baseNightVnd', $8::bigint) END
+                      || CASE WHEN $9::jsonb IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('hourly', $9::jsonb) END) - 'nonRefundablePct')
+                      || CASE WHEN $17::int IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('nonRefundablePct', $17::int) END, updated_at = now()
          WHERE id = $1 RETURNING *`,
-        [id, patch.name ?? null, patch.capacity ?? null, patch.beds ?? null, patch.areaM2 ?? null, patch.totalRooms ?? null, patch.active ?? null, patch.baseNightVnd ?? null, patch.hourly ? json(patch.hourly) : null],
+        [id, patch.name ?? null, patch.capacity ?? null, patch.beds ?? null, patch.areaM2 ?? null, patch.totalRooms ?? null, patch.active ?? null, patch.baseNightVnd ?? null, patch.hourly ? json(patch.hourly) : null,
+          // null = xóa; không nêu = giữ nguyên
+          patch.description === undefined ? before.description ?? null : patch.description, patch.view === undefined ? before.view ?? null : patch.view,
+          patch.amenities ?? before.amenities, patch.smoking ?? before.smoking,
+          patch.maxAdults === undefined ? before.maxAdults ?? null : patch.maxAdults, patch.maxChildren === undefined ? before.maxChildren ?? null : patch.maxChildren,
+          json(patch.images ?? before.images ?? []),
+          patch.nonRefundablePct === undefined ? before.pricing.nonRefundablePct ?? null : patch.nonRefundablePct],
       )
     ).rows[0]!;
     if (patch.hourly || patch.active !== undefined) await syncHourlyTag(tx, hid);
@@ -103,7 +127,7 @@ export async function updateRoomType(auth: AuthContext, hotelId: string | undefi
       },
       tx,
     );
-    return next;
+    return toView(next, roomCount);
   });
 }
 
@@ -123,7 +147,7 @@ async function reactivateRoomType(tx: Db, auth: AuthContext, hid: string, before
 
 // Ngừng dùng (mềm): giữ lịch sử đơn cũ. Còn đơn hoạt động hoặc khóa trong tương lai thì từ chối.
 export async function retireRoomType(auth: AuthContext, hotelId: string | undefined, id: string, requestId?: string): Promise<RoomTypeDoc> {
-  const hid = resolveHotelId(auth, hotelId);
+  const hid = await resolveHotelId(auth, hotelId);
   return withTransaction(async (tx) => {
     await lockRoomType(tx, hid, id);
     if ((await peakCommitted(tx, id, new Date())) > 0) throw new AppError(409, 'ROOM_TYPE_IN_USE', 'Loại phòng còn đơn hoặc khóa phòng đang hiệu lực');
@@ -143,7 +167,7 @@ const datesBetween = (from: string, to: string): string[] => {
 };
 
 export async function getInventory(auth: AuthContext, hotelId: string | undefined, roomTypeId: string, from: string, to: string, now = new Date()): Promise<DayAvailability[]> {
-  const hid = resolveHotelId(auth, hotelId);
+  const hid = await resolveHotelId(auth, hotelId);
   const rt = (await db.query<RoomTypeDoc>('SELECT * FROM room_types WHERE id = $1 AND hotel_id = $2', [roomTypeId, hid])).rows[0];
   if (!rt) throw new AppError(404, 'ROOM_TYPE_NOT_FOUND', 'Không tìm thấy loại phòng');
   const win = { from: dayWindow(from).from, to: dayWindow(to).to };
@@ -152,7 +176,7 @@ export async function getInventory(auth: AuthContext, hotelId: string | undefine
 }
 
 export async function createBlock(auth: AuthContext, hotelId: string | undefined, body: CreateBlockBody, requestId?: string): Promise<RoomBlockDoc> {
-  const hid = resolveHotelId(auth, hotelId);
+  const hid = await resolveHotelId(auth, hotelId);
   return withTransaction(async (tx) => {
     const rt = await lockRoomType(tx, hid, body.roomTypeId);
     const now = new Date();
@@ -175,7 +199,7 @@ export async function createBlock(auth: AuthContext, hotelId: string | undefined
 }
 
 export async function releaseBlock(auth: AuthContext, hotelId: string | undefined, blockId: string, requestId?: string): Promise<RoomBlockDoc> {
-  const hid = resolveHotelId(auth, hotelId);
+  const hid = await resolveHotelId(auth, hotelId);
   return withTransaction(async (tx) => {
     const cur = (await tx.query<RoomBlockDoc>('SELECT * FROM room_blocks WHERE id = $1 AND hotel_id = $2 FOR UPDATE', [blockId, hid])).rows[0];
     if (!cur) throw new AppError(404, 'ROOM_BLOCK_NOT_FOUND', 'Không tìm thấy khóa phòng');
@@ -187,7 +211,7 @@ export async function releaseBlock(auth: AuthContext, hotelId: string | undefine
 }
 
 export async function listBlocks(auth: AuthContext, q: BlockListQuery): Promise<{ items: RoomBlockDoc[]; nextCursor: number | null }> {
-  const hid = resolveHotelId(auth, q.hotelId);
+  const hid = await resolveHotelId(auth, q.hotelId);
   const where = ['hotel_id = $1'];
   const params: unknown[] = [hid];
   const add = (sql: string, v: unknown) => where.push(sql.replace('?', `$${params.push(v)}`));

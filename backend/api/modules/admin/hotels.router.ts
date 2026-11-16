@@ -26,11 +26,11 @@ const DAY_MS = 86_400_000;
 const TEMPLATE = z.enum(['FLEXIBLE', 'STANDARD', 'NON_REFUNDABLE']);
 const hotelStatus = z.enum(['DRAFT', 'PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'HIDDEN_DEBT']);
 
-const address = z.object({ line: z.string().min(1).max(200), ward: z.string().max(100).optional(), district: z.string().max(100).optional(), city: z.string().min(1).max(100), country: z.string().length(2).default('VN') });
-const location = z.object({ lng: z.number().min(-180).max(180), lat: z.number().min(-90).max(90) });
-const airports = z.array(z.object({ iata: z.string().length(3).transform((s) => s.toUpperCase()).refine((c) => !!airportByIata(c), 'Mã sân bay không có trong danh mục'), km: z.number().min(0).max(200), minutes: z.number().int().min(0).max(600) })).min(1).max(10);
-const contact = z.object({ phone: z.string().min(8).max(20), email: z.string().email().optional() });
-const policy = z.object({ cancellationTemplate: TEMPLATE, cleaningBufferMin: z.number().int().min(0).max(240), noShowGraceMin: z.number().int().min(0).max(600).optional(), receptionCloseHour: z.number().int().min(0).max(26).optional() });
+export const address = z.object({ line: z.string().min(1).max(200), ward: z.string().max(100).optional(), district: z.string().max(100).optional(), city: z.string().min(1).max(100), country: z.string().length(2).default('VN') });
+export const location = z.object({ lng: z.number().min(-180).max(180), lat: z.number().min(-90).max(90) });
+export const airports = z.array(z.object({ iata: z.string().length(3).transform((s) => s.toUpperCase()).refine((c) => !!airportByIata(c), 'Mã sân bay không có trong danh mục'), km: z.number().min(0).max(200), minutes: z.number().int().min(0).max(600) })).min(1).max(10);
+export const contact = z.object({ phone: z.string().min(8).max(20), email: z.string().email().optional() });
+export const policy = z.object({ cancellationTemplate: TEMPLATE, cleaningBufferMin: z.number().int().min(0).max(240), noShowGraceMin: z.number().int().min(0).max(600).optional(), receptionCloseHour: z.number().int().min(0).max(26).optional() });
 const approval = z.object({ manual: z.boolean(), manualUntil: z.coerce.date().optional() });
 
 const createBody = z.object({
@@ -43,8 +43,10 @@ const createBody = z.object({
   amenities: z.array(z.string().max(40)).max(40).default([]),
   contact,
   policy,
-  owner: z.object({ email: z.string().email().max(200), fullName: z.string().trim().min(2).max(100), password: z.string().min(12).max(128) }),
-});
+  // Chọn doanh nghiệp đã duyệt (khuyến nghị) HOẶC owner cũ (tương thích: tạo doanh nghiệp ACTIVE + tài khoản chủ INVITED như trước).
+  businessId: z.string().uuid().optional(),
+  owner: z.object({ email: z.string().email().max(200), fullName: z.string().trim().min(2).max(100), password: z.string().min(12).max(128) }).optional(),
+}).refine((b) => !!b.businessId !== !!b.owner, 'Cần đúng một trong businessId hoặc owner');
 const patchBody = z
   .object({ name: z.string().trim().min(2).max(150), description: z.string().max(5000), address, location, airports, amenities: z.array(z.string().max(40)).max(40), contact, policy, approval })
   .partial()
@@ -52,6 +54,8 @@ const patchBody = z
 const listQuery = z.object({
   status: hotelStatus.optional(),
   q: z.string().trim().min(1).max(100).optional(),
+  // SĐT chủ/liên hệ: chuẩn hóa về chữ số, bỏ 0 đầu hoặc 84 (+84)
+  phone: z.string().trim().max(20).regex(/^[+\d\s().-]*$/, 'Số điện thoại không hợp lệ').transform((v) => v.replace(/\D/g, '').replace(/^(84|0)/, '')).refine((v) => v.length >= 3, 'Nhập ít nhất 3 chữ số').optional(),
   airport: z.string().length(3).transform((s) => s.toUpperCase()).optional(),
   pendingPayout: z.enum(['true']).optional(),
   limit: limitQuery,
@@ -60,7 +64,7 @@ const listQuery = z.object({
 const reasonBody = z.object({ reason: z.string().trim().min(3).max(500) });
 const payoutBody = z.discriminatedUnion('type', [
   z.object({ type: z.literal('MOMO'), accountNo: z.string().regex(/^\+?\d{9,15}$/, 'SĐT ví MoMo không hợp lệ'), accountName: z.string().trim().min(2).max(100) }),
-  z.object({ type: z.literal('BANK'), accountNo: z.string().regex(/^\d{6,20}$/, 'Số tài khoản không hợp lệ'), accountName: z.string().trim().min(2).max(100), bankCode: z.string().trim().min(2).max(20) }),
+  z.object({ type: z.literal('BANK'), accountNo: z.string().regex(/^\d{6,20}$/, 'Số tài khoản không hợp lệ'), accountName: z.string().trim().min(2).max(100), bankCode: z.string().trim().min(2).max(20).optional() }),
 ]);
 const statsQuery = z.object({ from: z.coerce.date().optional(), to: z.coerce.date().optional() });
 
@@ -95,22 +99,35 @@ function checkApproval(a: z.infer<typeof approval>, now: Date) {
   return { manual: true, manualUntil: a.manualUntil };
 }
 
-async function checkBuffer(minutes: number) {
+// Trùng tên khách sạn (không phân biệt hoa thường, gộp khoảng trắng). Chỉ kiểm tên; email chủ/số điện thoại có thể trùng giữa các khách sạn là việc khác.
+// shortcut: chưa bỏ dấu (cần unaccent) và chưa có unique index, hai yêu cầu đồng thời vẫn có thể lọt; thêm index chuẩn hóa khi cần chặt.
+export async function assertNameFree(name: string, exceptId?: string) {
+  const norm = "lower(regexp_replace(btrim(?), '\\s+', ' ', 'g'))";
+  const dup = (await db.query(`SELECT 1 FROM hotels WHERE lower(regexp_replace(btrim(name), '\\s+', ' ', 'g')) = ${norm.replace('?', '$1')} AND ($2::uuid IS NULL OR id <> $2) LIMIT 1`, [name, exceptId ?? null])).rows[0];
+  if (dup) throw new AppError(409, 'HOTEL_NAME_EXISTS', 'Tên khách sạn đã tồn tại');
+}
+
+export async function checkBuffer(minutes: number) {
   const max = (await getConfig('cancellation.limits')).value.cleaningBufferMaxMin;
   if (minutes > max) throw new AppError(422, 'CLEANING_BUFFER_TOO_LONG', `Khoảng đệm dọn phòng tối đa ${max} phút`);
 }
 
 adminHotelsRouter.get('/hotels', read, validate({ query: listQuery }), async (req, res) => {
-  const { status, q, airport, pendingPayout, limit, after } = req.valid.query as z.infer<typeof listQuery>;
+  const { status, q, phone, airport, pendingPayout, limit, after } = req.valid.query as z.infer<typeof listQuery>;
   const where: string[] = [];
   const params: unknown[] = [];
   const add = (sql: string, v: unknown) => where.push(sql.replace('?', `$${params.push(v)}`));
   if (status) add('status = ?', status);
   if (airport) add('airports @> ?::jsonb', json([{ iata: airport }]));
   if (pendingPayout) where.push("payout_account->'pendingChange' IS NOT NULL");
-  if (q) add("name ILIKE '%' || ? || '%'", escapeLike(q)); // shortcut: quét ILIKE, thêm pg_trgm khi nhiều khách sạn
-  if (after !== undefined) add('seq > ?', after);
-  const rows = (await db.query<HotelDoc>(`SELECT * FROM hotels ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY seq LIMIT ${limit + 1}`, params)).rows;
+  if (q) { // tên / mã / địa chỉ (dòng, phường, quận, thành phố). shortcut: quét ILIKE, thêm pg_trgm + unaccent khi nhiều khách sạn
+    const n = params.push(escapeLike(q));
+    where.push(`(name ILIKE '%' || $${n} || '%' OR code ILIKE '%' || $${n} || '%' OR concat_ws(' ', address->>'line', address->>'ward', address->>'district', address->>'city') ILIKE '%' || $${n} || '%')`);
+  }
+  // Tài khoản chủ chưa lưu số điện thoại riêng; số chủ khai khi đăng ký nằm ở contact.phone. So khớp theo chữ số, bỏ 0 đầu / 84.
+  if (phone) where.push(`regexp_replace(regexp_replace(coalesce(contact->>'phone', ''), '\\D', '', 'g'), '^(84|0)', '') LIKE '%' || $${params.push(phone)} || '%'`);
+  if (after !== undefined) add('seq < ?', after);
+  const rows = (await db.query<HotelDoc>(`SELECT * FROM hotels ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY seq DESC LIMIT ${limit + 1}`, params)).rows;
   const page = rows.slice(0, limit);
   res.json({ items: page.map(pub), nextCursor: rows.length > limit ? page[page.length - 1]?.seq : null });
 });
@@ -123,28 +140,47 @@ adminHotelsRouter.get('/hotels/:id', read, validate({ params: idParams }), async
 adminHotelsRouter.post('/hotels', manage, validate({ body: createBody }), async (req, res) => {
   const b = req.valid.body as z.infer<typeof createBody>;
   await checkBuffer(b.policy.cleaningBufferMin);
+  await assertNameFree(b.name);
   const role = (await db.query<{ id: string }>("SELECT id FROM roles WHERE key = $1 AND scope = 'SYSTEM' AND hotel_id IS NULL", [HOTEL_OWNER_ROLE.key])).rows[0];
   if (!role) throw new AppError(500, 'ROLE_NOT_SEEDED', 'Chưa có vai trò chủ khách sạn (chạy npm run db:seed)');
 
   const hotelId = randomUUID();
-  const ownerId = randomUUID();
-  const passwordHash = await hashPassword(b.owner.password);
   let hotel: HotelDoc;
   try {
     hotel = await withTransaction(async (tx) => {
+      let businessId = b.businessId;
+      let ownerId: string;
+      if (b.businessId) {
+        const biz = (await tx.query<{ status: string }>('SELECT status FROM businesses WHERE id = $1 FOR SHARE', [b.businessId])).rows[0];
+        if (!biz) throw new AppError(404, 'BUSINESS_NOT_FOUND', 'Không tìm thấy doanh nghiệp');
+        if (biz.status !== 'ACTIVE') throw new AppError(409, 'BUSINESS_NOT_ACTIVE', 'Doanh nghiệp chưa được duyệt hoặc đang bị tạm ngưng');
+        const owner = (await tx.query<{ id: string }>('SELECT id FROM accounts WHERE business_id = $1 AND is_owner ORDER BY seq LIMIT 1', [b.businessId])).rows[0];
+        if (!owner) throw new AppError(409, 'BUSINESS_NO_OWNER', 'Doanh nghiệp chưa có tài khoản chủ');
+        ownerId = owner.id;
+      } else {
+        // Luồng cũ: doanh nghiệp + chủ tạo cùng lúc; chủ INVITED tới khi khách sạn được duyệt.
+        const o = b.owner!;
+        ownerId = randomUUID();
+        businessId = ownerId;
+        await tx.query(`INSERT INTO businesses (id, name, representative, email, phone, status, approved_at, approved_by) VALUES ($1,$2,$3,$4,$5,'ACTIVE',now(),$6)`, [businessId, b.name, o.fullName, o.email.toLowerCase(), b.contact.phone, req.auth!.sub]);
+      }
       const created = (
         await tx.query<HotelDoc>(
-          `INSERT INTO hotels (id, code, name, slug, status, owner_account_id, description, address, location, airports, amenities, contact, policy, approval, rating, incident_score)
-           VALUES ($1,$2,$3,$4,'PENDING_APPROVAL',$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10,$11::jsonb,$12::jsonb,'{"manual":true}','{"avg":0,"count":0}',0) RETURNING *`,
-          [hotelId, b.code, b.name, b.code.toLowerCase(), ownerId, b.description ?? null, json(b.address), json({ type: 'Point', coordinates: [b.location.lng, b.location.lat] }), json(b.airports), b.amenities, json(b.contact), json(b.policy)],
+          `INSERT INTO hotels (id, code, name, slug, status, owner_account_id, business_id, description, address, location, airports, amenities, contact, policy, approval, rating, incident_score)
+           VALUES ($1,$2,$3,$4,'PENDING_APPROVAL',$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11,$12::jsonb,$13::jsonb,'{"manual":true}','{"avg":0,"count":0}',0) RETURNING *`,
+          [hotelId, b.code, b.name, b.code.toLowerCase(), ownerId, businessId, b.description ?? null, json(b.address), json({ type: 'Point', coordinates: [b.location.lng, b.location.lat] }), json(b.airports), b.amenities, json(b.contact), json(b.policy)],
         )
       ).rows[0]!;
-      await tx.query(
-        `INSERT INTO accounts (id, type, email, password_hash, full_name, status, hotel_id, role_ids, is_owner, created_by)
-         VALUES ($1,'HOTEL',$2,$3,$4,'INVITED',$5,$6::uuid[],true,$7)`,
-        [ownerId, b.owner.email.toLowerCase(), passwordHash, b.owner.fullName, hotelId, [role.id], req.auth!.sub],
-      );
-      await writeAudit({ actor: actorOf(req.auth), action: 'HOTEL.CREATE', entity: { type: 'hotel', id: hotelId }, hotelId, after: { code: b.code, name: b.name, ownerEmail: b.owner.email.toLowerCase() }, requestId: String(req.id) }, tx);
+      if (b.owner) {
+        await tx.query(
+          `INSERT INTO accounts (id, type, email, password_hash, full_name, status, hotel_id, role_ids, is_owner, created_by, business_id, phone)
+           VALUES ($1,'HOTEL',$2,$3,$4,'INVITED',$5,$6::uuid[],true,$7,$8,$9)`,
+          [ownerId, b.owner.email.toLowerCase(), await hashPassword(b.owner.password), b.owner.fullName, hotelId, [role.id], req.auth!.sub, businessId, b.contact.phone],
+        );
+      } else {
+        await tx.query('UPDATE accounts SET hotel_id = $2, updated_at = now() WHERE id = $1 AND hotel_id IS NULL', [ownerId, hotelId]); // khách sạn đầu tiên = khách sạn làm việc mặc định
+      }
+      await writeAudit({ actor: actorOf(req.auth), action: 'HOTEL.CREATE', entity: { type: 'hotel', id: hotelId }, hotelId, after: { code: b.code, name: b.name, businessId, ...(b.owner && { ownerEmail: b.owner.email.toLowerCase() }) }, requestId: String(req.id) }, tx);
       return created;
     });
   } catch (e) {
@@ -176,6 +212,7 @@ adminHotelsRouter.patch('/hotels/:id', manage, validate({ params: idParams, body
   const patch = req.valid.body as z.infer<typeof patchBody>;
   const now = new Date();
   if (patch.policy) await checkBuffer(patch.policy.cleaningBufferMin);
+  if (patch.name) await assertNameFree(patch.name, id);
   const { location: loc, approval: appr, ...rest } = patch;
   const set: Record<string, unknown> = {
     ...rest,
@@ -263,43 +300,31 @@ adminHotelsRouter.post('/hotels/:id/activate', manage, validate({ params: idPara
   res.json({ hotel: pub(await loadHotel(id)) });
 });
 
-// --- Tài khoản nhận tiền: người đề xuất ≠ người duyệt (BA §3.6b four-eyes; FR-ADM-15) ---
+// --- Tài khoản nhận tiền: Admin có quyền quản lý khách sạn đổi thẳng, không cần người khác duyệt (ghi nhật ký, số tài khoản mã hóa) ---
 adminHotelsRouter.put('/hotels/:id/payout-account', manage, validate({ params: idParams, body: payoutBody }), async (req, res) => {
   const { id } = req.valid.params as z.infer<typeof idParams>;
   const b = req.valid.body as z.infer<typeof payoutBody>;
-  const pending = {
+  const now = new Date();
+  const next: PayoutAccountData = {
     type: b.type,
     labelMasked: maskLabel(b.type, b.accountNo),
-    detailsEnc: encryptJson({ accountNo: b.accountNo, accountName: b.accountName, ...(b.type === 'BANK' && { bankCode: b.bankCode }) }),
-    requestedBy: req.auth!.sub,
-    requestedAt: new Date(),
+    detailsEnc: encryptJson({ accountNo: b.accountNo, accountName: b.accountName, ...(b.type === 'BANK' && b.bankCode && { bankCode: b.bankCode }) }),
   };
   await withTransaction(async (tx) => {
-    // Điều kiện "chưa có đề xuất chờ" nằm trong WHERE -> không ghi đè đề xuất đang được người khác xem xét.
-    const r = (
-      await tx.query<HotelDoc>(
-        `UPDATE hotels SET payout_account = jsonb_set(COALESCE(payout_account, '{}'::jsonb), '{pendingChange}', $2::jsonb), updated_at = now()
-         WHERE id = $1 AND (payout_account IS NULL OR payout_account->'pendingChange' IS NULL) RETURNING *`,
-        [id, json(pending)],
-      )
-    ).rows[0];
-    if (!r) {
-      const h = (await tx.query('SELECT 1 FROM hotels WHERE id = $1', [id])).rows[0];
-      throw h ? new AppError(409, 'PENDING_CHANGE_EXISTS', 'Đang có đề xuất đổi tài khoản nhận tiền chờ duyệt') : new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');
-    }
-    await writeAudit({ actor: actorOf(req.auth), action: 'HOTEL.PAYOUT_ACCOUNT.REQUEST', entity: { type: 'hotel', id }, hotelId: id, before: { label: r.payoutAccount?.labelMasked }, after: { label: pending.labelMasked, type: pending.type }, requestId: String(req.id) }, tx);
+    const h = await loadHotel(id, tx, true);
+    // Ghi đè luôn; đề xuất chờ duyệt cũ (nếu còn từ trước khi bỏ bước duyệt) bị thay thế.
+    await tx.query('UPDATE hotels SET payout_account = $2::jsonb, updated_at = $3 WHERE id = $1', [id, json({ ...next, verifiedAt: now, changedAt: now }), now]);
+    await writeAudit({ actor: actorOf(req.auth), action: 'HOTEL.PAYOUT_ACCOUNT.CHANGE', entity: { type: 'hotel', id }, hotelId: id, before: { label: h.payoutAccount?.labelMasked }, after: { label: next.labelMasked, type: next.type }, requestId: String(req.id) }, tx);
   });
-  res.status(202).json({ hotel: pub(await loadHotel(id)) });
+  res.json({ hotel: pub(await loadHotel(id)) });
 });
 
 adminHotelsRouter.post('/hotels/:id/payout-account/approve', approveSensitive, validate({ params: idParams }), async (req, res) => {
   const { id } = req.valid.params as z.infer<typeof idParams>;
-  const me = req.auth!.sub;
   await withTransaction(async (tx) => {
     const h = await loadHotel(id, tx, true);
     const p = h.payoutAccount?.pendingChange;
     if (!p) throw new AppError(409, 'NO_PENDING_CHANGE', 'Không có đề xuất nào chờ duyệt');
-    if (p.requestedBy === me) throw new AppError(403, 'FOUR_EYES_REQUIRED', 'Người đề xuất không được tự duyệt, cần một Admin khác');
     const now = new Date();
     const next: PayoutAccountData = { type: p.type, labelMasked: p.labelMasked, detailsEnc: p.detailsEnc };
     await tx.query('UPDATE hotels SET payout_account = $2::jsonb, updated_at = $3 WHERE id = $1', [id, json({ ...next, verifiedAt: now, changedAt: now }), now]);

@@ -159,7 +159,7 @@ function SelfRide({ s, hotel, code, phone }) {
   useEffect(() => { listAirports().catch(() => {}); }, []);
   const copy = async (what, text) => { const ok = await copyText(text); setFail(!ok); setCopied(ok ? what : ''); };
   const addr = hotel?.address || hotel?.name || '';
-  const toSupport = () => { setSupportPrefill({ bookingCode: code, phone, subject: 'Khách sạn không có xe đưa đón' }); window.location.assign('/#/support'); };
+  const toSupport = () => { setSupportPrefill({ bookingCode: code, phone, subject: 'Khách sạn không có xe đưa đón' }); window.location.assign('/ho-tro'); };
   return (
     <details open data-testid="self-ride" className="tw:mt-3 tw:rounded-xl tw:border tw:border-slate-200 tw:p-3 tw:text-xs">
       <summary className="tw:min-h-6 tw:cursor-pointer tw:font-bold tw:text-slate-800">Không muốn chờ? Tự gọi xe</summary>

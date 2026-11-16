@@ -6,6 +6,9 @@ const post = (path, body) => api.post(`${H}${path}`, body);
 
 export const getStats = (q) => api.get(`${H}/stats`, { query: q });
 
+export const listPayouts = (q) => api.get(`${H}/payouts`, { query: q });
+export const getPayout = (id) => api.get(`${H}/payouts/${id}`);
+
 export const listBookings = (q) => api.get(`${H}/bookings`, { query: q });
 export const getBooking = (id) => api.get(`${H}/bookings/${id}`);
 export const confirmBooking = (id) => post(`/bookings/${id}/confirm`);
@@ -22,6 +25,15 @@ export const listRoomTypes = (includeRetired) => api.get(`${H}/room-types`, { qu
 export const createRoomType = (body) => post('/room-types', body);
 export const patchRoomType = (id, body) => api.patch(`${H}/room-types/${id}`, body);
 export const retireRoomType = (id) => api.delete(`${H}/room-types/${id}`);
+export const listFloors = () => api.get(`${H}/floors`);
+export const createFloor = (body) => post('/floors', body);
+export const patchFloor = (id, body) => api.patch(`${H}/floors/${id}`, body);
+export const deleteFloor = (id) => api.delete(`${H}/floors/${id}`);
+export const listRooms = () => api.get(`${H}/rooms`);
+export const createRoom = (body) => post('/rooms', body);
+export const createRoomsBulk = (body) => post('/rooms/bulk', body);
+export const patchRoom = (id, body) => api.patch(`${H}/rooms/${id}`, body);
+export const deleteRoom = (id) => api.delete(`${H}/rooms/${id}`);
 export const getInventory = (id, from, to) => api.get(`${H}/room-types/${id}/inventory`, { query: { from, to } });
 
 export const listBlocks = (q) => api.get(`${H}/room-blocks`, { query: q });
@@ -62,7 +74,7 @@ export const driverNoShow = (id) => api.post(`/v1/driver/trips/${id}/no-show`, {
 export const driverStep = (id, step, body) => api.post(`/v1/driver/trips/${id}/${step}`, body); // accept | reject | start | arrived | onboard | dropped-off
 
 // Yêu cầu giữ phòng cho khách delay (quyền booking:decide).
-export const listDelayOffers = (status = 'PENDING') => api.get(`${H}/delay-offers`, { query: { status } });
+export const listDelayOffers = (status = 'PENDING') => api.get(`${H}/delay-offers`, { query: { status, include: 'extension' } });
 export const confirmDelayOffer = (id, roomNumbers) => post(`/delay-offers/${encodeURIComponent(id)}/confirm`, { roomNumbers });
 export const rejectDelayOffer = (id, reason) => post(`/delay-offers/${encodeURIComponent(id)}/reject`, { reason });
 

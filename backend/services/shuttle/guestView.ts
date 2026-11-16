@@ -44,15 +44,19 @@ export async function loadGuestShuttles(bookingId: string, only?: string): Promi
   if (!reqs.length) return [];
   const trips = (
     await db.query<any>(
-      `SELECT t.*, v.plate, v.seats AS vehicle_seats, v.model, d.full_name AS driver_name, d.phone AS driver_phone, d.photo_key
-       FROM shuttle_trips t LEFT JOIN vehicles v ON v.id = t.vehicle_id LEFT JOIN hotel_drivers d ON d.account_id = t.driver_account_id
-       WHERE t.request_id = ANY($1::uuid[]) AND t.status <> 'REJECTED' ORDER BY t.seq`,
+      // Chuyến chung nhiều booking: khách chỉ thấy ghế của riêng đơn mình (không lộ người của đơn khác).
+      `SELECT t.*, COALESCE(l.request_id, t.request_id) AS guest_request_id,
+         CASE WHEN l.request_id IS NOT NULL THEN l.seats ELSE t.seats - COALESCE((SELECT sum(x.seats) FROM shuttle_trip_requests x WHERE x.trip_id = t.id), 0)::int END AS own_seats,
+         v.plate, v.seats AS vehicle_seats, v.model, d.full_name AS driver_name, d.phone AS driver_phone, d.photo_key
+       FROM shuttle_trips t LEFT JOIN shuttle_trip_requests l ON l.trip_id = t.id AND l.request_id = ANY($1::uuid[])
+         LEFT JOIN vehicles v ON v.id = t.vehicle_id LEFT JOIN hotel_drivers d ON d.account_id = t.driver_account_id
+       WHERE (t.request_id = ANY($1::uuid[]) OR l.request_id IS NOT NULL) AND t.status <> 'REJECTED' ORDER BY t.seq`,
       [reqs.map((r) => r.id)],
     )
   ).rows;
   return reqs.map((s) => ({
     id: s.id, direction: s.direction, airport: s.airportIata, pickupAt: s.pickupAt, location: s.location, note: s.note, priceVnd: s.priceVnd, status: s.status, passengers: s.passengers, cancelReason: s.status === 'CANCELLED' ? cancelReasonOf(s.cancelNote) : null,
-    driver: s.driver, updatedAt: s.updatedAt, trips: trips.filter((t) => t.requestId === s.id).map(guestTripView),
+    driver: s.driver, updatedAt: s.updatedAt, trips: trips.filter((t) => t.guestRequestId === s.id).map((t) => guestTripView({ ...t, seats: t.ownSeats })),
   }));
 }
 

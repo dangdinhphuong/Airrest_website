@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScreenTitle, Field, Notice, Loading, ErrorBox, EmptyBox, SimBadge } from '../Common';
-import { Pill } from '../partner/ui';
+import { Notice, SimBadge } from '../Common';
+import { DataTable, EmptyState, ErrorState, FormField as Field, Loading, Modal, PageHeader, Tag } from '../ui';
 import { useApp } from '../../state/store';
 import { hasPerm } from '../../lib/access';
 import { PERM } from '../../lib/perms';
 import { createBatch, getBatch, getPickupPoints, getPayerFlightPassengers, listPayerFlights, patchPassenger, previewBatch, requestExtensions, resendPaxEmail, simulateDelay } from '../../data/payer';
-import { Back, Table, dt, errText, isoOrUndef } from './kit';
+import { cols, dt, errText, isoOrUndef } from './kit';
 import { CATEGORY, OFFER_STATUS, alertView, batchSummary, chosenUpgrade, defaultPickup, defaultSelected, delayErrText, extensionLabel, hasExtensionAlert, pickupErrText, pickupOptions, proposedOfferIds, pruneChoices, pushAlert, roomUpgradeOptions, toggleGroup, toggleId, unplacedReason, upgradeLabel, upgradesPayload, upgradeTotal, vnd } from './payerDelay';
 import { useLiveData } from '../../lib/useRealtime';
 import { fmtCountdown, remainingSeconds, useNow } from '../../lib/countdown';
@@ -30,14 +30,13 @@ function SimulateModal({ onClose, onDone, onDisabled }) {
     } finally { setBusy(false); }
   };
   return (
-    <div className="tw:fixed tw:inset-0 tw:z-[100] tw:grid tw:place-items-center tw:bg-slate-950/75 tw:p-4" role="dialog" aria-modal="true" aria-label="Tạo chuyến bay delay">
-      <form onSubmit={submit} className="card tw:max-h-[92dvh] tw:w-full tw:max-w-md tw:overflow-y-auto" data-testid="delay-sim-modal">
-        <h3>Tạo chuyến bay delay (mô phỏng)</h3>
+    <Modal open onClose={onClose} title="Tạo chuyến bay delay (mô phỏng)" size="sm">
+      <form onSubmit={submit} data-testid="delay-sim-modal">
         {err && <p className="field-error" role="alert">{err}</p>}
         <Field id="ds-at" label="Delay đến thời điểm"><input id="ds-at" type="datetime-local" required value={at} onChange={(e) => setAt(e.target.value)} data-testid="ds-at" /></Field>
         <div className="row-actions"><button className="btn btn-primary" disabled={busy || !at} data-testid="ds-submit">{busy ? 'Đang tạo…' : 'Tạo chuyến'}</button><button type="button" className="btn" onClick={onClose}>Đóng</button></div>
       </form>
-    </div>
+    </Modal>
   );
 }
 
@@ -116,21 +115,20 @@ function PreviewModal({ flightId, airport, ids, repOf, onPaxSaved, onClose, onCr
     try { onCreated(await createBatch(flightId, ids, pp.items ? pp.value : undefined, upgradesPayload(ups))); } catch (e) { setErr(delayErr(e)); } finally { setBusy(false); }
   };
   return (
-    <div className="tw:fixed tw:inset-0 tw:z-[100] tw:grid tw:place-items-center tw:bg-slate-950/75 tw:p-4" role="dialog" aria-modal="true" aria-label="Xem trước phương án đặt phòng">
-      <div className="card tw:max-h-[92dvh] tw:w-full tw:max-w-4xl tw:overflow-y-auto" data-testid="batch-preview">
-        <h3>Phương án đặt phòng nghỉ</h3>
-        {s.err && <ErrorBox onRetry={load}>{s.err}</ErrorBox>}
+    <Modal open onClose={onClose} title="Phương án đặt phòng nghỉ" size="lg">
+      <div data-testid="batch-preview">
+        {s.err && <ErrorState onRetry={load}>{s.err}</ErrorState>}
         {!data && !s.err && <Loading />}
         {data && (
           <>
-            {!data.units.length && <EmptyBox title="Không xếp được phòng nào">Hệ thống không xếp được phòng cho các khách đã chọn. Xem danh sách cần xử lý tay bên dưới.</EmptyBox>}
+            {!data.units.length && <EmptyState title="Không xếp được phòng nào">Hệ thống không xếp được phòng cho các khách đã chọn. Xem danh sách cần xử lý tay bên dưới.</EmptyState>}
             {data.units.map((u) => {
               const rep = repOf(u);
               return (
                 <section key={u.id} className="card-inner" data-testid="preview-unit">
                   <div className="card-head">
                     <strong>{u.hotelName}</strong>
-                    <span>PNR {u.pnr} · {money(u.totalVnd)}{u.cluster && <> <Pill tone="info">Cụm có trẻ em</Pill></>}{u.adjacent && <> <Pill tone="info">Phòng sát nhau</Pill></>}{u.connecting && <> <Pill tone="info">Phòng thông nhau</Pill></>}</span>
+                    <span>PNR {u.pnr} · {money(u.totalVnd)}{u.cluster && <> <Tag tone="info">Cụm có trẻ em</Tag></>}{u.adjacent && <> <Tag tone="info">Phòng sát nhau</Tag></>}{u.connecting && <> <Tag tone="info">Phòng thông nhau</Tag></>}</span>
                   </div>
                   <ul style={{ margin: '4px 0' }}>{u.rooms.map((r, i) => {
                     const opts = roomUpgradeOptions(u, r);
@@ -175,7 +173,7 @@ function PreviewModal({ flightId, airport, ids, repOf, onPaxSaved, onClose, onCr
           <button type="button" className="btn" onClick={onClose}>Đóng</button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -206,8 +204,7 @@ function BatchView({ id, onBack }) {
   };
   return (
     <>
-      <button type="button" className="link-btn" onClick={onBack} data-testid="batch-back">← Về danh sách hành khách</button>
-      <ScreenTitle title="Theo dõi lô đặt phòng">Cập nhật tự động; khách chỉ nhận email sau khi khách sạn xác nhận.</ScreenTitle>
+      <PageHeader title="Theo dõi lô đặt phòng" description="Cập nhật tự động; khách chỉ nhận email sau khi khách sạn xác nhận." back={{ onClick: onBack, label: 'Về danh sách hành khách' }} />
       {alerts.map((a) => { const v = alertView(a, b); return <Notice key={`${a.kind}|${a.offerId || a.groupId}`} tone={v.tone} title={v.title} role="alert" onClose={() => setAlerts((l) => l.filter((x) => x !== a))}><span data-testid="delay-alert" data-kind={a.kind}>{v.text}</span></Notice>; })}
       {(proposed.length > 0 || hasExtensionAlert(alerts)) && (
         <div className="row-actions" style={{ marginTop: 0 }}>
@@ -216,7 +213,7 @@ function BatchView({ id, onBack }) {
         </div>
       )}
       {ext.msg && <p className={ext.bad ? 'field-error' : undefined} role={ext.bad ? 'alert' : 'status'} data-testid="extension-msg">{ext.msg}</p>}
-      {live.err && !b && <ErrorBox onRetry={live.reload}>{delayErr(live.err)}</ErrorBox>}
+      {live.err && !b && <ErrorState onRetry={live.reload}>{delayErr(live.err)}</ErrorState>}
       {!b && !live.err && <Loading />}
       {b && (
         <>
@@ -224,16 +221,16 @@ function BatchView({ id, onBack }) {
           <p data-testid="batch-summary">Đang chờ: <b>{sum.waiting}</b> · Đang chuyển khách sạn: <b>{sum.transferring}</b> · Đã xác nhận: <b>{sum.confirmed}</b> · Cần xử lý tay: <b>{sum.failedGroups + sum.unplaced}</b></p>
           {sum.failedGroups > 0 && <Notice tone="error" title="Cần xử lý tay" role="alert"><span data-testid="failed-groups">{b.groups.filter((g) => g.status === 'FAILED').map((g) => `${g.code} (PNR ${g.pnr})`).join(', ')}: hệ thống đã hết cách chuyển khách sạn. Hãy liên hệ khách và xếp chỗ thủ công.</span></Notice>}
           {b.offers.length > 0 && (
-            <Table rows={b.offers} cols={[
+            <DataTable rows={b.offers} columns={cols([
               ['Nhóm', (o) => o.groupCode],
               ['Khách sạn', (o) => o.hotelName],
               ['Phòng', (o) => <>{o.roomTypeName} × {o.qty}{o.upgradeDeltaVnd > 0 && <small className="block" data-testid="offer-upgrade">Nâng từ {o.upgradedFrom} · chênh {vnd(o.upgradeDeltaVnd)} (khách tự thanh toán với đơn vị chi trả)</small>}</>],
-              ['Trạng thái', (o) => { const [t, tone] = OFFER_STATUS[o.status] || [o.status, 'neutral']; return <><Pill tone={tone}>{t}</Pill>{o.status === 'PENDING' && o.transferCount > 0 && <> <Pill tone="warn">Đã chuyển {o.transferCount} lần</Pill></>}{(() => { const x = extensionLabel(o); return x && <> <Pill tone={x[1]}>{x[0]}</Pill></>; })()}</>; }],
+              ['Trạng thái', (o) => { const [t, tone] = OFFER_STATUS[o.status] || [o.status, 'neutral']; return <><Tag tone={tone}>{t}</Tag>{o.status === 'PENDING' && o.transferCount > 0 && <> <Tag tone="warn">Đã chuyển {o.transferCount} lần</Tag></>}{(() => { const x = extensionLabel(o); return x && <> <Tag tone={x[1]}>{x[0]}</Tag></>; })()}</>; }],
               ['Còn lại', (o) => { if (o.status !== 'PENDING') return '—'; const r = remainingSeconds(o.secondsLeft, at, now); return <b data-testid="offer-countdown" style={r < 60 ? { color: '#b91c1c' } : undefined}>{fmtCountdown(r)}</b>; }],
-              ['Số phòng / mã đơn', (o) => (o.status === 'CONFIRMED' ? <>{(o.roomNumbers || []).join(', ') || '—'}{o.bookingCode && <> · {o.bookingCode}</>}</> : o.rejectReason || '—')]]} />
+              ['Số phòng / mã đơn', (o) => (o.status === 'CONFIRMED' ? <>{(o.roomNumbers || []).join(', ') || '—'}{o.bookingCode && <> · {o.bookingCode}</>}</> : o.rejectReason || '—')]])} />
           )}
           {b.unplaced.length > 0 && <Notice tone="warn" title={`Chưa xếp được (${b.unplaced.length} khách)`}><ul style={{ margin: 0 }}>{b.unplaced.map((u) => <li key={u.paxId}>PNR {u.pnr}: {unplacedReason(u.reason)}</li>)}</ul></Notice>}
-          {!b.offers.length && !b.unplaced.length && <EmptyBox title="Lô chưa có phòng">Chưa có yêu cầu phòng nào trong lô này.</EmptyBox>}
+          {!b.offers.length && !b.unplaced.length && <EmptyState title="Lô chưa có phòng">Chưa có yêu cầu phòng nào trong lô này.</EmptyState>}
         </>
       )}
     </>
@@ -260,24 +257,25 @@ function Detail({ id, onBack }) {
   const total = data ? data.groups.reduce((n, g) => n + g.passengers.length, 0) : 0;
   return (
     <>
-      <Back onClick={onBack} />
-      {s.err && <ErrorBox onRetry={load}>{s.err}</ErrorBox>}
+      {!data && <PageHeader title="Hành khách chuyến delay" back={{ onClick: onBack }} />}
+      {s.err && <ErrorState onRetry={load}>{s.err}</ErrorState>}
       {!data && !s.err && <Loading />}
       {data && (
         <>
-          <ScreenTitle title={`${data.flight.code} · ${data.flight.origin} → ${data.flight.dest}`}>Giờ dự kiến {dt(data.flight.scheduledDepartureAt)} · giờ bay mới {data.flight.newDepartureAt ? dt(data.flight.newDepartureAt) : 'chưa biết'}{data.flight.cause ? ` · ${CAUSE[data.flight.cause] || data.flight.cause}` : ''}</ScreenTitle>
-          {!data.groups.length && <EmptyBox title="Chưa có hành khách">Chuyến này chưa có hành khách.</EmptyBox>}
+          <PageHeader title={`${data.flight.code} · ${data.flight.origin} → ${data.flight.dest}`} back={{ onClick: onBack }}
+            description={`Giờ dự kiến ${dt(data.flight.scheduledDepartureAt)} · giờ bay mới ${data.flight.newDepartureAt ? dt(data.flight.newDepartureAt) : 'chưa biết'}${data.flight.cause ? ` · ${CAUSE[data.flight.cause] || data.flight.cause}` : ''}`} />
+          {!data.groups.length && <EmptyState title="Chưa có hành khách">Chuyến này chưa có hành khách.</EmptyState>}
           {data.groups.map((g) => {
             const all = g.passengers.every((p) => sel.has(p.id));
             return (
               <section key={g.pnr} className="card" data-testid="pnr-group">
                 <div className="card-head"><h3>PNR {g.pnr}</h3><label><input type="checkbox" checked={all} onChange={() => setSel(toggleGroup(sel, g))} /> Chọn cả nhóm</label></div>
-                <Table rows={g.passengers} cols={[
+                <DataTable rows={g.passengers} columns={cols([
                   ['Nhận phòng', (p) => <input type="checkbox" aria-label={`Chọn ${p.fullName}`} checked={sel.has(p.id)} onChange={() => setSel(toggleId(sel, p.id))} data-testid="pax-check" />],
-                  ['Họ tên', (p) => <>{p.fullName}{p.isRepresentative && <> <Pill tone="ok">Đại diện</Pill></>}{p.simulated && <> <SimBadge>Mô phỏng</SimBadge></>}</>],
+                  ['Họ tên', (p) => <>{p.fullName}{p.isRepresentative && <> <Tag tone="ok">Đại diện</Tag></>}{p.simulated && <> <SimBadge>Mô phỏng</SimBadge></>}</>],
                   ['Loại', (p) => `${CATEGORY[p.category] || p.category}${p.age != null ? ` (${p.age} tuổi)` : ''}`],
                   ['Email / điện thoại', (p) => (manage ? <><ContactEdit key={`${p.email}|${p.phone}`} pax={p} onSaved={paxSaved} />{p.roomConfirmed && <ResendEmail pax={p} />}</> : `${p.email || '—'} · ${p.phone || '—'}`)],
-                  ['Nhu cầu đặc biệt', (p) => (p.specialNeeds?.length ? p.specialNeeds.join(', ') : '—')]]} />
+                  ['Nhu cầu đặc biệt', (p) => (p.specialNeeds?.length ? p.specialNeeds.join(', ') : '—')]])} />
               </section>
             );
           })}
@@ -310,25 +308,18 @@ export default function PayerDelay() {
   if (open) return <Detail id={open} onBack={() => setOpen(null)} />;
   return (
     <>
-      <ScreenTitle title="Chuyến bay delay">Các chuyến delay của sân bay trạm</ScreenTitle>
-      {manage && !simOff && <div className="row-actions" style={{ marginTop: 0 }}><button type="button" className="btn btn-sm btn-primary" onClick={() => setModal(true)} data-testid="delay-sim-open">Tạo chuyến bay delay</button></div>}
+      <PageHeader title="Chuyến bay delay" description="Các chuyến delay của sân bay trạm"
+        actions={manage && !simOff && <button type="button" className="btn btn-primary" onClick={() => setModal(true)} data-testid="delay-sim-open">Tạo chuyến bay delay</button>} />
       {modal && <SimulateModal onClose={() => setModal(false)} onDisabled={() => setSimOff(true)} onDone={() => { setModal(false); setDone('Đã tạo chuyến bay delay mô phỏng.'); load(null); }} />}
       {done && <Notice tone="ok" onClose={() => setDone('')}>{done}</Notice>}
-      {s.err && !s.items.length ? <ErrorBox onRetry={() => load(null)}>{s.err}</ErrorBox>
-        : s.loading && !s.items.length ? <Loading />
-        : !s.items.length ? <EmptyBox title="Chưa có chuyến delay">Hiện không có chuyến delay nào ở sân bay của bạn.</EmptyBox>
-        : (
-          <>
-            <Table rows={s.items} cols={[
+      <DataTable emptyTitle="Chưa có chuyến delay" empty="Hiện không có chuyến delay nào ở sân bay của bạn."
+        rows={s.items} loading={s.loading} error={s.err} onRetry={() => load(null)} hasMore={s.next != null} onLoadMore={() => load(s.next)} loadingMore={s.loading}
+        columns={cols([
               ['Chuyến', (f) => <>{f.code}{f.simulated && <> <SimBadge>Mô phỏng</SimBadge></>}</>],
               ['Hãng', (f) => f.airline || '—'], ['Tuyến', (f) => `${f.origin} → ${f.dest}`],
               ['Giờ dự kiến', (f) => dt(f.scheduledDepartureAt)], ['Giờ bay mới', (f) => (f.newDepartureAt ? dt(f.newDepartureAt) : 'Chưa biết')],
               ['Nguyên nhân', (f) => CAUSE[f.cause] || '—'], ['Số khách', (f) => f.paxCount],
-              ['', (f) => <button type="button" className="btn btn-sm" onClick={() => setOpen(f.id)} data-testid="delay-open">Xem hành khách</button>]]} />
-            {s.err && <Notice tone="error">{s.err}</Notice>}
-            {s.next != null && <div className="row-actions"><button type="button" className="btn" onClick={() => load(s.next)} disabled={s.loading} data-testid="load-more">{s.loading ? 'Đang tải…' : 'Tải thêm'}</button></div>}
-          </>
-        )}
+              ['', (f) => <button type="button" className="btn btn-sm" onClick={() => setOpen(f.id)} data-testid="delay-open">Xem hành khách</button>]])} />
     </>
   );
 }

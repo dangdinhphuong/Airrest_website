@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { Notice, Field } from '../Common';
-import { Pill } from '../partner/ui';
+import { Notice } from '../Common';
+import { DataTable, FormField as Field, Modal, StatusBadge, Tag } from '../ui';
 import { useApp } from '../../state/store';
 import { createRole, patchRole, deleteRole } from '../../data/admin';
 import { hasPerm } from '../../lib/access';
-import { PERM } from '../../lib/perms';
-import { Act, LoadView, Table, useLoad, useRun } from './kit';
+import { HOTEL_PORTAL_ONLY, PERM } from '../../lib/perms';
+import { Act, LoadView, cols, useLoad, useRun } from './kit';
 
-const Sens = () => <Pill tone="warn">Nhạy cảm</Pill>;
+const Sens = () => <Tag tone="warn">Nhạy cảm</Tag>;
+const KIND = { true: ['Hệ thống', 'info'], false: ['Tùy chỉnh', 'ok'] };
 
 // Nhóm quyền theo `group` từ /v1/admin/permissions.
 const groupBy = (items) => {
@@ -22,8 +23,8 @@ function Detail({ role, catalog, onClose }) {
   const groups = groupBy(catalog.filter((p) => has.has(p.key)));
   const extra = role.permissions.filter((k) => !known.has(k));
   return (
-    <section className="card" data-testid="role-detail" aria-label={`Quyền của vai trò ${role.name}`}>
-      <h3>{role.name} <small>({role.permissions.length} quyền)</small></h3>
+    <Modal open onClose={onClose} title={`${role.name} (${role.permissions.length} quyền)`} size="lg">
+    <section data-testid="role-detail" aria-label={`Quyền của vai trò ${role.name}`}>
       {!groups.length && !extra.length && <p>Vai trò chưa có quyền nào.</p>}
       {groups.map(([g, ps]) => (
         <div key={g}><strong>{g}</strong>
@@ -33,6 +34,7 @@ function Detail({ role, catalog, onClose }) {
       {extra.length > 0 && <div><strong>Khác</strong><ul className="plain-list">{extra.map((k) => <li key={k}><code>{k}</code></li>)}</ul></div>}
       <div className="row-actions"><button type="button" className="btn btn-sm" onClick={onClose} data-testid="role-detail-close">Đóng</button></div>
     </section>
+    </Modal>
   );
 }
 
@@ -49,8 +51,8 @@ function RoleForm({ role, catalog, mine, onDone, onCancel }) {
     if (x.ok) onDone(role ? 'Đã lưu vai trò.' : 'Đã tạo vai trò.');
   };
   return (
-    <form onSubmit={submit} className="card" data-testid="role-form">
-      <h3>{role ? `Sửa vai trò: ${role.name}` : 'Tạo vai trò'}</h3>
+    <Modal open onClose={onCancel} title={role ? `Sửa vai trò: ${role.name}` : 'Tạo vai trò'} size="lg">
+    <form onSubmit={submit} data-testid="role-form">
       {node}
       <div className="grid-2">
         <Field id="rl-name" label="Tên vai trò (2–60 ký tự)"><input id="rl-name" required minLength={2} maxLength={60} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
@@ -80,6 +82,7 @@ function RoleForm({ role, catalog, mine, onDone, onCancel }) {
         {!f.perms.size && <small>Chọn ít nhất một quyền.</small>}
       </div>
     </form>
+    </Modal>
   );
 }
 
@@ -101,7 +104,7 @@ export default function Roles() {
     return own;
   }, [s, roles.data, perms.data]);
   const del = async (r) => { setOk('');  const x = await run(() => deleteRole(r.id), `Đã xóa vai trò ${r.name}.`); if (x.ok) { if (view?.id === r.id) setView(null); roles.reload(); } return x; };
-  const catalog = perms.data?.items;
+  const catalog = useMemo(() => perms.data?.items.filter((p) => !HOTEL_PORTAL_ONLY.includes(p.key)), [perms.data]); // chỉ quyền quản trị, không lẫn quyền riêng của khách sạn
   return (
     <>
       {ok && <Notice tone="ok" onClose={() => setOk('')}>{ok}</Notice>}
@@ -110,11 +113,11 @@ export default function Roles() {
       {mode && catalog && <RoleForm key={mode.role?.id || 'new'} role={mode.role} catalog={catalog} mine={mine} onCancel={() => setMode(null)} onDone={(m) => { setMode(null); setMsg(null); setOk(m); roles.reload(); }} />}
       {perms.err && !catalog && <Notice tone="error">Không tải được danh mục quyền: {perms.err}</Notice>}
       {view && catalog && <Detail role={view} catalog={catalog} onClose={() => setView(null)} />}
-      <LoadView r={roles}>{({ items }) => !items.length ? <p>Chưa có vai trò.</p> : (
-        <Table rowKey={(x) => x.id} rows={items} cols={[
+      <LoadView r={roles}>{({ items }) => (
+        <DataTable rowKey={(x) => x.id} rows={items} empty="Chưa có vai trò." columns={cols([
           ['Vai trò', (x) => <strong>{x.name} <small>({x.key})</small></strong>],
           ['Mô tả', (x) => x.description || '—'],
-          ['Loại', (x) => <Pill tone={x.system ? 'info' : 'ok'}>{x.system ? 'Hệ thống' : 'Tùy chỉnh'}</Pill>],
+          ['Loại', (x) => <StatusBadge status={String(!!x.system)} map={KIND} />],
           ['Tài khoản', (x) => x.accountCount],
           ['Quyền', (x) => x.permissions.length],
           ['', (x) => (
@@ -127,7 +130,7 @@ export default function Roles() {
                   <Act label="Xóa" danger confirm={`Xóa vai trò "${x.name}"?`} onDo={() => del(x)} testid="role-delete" />
                 </>))}
             </span>)],
-        ]} />
+        ])} />
       )}</LoadView>
     </>
   );

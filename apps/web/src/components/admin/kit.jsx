@@ -1,14 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { adminApi, listAirports } from '../../data/admin';
 import { describeError } from '../../lib/api';
-import { ErrorBox, Loading, EmptyBox, Notice } from '../Common';
+import { vnDayEnd, vnDayStart } from '../../lib/time';
+import { Notice } from '../Common';
 import Select from '../Select';
+import { settleErr } from './adminSettle';
+import { ConfirmDialog, ErrorState, FilterBar, Loading } from '../ui';
 
 export const dt = (v) => (v ? new Date(v).toLocaleString('vi-VN') : '—');
 export const d = (v) => (v ? new Date(v).toLocaleDateString('vi-VN') : '—');
 export const isoOrUndef = (v) => (v ? new Date(v).toISOString() : undefined);
-// Cận trên "đến ngày" gồm cả ngày được chọn: 00:00 ngày kế tiếp (giờ máy người dùng).
-export const endOfDayIso = (v) => { if (!v) return undefined; const x = new Date(`${v}T00:00:00`); x.setDate(x.getDate() + 1); return x.toISOString(); };
+// Lọc theo ngày: "từ" = 00:00 ngày chọn, "đến" gồm cả ngày chọn (00:00 ngày kế tiếp), cả hai theo giờ Việt Nam.
+export const endOfDayIso = (v) => vnDayEnd(v)?.toISOString();
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Danh mục sân bay (GET /v1/airports, công khai) tải một lần cho cả phiên.
@@ -53,7 +56,7 @@ export function errText(e) {
   if (e?.code === 'PERMISSION_ESCALATION') return `Bạn không thể gán quyền mà bạn không có: ${list(d.missing)}.`;
   if (e?.code === 'UNKNOWN_PERMISSION') return `Có quyền không tồn tại trong danh mục: ${list(d.unknown)}.`;
   if (e?.code === 'ROLE_IN_USE') return `Vai trò đang được ${d.accountCount ?? 'một số'} tài khoản sử dụng.`;
-  if (ERR_VI[e?.code]) return ERR_VI[e.code];
+  if (ERR_VI[e?.code] || settleErr(e)) return ERR_VI[e.code] || settleErr(e);
   const i = Array.isArray(e?.details) ? e.details[0] : null;
   return i?.path?.length ? `${describeError(e)} (${i.path.join('.')})` : describeError(e);
 }
@@ -90,23 +93,15 @@ export function useLoad(path, query) {
   return { ...s, reload: load };
 }
 
-// Khung trạng thái cho danh sách: đang tải / lỗi (thử lại) / rỗng / nội dung + "Tải thêm".
-export function PagedView({ p, empty = 'Không có dữ liệu.', children }) {
-  if (p.err && !p.items.length) return <ErrorBox onRetry={p.reload}>{p.err}</ErrorBox>;
-  if (p.loading && !p.items.length) return <Loading />;
-  if (!p.items.length) return <EmptyBox title="Chưa có dữ liệu">{empty}</EmptyBox>;
-  return (
-    <>
-      {children}
-      {p.err && <Notice tone="error">{p.err}</Notice>}
-      {p.next != null && <div className="row-actions"><button type="button" className="btn" onClick={p.more} disabled={p.loading} data-testid="load-more">{p.loading ? 'Đang tải…' : 'Tải thêm'}</button></div>}
-    </>
-  );
-}
+// Thuộc tính cho ui/DataTable từ kết quả usePaged: <DataTable columns={cols([...])} empty="…" {...pagedProps(p)} />
+export const pagedProps = (p) => ({ rows: p.items, loading: p.loading, error: p.err, onRetry: p.reload, hasMore: p.next != null, onLoadMore: p.more, loadingMore: p.loading });
+// Cột cho DataTable từ cặp [tiêu đề, (row) => node]; tiêu đề rỗng = cột thao tác.
+export const cols = (pairs) => pairs.map(([header, render], i) => ({ key: `c${i}`, header: header || 'Thao tác', render }));
 
-export function LoadView({ r, children }) {
-  if (r.err && !r.data) return <ErrorBox onRetry={r.reload}>{r.err}</ErrorBox>;
-  if (!r.data) return <Loading />;
+// head: tiêu đề hiện khi đang tải/lỗi (lúc có dữ liệu, children tự vẽ PageHeader).
+export function LoadView({ r, head, children }) {
+  if (r.err && !r.data) return <>{head}<ErrorState onRetry={r.reload}>{r.err}</ErrorState></>;
+  if (!r.data) return <>{head}<Loading /></>;
   return children(r.data);
 }
 
@@ -124,49 +119,32 @@ export function useRun() {
   return { run, busy, msg, setMsg, node };
 }
 
-// Nút cần xác nhận; reason=true thì bắt nhập lý do (>= 3 ký tự). onDo(reason) trả Promise<{ok}> (từ useRun.run).
+// Nút mở hộp xác nhận (ConfirmDialog); reason=true thì bắt nhập lý do (>= 3 ký tự). onDo(reason) trả Promise<{ok}> (từ useRun.run); ok:false giữ hộp mở.
+// testid: nút mở = `testid`; trong hộp `testid-confirm` / `-cancel` / `-reason`.
 export function Act({ label, onDo, reason = false, danger = false, confirm = 'Bạn chắc chắn thực hiện?', testid, disabled }) {
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState('');
-  const [err, setErr] = useState('');
-  if (!open) return <button type="button" className={`btn btn-sm ${danger ? 'btn-danger' : ''}`} disabled={disabled} onClick={() => setOpen(true)} data-testid={testid}>{label}</button>;
-  const go = async () => {
-    if (reason && text.trim().length < 3) { setErr('Lý do cần ít nhất 3 ký tự.'); return; }
-    const r = await onDo(text.trim());
-    if (r?.ok !== false) { setOpen(false); setText(''); setErr(''); }
-  };
   return (
-    <span className="inline-form" role="group" aria-label={label}>
-      {reason ? <input aria-label="Lý do" placeholder="Lý do (bắt buộc)" value={text} onChange={(e) => { setText(e.target.value); setErr(''); }} data-testid={testid && `${testid}-reason`} /> : <small>{confirm}</small>}
-      <button type="button" className="btn btn-sm btn-primary" onClick={go} data-testid={testid && `${testid}-confirm`}>Xác nhận</button>
-      <button type="button" className="link-btn" onClick={() => { setOpen(false); setErr(''); }}>Huỷ</button>
-      {err && <small className="field-error block" role="alert">{err}</small>}
-    </span>
+    <>
+      <button type="button" className={`btn btn-sm ${danger ? 'btn-danger' : ''}`} disabled={disabled} onClick={() => setOpen(true)} data-testid={testid}>{label}</button>
+      <ConfirmDialog open={open} onClose={() => setOpen(false)} title={label} description={confirm} confirmLabel={label} variant={danger ? 'danger' : 'info'} testid={testid}
+        reason={reason ? { label: 'Lý do', minLength: 3, placeholder: 'Lý do (bắt buộc)' } : undefined}
+        onConfirm={async (why) => { const r = await onDo(why); if (r?.ok === false) throw new Error('failed'); }} />
+    </>
   );
 }
 
-// Ô lọc đơn giản: fields = [[key, label, type?, options?]]; áp dụng khi bấm "Lọc".
-export function Filters({ fields, onApply, testid = 'filters', inclusiveTo = false }) {
+// Thanh lọc trên ui/FilterBar: fields = [[key, label, type?, options?]]; áp dụng khi bấm "Lọc"/Enter, "Đặt lại" xóa hết.
+export function Filters({ fields, onApply, testid = 'filters' }) {
   const [v, setV] = useState({});
-  const apply = (e) => { e.preventDefault(); const o = {}; for (const [k, , t] of fields) if (v[k]) o[k] = t === 'date' ? (inclusiveTo && k === 'to' ? endOfDayIso(v[k]) : isoOrUndef(v[k])) : v[k].trim(); onApply(o); };
+  const apply = () => { const o = {}; for (const [k, , t] of fields) if (v[k]) o[k] = t === 'date' ? (k === 'to' ? endOfDayIso(v[k]) : vnDayStart(v[k]).toISOString()) : v[k].trim(); onApply(o); };
   return (
-    <form className="inline-form" onSubmit={apply} style={{ margin: '8px 0 12px' }} data-testid={testid}>
+    <FilterBar onApply={apply} onReset={() => { setV({}); onApply({}); }} testid={testid}>
       {fields.map(([k, label, t, opts]) => opts
         ? <Select key={k} aria-label={label} value={v[k] || ''} onChange={(e) => setV({ ...v, [k]: e.target.value })}><option value="">{label}: tất cả</option>{opts.map(([val, txt]) => <option key={val} value={val}>{txt}</option>)}</Select>
         : <input key={k} aria-label={label} placeholder={label} type={t === 'date' ? 'date' : 'text'} title={label} value={v[k] || ''} onChange={(e) => setV({ ...v, [k]: e.target.value })} data-testid={`f-${k}`} />)}
-      <button type="submit" className="btn btn-sm btn-primary" data-testid="f-apply">Lọc</button>
-    </form>
+    </FilterBar>
   );
 }
-
-export const Table = ({ cols, rows, rowKey = (r) => r.id }) => (
-  <div className="table-wrap">
-    <table className="rights-table">
-      <thead><tr>{cols.map(([h]) => <th key={h}>{h}</th>)}</tr></thead>
-      <tbody>{rows.map((r) => <tr key={rowKey(r)} data-testid="row">{cols.map(([h, f]) => <td key={h} data-label={h}>{f(r)}</td>)}</tr>)}</tbody>
-    </table>
-  </div>
-);
 
 export const Json = ({ v }) => <pre style={{ margin: 0, fontSize: 12, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{JSON.stringify(v, null, 2)}</pre>;
 
@@ -175,5 +153,3 @@ export function tempPassword() {
   const pick = (s, n) => Array.from(crypto.getRandomValues(new Uint32Array(n)), (x) => s[x % s.length]).join('');
   return `${pick('ABCDEFGHJKLMNPQRSTUVWXYZ', 4)}${pick('abcdefghijkmnpqrstuvwxyz', 6)}${pick('23456789', 4)}${pick('!@#$%', 2)}`;
 }
-
-export const Back = ({ onClick }) => <button type="button" className="link-btn" onClick={onClick} data-testid="back">← Quay lại danh sách</button>;

@@ -30,6 +30,14 @@ export const PERM = {
   ADMIN_PAYMENT_MANAGE: 'admin:payment:manage', // đối soát thủ công, thử lại hoàn tiền
   ADMIN_HOTEL_APPROVE_SENSITIVE: 'admin:hotel:approve-sensitive', // ADM-15: duyệt đổi tài khoản nhận tiền (four-eyes)
 
+  // --- Chủ doanh nghiệp (tài khoản có businesses.id); nhân viên khách sạn KHÔNG có các quyền này ---
+  BUSINESS_HOTEL_MANAGE: 'business:hotel:manage', // tạo/liệt kê/gửi hồ sơ khách sạn của doanh nghiệp mình, chuyển khách sạn làm việc
+  BUSINESS_REPORT_READ: 'business:report:read', // báo cáo doanh thu mọi khách sạn của doanh nghiệp + tổng
+
+  // --- Cổng khách sạn: nhân viên + vai trò riêng của khách sạn (tách hẳn khỏi admin:account:manage) ---
+  HOTEL_STAFF_MANAGE: 'hotel:staff:manage', // tạo/sửa/khóa nhân viên, đặt lại mật khẩu của khách sạn đang làm việc
+  HOTEL_ROLE_MANAGE: 'hotel:role:manage', // vai trò tùy chỉnh của khách sạn đang làm việc
+
   // --- Đơn vị chi trả / khách delay chuyến (nhân viên đơn vị chi trả luôn bị khóa theo payer_id/trạm của chính nó) ---
   PAYER_DELAY_READ: 'payer:delay:read', // xem chuyến delay, hành khách, lô đặt phòng của trạm mình
   PAYER_DELAY_MANAGE: 'payer:delay:manage', // nhập chuyến/hành khách, chọn khách và đặt phòng nghỉ

@@ -259,6 +259,25 @@ run('tích hợp: kết toán tháng hai chiều', () => {
     expect((await st.statementCsv(stA)).csv).toContain("'=cmd|calc");
   });
 
+  it('hoa hồng không lộ cho đơn vị chi trả: CSV + JSON payer không có commission; admin vẫn có', async () => {
+    const r = request(app);
+    const pc = await r.get(`/v1/payer/statements/${stA}/csv`).set(bearer(tokA));
+    expect(pc.text.startsWith('﻿kind,booking_code,group_code,flight_code,hotel,amount_vnd,memo\r\n')).toBe(true);
+    expect(pc.text).not.toMatch(/commission/i);
+    expect(pc.text).not.toContain('193332');
+    expect(pc.text).toContain('TOTAL,,,,,2003332,');
+    expect(pc.text.trim().split('\r\n').every((l) => l.split(',').length === 7 || l.includes('"'))).toBe(true);
+    const ac = await r.get(`/v1/admin/payer-statements/${stA}/csv`).set(bearer(readTok));
+    expect(ac.text).toContain('commission_vnd');
+    expect(ac.text).toContain('TOTAL,,,,,2003332,193332,');
+    const pj = (await r.get(`/v1/payer/statements/${stA}`).set(bearer(tokA))).body;
+    expect(JSON.stringify(pj)).not.toMatch(/commission/i);
+    expect(JSON.stringify((await r.get('/v1/payer/statements').set(bearer(tokA))).body)).not.toMatch(/commission/i);
+    const aj = (await r.get(`/v1/admin/payer-statements/${stA}`).set(bearer(readTok))).body;
+    expect(aj.statement.commissionVnd).toBe(193332);
+    expect(aj.lines.some((l: any) => 'commissionVnd' in l)).toBe(true);
+  });
+
   it('API: quyền theo permission; nhân viên payer không khóa được; cô lập payer; nháp ẩn với payer; Idempotency-Key', async () => {
     const r = request(app);
     // nhân viên payer xem của mình (không thấy nháp), đơn vị khác 404

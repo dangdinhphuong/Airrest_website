@@ -21,8 +21,8 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
     tokens[k] = signAccountToken({ sub: ids[k], accountType: 'ADMIN' });
   };
 
-  const hotelBody = (code = 'HAN-T01', email = 'chu@kstest.vn') => ({
-    code, name: 'KS Test Nội Bài', address: { line: '1 Nội Bài', city: 'Hà Nội' },
+  const hotelBody = (code = 'HAN-T01', email = 'chu@kstest.vn', name = 'KS Test Nội Bài') => ({
+    code, name, address: { line: '1 Nội Bài', city: 'Hà Nội' },
     location: { lng: 105.8, lat: 21.2 }, airports: [{ iata: 'han', km: 6, minutes: 12 }],
     amenities: ['WIFI'], contact: { phone: '0243123456' },
     policy: { cancellationTemplate: 'FLEXIBLE', cleaningBufferMin: 0 },
@@ -168,9 +168,9 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
     });
 
     it('trùng mã / trùng email chủ -> 409; Kế toán (chỉ đọc) không tạo được', async () => {
-      const dupCode = await request(app).post('/v1/admin/hotels').set(auth('A')).send(hotelBody('HAN-T01', 'khac@kstest.vn'));
+      const dupCode = await request(app).post('/v1/admin/hotels').set(auth('A')).send(hotelBody('HAN-T01', 'khac@kstest.vn', 'KS Test Khác'));
       expect(dupCode.body.error.code).toBe('HOTEL_CODE_EXISTS');
-      const dupMail = await request(app).post('/v1/admin/hotels').set(auth('A')).send(hotelBody('HAN-T02', 'chu@kstest.vn'));
+      const dupMail = await request(app).post('/v1/admin/hotels').set(auth('A')).send(hotelBody('HAN-T02', 'chu@kstest.vn', 'KS Test T02'));
       expect(dupMail.body.error.code).toBe('EMAIL_EXISTS');
       expect(await count('hotels', "code = 'HAN-T02'")).toBe(0); // transaction hoàn tác
       expect((await request(app).post('/v1/admin/hotels').set(auth('FIN')).send(hotelBody('HAN-T03', 'x@kstest.vn'))).status).toBe(403);
@@ -204,45 +204,38 @@ run('tích hợp: API Admin (tài khoản, cấu hình, audit, khách sạn)', (
     });
   });
 
-  describe('ADM-15 đổi tài khoản nhận tiền (hai người)', () => {
-    const body = { type: 'BANK', accountNo: '0123456789', accountName: 'CTY KS TEST', bankCode: 'VCB' };
+  describe('ADM-15 đổi tài khoản nhận tiền (có hiệu lực ngay)', () => {
+    const body = { type: 'BANK', accountNo: '0123456789', accountName: 'CTY KS TEST' };
 
-    it('đề xuất: trả nhãn đã che, DB lưu mã hóa, người đề xuất không tự duyệt được', async () => {
+    it('đổi thẳng: trả nhãn đã che, DB lưu mã hóa, không còn đề xuất chờ; bankCode không bắt buộc', async () => {
       const put = await request(app).put(`/v1/admin/hotels/${hotelId}/payout-account`).set(auth('A')).send(body);
-      expect(put.status).toBe(202);
-      expect(put.body.hotel.payoutAccount.pendingChange.labelMasked).toBe('TK ****6789');
+      expect(put.status).toBe(200);
+      expect(put.body.hotel.payoutAccount).toMatchObject({ type: 'BANK', labelMasked: 'TK ****6789' });
+      expect(put.body.hotel.payoutAccount.pendingChange).toBeUndefined();
       expect(JSON.stringify(put.body)).not.toMatch(/0123456789|detailsEnc/);
 
-      const raw = await one<{ payoutAccount: { pendingChange: { detailsEnc: string } } }>('SELECT payout_account FROM hotels WHERE id = $1', [hotelId]);
-      const enc = raw!.payoutAccount.pendingChange.detailsEnc;
-      expect(enc).not.toContain('0123456789');
-      expect(decryptJson(enc)).toMatchObject({ accountNo: '0123456789', bankCode: 'VCB' });
-
-      expect((await request(app).put(`/v1/admin/hotels/${hotelId}/payout-account`).set(auth('B')).send(body)).body.error.code).toBe('PENDING_CHANGE_EXISTS');
-      const self = await request(app).post(`/v1/admin/hotels/${hotelId}/payout-account/approve`).set(auth('A'));
-      expect(self.status).toBe(403);
-      expect(self.body.error.code).toBe('FOUR_EYES_REQUIRED');
-      expect((await request(app).post(`/v1/admin/hotels/${hotelId}/payout-account/approve`).set(auth('SUP'))).status).toBe(403);
-      expect((await request(app).get('/v1/admin/hotels?pendingPayout=true').set(auth('FIN'))).body.items).toHaveLength(1);
+      const raw = await one<{ payoutAccount: { detailsEnc: string } }>('SELECT payout_account FROM hotels WHERE id = $1', [hotelId]);
+      expect(decryptJson(raw!.payoutAccount.detailsEnc)).toEqual({ accountNo: '0123456789', accountName: 'CTY KS TEST' });
+      expect((await request(app).get('/v1/admin/hotels?pendingPayout=true').set(auth('FIN'))).body.items).toHaveLength(0);
     });
 
-    it('Kế toán duyệt: tài khoản có hiệu lực, hết đề xuất chờ; audit không chứa số tài khoản', async () => {
-      const ok = await request(app).post(`/v1/admin/hotels/${hotelId}/payout-account/approve`).set(auth('FIN'));
-      expect(ok.status).toBe(200);
-      expect(ok.body.hotel.payoutAccount).toMatchObject({ type: 'BANK', labelMasked: 'TK ****6789' });
-      expect(ok.body.hotel.payoutAccount.pendingChange).toBeUndefined();
-      expect((await request(app).post(`/v1/admin/hotels/${hotelId}/payout-account/approve`).set(auth('FIN'))).body.error.code).toBe('NO_PENDING_CHANGE');
+    it('đổi lần nữa (kèm mã ngân hàng) ghi đè; thiếu quyền thì 403; audit không chứa số tài khoản', async () => {
+      const again = await request(app).put(`/v1/admin/hotels/${hotelId}/payout-account`).set(auth('B')).send({ ...body, accountNo: '0987654321', bankCode: 'VCB' });
+      expect(again.status).toBe(200);
+      expect(again.body.hotel.payoutAccount.labelMasked).toBe('TK ****4321');
+      expect((await request(app).put(`/v1/admin/hotels/${hotelId}/payout-account`).set(auth('SUP')).send(body)).status).toBe(403);
       const logs = (await db.query<{ action: string }>("SELECT * FROM audit_logs WHERE action LIKE 'HOTEL.PAYOUT%'")).rows;
-      expect(logs.map((l) => l.action).sort()).toEqual(['HOTEL.PAYOUT_ACCOUNT.CHANGE', 'HOTEL.PAYOUT_ACCOUNT.REQUEST']);
-      expect(JSON.stringify(logs)).not.toContain('0123456789');
+      expect(logs.map((l) => l.action)).toEqual(['HOTEL.PAYOUT_ACCOUNT.CHANGE', 'HOTEL.PAYOUT_ACCOUNT.CHANGE']);
+      expect(JSON.stringify(logs)).not.toMatch(/0123456789|0987654321/);
     });
 
-    it('từ chối đề xuất: xóa đề xuất, giữ tài khoản cũ', async () => {
-      await request(app).put(`/v1/admin/hotels/${hotelId}/payout-account`).set(auth('A')).send({ type: 'MOMO', accountNo: '0912345678', accountName: 'CHU KS' });
+    it('đề xuất cũ còn tồn: duyệt hoặc từ chối được, kể cả bởi người đã đề xuất', async () => {
+      const pending = { type: 'MOMO', labelMasked: 'TK ****5678', detailsEnc: 'x', requestedBy: '00000000-0000-0000-0000-000000000000', requestedAt: new Date() };
+      await db.query("UPDATE hotels SET payout_account = jsonb_set(COALESCE(payout_account, '{}'::jsonb), '{pendingChange}', $2::jsonb) WHERE id = $1", [hotelId, JSON.stringify(pending)]);
       const rej = await request(app).post(`/v1/admin/hotels/${hotelId}/payout-account/reject`).set(auth('FIN')).send({ reason: 'Tên không khớp giấy phép' });
       expect(rej.status).toBe(200);
-      expect(rej.body.hotel.payoutAccount.labelMasked).toBe('TK ****6789');
       expect(rej.body.hotel.payoutAccount.pendingChange).toBeUndefined();
+      expect(rej.body.hotel.payoutAccount.labelMasked).toBe('TK ****4321');
     });
   });
 

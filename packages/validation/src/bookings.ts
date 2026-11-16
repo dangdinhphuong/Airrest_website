@@ -41,22 +41,29 @@ const roomLine = z
     roomTypeId: uuid,
     qty: z.number().int().min(1).max(5).default(1),
     kind: z.enum(['NIGHT', 'HOURLY']).default('NIGHT'),
+    ratePlan: z.enum(['STANDARD', 'NON_REFUNDABLE']).default('STANDARD'), // NON_REFUNDABLE: rẻ hơn, hủy mất tiền theo gói không hoàn; chỉ dòng theo đêm
     startsAt: z.string().datetime({ offset: true, message: 'startsAt phải là ISO 8601 có múi giờ' }).transform((s) => new Date(s)).optional(),
     hours: z.number().int().min(1).max(24).optional(),
   })
   .strict()
   .superRefine((l, ctx) => {
     if (l.kind === 'HOURLY') {
+      if (l.ratePlan !== 'STANDARD') ctx.addIssue({ code: 'custom', message: 'Dòng theo giờ không có mức không hoàn hủy', path: ['ratePlan'] });
       if (!l.startsAt) ctx.addIssue({ code: 'custom', message: 'Dòng theo giờ cần `startsAt`', path: ['startsAt'] });
       if (l.hours === undefined) ctx.addIssue({ code: 'custom', message: 'Dòng theo giờ cần `hours`', path: ['hours'] });
     } else if (l.startsAt || l.hours !== undefined) ctx.addIssue({ code: 'custom', message: '`startsAt`/`hours` chỉ dùng cho dòng theo giờ (kind = HOURLY)', path: ['kind'] });
   });
 const roomsFields = { rooms: z.array(roomLine).min(1).max(10).optional(), roomTypeId: uuid.optional(), qty: z.number().int().min(1).max(5).optional() };
-type RoomLineIn = { roomTypeId: string; kind?: 'NIGHT' | 'HOURLY' };
+type RoomLineIn = { roomTypeId: string; kind?: 'NIGHT' | 'HOURLY'; ratePlan?: 'STANDARD' | 'NON_REFUNDABLE' };
 const checkRooms = (b: { rooms?: RoomLineIn[]; roomTypeId?: string; qty?: number }, ctx: z.RefinementCtx) => {
   if (b.rooms && (b.roomTypeId !== undefined || b.qty !== undefined)) ctx.addIssue({ code: 'custom', message: 'Dùng `rooms` hoặc `roomTypeId` + `qty`, không gửi cả hai', path: ['rooms'] });
   else if (!b.rooms && !b.roomTypeId) ctx.addIssue({ code: 'custom', message: 'Thiếu `rooms` (hoặc `roomTypeId`)', path: ['rooms'] });
   else if (b.rooms && new Set(b.rooms.map((r) => `${r.roomTypeId}:${r.kind}`)).size !== b.rooms.length) ctx.addIssue({ code: 'custom', message: 'roomTypeId không được trùng giữa các dòng (cùng kind)', path: ['rooms'] });
+};
+// Một đơn một chính sách hủy: các dòng theo đêm phải cùng mức giá (không trộn Linh hoạt và Không hoàn hủy).
+const checkPlans = (b: { rooms?: RoomLineIn[] }, ctx: z.RefinementCtx) => {
+  const plans = new Set((b.rooms ?? []).filter((r) => r.kind !== 'HOURLY').map((r) => r.ratePlan ?? 'STANDARD'));
+  if (plans.size > 1) ctx.addIssue({ code: 'custom', message: 'Một đơn chỉ dùng một mức giá: không trộn Linh hoạt với Không hoàn hủy', path: ['rooms'] });
 };
 const allHourly = (b: { rooms?: RoomLineIn[] }) => !!b.rooms && b.rooms.every((r) => r.kind === 'HOURLY');
 // Đơn có dòng theo đêm: from/to bắt buộc. Đơn toàn giờ: cửa sổ do server suy ra từ các dòng (from/to gửi lên bị bỏ qua).
@@ -66,9 +73,9 @@ const checkWindow = (b: { rooms?: RoomLineIn[]; from?: Date; to?: Date }, ctx: z
   if (!b.to) ctx.addIssue({ code: 'custom', message: 'Thiếu `to`', path: ['to'] });
   else if (b.from && b.to <= b.from) ctx.addIssue({ code: 'custom', message: '`to` phải sau `from`', path: ['to'] });
 };
-type LineOut = { roomTypeId: string; qty: number; kind: 'NIGHT' | 'HOURLY'; startsAt?: Date; hours?: number };
+type LineOut = { roomTypeId: string; qty: number; kind: 'NIGHT' | 'HOURLY'; ratePlan?: 'STANDARD' | 'NON_REFUNDABLE'; startsAt?: Date; hours?: number };
 const finalize = <T extends { rooms?: Array<Omit<LineOut, 'qty'> & { qty?: number }>; roomTypeId?: string; qty?: number; from?: Date; to?: Date }>({ rooms, roomTypeId, qty, from, to, ...rest }: T) => {
-  const lines: LineOut[] = rooms ? rooms.map((r) => ({ ...r, qty: r.qty ?? 1 })) : [{ roomTypeId: roomTypeId!, qty: qty ?? 1, kind: 'NIGHT' }];
+  const lines: LineOut[] = rooms ? rooms.map((r) => ({ ...r, qty: r.qty ?? 1 })) : [{ roomTypeId: roomTypeId!, qty: qty ?? 1, kind: 'NIGHT', ratePlan: 'STANDARD' }];
   if (lines.every((l) => l.kind === 'HOURLY')) {
     from = new Date(Math.min(...lines.map((l) => l.startsAt!.getTime())));
     to = new Date(Math.max(...lines.map((l) => l.startsAt!.getTime() + l.hours! * 3600_000)));
@@ -94,6 +101,7 @@ export const createBookingBody = z
   })
   .refine((b) => b.children <= b.guests, { message: '`children` không được vượt `guests` (guests đã gồm trẻ em)', path: ['children'] })
   .superRefine(checkRooms)
+  .superRefine(checkPlans)
   .superRefine(checkWindow)
   .refine((b) => allHourly(b) || !b.from || b.from.getTime() > Date.now() - 5 * 60_000, { message: '`from` đã ở quá khứ', path: ['from'] })
   .transform(finalize);
@@ -110,6 +118,7 @@ export const bookingQuoteBody = z
     to: z.coerce.date().optional(),
   })
   .superRefine(checkRooms)
+  .superRefine(checkPlans)
   .superRefine(checkWindow)
   .transform(finalize);
 export type BookingQuoteBody = z.infer<typeof bookingQuoteBody>;

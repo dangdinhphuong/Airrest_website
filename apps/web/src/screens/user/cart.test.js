@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CART_TTL_MS, defaultGuests, dropSoldOut, emptyCart, loadCart, reconcile, roomNote, setQty, suggestExtraRoom, toApiRooms, totalCapacity, totalRooms } from './cart';
+import { CART_TTL_MS, cartPlan, defaultGuests, dropSoldOut, emptyCart, loadCart, reconcile, roomNote, setQty, suggestExtraRoom, switchesPlan, toApiRooms, totalCapacity, totalRooms } from './cart';
 
 const R = (id, price, cap, left) => ({ id, name: id.toUpperCase(), price, maxOccupancy: cap, availableRooms: left });
 const H = { id: 'h1', name: 'KS 1', rooms: [R('a', 500, 2, 3), R('b', 900, 4, 1), R('c', 300, 2, 0)] };
@@ -143,5 +143,35 @@ describe('giỏ trộn đêm + giờ', () => {
     expect(reconcile(c, HH, Date.parse(T0) + 3600_000).dropped).toEqual(['P (theo giờ)']);
     expect(reconcile(c, { ...HH, rooms: [{ ...HR, hourly: null }] }, now).dropped).toEqual(['P (theo giờ)']);
     expect(reconcile(c, { ...HH, rooms: [{ ...HR, hourly: { ...HCFG, maxHours: 2 } }] }, now).dropped).toEqual(['P (theo giờ)']);
+  });
+});
+
+describe('mức giá Không hoàn hủy', () => {
+  const N = { ...A, nonRefundablePct: 10, nonRefundablePrice: 450 }; // a: có mức không hoàn; b: không có
+  const HN = { id: 'h1', name: 'KS 1', rooms: [N, B] };
+  it('thêm dòng ở mức không hoàn: giá thấp hơn, ghi ratePlan; gửi API kèm ratePlan, mặc định không gửi', () => {
+    const c = setQty(emptyCart(), HN, N, 2, Date.now(), { plan: 'NON_REFUNDABLE' });
+    expect(c.lines[0]).toMatchObject({ roomTypeId: 'a', qty: 2, price: 450, ratePlan: 'NON_REFUNDABLE' });
+    expect(cartPlan(c)).toBe('NON_REFUNDABLE');
+    expect(toApiRooms(c)).toEqual([{ roomTypeId: 'a', qty: 2, ratePlan: 'NON_REFUNDABLE' }]);
+    expect(toApiRooms(setQty(emptyCart(), HN, N, 1))).toEqual([{ roomTypeId: 'a', qty: 1 }]);
+  });
+  it('đổi qty không đổi mức; loại phòng không có mức không hoàn thì không thêm được vào giỏ không hoàn', () => {
+    let c = setQty(emptyCart(), HN, N, 1, Date.now(), { plan: 'NON_REFUNDABLE' });
+    c = setQty(c, HN, N, 2);
+    expect(c.lines[0]).toMatchObject({ qty: 2, price: 450, ratePlan: 'NON_REFUNDABLE' });
+    expect(setQty(c, HN, B, 1).lines.map((l) => l.roomTypeId)).toEqual(['a']); // b không bán mức này
+    expect(suggestExtraRoom(HN, c).id).toBe('a'); // gợi ý thêm phòng chỉ lấy loại có mức không hoàn (b bị loại)
+  });
+  it('chọn mức khác thì bỏ các dòng đêm cũ (một đơn một mức) nhưng giữ dòng theo giờ', () => {
+    let c = setQty(emptyCart(), HN, N, 1, Date.now(), { plan: 'NON_REFUNDABLE' });
+    expect(switchesPlan(c, 'STANDARD')).toBe(true);
+    c = setQty(c, HN, B, 1, Date.now(), { plan: 'STANDARD' });
+    expect(c.lines.map((l) => [l.roomTypeId, l.ratePlan])).toEqual([['b', undefined]]);
+  });
+  it('reconcile: cập nhật giá theo mức; bỏ dòng khi loại phòng ngừng bán mức không hoàn', () => {
+    const c = setQty(emptyCart(), HN, N, 1, Date.now(), { plan: 'NON_REFUNDABLE' });
+    expect(reconcile(c, { ...HN, rooms: [{ ...N, nonRefundablePrice: 400 }, B] }).cart.lines[0]).toMatchObject({ price: 400, ratePlan: 'NON_REFUNDABLE' });
+    expect(reconcile(c, { ...HN, rooms: [{ ...A }, B] }).dropped).toEqual(['A']);
   });
 });

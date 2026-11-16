@@ -2,6 +2,7 @@ import { env } from '../../config/env';
 import { PERM } from '../../config/permissions';
 import { runMigrations } from '../migrate';
 import { closeDb, connectDb, db, json } from '../pg';
+import { ensureBusinesses } from '../backfillBusinesses';
 import { hashPassword } from '../../lib/password';
 import { seedFlights } from '../../services/flights/flightSeed';
 import { seedGeneratedFlights } from '../../services/flights/flightSeedGen';
@@ -77,6 +78,7 @@ const HOTEL_ID = '65000000-0000-4000-8000-000000000001';
   }
   console.log(`Hoạt động mô phỏng: ${await seedActivity()}`);
   console.log(`Seed xong. Hotel ${hotel.id}, tài khoản: letan@demo.airrest.vn / admin@demo.airrest.vn (mật khẩu: SEED_PASSWORD)`);
+  await ensureBusinesses();
   await closeDb();
 })().catch((e) => {
   console.error(e);

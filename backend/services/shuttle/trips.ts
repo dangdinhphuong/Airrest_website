@@ -11,21 +11,26 @@ import { logBookingEvent } from '../bookings/bookingEvents';
 import { hotelScope } from '../scope';
 import { allocateTrips, isFree, loadFleetAt } from './dispatch';
 import { publishAll, type ShuttleEvent } from './events';
+import { mirrorToMembers, tripMembers } from './members';
 import { validateShareUrl } from './externalLink';
 import { simFields } from './route';
 
 // ---------- View ----------
 const CTX = `SELECT t.*, r.direction, r.airport_iata, r.pickup_at, r.location, r.note, r.passengers, r.status AS request_status,
-    b.code AS booking_code, b.guest, b.hotel_snapshot, v.plate, v.seats AS vehicle_seats, v.model, d.full_name AS driver_name, d.phone AS driver_phone, d.photo_key
+    b.code AS booking_code, b.guest, b.hotel_snapshot, v.plate, v.seats AS vehicle_seats, v.model, d.full_name AS driver_name, d.phone AS driver_phone, d.photo_key,
+    (SELECT coalesce(jsonb_agg(jsonb_build_object('requestId', l.request_id, 'bookingCode', mb.code, 'fullName', mb.guest->>'fullName', 'phone', mb.guest->>'phone', 'seats', l.seats, 'passengers', mr.passengers) ORDER BY l.created_at, l.request_id), '[]'::jsonb)
+       FROM shuttle_trip_requests l JOIN bookings mb ON mb.id = l.booking_id JOIN shuttle_requests mr ON mr.id = l.request_id WHERE l.trip_id = t.id) AS members
   FROM shuttle_trips t JOIN shuttle_requests r ON r.id = t.request_id JOIN bookings b ON b.id = t.booking_id
   LEFT JOIN vehicles v ON v.id = t.vehicle_id LEFT JOIN hotel_drivers d ON d.account_id = t.driver_account_id`;
 export const photoUrlOf = (key?: string): string | null => (key ? (publicUrl(key) ?? null) : null);
+
+const sumOf = (m: Array<Record<string, number>> | undefined, k: string): number => (m ?? []).reduce((s, x) => s + (x[k] ?? 0), 0);
 
 /** Chuyến cho nhân sự khách sạn (đầy đủ). NEEDS_EXTERNAL kèm hạn xử lý + cờ quá hạn. */
 export function staffTripView(r: any, now = new Date()) {
   const deadlineAt = r.status === 'NEEDS_EXTERNAL' ? new Date(r.pickupAt) : undefined;
   return {
-    id: r.id, requestId: r.requestId, bookingId: r.bookingId, bookingCode: r.bookingCode, kind: r.kind, status: r.status, seats: r.seats, passengers: r.passengers,
+    id: r.id, requestId: r.requestId, bookingId: r.bookingId, bookingCode: r.bookingCode, kind: r.kind, status: r.status, seats: r.seats, passengers: r.passengers + sumOf(r.members, 'passengers'), members: r.members ?? [],
     direction: r.direction, airport: r.airportIata, pickupAt: r.pickupAt, location: r.location ?? null, note: r.note ?? null,
     guest: r.guest ? { fullName: r.guest.fullName, phone: r.guest.phone, count: r.guest.count ?? 1 } : undefined,
     vehicle: r.vehicleId ? { id: r.vehicleId, plate: r.plate, seats: r.vehicleSeats, model: r.model ?? null } : null,
@@ -42,7 +47,8 @@ export function staffTripView(r: any, now = new Date()) {
 const driverTripView = (r: any) => ({
   id: r.id, status: r.status, seats: r.seats, bookingCode: r.bookingCode,
   vehicle: { plate: r.plate, seats: r.vehicleSeats, model: r.model ?? null },
-  request: { id: r.requestId, direction: r.direction, airport: r.airportIata, pickupAt: r.pickupAt, passengers: r.passengers, note: r.note ?? null },
+  request: { id: r.requestId, direction: r.direction, airport: r.airportIata, pickupAt: r.pickupAt, passengers: r.passengers + sumOf(r.members, 'passengers'), note: r.note ?? null },
+  members: (r.members ?? []).map((m: any) => ({ bookingCode: m.bookingCode, fullName: m.fullName, phone: m.phone, seats: m.seats, passengers: m.passengers })),
   pickup: r.direction === 'TO_HOTEL' ? (r.location ?? `Sân bay ${r.airportIata}`) : (r.location ?? r.hotelSnapshot?.name),
   dropoff: r.direction === 'TO_HOTEL' ? r.hotelSnapshot?.name : `Sân bay ${r.airportIata}`,
   guest: { fullName: r.guest?.fullName, phone: r.guest?.phone, count: r.guest?.count ?? 1 },
@@ -53,7 +59,12 @@ const driverTripView = (r: any) => ({
 // ---------- Trạng thái ----------
 /** Đồng bộ trạng thái yêu cầu theo các chuyến còn hiệu lực: mọi chuyến DROPPED_OFF -> DONE; mọi chuyến đã được nhận -> ASSIGNED; còn lại REQUESTED. */
 async function syncRequest(tx: Db, requestId: string): Promise<void> {
-  const st = (await tx.query<{ status: TripStatus }>("SELECT status FROM shuttle_trips WHERE request_id = $1 AND status NOT IN ('CANCELLED','REJECTED')", [requestId])).rows.map((r) => r.status);
+  await syncOne(tx, requestId);
+  // Yêu cầu của các booking thành viên đi theo trạng thái chuyến chung.
+  for (const m of (await tx.query<{ requestId: string }>('SELECT l.request_id FROM shuttle_trip_requests l JOIN shuttle_trips t ON t.id = l.trip_id WHERE t.request_id = $1', [requestId])).rows) await syncOne(tx, m.requestId);
+}
+async function syncOne(tx: Db, requestId: string): Promise<void> {
+  const st = (await tx.query<{ status: TripStatus }>("SELECT status FROM shuttle_trips t WHERE (t.request_id = $1 OR t.id IN (SELECT trip_id FROM shuttle_trip_requests WHERE request_id = $1)) AND t.status NOT IN ('CANCELLED','REJECTED')", [requestId])).rows.map((r) => r.status);
   if (!st.length) return;
   const next = st.every((s) => s === 'DROPPED_OFF') ? 'DONE' : st.every((s) => !['OFFERED', 'NEEDS_EXTERNAL'].includes(s)) ? 'ASSIGNED' : 'REQUESTED';
   await tx.query(
@@ -106,18 +117,31 @@ async function step(auth: AuthContext | undefined, who: 'driver' | 'staff' | 'sy
     await logBookingEvent(tx, { bookingId: t.bookingId, hotelId: t.hotelId, actor, type: `TRIP_${def.to}`, data: { tripId: t.id, kind: t.kind, seats: t.seats, ...(info && { plate: info.plate }), ...(o.reason && { reason: o.reason }) } });
     await writeAudit({ actor, action: `TRIP.${def.to}`, entity: { type: 'shuttle_trip', id: t.id }, hotelId: t.hotelId, bookingId: t.bookingId, before: { status: from.length === 1 ? from[0] : undefined }, after: { status: def.to }, reasonNote: o.reason, requestId: o.requestId }, tx);
     const events: ShuttleEvent[] = [{ ...eventBase(t), type: `TRIP_${def.to}`, audience: ['GUEST', 'HOTEL', 'DRIVER'], driverAccountId: t.driverAccountId, payload: { status: def.to, seats: t.seats } }];
+    const members = await tripMembers(tx, t.id);
+    if (s !== 'reject') events.push(...(await mirrorToMembers(tx, t, actor, `TRIP_${def.to}`, { tripId: t.id, kind: t.kind, ...(info && { plate: info.plate }) }, { status: def.to })));
     if (s === 'reject') {
       // Xe/tài xế từ chối: loại các xe đã từ chối yêu cầu này rồi điều lại phần còn thiếu (hết xe -> chuyến EXTERNAL).
       const req = (await tx.query<ShuttleRequestDoc>("SELECT * FROM shuttle_requests WHERE id = $1 AND status IN ('REQUESTED','ASSIGNED')", [t.requestId])).rows[0];
       if (req) {
         const excluded = (await tx.query<{ vehicleId: string }>("SELECT vehicle_id FROM shuttle_trips WHERE request_id = $1 AND status = 'REJECTED' AND vehicle_id IS NOT NULL", [t.requestId])).rows.map((r) => r.vehicleId);
-        events.push(...(await allocateTrips(tx, req, t.seats, excluded, actor)).events);
+        // Chuyến chung bị từ chối: mỗi booking được điều lại riêng phần ghế của mình (gỡ liên kết trước), loại các xe đã từ chối.
+        await tx.query('DELETE FROM shuttle_trip_requests WHERE trip_id = $1', [t.id]);
+        const own = Math.max(1, t.seats - members.reduce((n, m) => n + m.seats, 0));
+        events.push(...(await allocateTrips(tx, req, own, excluded, actor)).events);
         await syncRequest(tx, t.requestId);
+        for (const m of members) {
+          const mr = (await tx.query<ShuttleRequestDoc>("SELECT * FROM shuttle_requests WHERE id = $1 AND status IN ('REQUESTED','ASSIGNED') FOR UPDATE", [m.requestId])).rows[0];
+          if (mr) { events.push(...(await allocateTrips(tx, mr, Math.max(1, m.seats), excluded, actor)).events); await syncRequest(tx, m.requestId); }
+        }
       }
     }
     if (def.to === 'DROPPED_OFF') {
       const done = (await tx.query<{ status: string }>('SELECT status FROM shuttle_requests WHERE id = $1', [t.requestId])).rows[0];
       if (done?.status === 'DONE') await logBookingEvent(tx, { bookingId: t.bookingId, hotelId: t.hotelId, actor, type: 'SHUTTLE_DONE', data: { requestId: t.requestId } });
+      for (const m of members) {
+        const md = (await tx.query<{ status: string }>('SELECT status FROM shuttle_requests WHERE id = $1', [m.requestId])).rows[0];
+        if (md?.status === 'DONE') await logBookingEvent(tx, { bookingId: m.bookingId, hotelId: t.hotelId, actor, type: 'SHUTTLE_DONE', data: { requestId: m.requestId } });
+      }
     }
     return { t, events };
   });
@@ -140,16 +164,22 @@ async function afterTripClosed(tx: Db, t: ShuttleTripDoc, actor: Actor, note: st
   await logBookingEvent(tx, { bookingId: t.bookingId, hotelId: t.hotelId, actor, type: 'TRIP_CANCELLED', data: { tripId: t.id, seats: t.seats, note } });
   await writeAudit({ actor, action: 'TRIP.CANCEL', entity: { type: 'shuttle_trip', id: t.id }, hotelId: t.hotelId, bookingId: t.bookingId, reasonNote: note, requestId }, tx);
   const events: ShuttleEvent[] = [{ ...eventBase(t), type: 'TRIP_CANCELLED', audience: ['GUEST', 'HOTEL', 'DRIVER'], driverAccountId: t.driverAccountId, payload: { status: 'CANCELLED', reason: note } }];
-  const closed = await tx.query(
-    `UPDATE shuttle_requests SET status = 'CANCELLED', cancelled_at = now(), cancel_note = $2, updated_at = now()
-     WHERE id = $1 AND status IN ('REQUESTED','ASSIGNED') AND NOT EXISTS (SELECT 1 FROM shuttle_trips WHERE request_id = $1 AND status NOT IN ('CANCELLED','REJECTED')) RETURNING id`,
-    [t.requestId, note],
-  );
-  if (closed.rowCount) {
-    await logBookingEvent(tx, { bookingId: t.bookingId, hotelId: t.hotelId, actor, type: 'SHUTTLE_CANCELLED', data: { requestId: t.requestId, note } });
-    await writeAudit({ actor, action: 'SHUTTLE.CANCEL', entity: { type: 'shuttle', id: t.requestId }, hotelId: t.hotelId, bookingId: t.bookingId, reasonNote: note, requestId }, tx);
-    events.push({ type: 'SHUTTLE_CANCELLED', hotelId: t.hotelId, bookingId: t.bookingId, requestId: t.requestId, audience: ['GUEST', 'HOTEL'], payload: { status: 'CANCELLED', reason: note } });
-  } else await syncRequest(tx, t.requestId);
+  // Chuyến chung nhiều booking: khách của các booking thành viên cùng thấy chuyến bị hủy; yêu cầu của họ đóng theo cùng quy tắc.
+  events.push(...(await mirrorToMembers(tx, t, actor, 'TRIP_CANCELLED', { tripId: t.id, seats: t.seats, note }, { status: 'CANCELLED', reason: note })));
+  const targets = [{ requestId: t.requestId, bookingId: t.bookingId }, ...(await tripMembers(tx, t.id))];
+  for (const x of targets) {
+    const closed = await tx.query(
+      `UPDATE shuttle_requests s SET status = 'CANCELLED', cancelled_at = now(), cancel_note = $2, updated_at = now()
+       WHERE s.id = $1 AND s.status IN ('REQUESTED','ASSIGNED')
+         AND NOT EXISTS (SELECT 1 FROM shuttle_trips w WHERE (w.request_id = $1 OR w.id IN (SELECT trip_id FROM shuttle_trip_requests WHERE request_id = $1)) AND w.status NOT IN ('CANCELLED','REJECTED')) RETURNING id`,
+      [x.requestId, note],
+    );
+    if (closed.rowCount) {
+      await logBookingEvent(tx, { bookingId: x.bookingId, hotelId: t.hotelId, actor, type: 'SHUTTLE_CANCELLED', data: { requestId: x.requestId, note } });
+      await writeAudit({ actor, action: 'SHUTTLE.CANCEL', entity: { type: 'shuttle', id: x.requestId }, hotelId: t.hotelId, bookingId: x.bookingId, reasonNote: note, requestId }, tx);
+      events.push({ type: 'SHUTTLE_CANCELLED', hotelId: t.hotelId, bookingId: x.bookingId, requestId: x.requestId, audience: ['GUEST', 'HOTEL'], payload: { status: 'CANCELLED', reason: note } });
+    } else await syncRequest(tx, x.requestId);
+  }
   return events;
 }
 
@@ -282,6 +312,7 @@ export async function reassignTrip(auth: AuthContext, id: string, vehicleId: str
     await logBookingEvent(tx, { bookingId: t.bookingId, hotelId: t.hotelId, actor, type: 'TRIP_REASSIGNED', data: { tripId: t.id, fromVehicleId: cur.vehicleId ?? null, vehicleId: v.id, plate: v.plate, seats: t.seats } });
     await writeAudit({ actor, action: 'TRIP.REASSIGN', entity: { type: 'shuttle_trip', id }, hotelId: t.hotelId, bookingId: t.bookingId, before: { vehicleId: cur.vehicleId, status: cur.status }, after: { vehicleId: v.id, status: 'OFFERED' }, requestId }, tx);
     const events: ShuttleEvent[] = [{ ...eventBase(t), type: 'TRIP_REASSIGNED', audience: ['GUEST', 'HOTEL', 'DRIVER'], driverAccountId: t.driverAccountId, payload: { status: 'OFFERED', seats: t.seats } }];
+    events.push(...(await mirrorToMembers(tx, t, actor, 'TRIP_REASSIGNED', { tripId: t.id, seats: t.seats }, { status: 'OFFERED' })));
     if (cur.driverAccountId && cur.driverAccountId !== t.driverAccountId) events.push({ ...eventBase(t), type: 'TRIP_CANCELLED', audience: ['DRIVER'], driverAccountId: cur.driverAccountId, payload: { status: 'CANCELLED' } });
     return events;
   });
@@ -294,12 +325,9 @@ export async function cancelTripByStaff(auth: AuthContext, id: string, note: str
   const actor = actorOf(auth);
   const events = await withTransaction(async (tx) => {
     const cur = await lockStaffTrip(tx, auth, id);
-    const r = await tx.query("UPDATE shuttle_trips SET status = 'CANCELLED', cancelled_at = now(), cancel_note = $2, updated_at = now() WHERE id = $1 AND status = ANY($3::text[]) RETURNING id", [id, note, ['OFFERED', 'ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'NEEDS_EXTERNAL']]);
+    const r = await tx.query<ShuttleTripDoc>("UPDATE shuttle_trips SET status = 'CANCELLED', cancelled_at = now(), cancel_note = $2, updated_at = now() WHERE id = $1 AND status = ANY($3::text[]) RETURNING *", [id, note, ['OFFERED', 'ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'NEEDS_EXTERNAL']]);
     if (!r.rowCount) throw new AppError(409, 'INVALID_TRANSITION', `Không thể hủy chuyến ở trạng thái ${cur.status}`);
-    await logBookingEvent(tx, { bookingId: cur.bookingId, hotelId: cur.hotelId, actor, type: 'TRIP_CANCELLED', data: { tripId: id, seats: cur.seats, note } });
-    await writeAudit({ actor, action: 'TRIP.CANCEL', entity: { type: 'shuttle_trip', id }, hotelId: cur.hotelId, bookingId: cur.bookingId, reasonNote: note, requestId }, tx);
-    await syncRequest(tx, cur.requestId);
-    return [{ ...eventBase(cur), type: 'TRIP_CANCELLED', audience: ['GUEST', 'HOTEL', 'DRIVER'], driverAccountId: cur.driverAccountId, payload: { status: 'CANCELLED' } } as ShuttleEvent];
+    return afterTripClosed(tx, r.rows[0]!, actor, note, requestId); // hết chuyến còn hiệu lực -> đóng luôn yêu cầu (không treo REQUESTED)
   });
   publishAll(events);
   return { trip: await getStaffTrip(auth, id) };
@@ -316,11 +344,11 @@ export async function shuttleBoard(auth: AuthContext, q: BoardQuery) {
       [scope.hotelId ?? null, q.status ? [q.status] : ['REQUESTED', 'ASSIGNED'], q.limit],
     )
   ).rows;
-  const trips = reqs.length ? (await db.query<any>(`${CTX} WHERE t.request_id = ANY($1::uuid[]) ORDER BY t.seq`, [reqs.map((r) => r.id)])).rows.map((r) => staffTripView(r, now)) : [];
+  const trips = reqs.length ? (await db.query<any>(`${CTX} WHERE t.request_id = ANY($1::uuid[]) OR t.id IN (SELECT trip_id FROM shuttle_trip_requests WHERE request_id = ANY($1::uuid[])) ORDER BY t.seq`, [reqs.map((r) => r.id)])).rows.map((r) => staffTripView(r, now)) : [];
   const requests = reqs.map((r) => ({
     id: r.id, bookingId: r.bookingId, bookingCode: r.bookingCode, direction: r.direction, airport: r.airportIata, pickupAt: r.pickupAt, location: r.location ?? null, note: r.note ?? null,
     passengers: r.passengers, status: r.status, bookingStatus: r.bookingStatus, guest: { fullName: r.guest?.fullName, phone: r.guest?.phone, count: r.guest?.count ?? 1 },
-    trips: trips.filter((t) => t.requestId === r.id),
+    trips: trips.filter((t) => t.requestId === r.id || t.members.some((m: { requestId: string }) => m.requestId === r.id)),
   }));
   const alerts = trips.filter((t) => t.status === 'NEEDS_EXTERNAL').map((t) => ({ type: 'NEEDS_EXTERNAL', tripId: t.id, requestId: t.requestId, bookingCode: t.bookingCode, seats: t.seats, deadlineAt: t.deadlineAt, overdue: t.overdue }));
   const vehicles = scope.hotelId

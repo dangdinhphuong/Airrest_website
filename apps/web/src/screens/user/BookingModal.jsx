@@ -7,7 +7,7 @@ import { useApp } from '../../state/store';
 import { AT_HOTEL_ONLY, PAY_LABEL, bookingFieldError, buildShuttle, createBooking, describeApiError, getHotel, getPaymentLink, listPaymentMethods, quoteBooking, saveLastBooking, weekdayLabel } from '../../data/user';
 import { isoDate, money } from '../../lib/time';
 import { setTrackPrefill, statusCopy } from './data';
-import { cartTotal, defaultGuests, dropSoldOut, hasNight, hourlySpan, isHourly, lineTotal, maxQty, perNight, qtyOf, setQty, suggestExtraRoom, toApiRooms, totalCapacity, totalRooms, roomsText, loadGuest, saveGuest, endsAtOf } from './cart';
+import { NR, cartPlan, cartTotal, defaultGuests, planOf, dropSoldOut, hasNight, hourlySpan, isHourly, lineTotal, maxQty, perNight, qtyOf, setQty, suggestExtraRoom, toApiRooms, totalCapacity, totalRooms, roomsText, loadGuest, saveGuest, endsAtOf } from './cart';
 import { endLabel, hhmm, vnDay } from './HourlyPicker';
 import GuestsPicker from './GuestsPicker';
 import ShuttleOptions, { LEG_LABEL, emptyShuttle } from './ShuttleOptions';
@@ -186,11 +186,12 @@ export default function BookingModal({ hotel, cart, onCart, dates: initDates, pe
                 <ul data-testid="cart-lines" className="tw:mt-2 tw:grid tw:gap-2">
                   {cart.lines.map((l) => { const r = hotel.rooms.find((x) => x.id === l.roomTypeId); const h = isHourly(l); return (
                     <li key={`${l.roomTypeId}-${h ? 'h' : 'n'}`} data-testid={h ? 'cart-line-hourly' : 'cart-line'} className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-                      <span className="tw:min-w-0 tw:text-xs"><span className="tw:block tw:font-semibold">{l.name}{h && <span className="tw:ml-1.5 tw:rounded-md tw:bg-amber-100 tw:px-1.5 tw:py-0.5 tw:text-[11px] tw:font-bold tw:text-amber-800">Theo giờ</span>}</span><span className="tw:text-slate-500">{h ? `${hourlyRange(l.startsAt, l.hours)} · ${l.hours} giờ · ${money(l.price)} / phòng` : `tối đa ${l.maxOccupancy} người/phòng · ${money(l.price)} / đêm`}</span></span>
+                      <span className="tw:min-w-0 tw:text-xs"><span className="tw:block tw:font-semibold">{l.name}{h && <span className="tw:ml-1.5 tw:rounded-md tw:bg-amber-100 tw:px-1.5 tw:py-0.5 tw:text-[11px] tw:font-bold tw:text-amber-800">Theo giờ</span>}{!h && planOf(l) === NR && <span data-testid="cart-line-nr" className="tw:ml-1.5 tw:rounded-md tw:bg-rose-100 tw:px-1.5 tw:py-0.5 tw:text-[11px] tw:font-bold tw:text-rose-800">Không hoàn hủy</span>}</span><span className="tw:text-slate-500">{h ? `${hourlyRange(l.startsAt, l.hours)} · ${l.hours} giờ · ${money(l.price)} / phòng` : `tối đa ${l.maxOccupancy} người/phòng · ${money(l.price)} / đêm`}</span></span>
                       <Stepper value={l.qty} max={r ? maxQty(r, h ? 'HOURLY' : 'NIGHT') : l.qty} label={h ? `${l.name} theo giờ` : l.name} onChange={(q) => changeQty(l, q)} />
                     </li>
                   ); })}
                 </ul>
+                {cartPlan(cart) === NR && <p role="note" data-testid="nr-warning" className="tw:mt-2 tw:rounded-lg tw:bg-rose-50 tw:p-2 tw:text-xs tw:text-rose-800">Mức giá Không hoàn hủy: sau khi đặt, nếu bạn hủy hoặc không đến thì không được hoàn tiền.</p>}
                 <p className="tw:mt-2 tw:text-xs tw:font-bold tw:text-blue-600">{span ? `${rooms} phòng · tạm tính ${money(cartTotal(cart, nights))}` : `${rooms} phòng · ${money(perNight(cart))} / đêm`}</p>
               </div>
             </div>

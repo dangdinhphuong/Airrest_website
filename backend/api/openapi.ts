@@ -53,6 +53,7 @@ export const openapi = {
     { name: 'Bookings (khách)' },
     { name: 'Bookings (lễ tân)' },
     { name: 'Payments (VNPay)', description: 'VNPay + MoMo' },
+    { name: 'Hotel · Nhân viên' },
     { name: 'Admin · Tài khoản' },
     { name: 'Admin · Cấu hình' },
     { name: 'Admin · Khách sạn' },
@@ -73,6 +74,8 @@ export const openapi = {
     { name: 'Admin · Chuyến bay' },
     { name: 'Admin · Dashboard' },
     { name: 'Hotel · Thống kê' },
+    { name: 'Doanh nghiệp' },
+    { name: 'Admin · Doanh nghiệp' },
     { name: 'Payer · Cổng kết nối', description: 'Đơn vị chi trả: đẩy chuyến delay + hành khách (khóa API), nút mô phỏng, xem chuyến/hành khách của trạm mình' },
   ],
   components: {
@@ -174,6 +177,10 @@ export const openapi = {
     },
     '/v1/hotels/{id}': { get: op({ tag: 'Hotels (công khai)', summary: 'Chi tiết khách sạn (kèm loại phòng, giá, số phòng còn, cờ tính năng)', public: true, params: [idParam, { ...param('from', 'query'), description: 'Đầu cửa sổ tính số phòng còn (ISO)' }, { ...param('to', 'query'), description: 'Cuối cửa sổ (ISO)' }], extra: { 404: err('Không tìm thấy') } }) },
 
+    '/v1/hotels/{id}/reviews': {
+      get: op({ tag: 'Hotels (công khai)', summary: 'Đánh giá của khách: { summary{avg,count,distribution[điểm 1..10]}, items[{id,reviewerName,score,comment,createdAt}], nextCursor }', public: true, params: [idParam, limit, cursor] }),
+      post: op({ tag: 'Hotels (công khai)', summary: 'Gửi đánh giá bằng mã đơn + SĐT của đơn đã trả phòng (CHECKED_OUT) tại khách sạn này; mỗi đơn 1 lần; cập nhật hotels.rating', public: true, params: [idParam], body: body(obj({ code: str, phone: str, score: { type: 'integer', minimum: 1, maximum: 10 }, comment: str }, ['code', 'phone', 'score'])), extra: { 201: ok('Đã ghi đánh giá'), 404: err('BOOKING_NOT_FOUND'), 409: err('REVIEW_EXISTS'), 422: err('BOOKING_NOT_COMPLETED | VALIDATION_ERROR') } }),
+    },
     '/v1/hotels/{id}/shuttle-quote': {
       post: op({
         tag: 'Hotels (công khai)', summary: 'Báo giá xe TRƯỚC khi có đơn: { offered, free, legs[{direction, airport, distanceKm, priceVnd, night}], totalVnd }. Không có xe -> 200 { offered:false }. Giá tính bằng đúng hàm của tạo đơn; pickupAt (tùy chọn) quyết định phụ thu đêm, thiếu = giá ban ngày',
@@ -196,7 +203,7 @@ export const openapi = {
       get: op({ tag: 'Hotels (công khai)', summary: 'Giờ vào còn trống của loại phòng bật đặt theo giờ trong một ngày (query roomTypeId, date YYYY-MM-DD giờ VN, hours, qty): { slots[{startsAt,endsAt,time,now?,available,reason?: PAST|CLOSED|FULL}], priceVnd, hourly }. 422 HOURLY_NOT_ENABLED / HOURS_OUT_OF_RANGE', public: true }),
     },
     '/v1/bookings/quote': {
-      post: op({ tag: 'Bookings (khách)', summary: 'Báo giá trước khi đặt (dòng phòng có thể kind HOURLY + startsAt + hours; đơn toàn giờ không cần from/to; body `rooms[{roomTypeId,qty,kind?,startsAt?,hours?}]` hoặc legacy roomTypeId+qty): { nights, unitPriceVnd (dòng đầu), qty (tổng), rooms[{roomTypeId,roomTypeName,qty,unitPriceVnd,subtotalVnd}], roomVnd, shuttleVnd, serviceFeeVnd, totalVnd, legs[] } (cùng cách tính với tạo đơn, không giữ phòng)', public: true, body: body(obj({ hotelId: str, rooms: { type: 'array', items: obj({ roomTypeId: str, qty: int }, ['roomTypeId']) }, roomTypeId: str, qty: int, from: str, to: str }, ['hotelId', 'from', 'to'])) }),
+      post: op({ tag: 'Bookings (khách)', summary: 'Dòng phòng theo đêm có thể kèm `ratePlan`: STANDARD (mặc định) | NON_REFUNDABLE (rẻ hơn `nonRefundablePct`% của loại phòng, hủy không được hoàn tiền; 422 RATE_PLAN_NOT_OFFERED nếu loại phòng không bán mức này; một đơn một mức). Báo giá trước khi đặt (dòng phòng có thể kind HOURLY + startsAt + hours; đơn toàn giờ không cần from/to; body `rooms[{roomTypeId,qty,kind?,startsAt?,hours?}]` hoặc legacy roomTypeId+qty): { nights, unitPriceVnd (dòng đầu), qty (tổng), rooms[{roomTypeId,roomTypeName,qty,unitPriceVnd,subtotalVnd}], roomVnd, shuttleVnd, serviceFeeVnd, totalVnd, legs[] } (cùng cách tính với tạo đơn, không giữ phòng)', public: true, body: body(obj({ hotelId: str, rooms: { type: 'array', items: obj({ roomTypeId: str, qty: int }, ['roomTypeId']) }, roomTypeId: str, qty: int, from: str, to: str }, ['hotelId', 'from', 'to'])) }),
     },
     '/v1/bookings/group-lookup': {
       post: op({ tag: 'Bookings (khách)', summary: 'Tra cứu cả nhóm delay bằng mã nhóm NH-XXXXXXXX + SĐT một người trong nhóm. { groupCode, status, rooms[{status: WAITING_HOTEL|CONFIRMED|TRANSFERRING|NEEDS_STAFF|CANCELLED, guest (họ tên rút gọn), members, message?; chỉ CONFIRMED mới có hotelName, roomNumbers, checkInAt, checkoutAt, bookingCode (tra tiếp /v1/bookings/lookup)}] }. Sai mã/SĐT -> 404 GROUP_NOT_FOUND chung. groupLookupRateLimit (bộ đếm riêng 10/phút/IP)', public: true, body: body(obj({ groupCode: { type: 'string', example: 'NH-ABCD1234' }, phone: { type: 'string', example: '0912345678' } }, ['groupCode', 'phone'])), extra: { 404: err('GROUP_NOT_FOUND') } }),
@@ -283,6 +290,84 @@ export const openapi = {
       }),
     },
 
+    '/v1/auth/password': {
+      patch: op({
+        tag: 'Auth',
+        summary: 'Nhân sự (admin/khách sạn/chi trả/tài xế) tự đổi mật khẩu; khách dùng /v1/me/password. Không thu hồi token đang dùng ở nơi khác',
+        body: body(obj({ currentPassword: str, newPassword: { type: 'string', minLength: 12, maxLength: 128 } }, ['currentPassword', 'newPassword'])),
+        res: { description: 'Xong (204)' },
+        extra: { 400: err('WRONG_CURRENT_PASSWORD'), 422: err('Mật khẩu mới ngắn / SAME_PASSWORD') },
+      }),
+    },
+    '/v1/auth/profile': {
+      patch: op({
+        tag: 'Auth',
+        summary: 'Nhân sự tự sửa hồ sơ (họ tên, SĐT; email không đổi). phone null = xóa. Trả { user }',
+        body: body(obj({ fullName: str, phone: { type: 'string', nullable: true } })),
+        extra: { 422: err('Dữ liệu sai / không có trường nào') },
+      }),
+    },
+    '/v1/hotel/permissions': { get: op({ tag: 'Hotel · Nhân viên', summary: 'Danh mục quyền thuộc phạm vi khách sạn (không có admin:/payer:/business:)', perm: 'hotel:role:manage hoặc hotel:staff:manage' }) },
+    '/v1/hotel/roles': {
+      get: op({ tag: 'Hotel · Nhân viên', summary: 'Vai trò mẫu hệ thống (hotel_owner chỉ xem; lễ tân/quản lý gán được) + vai trò tùy chỉnh của khách sạn đang làm việc', perm: 'hotel:role:manage hoặc hotel:staff:manage' }),
+      post: op({
+        tag: 'Hotel · Nhân viên',
+        summary: 'Tạo vai trò tùy chỉnh của khách sạn (scope HOTEL, key custom_*)',
+        perm: 'hotel:role:manage',
+        body: body(obj({ name: str, description: str, permissions: { type: 'array', items: str, minItems: 1 } }, ['name', 'permissions']), { name: 'Kế toán KS', permissions: ['booking:read'] }),
+        extra: { 201: ok('Đã tạo: {role}'), 403: err('PERMISSION_ESCALATION'), 409: err('ROLE_NAME_TAKEN'), 422: err('PERMISSION_OUT_OF_SCOPE / dữ liệu sai') },
+      }),
+    },
+    '/v1/hotel/roles/{id}': {
+      patch: op({
+        tag: 'Hotel · Nhân viên',
+        summary: 'Sửa vai trò tùy chỉnh của khách sạn mình (hiệu lực ngay)',
+        perm: 'hotel:role:manage',
+        params: [idParam],
+        body: body(obj({ name: str, description: str, permissions: { type: 'array', items: str } })),
+        extra: { 403: err('PERMISSION_ESCALATION'), 404: err('ROLE_NOT_FOUND (gồm vai trò admin/khách sạn khác)'), 409: err('ROLE_SYSTEM_IMMUTABLE / CANNOT_MODIFY_SELF / ROLE_NAME_TAKEN'), 422: err('PERMISSION_OUT_OF_SCOPE') },
+      }),
+      delete: op({
+        tag: 'Hotel · Nhân viên',
+        summary: 'Xóa vai trò tùy chỉnh chưa có nhân viên dùng',
+        perm: 'hotel:role:manage',
+        params: [idParam],
+        res: { description: 'Xong (204)' },
+        extra: { 404: err('ROLE_NOT_FOUND'), 409: err('ROLE_IN_USE / ROLE_SYSTEM_IMMUTABLE / CANNOT_MODIFY_SELF') },
+      }),
+    },
+    '/v1/hotel/staff': {
+      get: op({ tag: 'Hotel · Nhân viên', summary: 'Nhân viên khách sạn đang làm việc (kèm chủ, chỉ đọc); q khớp email/tên; after = nextCursor', perm: 'hotel:staff:manage', params: [param('status', 'query'), param('roleId', 'query', uuid), param('q', 'query'), limit, param('after', 'query', int)] }),
+      post: op({
+        tag: 'Hotel · Nhân viên',
+        summary: 'Tạo nhân viên (type HOTEL gắn khách sạn trong token, một vai trò)',
+        perm: 'hotel:staff:manage',
+        body: body(obj({ email: str, fullName: str, phone: str, roleId: uuid, password: { type: 'string', minLength: 12, description: 'Mật khẩu tạm' } }, ['email', 'fullName', 'roleId', 'password'])),
+        extra: { 201: ok('Đã tạo: {staff}'), 403: err('PERMISSION_ESCALATION'), 404: err('ROLE_NOT_FOUND'), 409: err('EMAIL_EXISTS') },
+      }),
+    },
+    '/v1/hotel/staff/{id}': {
+      patch: op({
+        tag: 'Hotel · Nhân viên',
+        summary: 'Sửa họ tên/SĐT/vai trò, khóa-mở khóa (status ACTIVE|LOCKED). Trả { staff }',
+        perm: 'hotel:staff:manage',
+        params: [idParam],
+        body: body(obj({ fullName: str, phone: { type: 'string', nullable: true }, roleId: uuid, status: { type: 'string', enum: ['ACTIVE', 'LOCKED'] } })),
+        extra: { 403: err('OWNER_PROTECTED / PERMISSION_ESCALATION'), 404: err('STAFF_NOT_FOUND / ROLE_NOT_FOUND'), 409: err('CANNOT_MODIFY_SELF') },
+      }),
+    },
+    '/v1/hotel/staff/{id}/reset-password': {
+      post: op({
+        tag: 'Hotel · Nhân viên',
+        summary: 'Đặt lại mật khẩu nhân viên',
+        perm: 'hotel:staff:manage',
+        params: [idParam],
+        body: body(obj({ password: { type: 'string', minLength: 12 } }, ['password'])),
+        res: { description: 'Xong (204)' },
+        extra: { 403: err('OWNER_PROTECTED / PERMISSION_ESCALATION'), 404: err('STAFF_NOT_FOUND'), 409: err('CANNOT_MODIFY_SELF') },
+      }),
+    },
+
     '/v1/admin/permissions': { get: op({ tag: 'Admin · Vai trò', summary: 'Danh mục quyền (key, group, description, sensitive)', perm: 'admin:account:manage' }) },
     '/v1/admin/roles': {
       get: op({ tag: 'Admin · Vai trò', summary: 'Vai trò hệ thống + tùy chỉnh, kèm số tài khoản đang dùng', perm: 'admin:account:manage' }),
@@ -313,7 +398,7 @@ export const openapi = {
       }),
     },
     '/v1/admin/accounts': {
-      get: op({ tag: 'Admin · Tài khoản', summary: 'Danh sách tài khoản admin', perm: 'admin:account:manage', params: [param('status', 'query'), param('adminRole', 'query'), param('roleId', 'query', uuid), param('q', 'query'), limit, param('after', 'query', int)] }),
+      get: op({ tag: 'Admin · Tài khoản', summary: 'Danh sách tài khoản admin (mới nhất trước; after = nextCursor trang trước; q khớp email/tên)', perm: 'admin:account:manage', params: [param('status', 'query'), param('adminRole', 'query'), param('roleId', 'query', uuid), param('q', 'query'), limit, param('after', 'query', int)] }),
       post: op({
         tag: 'Admin · Tài khoản',
         summary: 'Tạo tài khoản admin',
@@ -348,9 +433,22 @@ export const openapi = {
       }),
     },
 
+    '/v1/auth/business/register': { post: op({ tag: 'Doanh nghiệp', summary: 'Đăng ký doanh nghiệp (công khai, rate limit 10/10 phút/IP). Luôn 202 cùng nội dung kể cả email/mã số thuế đã tồn tại; hồ sơ PENDING_APPROVAL, chủ chưa đăng nhập được (login -> 403 BUSINESS_PENDING_APPROVAL / BUSINESS_REJECTED / BUSINESS_SUSPENDED). `website` là honeypot, để trống', public: true, body: body(obj({ name: str, taxCode: str, representative: str, email: str, phone: str, password: { type: 'string', minLength: 12 }, website: str }, ['name', 'taxCode', 'representative', 'email', 'phone', 'password'])), res: ok('202 RECEIVED', obj({ status: str, message: str })), extra: { 422: err('VALIDATION_ERROR') } }) },
+    '/v1/auth/switch-hotel': { post: op({ tag: 'Doanh nghiệp', summary: 'Chủ doanh nghiệp đổi khách sạn đang làm việc -> token mới mang hotelId đó (khách sạn ngoài doanh nghiệp = 404 HOTEL_NOT_FOUND; nhân viên = 403)', body: body(obj({ hotelId: uuid }, ['hotelId'])), res: ok('token, hotel, hotels', obj({ token: str, hotel: obj({ id: uuid, code: str, name: str, status: str }), hotels: { type: 'array', items: obj({ id: uuid, code: str, name: str, status: str }) } })), extra: { 404: err('HOTEL_NOT_FOUND') } }) },
+    '/v1/hotel/hotels': {
+      get: op({ tag: 'Doanh nghiệp', summary: 'Khách sạn của doanh nghiệp trong token (kèm currentHotelId)', perm: 'business:hotel:manage' }),
+      post: op({ tag: 'Doanh nghiệp', summary: 'Chủ tạo khách sạn ở trạng thái DRAFT thuộc doanh nghiệp của mình (không nhận businessId). Trùng tên 409 HOTEL_NAME_EXISTS; trùng mã 409 HOTEL_CODE_EXISTS; email/SĐT liên hệ được trùng', perm: 'business:hotel:manage', body: body(obj({ code: str, name: str, address: obj({}), location: obj({ lng: { type: 'number' }, lat: { type: 'number' } }), contact: obj({ phone: str, email: str }), airports: { type: 'array', items: obj({}) }, policy: obj({}) }, ['code', 'name', 'address', 'location', 'contact'])), extra: { 409: err('HOTEL_NAME_EXISTS / HOTEL_CODE_EXISTS') } }),
+    },
+    '/v1/hotel/hotels/{id}/submit': { post: op({ tag: 'Doanh nghiệp', summary: 'Gửi hồ sơ khách sạn DRAFT -> PENDING_APPROVAL (admin duyệt bằng luồng /v1/admin/hotels/{id}/approve)', perm: 'business:hotel:manage', params: [idParam], extra: { 404: err('HOTEL_NOT_FOUND'), 409: err('INVALID_STATE') } }) },
+    '/v1/hotel/reports/revenue': { get: op({ tag: 'Doanh nghiệp', summary: 'Doanh thu riêng một khách sạn: items theo ngày/tháng (giờ VN, ngày nhận phòng) + totals + settlement (hotel_payouts LOCKED/PAID các kỳ trùng khoảng). realized = CHECKED_OUT, expected = CONFIRMED+CHECKED_IN, phần khách sạn nhận = phòng + xe, phí dịch vụ tách riêng. Nhân viên: chỉ hotelId của mình; chủ: mọi khách sạn của doanh nghiệp; khác = 404. Tối đa 366 ngày', perm: 'booking:read (+ business:report:read để xem khách sạn khác của doanh nghiệp)', params: [param('hotelId', 'query', uuid, true), param('from', 'query', str, true), param('to', 'query', str, true), param('groupBy', 'query'), param('format', 'query')], extra: { 404: err('HOTEL_NOT_FOUND'), 422: err('INVALID_RANGE / RANGE_TOO_LARGE') } }) },
+    '/v1/hotel/reports/revenue/summary': { get: op({ tag: 'Doanh nghiệp', summary: 'Doanh thu tổng của doanh nghiệp: hotels[] mỗi khách sạn một dòng (kể cả 0 đơn) + totals = tổng các dòng; format=csv để tải', perm: 'business:report:read', params: [param('from', 'query', str, true), param('to', 'query', str, true), param('format', 'query')] }) },
+    '/v1/admin/businesses': { get: op({ tag: 'Admin · Doanh nghiệp', summary: 'Danh sách doanh nghiệp (lọc status, q theo tên/mã số thuế/email; phân trang after=seq; kèm hotelCount)', perm: 'admin:hotel:read', params: [param('status', 'query'), param('q', 'query'), limit, param('after', 'query', int)] }) },
+    '/v1/admin/businesses/{id}': { get: op({ tag: 'Admin · Doanh nghiệp', summary: 'Chi tiết doanh nghiệp + chủ + danh sách khách sạn', perm: 'admin:hotel:read', params: [idParam], extra: { 404: err('BUSINESS_NOT_FOUND') } }) },
+    '/v1/admin/businesses/{id}/approve': { post: op({ tag: 'Admin · Doanh nghiệp', summary: 'Duyệt hồ sơ PENDING_APPROVAL -> ACTIVE (chủ ACTIVE, đăng nhập được); ghi audit BUSINESS.APPROVE', perm: 'admin:hotel:manage', params: [idParam], extra: { 409: err('INVALID_STATE') } }) },
+    '/v1/admin/businesses/{id}/reject': { post: op({ tag: 'Admin · Doanh nghiệp', summary: 'Từ chối hồ sơ kèm lý do; ghi audit BUSINESS.REJECT', perm: 'admin:hotel:manage', params: [idParam], body: reason, extra: { 409: err('INVALID_STATE') } }) },
     '/v1/admin/hotels': {
-      get: op({ tag: 'Admin · Khách sạn', summary: 'Danh sách khách sạn', perm: 'admin:hotel:read', params: [param('status', 'query'), param('pendingPayout', 'query'), limit, cursor] }),
-      post: op({ tag: 'Admin · Khách sạn', summary: 'Tạo khách sạn + tài khoản chủ', perm: 'admin:hotel:manage', body: body({ type: 'object', description: 'Xem ví dụ trong file Postman: code, name, address, location, airports, roomTypes, owner...' }), extra: { 409: err('Mã hoặc email trùng') } }),
+      get: op({ tag: 'Admin · Khách sạn', summary: 'Danh sách khách sạn (mới nhất trước; after = nextCursor trang trước; q khớp tên/mã/địa chỉ; airport = IATA)', perm: 'admin:hotel:read', params: [param('status', 'query'), param('q', 'query'), param('airport', 'query'), param('pendingPayout', 'query'), limit, cursor] }),
+      post: op({ tag: 'Admin · Khách sạn', summary: 'Tạo khách sạn (PENDING_APPROVAL). Truyền businessId của doanh nghiệp ĐÃ DUYỆT (khuyến nghị; chưa duyệt = 409 BUSINESS_NOT_ACTIVE) HOẶC owner{email,fullName,password} (cũ: tạo doanh nghiệp ACTIVE + chủ INVITED); đúng một trong hai. Trùng tên 409 HOTEL_NAME_EXISTS', perm: 'admin:hotel:manage', body: body({ type: 'object', description: 'Xem ví dụ trong file Postman: code, name, address, location, airports, roomTypes, owner...' }), extra: { 409: err('Mã hoặc email trùng') } }),
     },
     '/v1/admin/hotels/{id}': {
       get: op({ tag: 'Admin · Khách sạn', summary: 'Chi tiết khách sạn', perm: 'admin:hotel:read', params: [hotelId], extra: { 404: err('Không tìm thấy') } }),
@@ -361,10 +459,10 @@ export const openapi = {
     '/v1/admin/hotels/{id}/suspend': { post: op({ tag: 'Admin · Khách sạn', summary: 'Tạm ngưng', perm: 'admin:hotel:manage', params: [hotelId], body: reason }) },
     '/v1/admin/hotels/{id}/activate': { post: op({ tag: 'Admin · Khách sạn', summary: 'Kích hoạt lại', perm: 'admin:hotel:manage', params: [hotelId] }) },
     '/v1/admin/hotels/{id}/payout-account': {
-      put: op({ tag: 'Admin · Khách sạn', summary: 'Đề xuất đổi tài khoản nhận tiền (bước 1)', perm: 'admin:hotel:manage', params: [hotelId], body: body(ref('Payout')) }),
+      put: op({ tag: 'Admin · Khách sạn', summary: 'Đổi tài khoản nhận tiền (có hiệu lực ngay, không cần duyệt)', perm: 'admin:hotel:manage', params: [hotelId], body: body(ref('Payout')) }),
     },
     '/v1/admin/hotels/{id}/payout-account/approve': {
-      post: op({ tag: 'Admin · Khách sạn', summary: 'Duyệt tài khoản nhận tiền (bước 2, người khác đề xuất)', perm: 'admin:hotel:approve-sensitive', params: [hotelId] }),
+      post: op({ tag: 'Admin · Khách sạn', summary: 'Duyệt đề xuất tài khoản cũ còn tồn (không còn sinh đề xuất mới)', perm: 'admin:hotel:approve-sensitive', params: [hotelId] }),
     },
     '/v1/admin/hotels/{id}/payout-account/reject': {
       post: op({ tag: 'Admin · Khách sạn', summary: 'Từ chối đề xuất tài khoản nhận tiền', perm: 'admin:hotel:approve-sensitive', params: [hotelId], body: reason }),
@@ -389,13 +487,30 @@ export const openapi = {
 
     '/v1/hotel/room-types': {
       get: op({ tag: 'Rooms (khách sạn)', summary: 'Danh sách loại phòng', perm: 'booking:read', params: [param('hotelId', 'query', uuid, false), param('includeRetired', 'query', { type: 'boolean' })] }),
-      post: op({ tag: 'Rooms (khách sạn)', summary: 'Tạo loại phòng', perm: 'room:manage', body: body(obj({ code: str, name: str, capacity: int, beds: int, areaM2: int, totalRooms: int, baseNightVnd: int, hourly: obj({ enabled: { type: 'boolean' }, firstHourVnd: int, nextHourVnd: int, minHours: int, maxHours: int, cleaningMin: int, openFromHour: int, openToHour: int }, ['enabled']) }, ['code', 'name', 'capacity', 'beds', 'totalRooms', 'baseNightVnd'])), extra: { 409: err('Mã trùng') } }),
+      post: op({ tag: 'Rooms (khách sạn)', summary: 'Tạo loại phòng', perm: 'room:manage', body: body(obj({ code: str, name: str, capacity: int, beds: int, areaM2: int, totalRooms: int, baseNightVnd: int, hourly: obj({ enabled: { type: 'boolean' }, firstHourVnd: int, nextHourVnd: int, minHours: int, maxHours: int, cleaningMin: int, openFromHour: int, openToHour: int }, ['enabled']), description: str, view: str, amenities: { type: 'array', items: str }, smoking: { type: 'boolean' }, maxAdults: int, maxChildren: int, images: { type: 'array', items: str, maxItems: 10 } }, ['code', 'name', 'capacity', 'beds', 'totalRooms', 'baseNightVnd'])), extra: { 409: err('Mã trùng') } }),
     },
     '/v1/hotel/room-types/{id}': {
       patch: op({ tag: 'Rooms (khách sạn)', summary: 'Sửa loại phòng (hạ số phòng dưới số đang giữ -> 409). Loại đã ngừng dùng: chỉ nhận { active: true } để mở bán lại (xóa retiredAt, audit ROOM_TYPE.REACTIVATE; 409 ROOM_TYPE_CODE_EXISTS nếu mã bị loại đang hoạt động dùng); sửa khác -> 409 ROOM_TYPE_RETIRED', perm: 'room:manage', params: [idParam], body: body({ type: 'object' }, { totalRooms: 5 }) }),
       delete: op({ tag: 'Rooms (khách sạn)', summary: 'Ngừng dùng loại phòng (mềm)', perm: 'room:manage', params: [idParam] }),
     },
     '/v1/hotel/room-types/{id}/inventory': { get: op({ tag: 'Rooms (khách sạn)', summary: 'Tồn phòng theo ngày (giờ VN, tối đa 62 ngày)', perm: 'booking:read', params: [idParam, param('from', 'query'), param('to', 'query')] }) },
+    '/v1/hotel/floors': {
+      get: op({ tag: 'Rooms (khách sạn)', summary: 'Danh sách tầng (kèm roomCount)', perm: 'booking:read', params: [param('hotelId', 'query', uuid, false)] }),
+      post: op({ tag: 'Rooms (khách sạn)', summary: 'Tạo tầng', perm: 'room:manage', body: body(obj({ name: str, level: int, sortOrder: int, note: str }, ['name', 'level'])), extra: { 409: err('FLOOR_LEVEL_TAKEN') } }),
+    },
+    '/v1/hotel/floors/{id}': {
+      patch: op({ tag: 'Rooms (khách sạn)', summary: 'Sửa tầng', perm: 'room:manage', params: [idParam], body: body({ type: 'object' }, { name: 'Tầng 2' }) }),
+      delete: op({ tag: 'Rooms (khách sạn)', summary: 'Xóa tầng (còn phòng -> 409 FLOOR_HAS_ROOMS)', perm: 'room:manage', params: [idParam] }),
+    },
+    '/v1/hotel/rooms': {
+      get: op({ tag: 'Rooms (khách sạn)', summary: 'Danh sách phòng riêng lẻ (lọc floorId, roomTypeId)', perm: 'booking:read', params: [param('floorId', 'query', uuid, false), param('roomTypeId', 'query', uuid, false)] }),
+      post: op({ tag: 'Rooms (khách sạn)', summary: 'Tạo phòng; loại phòng có phòng thì total_rooms = số phòng ACTIVE (giảm dưới số đang giữ -> 409 ROOM_TOTAL_BELOW_RESERVED)', perm: 'room:manage', body: body(obj({ floorId: uuid, roomTypeId: uuid, number: str, status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] }, images: { type: 'array', items: str } }, ['floorId', 'roomTypeId', 'number'])), extra: { 409: err('ROOM_NUMBER_TAKEN / ROOM_TOTAL_BELOW_RESERVED') } }),
+    },
+    '/v1/hotel/rooms/bulk': { post: op({ tag: 'Rooms (khách sạn)', summary: 'Tạo hàng loạt theo dải số (tối đa 100, tất cả hoặc không)', perm: 'room:manage', body: body(obj({ floorId: uuid, roomTypeId: uuid, prefix: str, from: int, to: int }, ['floorId', 'roomTypeId', 'from', 'to'])) }) },
+    '/v1/hotel/rooms/{id}': {
+      patch: op({ tag: 'Rooms (khách sạn)', summary: 'Sửa phòng (đổi status/loại phòng/ảnh); đồng bộ total_rooms', perm: 'room:manage', params: [idParam], body: body({ type: 'object' }, { status: 'INACTIVE' }) }),
+      delete: op({ tag: 'Rooms (khách sạn)', summary: 'Xóa phòng (cứng); đồng bộ total_rooms', perm: 'room:manage', params: [idParam] }),
+    },
     '/v1/hotel/room-blocks': {
       get: op({ tag: 'Rooms (khách sạn)', summary: 'Danh sách khóa/bảo trì phòng', perm: 'booking:read', params: [param('roomTypeId', 'query', uuid, false), limit, cursor] }),
       post: op({ tag: 'Rooms (khách sạn)', summary: 'Khóa/bảo trì phòng (không nêu qty = đóng bán phần còn trống)', perm: 'room:manage', body: body(obj({ roomTypeId: uuid, kind: { type: 'string', enum: ['LOCK', 'MAINTENANCE'] }, qty: int, from: { type: 'string', format: 'date-time' }, to: { type: 'string', format: 'date-time' }, reason: str }, ['roomTypeId', 'kind', 'from', 'to', 'reason'])), extra: { 409: err('BLOCK_CONFLICT / NOTHING_TO_BLOCK') } }),
@@ -406,6 +521,8 @@ export const openapi = {
     '/v1/hotel/bookings/{id}/confirm': { post: op({ tag: 'Bookings (lễ tân)', summary: 'Xác nhận đơn chờ khách sạn', perm: 'booking:decide', params: [idParam], extra: { 409: err('INVALID_STATE / BOOKING_EXPIRED') } }) },
     '/v1/hotel/bookings/{id}/reject': { post: op({ tag: 'Bookings (lễ tân)', summary: 'Từ chối đơn (lý do bắt buộc, trả tối đa 3 khách sạn thay thế)', perm: 'booking:decide', params: [idParam], body: reason, extra: { 409: err('INVALID_STATE / BOOKING_EXPIRED') } }) },
     '/v1/hotel/stats': { get: op({ tag: 'Hotel · Thống kê', summary: 'Thống kê của khách sạn trong token', perm: 'booking:read', params: [param('from', 'query'), param('to', 'query')] }) },
+    '/v1/hotel/payouts': { get: op({ tag: 'Hotel · Chi trả', summary: 'Bảng chi trả của khách sạn trong token (chỉ LOCKED/PAID, không có nháp)', perm: 'booking:read', params: [param('period', 'query'), limit, cursor] }) },
+    '/v1/hotel/payouts/{id}': { get: op({ tag: 'Hotel · Chi trả', summary: 'Chi tiết dòng của một bảng chi trả (bảng khác/nháp = 404)', perm: 'booking:read', params: [idParam], extra: { 404: err('PAYOUT_NOT_FOUND') } }) },
     '/v1/admin/bookings': { get: op({ tag: 'Admin · Booking', summary: 'Booking mọi khách sạn (lọc, phân trang)', perm: 'admin:booking:read', params: [param('hotelId', 'query', uuid, false), param('status', 'query'), param('code', 'query'), param('from', 'query'), param('to', 'query'), limit, cursor] }) },
     '/v1/admin/bookings/{id}': { get: op({ tag: 'Admin · Booking', summary: 'Chi tiết booking', perm: 'admin:booking:read', params: [idParam] }) },
 
@@ -477,7 +594,7 @@ export const openapi = {
 
     '/v1/flights/{code}': { get: op({ tag: 'Flights', summary: 'Tra chuyến bay (MÔ PHỎNG, simulated: true)', public: true, params: [param('code', 'path'), param('date', 'query', str, false)], extra: { 404: err('FLIGHT_NOT_FOUND') } }) },
     '/v1/admin/flights': {
-      get: op({ tag: 'Admin · Chuyến bay', summary: 'Danh sách chuyến bay mô phỏng', perm: 'flight:manage', params: [param('code', 'query'), param('date', 'query'), param('status', 'query'), limit, cursor] }),
+      get: op({ tag: 'Admin · Chuyến bay', summary: 'Danh sách chuyến bay mô phỏng (mới tạo trước; cursor = nextCursor trang trước)', perm: 'flight:manage', params: [param('code', 'query'), param('date', 'query'), param('status', 'query'), limit, cursor] }),
       post: op({
         tag: 'Admin · Chuyến bay', summary: 'Tạo chuyến mô phỏng (ONTIME); 201 { flight }', perm: 'flight:manage',
         body: body(obj({ code: str, airline: str, origin: str, dest: str, scheduledDepartureAt: { type: 'string', format: 'date-time' }, distanceKm: int, simScenario: { type: 'string', enum: ['approve', 'reject', 'hotelfull', 'noreply'] }, reason: str }, ['code', 'origin', 'scheduledDepartureAt', 'reason'])),

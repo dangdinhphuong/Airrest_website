@@ -59,7 +59,8 @@ button.ui-select:disabled { background-color: #f1f5f9; color: #64748b; cursor: n
 .ui-select-icon { flex: none; color: #64748b; transition: transform 0.15s; }
 .ui-select-icon[data-open=true] { transform: rotate(180deg); }
 .ui-select-req { position: absolute; inset: auto 0 0 0; width: 100%; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
-.ui-select-pop { position: fixed; z-index: 1000; overflow: hidden; border: 1px solid var(--ctl-line); border-radius: var(--ctl-r); background: #fff; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18); }
+.ui-select-pop { position: fixed; z-index: 1300; /* trên .ui-modal-mask (1200) */ overflow: hidden; border: 1px solid var(--ctl-line); border-radius: var(--ctl-r); background: #fff; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18); }
+.field button.ui-select { display: flex; width: 100%; } /* ô chọn trong biểu mẫu rộng bằng ô nhập */
 .ui-select-search { display: flex; align-items: center; gap: 8px; margin: 8px; padding: 0 10px; border: 1px solid var(--ctl-line); border-radius: 8px; color: #94a3b8; }
 .ui-select-search:focus-within { border-color: var(--ctl-focus); box-shadow: 0 0 0 3px var(--ctl-ring); }
 .ui-select-search input { width: 100%; min-height: 34px; padding: 0; border: 0; background: transparent; box-shadow: none; outline: none; color: #10203a; font: inherit; font-size: 13px; }

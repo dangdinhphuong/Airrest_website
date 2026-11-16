@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addExtension, checkExtReason, checkRoomNumbers, delayOfferErr, extensionErr, fmtVN, label, setExtensionResult } from './hotelDelay';
+import { checkExtReason, checkRoomNumbers, delayOfferErr, extensionErr, extensionsOf, fmtVN, label, pendingOffersOf } from './hotelDelay';
 
 describe('yêu cầu khách delay', () => {
   it('kiểm số phòng sau khi bỏ trùng', () => {
@@ -21,15 +21,17 @@ describe('yêu cầu khách delay', () => {
 });
 
 describe('yêu cầu gia hạn', () => {
-  it('thêm/ghi đè theo offerId, không đổi mảng gốc', () => {
-    const a = addExtension([], { offerId: 'o1', groupId: 'g', proposedLeaveAt: 'x', at: 'y' });
-    const b = addExtension(a, { offerId: 'o2' });
-    const c = addExtension(b, { offerId: 'o1', proposedLeaveAt: 'z' });
-    expect(a).toHaveLength(1);
-    expect(c.map((x) => x.offerId)).toEqual(['o1', 'o2']);
-    expect(c[0].proposedLeaveAt).toBe('z');
-    expect(addExtension(a, {})).toBe(a);
-    expect(setExtensionResult(c, 'o2', 'ACCEPTED')[1].result).toBe('ACCEPTED');
+  it('đọc yêu cầu gia hạn từ API; offer đã ACCEPTED/REJECTED hoặc thiếu giờ đề xuất không hiện', () => {
+    const items = [
+      { id: 'o1', status: 'PENDING', extensionStatus: 'NONE' },
+      { id: 'o2', status: 'CONFIRMED', groupId: 'g', extensionStatus: 'REQUESTED', proposedLeaveAt: 'x', extensionRequestedAt: 'y' },
+      { id: 'o3', status: 'CONFIRMED', extensionStatus: 'ACCEPTED', proposedLeaveAt: 'x' },
+      { id: 'o4', status: 'CONFIRMED', extensionStatus: 'REJECTED', proposedLeaveAt: 'x' },
+      { id: 'o5', status: 'CONFIRMED', extensionStatus: 'REQUESTED' },
+    ];
+    expect(extensionsOf(items)).toEqual([{ offerId: 'o2', groupId: 'g', proposedLeaveAt: 'x', at: 'y' }]);
+    expect(extensionsOf(undefined)).toEqual([]);
+    expect(pendingOffersOf(items).map((o) => o.id)).toEqual(['o1']);
   });
   it('lỗi, lý do, giờ VN', () => {
     expect(extensionErr({ code: 'EXTENSION_NO_ROOM' })).toMatch(/hết phòng/);

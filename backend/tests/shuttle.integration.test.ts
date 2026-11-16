@@ -67,6 +67,21 @@ run('tích hợp: xe đưa đón', () => {
     await request(app).put('/v1/admin/configs/pricing.shuttle').set(auth(cfgAdmin)).send({ value: { baseVnd: 60_000, baseKm: 3, perKmVnd: 10_000, nightSurchargeBps: 2000, maxKm: 25 }, reason: 'Khôi phục' });
   });
 
+  it('khách sạn miễn phí xe: price_vnd = 0 (tạo yêu cầu và gọi xe ngay)', async () => {
+    await db.query("UPDATE hotels SET amenities = array_append(amenities, 'SHUTTLE_FREE') WHERE id = $1", [H2]);
+    try {
+      const b = await mk(H2, RT2);
+      const day = new Date(b.from);
+      day.setUTCHours(5, 0, 0, 0);
+      const res = await create(b, { pickupAt: day.toISOString() });
+      expect(res.status).toBe(201);
+      expect(res.body.shuttle.priceVnd).toBe(0);
+      expect((await one<any>('SELECT price_vnd FROM shuttle_requests WHERE id = $1', [res.body.shuttle.id]))!.priceVnd).toBe(0);
+    } finally {
+      await db.query("UPDATE hotels SET amenities = array_remove(amenities, 'SHUTTLE_FREE') WHERE id = $1", [H2]);
+    }
+  });
+
   it('booking không đủ điều kiện -> 409 BOOKING_NOT_ELIGIBLE', async () => {
     for (const st of ['CANCELLED', 'REJECTED', 'EXPIRED', 'PENDING_PAYMENT', 'CHECKED_OUT', 'NO_SHOW']) {
       const b = await mk(H1, RT1, st);

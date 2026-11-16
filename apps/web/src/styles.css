@@ -61,7 +61,7 @@ p { margin: 0 0 10px; }
 /* Header & Logo phong cách AIRREST */
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.4px; font-size: 19px; color: var(--blue-950); }
 .logo-mark { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--blue-800); color: #fff; transform: rotate(-6deg); box-shadow: 0 4px 12px rgba(18, 98, 232, 0.35); }
-.topbar-right { display: flex; align-items: center; gap: 8px; }
+
 
 /* Buttons */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border-radius: var(--radius-sm); background: #fff; border: 1px solid var(--line); font-weight: 600; font-size: 14px; color: var(--ink); }
@@ -109,7 +109,7 @@ p { margin: 0 0 10px; }
 
 /* Screen heads */
 .screen-head { margin: 8px 0 14px; }
-.screen-head h1:focus { outline: none; }
+.screen-head h1:focus, .ui-pagehead h1:focus, .ui-pagehead h1:focus-visible { outline: none; box-shadow: none; }
 .kicker { display: block; text-transform: uppercase; letter-spacing: 1.4px; font-weight: 700; font-size: 11px; color: var(--blue-800); margin-bottom: 4px; }
 .kicker-light { color: #9bc5ff; }
 .lead { color: var(--muted); margin-top: 6px; max-width: 70ch; }
@@ -241,7 +241,6 @@ p { margin: 0 0 10px; }
   .rights-table tr { display: block; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; padding: 6px 10px; }
   .rights-table td { display: grid; grid-template-columns: 110px 1fr; gap: 8px; border: 0; padding: 5px 0; }
   .rights-table td::before { content: attr(data-label); color: var(--muted); font-size: 12px; font-weight: 600; }
-  .topbar-right .badge { display: none; }
   .btn-block, .action-grid .btn { width: 100%; }
 }
 
@@ -251,17 +250,17 @@ p { margin: 0 0 10px; }
 /* ===== Khung trang kiểu Couppa HomePageV2 (giữ bảng màu, font và icon của Airrest) ===== */
 body { background: var(--soft); }
 .logo-text { display: grid; line-height: 1.1; text-align: left; } .logo-text small { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: .2px; }
-.airport-pick { position: relative; }
-.pick-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 12px; border-radius: 12px; background: var(--soft); border: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--ink); }
-.pick-btn:disabled { opacity: .85; cursor: default; }
-.pick-backdrop { position: fixed; inset: 0; z-index: 70; }
-.pick-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 80; min-width: 220px; list-style: none; margin: 0; padding: 6px; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg); }
-.pick-menu button { width: 100%; text-align: left; padding: 9px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; min-height: 40px; }
-.pick-menu button:hover, .pick-menu .on { background: var(--blue-100); color: var(--blue-900); }
-.header-search { flex: 1; min-width: 0; max-width: 560px; display: flex; align-items: center; gap: 8px; margin-inline: auto; padding: 4px 4px 4px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--soft); }
-.header-search:focus-within { background: #fff; border-color: var(--blue-700); }
-.header-search input { flex: 1; min-width: 0; border: 0; background: transparent; min-height: 36px; outline: none; font-size: 14px; }
-.topbar-right { margin-left: auto; }
+
+
+
+
+
+
+
+
+
+
+
 .detail-panel { position: sticky; top: var(--hdr); align-self: flex-start; width: 400px; flex: 0 0 400px; height: calc(100vh - var(--hdr)); overflow-y: auto; background: #fff; border-left: 1px solid var(--line); box-shadow: -8px 0 30px rgba(15, 23, 42, .06); }
 .panel-body { padding: 18px; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
@@ -310,20 +309,20 @@ body { background: var(--soft); }
   .sidebar { display: none; }
   .feed { padding: 16px 14px 120px; }
   .simtools { bottom: 74px; left: 12px; }
-  .header-search { display: none; }
-  .topbar-in { padding-inline: 12px; gap: 8px; }
+  
+  
   .logo-text small { display: none; }
 }
-@media (max-width: 719px) { .hide-sm { display: none; } .banner { padding: 18px; } .banner-stats dd { font-size: 22px; } .pick-btn span { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+@media (max-width: 719px) { .hide-sm { display: none; } .banner { padding: 18px; } .banner-stats dd { font-size: 22px; }  }
 
 /* Header gọn trên màn hình nhỏ để không tràn ngang */
-.airport-pick { min-width: 0; }
-.topbar-right { flex-shrink: 0; }
+
+
 @media (max-width: 719px) {
   .logo-text { display: none; }
-  .airport-pick { flex: 1 1 auto; }
-  .pick-btn { max-width: 100%; }
-  .topbar-right .btn { padding-inline: 10px; }
+  
+  
+  
 }
 
 /* ===== Trang chủ có bản đồ: danh sách | chi tiết | bản đồ ===== */
@@ -413,11 +412,11 @@ body { background: var(--soft); }
 .banner-stats-s dd { font-size: 20px; }
 
 /* Thanh tìm kiếm: chỉ một khung viền khi focus (bỏ vòng focus lồng bên trong ô nhập) */
-.header-search { box-shadow: none; transition: border-color .15s, box-shadow .15s, background .15s; }
-.header-search:focus-within { background: #fff; border-color: var(--blue-700); box-shadow: 0 0 0 3px rgba(0, 102, 179, .25); }
-.header-search input, .header-search input:focus, .header-search input:focus-visible { outline: none !important; box-shadow: none !important; border-radius: 0; background: transparent; }
-.header-search input::placeholder { color: #64748b; }
-.header-search .btn { flex: 0 0 auto; }
+
+
+
+
+
 
 /* Sửa lỗi dễ đọc: chữ tối thiểu 12px, tương phản đủ trên nền xanh, độ dài dòng vừa phải. */
 .banner-s .kicker { font-size: 12px; letter-spacing: 1px; }
@@ -505,41 +504,41 @@ body { background: var(--soft); }
 @media (max-width: 1023px) { .matrix td { white-space: normal; } }
 
 /* Menu dọc của khách sạn/nhân sự Airrest (thanh bên trái) */
-.side-count { position: absolute; top: 4px; right: 8px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--blue-100); color: var(--blue-900); font-size: 11px; font-weight: 700; display: inline-grid; place-items: center; }
+
 
 
 /* ===== Khung theo react/apps/walo-erp: Header 60px, thanh module 80px, bảng tính năng 240px, breadcrumb ===== */
 html { scroll-padding-top: calc(var(--hdr) + 12px); }
 h1 { font-size: 20px; font-weight: 600; letter-spacing: 0; }
-.topbar { position: fixed; inset: 0 0 auto 0; z-index: 1000; height: var(--hdr); background: #fff; border-bottom: 1px solid var(--line); }
-.topbar-in { height: var(--hdr); display: flex; align-items: center; gap: 12px; padding-inline: 20px; }
-.logo { font-size: 18px; color: var(--ink); } .logo-mark { width: 30px; height: 30px; border-radius: 8px; transform: none; }
-.menu-btn { display: none; place-items: center; width: 44px; height: 44px; border-radius: 8px; flex: 0 0 auto; color: var(--ink); }
-.menu-btn:hover { background: var(--muted-bg); }
-.topbar-context { display: none; flex: 0 1 auto; min-width: 0; max-width: min(18rem, 30vw); border-left: 1px solid var(--line); padding-left: 12px; font-size: 14px; font-weight: 500; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pick-btn { min-height: 36px; border-radius: 8px; background: #fff; }
-.header-search { flex: 0 1 300px; margin: 0 0 0 auto; border-radius: 8px; background: #fff; padding: 2px 2px 2px 10px; }
-.header-search input { min-height: 32px; }
-.header-search .btn { min-height: 32px; }
-.topbar-right { margin-left: 0; gap: 4px; }
-.pick-menu { border-radius: 8px; } .pick-menu button { border-radius: 6px; }
 
-.shell-nav { position: fixed; top: var(--hdr); bottom: 0; left: 0; z-index: 990; display: flex; }
-.panel { width: var(--panel); flex: 0 0 var(--panel); display: none; flex-direction: column; background: #fff; border-right: 1px solid var(--line); }
-.panel-scroll { flex: 1; overflow-y: auto; padding: 12px 0; scrollbar-width: none; }
-.panel-scroll::-webkit-scrollbar { display: none; }
-.panel-list { list-style: none; margin: 0; padding: 0 6px; display: grid; gap: 6px; }
+
+.logo { font-size: 18px; color: var(--ink); } .logo-mark { width: 30px; height: 30px; border-radius: 8px; transform: none; }
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
 /* Menu bên: icon trên, nhãn dưới; mục đang chọn có khung bo góc. Đổi màu nhấn ở 3 biến ngay dưới. */
-.panel { --feat-on-bg: #eff6ff; --feat-on-line: #bfdbfe; --feat-on-ink: var(--blue-800); } /* xanh chủ đạo như các màn người dùng (blue-50 / blue-200 / #1262e8) */
-.feat { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 64px; padding: 10px 2px; border: 1px solid transparent; border-radius: 14px; color: #64748b; }
-.feat:hover:not(:disabled) { background: var(--soft); color: var(--ink); }
-.feat.on { background: var(--feat-on-bg); border-color: var(--feat-on-line); color: var(--feat-on-ink); }
-.feat-ico { display: grid; place-items: center; }
-.feat-label { font-size: 12px; font-weight: 600; line-height: 1.2; text-align: center; white-space: nowrap; }
-.feat:disabled { opacity: .45; cursor: not-allowed; }
-.side-count { position: absolute; top: 2px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--blue-800); color: #fff; border: 2px solid #fff; box-sizing: content-box; font-size: 11px; font-weight: 600; display: inline-grid; place-items: center; font-variant-numeric: tabular-nums; }
-.tip { position: fixed; z-index: 2000; transform: translateY(-50%); padding: 8px 12px; border-radius: 8px; background: #0f172a; color: #fff; font-size: 13px; font-weight: 500; white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-sm); }
-.drawer-mask { display: none; position: fixed; inset: var(--hdr) 0 0 0; z-index: 1010; background: rgba(0, 0, 0, .4); }
+ /* xanh chủ đạo như các màn người dùng (blue-50 / blue-200 / #1262e8) */
+
+
+
+
+
+
+
+
+
 
 .feed { min-height: 100vh; padding: var(--hdr) 0 0; background: #fff; transition: padding .2s; }
 .feed-in { max-width: none; width: 100%; margin: 0; padding: 16px 16px 72px; }
@@ -564,30 +563,21 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: 0; }
 .subtabs button { border-radius: 8px; } .chip { border-radius: 8px; }
 
 @media (min-width: 768px) {
-  .topbar-context { display: block; }
+  
   .feed {  } .feed-in { padding: 24px 24px 72px; }
 }
-@media (min-width: 1024px) {
-  .panel { display: flex; }
-  .feed.with-panel { padding-left: calc(var(--panel)); }
-}
 @media (max-width: 1023px) {
-  .menu-btn { display: grid; }
-  .shell-nav { z-index: 1020; transition: transform .2s, visibility .2s; }
-  .shell-nav.open .panel { display: flex; }
-  .drawer-mask { display: block; }
-  .header-search { display: none; } .topbar-right { margin-left: auto; }
-  .topbar-in { padding-inline: 12px; gap: 8px; }
+  
+  
+  
+  
+   
+  
   .logo-text small { display: none; }
 }
-@media (max-width: 767px) {
-  .shell-nav { transform: translateX(-100%); visibility: hidden; }
-  .shell-nav.open { transform: none; visibility: visible; }
-  .topbar-context { display: none; }
-}
-.logo { flex: 0 0 auto; } .logo-text, .pick-btn, .pick-btn span { white-space: nowrap; }
-.topbar-context { max-width: min(14rem, 18vw); }
-.topbar-right { margin-left: auto; } /* header cổng nhân sự không còn ô tìm kiếm đẩy phần tài khoản sang phải */
+.logo { flex: 0 0 auto; } .logo-text { white-space: nowrap; }
+
+ /* header cổng nhân sự không còn ô tìm kiếm đẩy phần tài khoản sang phải */
 @media (prefers-reduced-motion: reduce) { .feed { transition: none; } }
 
 /* Đăng nhập / Đăng ký toàn trang (M12) */
@@ -1545,38 +1535,10 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: 0; }
 }
 
 /* Topbar Navigation Links on Desktop */
-.topbar-nav-links {
-  display: none;
-  align-items: center;
-  gap: 4px;
-  margin-left: 12px;
-}
-@media (min-width: 860px) {
-  .topbar-nav-links {
-    display: flex;
-  }
-}
-.topbar-nav-link {
-  padding: 8px 14px;
-  border-radius: 10px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #475569;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-.topbar-nav-link:hover {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-.topbar-nav-link.active {
-  background: #eff6ff;
-  color: #1262e8;
-  font-weight: 700;
-}
+
+
+
+
 
 /* Card & Section System */
 .airrest-card {
@@ -1624,10 +1586,10 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: 0; }
 
 
 /* Cổng nhân sự: chân trang gọn, ô Mã đơn nằm cùng hàng với các ô lọc */
-.staff-footer { padding: 16px 0; margin-top: 24px; border-radius: 12px; }
-.staff-footer-in { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
-.staff-footer-portal { font-size: 13.5px; color: #bfdbfe; font-weight: 600; }
-.staff-footer-copy { margin-left: auto; font-size: 12.5px; color: #94a3b8; }
+
+
+
+
 .filter-bar .filter-input { order: 0; margin-left: 0; min-width: 160px; flex: 0 1 220px; }
 .profile-images { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 8px 0; padding: 0; list-style: none; }
 .profile-images li { border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: #fff; min-width: 0; }
@@ -1678,7 +1640,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } /* iOS xoay nga
 /* Vùng chạm tối thiểu 44px trên màn nhỏ/cảm ứng (Phase 1 audit pwa-audit). Đặt cuối file để thắng các rule 40/36/32/28px ở trên. */
 @media (max-width: 1023px) {
   .btn, .btn-sm, .link-btn, .logo-btn { min-height: 44px; }
-  .logo-btn, .topbar-right .btn { min-width: 44px; justify-content: center; } /* nút chỉ còn icon khi chữ bị ẩn ở màn hẹp */
+  .logo-btn, .sx-search-btn, .sx-user-btn { min-width: 44px; justify-content: center; } /* nút chỉ còn icon khi chữ bị ẩn ở màn hẹp */
   .icon-btn { width: 44px; height: 44px; }
   .ui-select-pop li { min-height: 44px; display: flex; align-items: center; }
 }
