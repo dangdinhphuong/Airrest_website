@@ -9,7 +9,7 @@ vi.mock('../../data/flights', () => api);
 const { default: Flights, readParams } = await import('./Flights');
 
 const AIRPORTS = [{ iata: 'HAN', name: 'Nội Bài' }, { iata: 'SGN', name: 'Tân Sơn Nhất' }, { iata: 'DAD', name: 'Đà Nẵng' }];
-const flight = (o) => ({ id: o.code, airline: 'Vietnam Airlines', origin: 'HAN', dest: 'SGN', scheduledDepartureAt: '2026-11-11T03:00:00.000Z', newDepartureAt: null, status: 'ONTIME', cause: 'UNKNOWN', delayMinutes: null, ...o });
+const flight = (o) => ({ id: o.code, flightDate: '2026-11-11', airline: 'Vietnam Airlines', origin: 'HAN', dest: 'SGN', scheduledDepartureAt: '2026-11-11T03:00:00.000Z', newDepartureAt: null, status: 'ONTIME', cause: 'UNKNOWN', delayMinutes: null, ...o });
 const board = (items, extra) => ({ items, count: items.length, truncated: false, ...extra });
 
 beforeEach(() => {
@@ -75,6 +75,21 @@ describe('Flights', () => {
     expect(screen.getAllByText(/Dữ liệu mô phỏng/).length).toBeGreaterThan(0);
   });
 
+  it('kết quả tìm mã có cột Ngày và huy hiệu Đã bay / Hết hạn', async () => {
+    window.history.replaceState(null, '', '/flights?q=QH120');
+    api.listFlightBoard.mockResolvedValue(board([
+      flight({ code: 'QH120', flightDate: '2026-11-20', expired: false }),
+      flight({ code: 'QH120', id: 'b', flightDate: '2026-11-10', expired: true }),
+      flight({ code: 'QH120', id: 'c', flightDate: '2026-11-09', expired: true, status: 'CANCELLED' }),
+    ]));
+    render(<Flights />);
+    await screen.findAllByTestId('flight-date');
+    expect(screen.getAllByTestId('flight-date').map((e) => e.textContent.replace('Ngày: ', ''))).toEqual(['20/11/2026', '10/11/2026', '09/11/2026']);
+    expect(screen.getByText('Đã bay')).toBeTruthy();
+    expect(screen.getByText('Hết hạn')).toBeTruthy();
+    expect(screen.getByTestId('search-label').textContent).toContain('mọi sân bay và mọi ngày · 3');
+  });
+
   it('rỗng: thông báo rõ; lỗi: nút Thử lại gọi lại API', async () => {
     api.listFlightBoard.mockResolvedValueOnce(board([]));
     render(<Flights />);
@@ -99,7 +114,7 @@ describe('Flights', () => {
       expect(api.listFlightBoard.mock.calls.length).toBe(calls); // chưa hết 300ms
       await vi.advanceTimersByTimeAsync(150);
     } finally { vi.useRealTimers(); }
-    await waitFor(() => expect(lastCall()).toEqual({ code: 'VN2', date: expect.any(String), status: '' }));
+    await waitFor(() => expect(lastCall()).toEqual({ code: 'VN2', status: '' }));
     expect(window.location.search).toContain('q=VN2');
     expect(window.location.search).toContain('airport=DAD');
     expect(screen.getByTestId('search-label').textContent).toContain('VN2');
@@ -113,8 +128,10 @@ describe('Flights', () => {
     api.listFlightBoard.mockResolvedValue(board([]));
     render(<Flights />);
     await screen.findByTestId('flights-empty');
-    expect(lastCall()).toEqual({ code: 'AB12', date: '2026-11-12', status: '' });
-    expect(screen.getByTestId('flights-empty').textContent).toContain('Không tìm thấy chuyến nào khớp “AB12” ngày 12/11');
+    expect(lastCall()).toEqual({ code: 'AB12', status: '' }); // tìm mã: không gửi ngày
+    expect(screen.getByTestId('all-days-note').textContent).toContain('mọi ngày');
+    expect(screen.getByLabelText('Ngày').disabled).toBe(true);
+    expect(screen.getByTestId('flights-empty').textContent).toContain('Không có chuyến nào mã AB12 trong hệ thống');
     const box = screen.getByLabelText('Tìm chuyến bay theo mã');
     const calls = api.listFlightBoard.mock.calls.length;
     fireEvent.change(box, { target: { value: 'VN-2!' } });

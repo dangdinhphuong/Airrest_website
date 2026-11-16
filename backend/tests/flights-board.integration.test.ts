@@ -87,6 +87,24 @@ run('tích hợp: bảng chuyến bay công khai GET /v1/flights', () => {
     expect(codes(await get(`/v1/flights?code=VJ&date=${D}&limit=2`)).length).toBe(2);
   });
 
+  it('tìm theo mã KHÔNG có date = mọi ngày (qua + tới), ngày giảm dần, cờ expired; có date thì lọc ngày', async () => {
+    const day = (off: number) => new Date(Date.now() + 7 * 3600_000 + off * 86400_000).toISOString().slice(0, 10);
+    for (const off of [-1, 0, 1, 30]) {
+      await db.query("INSERT INTO flights (code, airline, origin, dest, sched_dep, status) VALUES ('ZQ120','Test','HAN','SGN', (($1::date)::timestamp + interval '12 hours') AT TIME ZONE 'Asia/Ho_Chi_Minh', 'ONTIME')", [day(off)]);
+    }
+    const res = await get('/v1/flights?code=zq120');
+    expect(res.status).toBe(200);
+    expect(res.body.date).toBeNull();
+    expect(res.body.items.map((f: any) => f.flightDate)).toEqual([day(30), day(1), day(0), day(-1)]); // ngày giảm dần
+    expect(res.body.items.find((f: any) => f.flightDate === day(-1)).expired).toBe(true);
+    expect(res.body.items.find((f: any) => f.flightDate === day(30)).expired).toBe(false);
+    const one = await get(`/v1/flights?code=ZQ120&date=${day(1)}`);
+    expect(one.body.items.map((f: any) => f.flightDate)).toEqual([day(1)]);
+    expect(one.body.date).toBe(day(1));
+    const lim = await get('/v1/flights?code=ZQ120&limit=2');
+    expect(lim.body).toMatchObject({ count: 2, truncated: true });
+  });
+
   it('code sai -> 422', async () => {
     for (const q of ['code=VN-2', 'code=VN%25', 'code=ABCDEFG', "code=VN'--", 'code=']) expect((await get(`/v1/flights?${q}`)).status, q).toBe(422);
   });
@@ -107,7 +125,7 @@ run('tích hợp: bảng chuyến bay công khai GET /v1/flights', () => {
     const single = (await get(`/v1/flights/VN123?date=${D}`)).body;
     expect(item.lastChange).toEqual(single.lastChange);
     expect(item.lastChange).not.toBeNull();
-    expect(Object.keys(item).sort()).toEqual(Object.keys({ ...single, asOf: 0 }).sort());
+    expect(Object.keys(item).filter((k) => k !== 'expired').sort()).toEqual(Object.keys({ ...single, asOf: 0 }).sort());
     expect(item).not.toHaveProperty('seq');
     expect(res.body.items.find((f: any) => f.code === 'VN300').lastChange).toBeNull();
   });

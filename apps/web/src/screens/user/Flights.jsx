@@ -45,11 +45,16 @@ const writeParams = (f) => {
 
 const FIELD = 'tw:rounded-lg tw:border tw:border-slate-300 tw:bg-white tw:px-3 tw:py-2.5 tw:text-sm tw:text-slate-800';
 
+// Lớp Tailwind viết nguyên chuỗi để bộ quét nhận ra; chế độ tìm kiếm có thêm cột Ngày.
+const COLS = 'tw:md:grid-cols-[110px_1.1fr_1.2fr_130px_150px_1.3fr]';
+const COLS_SEARCH = 'tw:md:grid-cols-[100px_1fr_1.2fr_100px_110px_140px_1.3fr]';
+const fullDate = (ymd) => ymd.split('-').reverse().join('/');
+
 function Row({ f, dir, onChange, onJump }) {
   const [label, tone] = STATUS[f.status] ?? [f.status, 'neutral'];
   const cancelled = f.status === 'CANCELLED';
   return (
-    <li data-testid="flight-row" className="tw:grid tw:gap-2 tw:rounded-xl tw:border tw:border-slate-200 tw:bg-white tw:p-4 tw:md:grid-cols-[110px_1.1fr_1.2fr_130px_150px_1.3fr] tw:md:items-center tw:md:gap-4 tw:md:rounded-none tw:md:border-0 tw:md:border-b tw:md:px-4 tw:md:py-3">
+    <li data-testid="flight-row" className={`tw:grid tw:gap-2 tw:rounded-xl tw:border tw:border-slate-200 tw:bg-white tw:p-4 ${onJump ? COLS_SEARCH : COLS} tw:md:items-center tw:md:gap-4 tw:md:rounded-none tw:md:border-0 tw:md:border-b tw:md:px-4 tw:md:py-3`}>
       <div className="tw:flex tw:items-center tw:justify-between tw:md:block">
         <strong className="tw:text-base tw:text-[#062253]">{f.code}</strong>
         <span className="tw:md:hidden"><Tag tone={tone}>{label}</Tag></span>
@@ -58,6 +63,7 @@ function Row({ f, dir, onChange, onJump }) {
       <div className="tw:text-sm tw:font-semibold tw:text-slate-800" aria-label={`Tuyến ${f.origin} đến ${f.dest ?? 'chưa rõ'}`}>
         {onJump ? <button type="button" className="tw:font-semibold tw:text-blue-700 tw:underline" title={`Xem bảng giờ bay ${f.origin}`} onClick={() => onJump(f.origin)}>{f.origin}</button> : <span className={dir === 'departures' ? 'tw:text-blue-700' : ''}>{f.origin}</span>} → <span className={dir === 'arrivals' ? 'tw:text-blue-700' : ''}>{f.dest ?? '—'}</span>
       </div>
+      {onJump && <div className="tw:text-sm tw:text-slate-700" data-testid="flight-date"><span className="tw:text-slate-500 tw:md:hidden">Ngày: </span>{fullDate(f.flightDate)}</div>}
       <div className="tw:text-sm"><span className="tw:text-slate-500 tw:md:hidden">Giờ lịch: </span><span className={cancelled || f.newDepartureAt ? 'tw:text-slate-500 tw:line-through' : 'tw:font-semibold'}>{hhmm(f.scheduledDepartureAt)}</span></div>
       <div className={`tw:text-sm ${f.newDepartureAt || f.status === 'DELAYED' ? '' : 'tw:hidden tw:md:block'}`} data-testid="new-time">
         {f.newDepartureAt ? (
@@ -66,6 +72,7 @@ function Row({ f, dir, onChange, onJump }) {
       </div>
       <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-slate-600">
         <span className="tw:hidden tw:md:inline"><Tag tone={tone}>{label}</Tag></span>
+        {f.expired && <Tag tone="neutral" title="Đã qua giờ bay">{f.status === 'CANCELLED' ? 'Hết hạn' : 'Đã bay'}</Tag>}
         {f.status !== 'ONTIME' && <span>{CAUSE[f.cause] ?? CAUSE.UNKNOWN}</span>}
         {onChange && <button type="button" className="tw:rounded-lg tw:border tw:border-slate-300 tw:px-2.5 tw:py-1.5 tw:text-xs tw:font-semibold tw:text-blue-700 tw:hover:bg-blue-50" onClick={() => onChange(f)} data-testid="flight-change-open">Delay đến…</button>}
       </div>
@@ -101,7 +108,7 @@ export default function Flights() {
   const load = useCallback((silent) => {
     const id = ++seq.current;
     if (!silent) { setLoading(true); setError(''); }
-    listFlightBoard(q ? { code: q, date, status } : { airport, direction: dir, date, status })
+    listFlightBoard(q ? { code: q, status } : { airport, direction: dir, date, status })
       .then((r) => { if (id === seq.current) { setData(r); setError(''); } })
       .catch((e) => { if (id === seq.current && !silent) { setData(null); setError(describeError(e)); } })
       .finally(() => { if (id === seq.current) setLoading(false); });
@@ -144,10 +151,11 @@ export default function Flights() {
         <p className="tw:mt-2 tw:text-sm tw:text-slate-600">Bảng giờ bay theo từng sân bay. <strong>Dữ liệu mô phỏng</strong>, không phải thông tin khai thác thật của hãng bay.</p>
 
         <div className="tw:mt-6 tw:flex tw:flex-wrap tw:items-end tw:gap-3">
-          <label className="tw:grid tw:gap-1 tw:text-xs tw:font-semibold tw:text-slate-600">Ngày
-            <input type="date" className={FIELD} value={date} onChange={(e) => e.target.value && set({ date: e.target.value })} />
+          <label className={`tw:grid tw:gap-1 tw:text-xs tw:font-semibold tw:text-slate-600 ${q ? 'tw:opacity-50' : ''}`}>Ngày
+            <input type="date" disabled={!!q} className={FIELD} value={date} onChange={(e) => e.target.value && set({ date: e.target.value })} />
           </label>
-          <button type="button" className={`${FIELD} tw:font-semibold tw:hover:bg-blue-50`} onClick={() => set({ date: vnToday() })}>Hôm nay</button>
+          <button type="button" disabled={!!q} className={`${FIELD} tw:font-semibold tw:hover:bg-blue-50 disabled:tw:opacity-50`} onClick={() => set({ date: vnToday() })}>Hôm nay</button>
+          {q && <span className="tw:self-center tw:text-xs tw:text-slate-600" data-testid="all-days-note">Đang tìm trên mọi ngày</span>}
           <div className="tw:flex tw:overflow-hidden tw:rounded-lg tw:border tw:border-slate-300" role="group" aria-label="Hướng chuyến bay">{seg('departures', 'Khởi hành')}{seg('arrivals', 'Đến')}</div>
           <label className="tw:grid tw:gap-1 tw:text-xs tw:font-semibold tw:text-slate-600">Trạng thái
             <select className={FIELD} value={status} onChange={(e) => set({ status: e.target.value })}>
@@ -166,7 +174,7 @@ export default function Flights() {
           </div>
           {textErr && <p role="alert" className="tw:mt-1.5 tw:text-xs tw:text-amber-800">{textErr}</p>}
         </form>
-        {q && <p className="tw:mt-3 tw:text-sm tw:font-semibold tw:text-[#062253]" data-testid="search-label">Kết quả tìm kiếm “{q}” trên mọi sân bay{data ? ` · ${data.count}` : ''}</p>}
+        {q && <p className="tw:mt-3 tw:text-sm tw:font-semibold tw:text-[#062253]" data-testid="search-label">Kết quả tìm kiếm “{q}” trên mọi sân bay và mọi ngày{data ? ` · ${data.count}` : ''}</p>}
 
         <div role="tablist" aria-label="Sân bay" onKeyDown={onKey} className={`tw:mt-5 tw:flex tw:gap-2 tw:overflow-x-auto tw:pb-2 ${q ? 'tw:opacity-50' : ''}`} data-testid="airport-tabs">
           {airports.map((a) => {
@@ -187,12 +195,12 @@ export default function Flights() {
         <section id="flights-panel" role="tabpanel" aria-labelledby={`tab-${airport}`} className="tw:mt-3">
           {loading && !data ? <Loading label="Đang tải chuyến bay…" />
             : error ? <ErrorState title="Không tải được chuyến bay" onRetry={() => load(false)}>{error}</ErrorState>
-            : !items.length ? <EmptyState icon={Plane} title={q ? 'Không tìm thấy chuyến bay' : 'Không có chuyến bay'} testid="flights-empty">{q ? <>Không tìm thấy chuyến nào khớp “{q}” ngày {date.split('-').reverse().slice(0, 2).join('/')}{status ? ` với trạng thái “${STATUS[status][0]}”` : ''}. Hãy thử đổi ngày hoặc kiểm tra lại mã chuyến.{manage ? <> <button type="button" className="tw:font-semibold tw:text-blue-700 tw:underline" onClick={() => setCreating(true)}>Tạo chuyến bay mới</button></> : null}</> : <>Không có chuyến {dir === 'departures' ? 'khởi hành từ' : 'đến'} {airport} ngày {date.split('-').reverse().join('/')}{status ? ` với trạng thái “${STATUS[status][0]}”` : ''}.</>}</EmptyState>
+            : !items.length ? <EmptyState icon={Plane} title={q ? 'Không tìm thấy chuyến bay' : 'Không có chuyến bay'} testid="flights-empty">{q ? <>Không có chuyến nào mã {q}{status ? ` với trạng thái “${STATUS[status][0]}”` : ''} trong hệ thống.{manage ? <> <button type="button" className="tw:font-semibold tw:text-blue-700 tw:underline" onClick={() => setCreating(true)}>Tạo chuyến bay mới</button></> : null}</> : <>Không có chuyến {dir === 'departures' ? 'khởi hành từ' : 'đến'} {airport} ngày {date.split('-').reverse().join('/')}{status ? ` với trạng thái “${STATUS[status][0]}”` : ''}.</>}</EmptyState>
             : (
               <>
-                <p className="tw:mb-2 tw:text-xs tw:text-slate-500" aria-live="polite">{q ? 'Tất cả sân bay: ' : ''}{data.count} chuyến, sắp xếp theo giờ bay tăng dần{data.truncated ? ' (chỉ hiện một phần, hãy lọc thêm)' : ''}.</p>
-                <div className="tw:hidden tw:rounded-t-xl tw:border-b tw:border-slate-300 tw:bg-slate-100 tw:px-4 tw:py-2.5 tw:text-xs tw:font-bold tw:uppercase tw:tracking-wide tw:text-slate-600 tw:md:grid tw:md:grid-cols-[110px_1.1fr_1.2fr_130px_150px_1.3fr] tw:md:gap-4" aria-hidden="true">
-                  <span>Chuyến</span><span>Hãng</span><span>Tuyến</span><span>Giờ lịch</span><span>Giờ mới</span><span>Trạng thái</span>
+                <p className="tw:mb-2 tw:text-xs tw:text-slate-500" aria-live="polite">{data.count} chuyến, {q ? 'ngày mới nhất trước, trong ngày theo giờ bay tăng dần' : 'sắp xếp theo giờ bay tăng dần'}{data.truncated ? ' (chỉ hiện một phần, hãy lọc thêm)' : ''}.</p>
+                <div className={`tw:hidden tw:rounded-t-xl tw:border-b tw:border-slate-300 tw:bg-slate-100 tw:px-4 tw:py-2.5 tw:text-xs tw:font-bold tw:uppercase tw:tracking-wide tw:text-slate-600 tw:md:grid ${q ? COLS_SEARCH : COLS} tw:md:gap-4`} aria-hidden="true">
+                  <span>Chuyến</span><span>Hãng</span><span>Tuyến</span>{q && <span>Ngày</span>}<span>Giờ lịch</span><span>Giờ mới</span><span>Trạng thái</span>
                 </div>
                 <ul className="tw:grid tw:gap-3 tw:md:gap-0 tw:md:overflow-hidden tw:md:rounded-b-xl tw:md:border tw:md:border-slate-200 tw:md:bg-white">{items.map((f) => <Row key={f.id} f={f} dir={dir} onChange={manage ? setChanging : null} onJump={q ? jump : null} />)}</ul>
               </>

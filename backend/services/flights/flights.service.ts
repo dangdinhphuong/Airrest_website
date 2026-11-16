@@ -59,13 +59,16 @@ export async function getFlight(code: string, date: string | undefined, now = ne
  * khác các danh sách quản trị mới-nhất-lên-đầu), hủy dùng giờ lịch. lastChange lấy bằng MỘT truy vấn cho cả danh sách.
  */
 export async function listFlightBoard(q: { airport?: string; code?: string; direction: 'departures' | 'arrivals'; date?: string; status?: string; limit: number }, now = new Date()) {
-  const date = q.date ?? vnToday(now);
-  const params: unknown[] = [date];
-  const where = ['flight_date = $1::date'];
+  // Tìm theo mã mà không truyền ngày = mọi ngày (cả chuyến đã qua); còn lại mặc định hôm nay.
+  const allDays = !!q.code && !q.date;
+  const date = allDays ? null : (q.date ?? vnToday(now));
+  const params: unknown[] = [];
+  const where: string[] = [];
+  if (date) where.push(`flight_date = $${params.push(date)}::date`);
   if (q.airport) where.push(`${q.direction === 'arrivals' ? 'dest' : 'origin'} = $${params.push(q.airport)}`);
   if (q.status) where.push(`status = $${params.push(q.status)}`);
   if (q.code) where.push(`code LIKE $${params.push(`${q.code}%`)}`); // tiền tố; đã chuẩn hóa chữ+số nên không cần thoát LIKE
-  const rows = (await db.query<FlightDoc>(`SELECT ${FLIGHT_COLS} FROM flights WHERE ${where.join(' AND ')} ORDER BY CASE WHEN status = 'DELAYED' THEN COALESCE(new_dep, sched_dep) ELSE sched_dep END, code LIMIT ${q.limit + 1}`, params)).rows;
+  const rows = (await db.query<FlightDoc>(`SELECT ${FLIGHT_COLS} FROM flights WHERE ${where.join(' AND ')} ORDER BY ${allDays ? 'flight_date DESC, ' : ''}CASE WHEN status = 'DELAYED' THEN COALESCE(new_dep, sched_dep) ELSE sched_dep END, code LIMIT ${q.limit + 1}`, params)).rows;
   const page = rows.slice(0, q.limit);
   const changes = new Map<string, LastChange>();
   if (page.length) {
@@ -74,7 +77,10 @@ export async function listFlightBoard(q: { airport?: string; code?: string; dire
   }
   const cfg = await getConfig('flight.thresholds', now);
   return {
-    items: page.map((r) => toFlightDto(r, { delayHours: cfg.value.delayHours, lastChange: changes.get(r.id) ?? null, now })),
+    items: page.map((r) => {
+      const dto = toFlightDto(r, { delayHours: cfg.value.delayHours, lastChange: changes.get(r.id) ?? null, now });
+      return { ...dto, expired: new Date(dto.effectiveDepartureAt ?? dto.scheduledDepartureAt).getTime() < now.getTime() }; // đã qua giờ bay hiệu lực; chỉ ở bảng giờ bay, không đổi DTO chung
+    }),
     date, airport: q.airport ?? null, code: q.code ?? null, direction: q.direction, count: page.length, truncated: rows.length > q.limit, simulated: true as const,
   };
 }
