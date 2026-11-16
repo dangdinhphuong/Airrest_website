@@ -32,7 +32,7 @@ function reducer(s, a) {
     case 'restoreUser': return s.session || s.user ? s : { ...s, user: a.user, browseAirport: a.user.preferences?.airport ?? s.browseAirport };
     case 'setUser': return s.user ? { ...s, user: a.user, browseAirport: a.user.preferences?.airport ?? s.browseAirport } : s; // sau khi khách sửa hồ sơ/cấu hình
     case 'unauthorized': return s.session || s.user ? { ...s, session: null, user: null, partnerTab: null, screen: 'login' } : s;
-    case 'restoreStaff': { const areas = areasOf(a.session); const scr = areas.includes(s.screen) ? s.screen : areas[0]; return { ...s, booting: false, session: { ...a.session, area: scr }, screen: scr }; }
+    case 'restoreStaff': { const areas = areasOf(a.session); const scr = areas.includes(s.screen) ? s.screen : areas[0]; return { ...s, booting: false, session: { ...a.session, area: scr }, screen: s.screen === 'flights' ? s.screen : scr }; } // /flights là trang công khai: giữ nguyên khi khôi phục phiên
     case 'profile': return s.session ? { ...s, session: { ...s.session, name: a.name } } : s; // sau khi nhân sự tự sửa hồ sơ
     case 'hotels': return s.session ? { ...s, session: { ...s.session, hotels: a.hotels } } : s; // danh sách khách sạn của chủ doanh nghiệp (sau khi tạo/gửi hồ sơ)
     case 'switchHotel': return s.session ? { ...s, session: { ...s.session, hotelId: a.hotelId, hotels: a.hotels ?? s.session.hotels } } : s;

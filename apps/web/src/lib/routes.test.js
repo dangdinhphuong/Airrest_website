@@ -3,8 +3,10 @@ import { parsePath, pathOf } from './routes';
 
 describe('routes', () => {
   it('mỗi màn có đường dẫn riêng và đọc ngược lại được', () => {
-    for (const screen of ['home', 'stays', 'track', 'support', 'account', 'login', 'payment']) expect(parsePath(pathOf({ screen }))).toEqual({ screen });
+    for (const screen of ['home', 'stays', 'flights', 'track', 'support', 'account', 'login', 'payment']) expect(parsePath(pathOf({ screen }))).toEqual({ screen });
     expect(pathOf({ screen: 'stays' })).toBe('/noi-nghi');
+    expect(pathOf({ screen: 'flights' })).toBe('/flights');
+    expect(parsePath('/flights/')).toEqual({ screen: 'flights' });
   });
   it('chi tiết khách sạn mang id; thiếu id thì về trang chủ; id lạ bị từ chối', () => {
     expect(pathOf({ screen: 'detail', propertyId: 'abc-123' })).toBe('/khach-san/abc-123');

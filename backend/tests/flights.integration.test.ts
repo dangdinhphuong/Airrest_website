@@ -77,7 +77,12 @@ run('tích hợp: chuyến bay mô phỏng', () => {
     expect(ok.body).toMatchObject({ code: 'VN218', simulated: true, status: 'DELAYED', delayMinutes: 400, lastChange: null });
     expect(ok.body.effectiveDepartureAt).toBe(ok.body.newDepartureAt);
     expect(ok.body).not.toHaveProperty('seq');
-    expect((await get('/v1/flights/VN218?date=2026-11-13')).body.error.code).toBe('FLIGHT_NOT_FOUND');
+    const fb = (await get('/v1/flights/VN218?date=2026-11-13')).body; // không đúng ngày → chuyến gần nhất + thông báo
+    expect(fb).toMatchObject({ code: 'VN218', flightDate: '2026-11-11' });
+    expect(fb.notice).toContain('13/11/2026');
+    expect(fb.notice).toContain('(đã qua)');
+    expect(ok.body).not.toHaveProperty('notice');
+    expect((await get('/v1/flights/ZZ999?date=2026-11-13')).body.error.code).toBe('FLIGHT_NOT_FOUND');
     expect((await get('/v1/flights/VN218?date=2026-02-30')).status).toBe(422);
     expect((await get('/v1/flights/VN12345')).status).toBe(422);
     const cancelled = (await get('/v1/flights/QH321?date=2026-11-11')).body;

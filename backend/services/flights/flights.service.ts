@@ -40,10 +40,51 @@ async function lastChangeOf(flightId: string): Promise<LastChange> {
 
 export async function getFlight(code: string, date: string | undefined, now = new Date()): Promise<FlightDto> {
   const day = date ?? vnToday(now);
-  const row = (await db.query<FlightDoc>(`SELECT ${FLIGHT_COLS} FROM flights WHERE code = $1 AND flight_date = $2::date`, [code, day])).rows[0];
-  if (!row) throw new AppError(404, 'FLIGHT_NOT_FOUND', 'Không tìm thấy chuyến bay (dữ liệu mô phỏng)');
+  let row = (await db.query<FlightDoc>(`SELECT ${FLIGHT_COLS} FROM flights WHERE code = $1 AND flight_date = $2::date`, [code, day])).rows[0];
+  let notice: string | null = null;
+  if (!row) {
+    // Không có đúng ngày: trả chuyến MỚI NHẤT của mã này (kể cả đã bay) kèm thông báo; chỉ 404 khi mã chưa từng tồn tại.
+    row = (await db.query<FlightDoc>(`SELECT ${FLIGHT_COLS} FROM flights WHERE code = $1 ORDER BY flight_date DESC LIMIT 1`, [code])).rows[0];
+    if (!row) throw new AppError(404, 'FLIGHT_NOT_FOUND', 'Không tìm thấy chuyến bay (dữ liệu mô phỏng)');
+    const [y, m, d] = row.flightDate.split('-');
+    notice = `Không có chuyến ${code} ngày ${day.split('-').reverse().join('/')}. Đang hiển thị chuyến gần nhất: ngày ${d}/${m}/${y}${row.flightDate < day ? ' (đã qua)' : ''}.`;
+  }
   const cfg = await getConfig('flight.thresholds', now);
-  return toFlightDto(row, { delayHours: cfg.value.delayHours, lastChange: await lastChangeOf(row.id), now });
+  const dto = toFlightDto(row, { delayHours: cfg.value.delayHours, lastChange: await lastChangeOf(row.id), now });
+  return notice ? { ...dto, notice } : dto;
+}
+
+/**
+ * Bảng giờ bay công khai theo sân bay/ngày. Sắp xếp theo giờ bay hiệu lực TĂNG dần (bảng giờ bay đọc theo thời gian;
+ * khác các danh sách quản trị mới-nhất-lên-đầu), hủy dùng giờ lịch. lastChange lấy bằng MỘT truy vấn cho cả danh sách.
+ */
+export async function listFlightBoard(q: { airport?: string; code?: string; direction: 'departures' | 'arrivals'; date?: string; status?: string; limit: number }, now = new Date()) {
+  const date = q.date ?? vnToday(now);
+  const params: unknown[] = [date];
+  const where = ['flight_date = $1::date'];
+  if (q.airport) where.push(`${q.direction === 'arrivals' ? 'dest' : 'origin'} = $${params.push(q.airport)}`);
+  if (q.status) where.push(`status = $${params.push(q.status)}`);
+  if (q.code) where.push(`code LIKE $${params.push(`${q.code}%`)}`); // tiền tố; đã chuẩn hóa chữ+số nên không cần thoát LIKE
+  const rows = (await db.query<FlightDoc>(`SELECT ${FLIGHT_COLS} FROM flights WHERE ${where.join(' AND ')} ORDER BY CASE WHEN status = 'DELAYED' THEN COALESCE(new_dep, sched_dep) ELSE sched_dep END, code LIMIT ${q.limit + 1}`, params)).rows;
+  const page = rows.slice(0, q.limit);
+  const changes = new Map<string, LastChange>();
+  if (page.length) {
+    const cs = (await db.query<FlightChangeDoc>('SELECT DISTINCT ON (flight_id) flight_id, from_dep, to_dep, created_at FROM flight_changes WHERE flight_id = ANY($1::uuid[]) AND from_dep IS NOT NULL AND to_dep IS NOT NULL AND from_dep <> to_dep ORDER BY flight_id, seq DESC', [page.map((r) => r.id)])).rows;
+    for (const c of cs) changes.set(c.flightId, { fromAt: iso(c.fromDep)!, toAt: iso(c.toDep)!, at: iso(c.createdAt)! });
+  }
+  const cfg = await getConfig('flight.thresholds', now);
+  return {
+    items: page.map((r) => toFlightDto(r, { delayHours: cfg.value.delayHours, lastChange: changes.get(r.id) ?? null, now })),
+    date, airport: q.airport ?? null, code: q.code ?? null, direction: q.direction, count: page.length, truncated: rows.length > q.limit, simulated: true as const,
+  };
+}
+
+/** Số chuyến khởi hành / chậm / hủy của từng sân bay đi trong ngày (huy hiệu trên tab). */
+export async function flightBoardSummary(date: string | undefined, now = new Date()) {
+  const day = date ?? vnToday(now);
+  const rows = (await db.query<{ origin: string; total: number; delayed: number; cancelled: number }>(
+    "SELECT origin, count(*)::int AS total, count(*) FILTER (WHERE status = 'DELAYED')::int AS delayed, count(*) FILTER (WHERE status = 'CANCELLED')::int AS cancelled FROM flights WHERE flight_date = $1::date GROUP BY origin ORDER BY origin", [day])).rows;
+  return { date: day, items: rows, simulated: true as const };
 }
 
 // ---------- Admin ----------

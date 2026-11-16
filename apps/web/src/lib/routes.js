@@ -1,6 +1,6 @@
 // Mỗi màn hình có một đường dẫn riêng (không dùng hash). Hàm thuần, có test ở routes.test.js.
 // Render đã rewrite mọi đường dẫn về index.html (render.yaml); `vite` dev cũng tự fallback.
-export const PATHS = { home: '/', stays: '/noi-nghi', track: '/tra-cuu', support: '/ho-tro', account: '/tai-khoan', login: '/dang-nhap', hotel: '/doi-tac/khach-san', admin: '/quan-tri', payment: '/payment/result' };
+export const PATHS = { home: '/', stays: '/noi-nghi', track: '/tra-cuu', flights: '/flights', support: '/ho-tro', account: '/tai-khoan', login: '/dang-nhap', hotel: '/doi-tac/khach-san', admin: '/quan-tri', payment: '/payment/result' };
 const DETAIL = '/khach-san/';
 const PARTNER = ['hotel', 'admin']; // có thêm /<tab> sau đường dẫn khu vực
 const ID_RE = /^[0-9A-Za-z-]{1,64}$/;

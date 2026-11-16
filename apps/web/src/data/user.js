@@ -88,7 +88,7 @@ export async function lookupFlight(code, dateIso) {
   const f = await api.get(`/v1/flights/${encodeURIComponent(code)}`, { query: { date: dateIso } });
   return {
     code: f.code, origin: f.origin, dest: f.dest, status: f.status.toLowerCase(), delayMinutes: f.delayMinutes,
-    schedTime: hhmm(f.scheduledDepartureAt), newTime: hhmm(f.newDepartureAt), updatedAt: hhmm(f.asOf),
+    schedTime: hhmm(f.scheduledDepartureAt), newTime: hhmm(f.newDepartureAt), updatedAt: hhmm(f.asOf), notice: f.notice ?? null,
   };
 }
 

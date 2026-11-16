@@ -64,10 +64,11 @@ async function flightReply(code, mem, ctx) {
   try {
     const f = await lookupFlight(c, isoDate(0));
     const route = `${f.origin} → ${f.dest ?? '?'}`;
-    const text = f.status === 'cancelled' ? `Chuyến ${c} (${route}) đã bị HỦY.`
+    const note = f.notice ? `${f.notice} ` : '';
+    const text = note + (f.status === 'cancelled' ? `Chuyến ${c} (${route}) đã bị HỦY.`
       : f.status === 'ontime' ? `Chuyến ${c} (${route}) đúng giờ, khởi hành ${f.schedTime}.`
         : f.delayMinutes != null ? `Chuyến ${c} (${route}) chậm ${fmtDuration(f.delayMinutes)}: từ ${f.schedTime} sang ${f.newTime}.`
-          : `Chuyến ${c} (${route}) bị chậm nhưng chưa có giờ khởi hành mới.`;
+          : `Chuyến ${c} (${route}) bị chậm nhưng chưa có giờ khởi hành mới.`);
     if (f.status === 'ontime') return { text };
     const q = await beginSearch(mem, '', ctx, { seed: { airport: f.origin } }); // chuyến chậm/hủy: chuyển sang tìm nơi nghỉ gần sân bay đó
     return { ...q, text: `${text} Mình hỗ trợ tìm nơi nghỉ gần ${airportName(f.origin)} nhé.\n${q.text}` };

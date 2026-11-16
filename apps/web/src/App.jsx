@@ -16,10 +16,11 @@ import UserSite from './screens/user/UserSite';
 import UserHome from './screens/user/Home';
 import Stays from './screens/user/Stays';
 import { Account, PaymentResult, Support, Track } from './screens/user/Pages';
+import Flights from './screens/user/Flights';
 import HotelDetail from './screens/user/HotelDetail';
 
 const PARTNER_SCREENS = { hotel: Hotel, admin: Admin };
-const USER_PAGES = { stays: Stays, detail: HotelDetail, track: Track, support: Support, account: Account, payment: PaymentResult }; // màn khác của người dùng = trang chủ
+const USER_PAGES = { stays: Stays, flights: Flights, detail: HotelDetail, track: Track, support: Support, account: Account, payment: PaymentResult }; // màn khác của người dùng = trang chủ
 
 const TABS = { hotel: hotelTabs, admin: adminTabs };
 
