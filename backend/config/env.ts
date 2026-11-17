@@ -79,6 +79,7 @@ const schema = z.object({
   SEPAY_MERCHANT_ID: z.string().optional(),
   SEPAY_SECRET_KEY: z.string().optional(), // khóa merchant: ký form checkout
   SEPAY_IPN_SECRET: z.string().optional(), // khóa IPN (KHÁC khóa merchant): SePay gửi trong header X-Secret-Key
+  SEPAY_PAYMENT_METHOD: z.enum(['BANK_TRANSFER', 'CARD', 'NAPAS_BANK_TRANSFER']).default('BANK_TRANSFER'), // SePay bắt buộc payment_method: BANK_TRANSFER = QR chuyển khoản, CARD = thẻ quốc tế
   SEPAY_CHECKOUT_URL: z.string().url().default('https://pay.sepay.vn/v1/checkout/init'), // sandbox: dùng URL sandbox trong tài liệu SePay
   SEPAY_RETURN_URL: z.string().url().default('http://localhost:5174/payment/result'), // SePay đưa khách về trang FE này (kèm status=success|error|cancel)
   SEPAY_IPN_URL: z.string().url().default('http://localhost:3000/v1/payments/sepay/ipn'), // API công khai SePay gọi; origin của nó cũng là nơi phục vụ trang chuyển hướng checkout

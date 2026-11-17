@@ -51,7 +51,7 @@ services:
       - { key: SEPAY_MERCHANT_ID, sync: false }
       - { key: SEPAY_SECRET_KEY, sync: false } # khóa merchant: ký form checkout
       - { key: SEPAY_IPN_SECRET, sync: false } # khóa IPN: giống giá trị khai báo ở SePay (Cổng thanh toán > Cấu hình > IPN, xác thực SECRET_KEY)
-      - { key: SEPAY_RETURN_URL, value: "https://airrest-api.onrender.com/payment/result" } # https://<airrest-web>.onrender.com/payment/result
+      - { key: SEPAY_RETURN_URL, value: "https://airrest-web.onrender.com/payment/result" } # https://<airrest-web>.onrender.com/payment/result
       - { key: SEPAY_IPN_URL, value: "https://airrest-api.onrender.com/v1/payments/sepay/ipn" } # https://airrest-api.onrender.com/v1/payments/sepay/ipn (khai báo URL này ở SePay)
 
   - type: web

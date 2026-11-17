@@ -4,20 +4,25 @@ import { buildCheckoutFields, checkoutPage, signSepay } from '../lib/sepay';
 
 const sign = (str: string, secret: string) => createHmac('sha256', secret).update(str).digest('base64');
 
-describe('SePay: chữ ký form checkout', () => {
-  it('chỉ ký các trường quy định, đúng thứ tự, bỏ trường rỗng/"0"', () => {
-    const f = { merchant: 'M1', currency: 'VND', order_amount: '100000', operation: 'PURCHASE', order_description: 'Pay #1', order_invoice_number: 'INV1', customer_id: '', payment_method: '0', cancel_url: 'https://x/c', ghost: 'khong-ky' };
-    expect(signSepay(f, 'k')).toBe(sign('order_amount=100000,merchant=M1,currency=VND,operation=PURCHASE,order_description=Pay #1,order_invoice_number=INV1,cancel_url=https://x/c', 'k'));
+describe('SePay: chữ ký form checkout (theo SDK sepay-pg-node)', () => {
+  it('ký theo thứ tự trường của object, chỉ các trường quy định, bỏ rỗng', () => {
+    const f = { operation: 'PURCHASE', payment_method: 'BANK_TRANSFER', order_invoice_number: 'INV1', order_amount: '100000', currency: 'VND', order_description: 'Pay #1', customer_id: '', cancel_url: 'https://x/c', custom_data: 'khong-ky', merchant: 'M1' };
+    expect(signSepay(f, 'k')).toBe(sign('operation=PURCHASE,payment_method=BANK_TRANSFER,order_invoice_number=INV1,order_amount=100000,currency=VND,order_description=Pay #1,cancel_url=https://x/c,merchant=M1', 'k'));
   });
-  it('buildCheckoutFields: số tiền nguyên, 3 URL quay về kèm status, có signature', () => {
+  it('đổi thứ tự trường thì chữ ký đổi (SePay ký theo thứ tự nhận được)', () => {
+    expect(signSepay({ order_amount: '1', currency: 'VND' }, 'k')).not.toBe(signSepay({ currency: 'VND', order_amount: '1' }, 'k'));
+  });
+  it('buildCheckoutFields: có payment_method, số tiền nguyên, 3 URL quay về kèm status, merchant sau cùng, signature cuối', () => {
     const f = buildCheckoutFields({ invoice: 'AR-1-abc', amount: 450000.4, description: 'Airrest AR-1' });
+    expect(Object.keys(f)).toEqual(['operation', 'payment_method', 'order_invoice_number', 'order_amount', 'currency', 'order_description', 'success_url', 'error_url', 'cancel_url', 'merchant', 'signature']);
     expect(f.order_amount).toBe('450000');
-    expect(f.currency).toBe('VND');
+    expect(f.payment_method).toBe('BANK_TRANSFER');
     expect(f.operation).toBe('PURCHASE');
     expect(f.success_url).toMatch(/gateway=sepay&orderId=AR-1-abc&status=success$/);
     expect(f.error_url).toMatch(/status=error$/);
     expect(f.cancel_url).toMatch(/status=cancel$/);
-    expect(f.signature).toBe(signSepay({ ...f }));
+    const { signature, ...rest } = f;
+    expect(signature).toBe(signSepay(rest));
   });
   it('trang checkout: escape giá trị, CSP chỉ cho form tới host checkout và script có nonce', () => {
     const { html, csp } = checkoutPage({ order_description: '"><script>alert(1)</script>', signature: 'sig' });

@@ -6,28 +6,31 @@ import { env } from '../config/env';
 //  2) SePay gọi IPN (POST JSON) khi có giao dịch; header X-Secret-Key phải khớp SEPAY_IPN_SECRET.
 const live = env.SEPAY_MODE === 'live';
 
-// Chữ ký form: chỉ các trường sau, đúng thứ tự, bỏ trường rỗng/"0"; nối "k=v" bằng dấu phẩy; HMAC-SHA256(secret) -> base64.
-const SIGNED = ['order_amount', 'merchant', 'currency', 'operation', 'order_description', 'order_invoice_number', 'customer_id', 'payment_method', 'success_url', 'error_url', 'cancel_url'] as const;
+// Chữ ký form theo SDK chính thức sepay-pg-node: nối "k=v" bằng dấu phẩy theo THỨ TỰ TRƯỜNG của object/form (chỉ các trường trong danh sách dưới, bỏ undefined/rỗng),
+// HMAC-SHA256(secret) -> base64. Thứ tự trong form phải trùng thứ tự đã ký.
+const SIGNED = new Set(['merchant', 'operation', 'payment_method', 'order_invoice_number', 'order_amount', 'currency', 'order_description', 'customer_id', 'success_url', 'error_url', 'cancel_url']);
 export const signSepay = (fields: Record<string, string | undefined>, secret = env.SEPAY_SECRET_KEY ?? ''): string =>
   createHmac('sha256', secret)
-    .update(SIGNED.filter((k) => fields[k] !== undefined && fields[k] !== '' && fields[k] !== '0').map((k) => `${k}=${fields[k]}`).join(','))
+    .update(Object.keys(fields).filter((k) => SIGNED.has(k) && fields[k] !== undefined && fields[k] !== '').map((k) => `${k}=${fields[k]}`).join(','))
     .digest('base64');
 
 export interface SepayCheckoutInput { invoice: string; amount: number; description: string }
 
-// Các trường form (đã có signature). Thứ tự khóa giữ như form mẫu của SePay.
+// Các trường form (đã có signature), thứ tự như SDK: operation, payment_method, order_invoice_number, order_amount, currency, order_description,
+// success_url, error_url, cancel_url, rồi merchant (SDK thêm merchant sau cùng), signature cuối.
 export function buildCheckoutFields(i: SepayCheckoutInput): Record<string, string> {
   const ret = (status: string) => `${env.SEPAY_RETURN_URL}${env.SEPAY_RETURN_URL.includes('?') ? '&' : '?'}gateway=sepay&orderId=${encodeURIComponent(i.invoice)}&status=${status}`;
   const f: Record<string, string> = {
-    merchant: env.SEPAY_MERCHANT_ID ?? '',
-    currency: 'VND',
-    order_amount: String(Math.round(i.amount)),
     operation: 'PURCHASE',
-    order_description: i.description,
+    payment_method: env.SEPAY_PAYMENT_METHOD,
     order_invoice_number: i.invoice,
+    order_amount: String(Math.round(i.amount)),
+    currency: 'VND',
+    order_description: i.description,
     success_url: ret('success'),
     error_url: ret('error'),
     cancel_url: ret('cancel'),
+    merchant: env.SEPAY_MERCHANT_ID ?? '',
   };
   return { ...f, signature: signSepay(f) };
 }
