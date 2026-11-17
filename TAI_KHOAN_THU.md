@@ -1,10 +1,24 @@
 # Tài khoản thử Airrest theo actor
 
-Tạo bằng `npm run db:seed:accounts -w @airrest/backend` ([seedAccounts.ts](backend/database/scripts/seedAccounts.ts)), chạy lại an toàn. Đã ghi vào DB trong `backend/.env` (Supabase, dùng chung): chỉ dùng để thử, không dùng dữ liệu thật.
+Tạo bằng `npm run db:seed:accounts -w @airrest/backend` ([seedAccounts.ts](backend/database/scripts/seedAccounts.ts)), chạy lại an toàn. Ghi vào DB mà `backend/.env` đang trỏ tới (có thể là Supabase dùng chung: kiểm tra `DATABASE_URL` trước khi chạy). Chỉ dùng để thử, không dùng dữ liệu thật. Thứ tự dựng dữ liệu đầy đủ: `npm run db:migrate` → `npm run db:seed` → `npm run db:seed:accounts` (chạy lại an toàn; muốn nạp lại danh mục khách sạn trên DB đã có dữ liệu thì thêm `SEED_FORCE=1` cho `db:seed`).
 
 **Mật khẩu chung: `ChangeMe123!`** (giá trị mặc định của `SEED_PASSWORD`). Khách đăng nhập bằng *username*, các actor còn lại bằng *email*.
 
-Lưu ý: tài khoản có sẵn từ seed cũ (`admin@demo.airrest.vn`, `ql.han01@khachsan.mo`, `nv.han01@khachsan.mo`, `quantri@airrest.mo`…) không nằm trong file này.
+Từ migration 033, nhân viên khách sạn có bảng liên kết `account_hotels` (một nhân viên làm nhiều khách sạn, mỗi nơi một vai trò). Seed tự điền liên kết cho các tài khoản dưới đây.
+
+## Tài khoản từ `db:seed` (cùng mật khẩu chung, trừ khách `nguoidung`)
+
+| Actor | Tài khoản | Ghi chú |
+|---|---|---|
+| ADMIN (SYSADMIN) | `admin@demo.airrest.vn` | admin demo |
+| ADMIN | `quantri@airrest.mo` (SYSADMIN), `vanhanh@airrest.mo` (OPS), `hotro@airrest.mo` (SUPPORT), `taichinh@airrest.mo` (FINANCE) | từ `seedCatalog` |
+| HOTEL (lễ tân) | `letan@demo.airrest.vn` | khách sạn demo `HAN-DEMO-01` (có Tầng 1 + phòng 101–103) |
+| HOTEL (chủ/quản lý) | `ql.han01@khachsan.mo`, `ql.sgn01@khachsan.mo`, `ql.dad01@khachsan.mo`, `ql.cxr01@khachsan.mo`, `ql.pqc01@khachsan.mo` | chủ khách sạn, thuộc doanh nghiệp của sân bay tương ứng |
+| HOTEL (nhân viên) | `nv.han01@khachsan.mo` | nhân viên HAN-01 (vai trò frontdesk) |
+| HOTEL (chủ, không xe) | `ql.han03@khachsan.mo` | từ `seedFleet`, để thử luồng hết xe |
+| PASSENGER | `nguoidung` / mật khẩu `Demo@2026` | khách mẫu, có sẵn 2 khách sạn yêu thích (HAN-01, SGN-01) |
+
+Mã giảm giá mẫu (khách xem ở `/tai-khoan`): `WELCOME50` (giảm 50.000đ, đơn từ 300.000đ), `AIR10` (giảm 10%).
 
 ## Khách (PASSENGER)
 
@@ -56,6 +70,8 @@ Lưu ý: tài khoản có sẵn từ seed cũ (`admin@demo.airrest.vn`, `ql.han0
 | `finance3@airrest.mo` | Kế toán 3 |
 
 ## Khách sạn (HOTEL): nhóm theo khách sạn
+
+Các tài khoản `chu.*` là **chủ doanh nghiệp** của sân bay tương ứng (HAN/SGN/DAD/CXR/PQC/HPH): đăng nhập thấy ô chọn khách sạn ở header với mọi khách sạn của doanh nghiệp đó, và thêm nhân viên được vào nhiều khách sạn. Các tài khoản `letan/dondua/phong` chỉ làm ở khách sạn của mình (có thể được chủ gán thêm khách sạn khác).
 
 ### Sao Mai Airport Hotel (HAN-01)
 
@@ -242,9 +258,15 @@ Lưu ý: tài khoản có sẵn từ seed cũ (`admin@demo.airrest.vn`, `ql.han0
 | `nv1.sags.sgn@chitra.mo` | NV SAGS SGN 1 | payer_staff |
 | `nv2.sags.sgn@chitra.mo` | NV SAGS SGN 2 | payer_staff |
 
-## Doanh nghiệp thử (nhiều khách sạn)
+## Doanh nghiệp (seed sẵn)
 
-Dựng bằng giao diện, không cần seed riêng: (1) Đăng nhập > tab "Nhân sự" > "Đăng ký doanh nghiệp", điền hồ sơ (mật khẩu ≥ 12 ký tự, tự đặt cho tài khoản thử); (2) đăng nhập `sysadmin1@airrest.mo` (mật khẩu chung `ChangeMe123!`) > Quản trị > Doanh nghiệp > mở hồ sơ > Duyệt; (3) chủ đăng nhập bằng email vừa đăng ký > "Khách sạn của tôi" > Tạo khách sạn (làm 2 cái) > Gửi hồ sơ; (4) admin duyệt từng khách sạn ở tab Khách sạn; (5) chủ chuyển khách sạn ở ô chọn trên header, xem "Báo cáo doanh thu" (khách sạn đang chọn và "Tổng doanh nghiệp"). Muốn có số liệu thử: chuyển vài đơn seed sang khách sạn mới bằng SQL trên DB thử (đổi `bookings.hotel_id`, đặt một số đơn `CHECKED_OUT`). Không dùng DB Supabase dùng chung cho việc này (chưa có migration 030).
+`db:seed` tạo **22 doanh nghiệp đã duyệt**, mỗi sân bay một doanh nghiệp (mã `BIZ-<IATA>`, ví dụ `BIZ-HAN` "Công ty TNHH Khách sạn Hà Nội (mô phỏng)", MST `0301345601`; `BIZ-SGN` MST `0302345602`; các sân bay khác theo quy luật `03NN345(600+NN)`; email liên hệ `lienhe.<iata>@doanhnghiep.mo`). Mọi khách sạn mã `<IATA>-*` thuộc doanh nghiệp tương ứng; tài khoản chủ (`chu.*`, `ql.*`) được gắn vào doanh nghiệp đó. Doanh nghiệp seed chưa có tài khoản "chủ doanh nghiệp" riêng: dùng `chu.<iata><nn>@khachsan.mo`.
+
+Muốn thử luồng đăng ký → duyệt từ đầu (doanh nghiệp mới): Đăng nhập > tab "Nhân sự" > "Đăng ký doanh nghiệp" (mật khẩu ≥ 12 ký tự, tự đặt); đăng nhập `sysadmin1@airrest.mo` > Quản trị > Doanh nghiệp > Duyệt; chủ đăng nhập bằng email vừa đăng ký > "Khách sạn của tôi" > Tạo khách sạn > Gửi hồ sơ; admin duyệt từng khách sạn ở tab Khách sạn. Thử trên DB cục bộ (Postgres nhúng cổng 54329), không dùng DB dùng chung.
+
+## Nhân viên làm nhiều khách sạn
+
+Không nằm trong seed (mỗi lần thử tạo mới): đăng nhập `chu.han01@khachsan.mo` > Nhân viên > Thêm nhân viên > tích thêm khách sạn khác (mỗi khách sạn một ô chọn vai trò) > lưu, ghi lại mật khẩu tạm (hiện một lần). Nhân viên đó đăng nhập sẽ có ô chuyển khách sạn ở header; quyền theo vai trò của khách sạn đang chọn. Có sẵn bài E2E `tests/staff-multi-hotel.e2e.ts` (chạy bằng `APP_URL=... npx e2e run tests/staff-multi-hotel.e2e.ts` trên stack cục bộ).
 
 ## Nhân viên thử do chủ khách sạn tạo (cổng Khách sạn › Nhân sự)
 
