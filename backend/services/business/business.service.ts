@@ -49,5 +49,9 @@ export async function registerBusiness(b: z.infer<typeof registerBody>, requestI
 export const hotelBrief = async (businessId: string) =>
   (await db.query<{ id: string; code: string; name: string; status: string }>('SELECT id, code, name, status FROM hotels WHERE business_id = $1 ORDER BY seq', [businessId])).rows;
 
+// Khách sạn một nhân viên (không phải chủ doanh nghiệp) được gán qua account_hotels, để chọn khách sạn làm việc.
+export const linkedHotels = async (accountId: string) =>
+  (await db.query<{ id: string; code: string; name: string; status: string }>('SELECT h.id, h.code, h.name, h.status FROM account_hotels ah JOIN hotels h ON h.id = ah.hotel_id WHERE ah.account_id = $1 ORDER BY h.name', [accountId])).rows;
+
 export const businessBrief = async (businessId: string) =>
   (await db.query<Pick<BusinessDoc, 'id' | 'name' | 'status'>>('SELECT id, name, status FROM businesses WHERE id = $1', [businessId])).rows[0];

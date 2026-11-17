@@ -57,7 +57,7 @@ function Shell() {
   return (
     <StaffShell portal={MODULES[activeModule]} items={items} cur={cur} entries={entries}
       onPick={(i) => dispatch({ type: 'partnerTab', id: i.id })} onRoute={(area, id) => dispatch({ type: 'route', screen: area, partnerTab: id })}
-      hotelPicker={allowed && screen === 'hotel' && sess.business ? { hotels: sess.hotels || [], currentId: sess.hotelId, onSwitch: onSwitchHotel } : null}
+      hotelPicker={allowed && screen === 'hotel' && (sess.business || sess.hotels?.length > 1) ? { hotels: sess.hotels || [], currentId: sess.hotelId, onSwitch: onSwitchHotel } : null}
       session={sess} user={state.user} onHome={() => dispatch({ type: 'reset' })} onLogout={() => dispatch({ type: 'logout' })}
       onLogin={() => onGo('login')}
       other={allowed && other ? { label: `Chuyển sang cổng ${MODULES[other].label}`, onClick: () => onGo(other), testid: 'switch-area' } : null}>

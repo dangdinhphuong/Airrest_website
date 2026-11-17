@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { ConfirmDialog, DataTable, FilterBar, FormField, Modal, PageHeader, StatusBadge, Tag } from '../ui';
 import { Notice } from '../Common';
@@ -22,12 +22,27 @@ function TempPw({ id, value, onChange }) {
   );
 }
 
+// Khách sạn có thể gán: danh sách của phiên (chủ doanh nghiệp / nhân viên nhiều khách sạn). Vai trò mẫu dùng chung mọi khách sạn; vai trò tùy chỉnh chỉ có ở khách sạn đang làm việc.
 function StaffForm({ staff, roles, onClose, onSaved }) {
   const editing = !!staff;
+  const { state } = useApp();
+  const cur = state.session?.hotelId;
+  const choices = state.session?.hotels?.length > 1 ? state.session.hotels : [];
+  // Vai trò theo từng khách sạn khác khách sạn đang làm việc: { [hotelId]: roleId }; danh sách vai trò của khách sạn đó tải khi chọn.
+  const [roleBy, setRoleBy] = useState(() => Object.fromEntries((staff?.hotels || []).map((h) => [h.hotelId, h.roleId])));
+  const [rolesOf, setRolesOf] = useState({});
+  const [picked, setPicked] = useState(() => new Set(staff?.hotels?.length ? staff.hotels.map((h) => h.hotelId) : cur ? [cur] : []));
   const [f, setF] = useState({ email: '', fullName: staff?.fullName || '', phone: staff?.phone || '', roleId: staff?.roleId || roles[0]?.id || '', password: tempPassword() });
   const [pwShown, setPwShown] = useState(null);
   const { run, busy, note } = useAction(staffErr);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const loadRolesOf = (hid) => {
+    if (hid === cur || rolesOf[hid]) return;
+    listRoles(hid).then((r) => setRolesOf((x) => ({ ...x, [hid]: r.items.filter((i) => i.assignable) }))).catch(() => setRolesOf((x) => ({ ...x, [hid]: [] })));
+  };
+  useEffect(() => { picked.forEach(loadRolesOf); }, [picked]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggle = (id) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n.size ? n : p; });
+  const roleFor = (hid) => (hid === cur ? f.roleId : roleBy[hid] ?? (rolesOf[hid]?.some((r) => r.id === f.roleId) ? f.roleId : rolesOf[hid]?.[0]?.id));
   const phoneErr = f.phone.trim() && !PHONE_RE.test(f.phone.trim()) ? 'Số điện thoại không hợp lệ.' : '';
   const submit = async (e) => {
     e.preventDefault();
@@ -36,8 +51,14 @@ function StaffForm({ staff, roles, onClose, onSaved }) {
       if (editing) {
         const body = { fullName: f.fullName.trim(), phone: f.phone.trim() || null };
         if (f.roleId !== staff.roleId) body.roleId = f.roleId;
+        if (choices.length) {
+          body.hotels = [...picked].map((hotelId) => ({ hotelId, roleId: roleFor(hotelId) }));
+        }
         await patchStaff(staff.id, body);
-      } else await createStaff({ email: f.email.trim(), fullName: f.fullName.trim(), ...(f.phone.trim() && { phone: f.phone.trim() }), roleId: f.roleId, password: f.password });
+      } else {
+        const hotels = choices.length ? [...picked].map((hotelId) => ({ hotelId, roleId: roleFor(hotelId) })) : null;
+        await createStaff({ email: f.email.trim(), fullName: f.fullName.trim(), ...(f.phone.trim() && { phone: f.phone.trim() }), ...(hotels ? { hotels } : { roleId: f.roleId }), password: f.password });
+      }
     }, editing ? 'Đã lưu nhân viên.' : 'Đã tạo nhân viên.');
     if (!ok) return;
     onSaved();
@@ -62,6 +83,22 @@ function StaffForm({ staff, roles, onClose, onSaved }) {
           <FormField id="sf-phone" label="Số điện thoại" error={phoneErr}><input id="sf-phone" type="tel" value={f.phone} onChange={set('phone')} data-testid="sf-phone" /></FormField>
           <FormField id="sf-role" label="Vai trò"><Select id="sf-role" value={f.roleId} onChange={set('roleId')} data-testid="sf-role">{roles.map((r) => <option key={r.id} value={r.id}>{r.name}{r.system ? ' (mẫu)' : ''}</option>)}</Select></FormField>
         </div>
+        {choices.length > 0 && (
+          <FormField id="sf-hotels" label="Khách sạn làm việc" hint="Chọn một hoặc nhiều khách sạn; mỗi khách sạn có thể có vai trò riêng. Vai trò ở khách sạn đang làm việc chọn ở ô Vai trò phía trên.">
+            <span style={{ display: 'grid', gap: 6 }} data-testid="sf-hotels">
+              {choices.map((hc) => (
+                <span key={hc.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <label><input type="checkbox" checked={picked.has(hc.id)} onChange={() => toggle(hc.id)} data-testid={`sf-hotel-${hc.id}`} /> {hc.name}{hc.id === cur ? ' (đang làm việc)' : ''}</label>
+                  {picked.has(hc.id) && hc.id !== cur && (
+                    <Select aria-label={`Vai trò tại ${hc.name}`} value={roleFor(hc.id) || ''} onChange={(e) => setRoleBy({ ...roleBy, [hc.id]: e.target.value })} data-testid={`sf-role-${hc.id}`}>
+                      {(rolesOf[hc.id] || []).map((r) => <option key={r.id} value={r.id}>{r.name}{r.system ? ' (mẫu)' : ''}</option>)}
+                    </Select>
+                  )}
+                </span>
+              ))}
+            </span>
+          </FormField>
+        )}
         {!editing && <TempPw id="sf-pw" value={f.password} onChange={(v) => setF({ ...f, password: v })} />}
         <div className="row-actions">
           <button className="btn btn-primary" disabled={busy || !f.roleId} data-testid="sf-save">{editing ? 'Lưu' : 'Tạo nhân viên'}</button>
@@ -120,6 +157,7 @@ export default function Staff() {
   const columns = [
     { key: 'name', header: 'Nhân viên', render: (s) => <><strong>{s.fullName}</strong>{s.isOwner && <> <span style={{ display: 'inline-block' }}><Tag tone="info">Chủ</Tag></span></>}{s.id === me && <> <small>(bạn)</small></>}<br /><small>{s.email}</small></> },
     { key: 'phone', header: 'Điện thoại', render: (s) => s.phone || '—' },
+    { key: 'hotels', header: 'Khách sạn', render: (s) => (s.hotels?.length ? s.hotels.map((h) => h.name).join(', ') : '—') },
     { key: 'role', header: 'Vai trò', render: (s) => s.isOwner ? 'Chủ khách sạn' : s.roleName || '—' },
     { key: 'st', header: 'Trạng thái', render: (s) => <StatusBadge status={s.status} map={ST} /> },
     { key: 'at', header: 'Tạo lúc', render: (s) => fmtDT(s.createdAt) },

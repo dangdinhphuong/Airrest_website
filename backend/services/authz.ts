@@ -30,7 +30,20 @@ async function load(sub: string, claimedHotel?: string) {
       hotelId = claimedHotel;
     }
   }
-  const roles = (await db.query<RoleDoc>('SELECT permissions FROM roles WHERE id = ANY($1::uuid[])', [a.roleIds])).rows;
+  let roleIds = a.roleIds;
+  if (a.type === 'HOTEL' && !a.businessId) {
+    // Nhân viên nhiều khách sạn (account_hotels): khách sạn làm việc phải nằm trong danh sách được gán, quyền lấy theo vai trò ở khách sạn đó.
+    const links = (await db.query<{ hotelId: string; roleId: string }>('SELECT hotel_id, role_id FROM account_hotels WHERE account_id = $1', [sub])).rows;
+    if (links.length) {
+      const want = claimedHotel ?? a.hotelId;
+      const link = links.find((l) => l.hotelId === want);
+      if (claimedHotel && !link) return null; // token trỏ khách sạn đã bị gỡ khỏi nhân viên
+      const use = link ?? links[0]!;
+      hotelId = use.hotelId;
+      roleIds = [use.roleId];
+    }
+  }
+  const roles = (await db.query<RoleDoc>('SELECT permissions FROM roles WHERE id = ANY($1::uuid[])', [roleIds])).rows;
   return { accountType: a.type, hotelId, businessId: a.businessId, payerId: a.payerId, payerStationId: a.payerStationId, permissions: [...new Set(roles.flatMap((r) => r.permissions))] };
 }
 

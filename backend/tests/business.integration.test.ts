@@ -203,10 +203,10 @@ run('tích hợp: doanh nghiệp (đăng ký công khai, duyệt, nhiều khách
       await request(app).post('/v1/auth/switch-hotel').set(bearer(tok)).send({ hotelId: h1 });
     });
 
-    it('IDOR: switch sang khách sạn doanh nghiệp khác / không tồn tại -> 404; nhân viên -> 403; không token -> 401; hotelId sai định dạng -> 422', async () => {
+    it('IDOR: switch sang khách sạn doanh nghiệp khác / không tồn tại -> 404; nhân viên chưa được gán khách sạn đó -> 404; không token -> 401; hotelId sai định dạng -> 422', async () => {
       expect((await request(app).post('/v1/auth/switch-hotel').set(bearer(tok)).send({ hotelId: otherHotel })).status).toBe(404);
       expect((await request(app).post('/v1/auth/switch-hotel').set(bearer(tok)).send({ hotelId: randomUUID() })).status).toBe(404);
-      expect((await request(app).post('/v1/auth/switch-hotel').set(bearer(staffTok)).send({ hotelId: h2 })).status).toBe(403);
+      expect((await request(app).post('/v1/auth/switch-hotel').set(bearer(staffTok)).send({ hotelId: h2 })).status).toBe(404);
       expect((await request(app).post('/v1/auth/switch-hotel').send({ hotelId: h2 })).status).toBe(401);
       expect((await request(app).post('/v1/auth/switch-hotel').set(bearer(tok)).send({ hotelId: 'x' })).status).toBe(422);
       expect(otherTok).toBeTruthy();

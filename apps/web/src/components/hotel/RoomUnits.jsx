@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ConfirmAction, DataTable, ErrorState, FormField, Loading, Modal, Tag, Toolbar } from '../ui';
+import { ConfirmAction, DataTable, ErrorState, FormField, Loading, Modal, Tabs, Tag, Toolbar } from '../ui';
 import Select from '../Select';
 import { describeError } from '../../lib/api';
 import * as H from '../../data/hotel';
@@ -7,6 +7,13 @@ import { useAction, useLoad } from './kit';
 import ImagePicker from './ImagePicker';
 import { bulkNumbers, MAX_ROOM_IMAGES } from './roomLogic';
 
+const BED = { SINGLE: 'Giường đơn', DOUBLE: 'Giường đôi', TWIN: '2 giường đơn', FAMILY: 'Giường gia đình' };
+// Thông tin hiệu lực của phòng = giá trị ghi đè của phòng, không có thì theo loại phòng.
+const effective = (r, t) => {
+  const adults = r.maxAdults ?? t?.maxAdults ?? t?.capacity;
+  const children = r.maxChildren ?? t?.maxChildren;
+  return { adults, children, view: r.view || t?.view || '', smoking: r.smoking ?? t?.smoking ?? false, amenities: [...new Set([...(t?.amenities || []), ...(r.amenitiesExtra || [])])] };
+};
 const numOrNull = (v) => (v === '' ? null : Number(v));
 
 function FloorForm({ initial, busy, onSubmit, onCancel }) {
@@ -89,36 +96,61 @@ function BulkForm({ floors, types, busy, onSubmit, onCancel }) {
   );
 }
 
+// Chi tiết một phòng: ảnh (ảnh của phòng, không có thì ảnh loại phòng), thông tin hiệu lực và tiện nghi.
+function RoomDetail({ room, type, floor, manage, onClose, onEdit }) {
+  if (!room) return null;
+  const e = effective(room, type);
+  const imgs = (room.images?.length ? room.images : type?.images || []).filter((i) => i.url);
+  const row = (k, v) => <div style={{ display: 'flex', gap: 8 }}><span className="muted" style={{ minWidth: 120 }}>{k}</span><span>{v}</span></div>;
+  return (
+    <Modal open onClose={onClose} size="lg" title={`Phòng ${room.number}${floor ? ` · ${floor.name}` : ''}`} testid="ru-detail-dlg"
+      footer={<>{manage && <button type="button" className="btn btn-primary" onClick={onEdit} data-testid="ru-detail-edit">Sửa phòng</button>}<button type="button" className="btn" onClick={onClose}>Đóng</button></>}>
+      {imgs.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, marginBottom: 12 }}>
+          {imgs.map((i, n) => <img key={n} src={i.url} alt={`Phòng ${room.number} ảnh ${n + 1}`} style={{ width: '100%', height: 110, objectFit: 'cover', borderRadius: 8 }} />)}
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 6 }}>
+        {row('Trạng thái', room.status === 'ACTIVE' ? <Tag tone="ok">Đang dùng</Tag> : <Tag>Ngừng dùng</Tag>)}
+        {row('Loại phòng', type ? `${type.code ? `${type.code} · ` : ''}${type.name}` : '—')}
+        {type && row('Giường · diện tích', `${type.beds ?? ''} ${BED[type.bedType]?.toLowerCase() || 'giường'}${type.areaM2 ? ` · ${type.areaM2} m²` : ''}`)}
+        {row('Sức chứa', e.adults ? `${e.adults} người lớn${e.children ? ` + ${e.children} trẻ em` : ''}` : '—')}
+        {row('Hướng', e.view || '—')}
+        {row('Hút thuốc', e.smoking ? 'Cho phép' : 'Không')}
+        {row('Tiện nghi', e.amenities.length ? <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{e.amenities.map((a) => <Tag key={a}>{a}</Tag>)}</span> : '—')}
+        {type?.description && row('Mô tả loại phòng', type.description)}
+        {room.note && row('Ghi chú', room.note)}
+      </div>
+    </Modal>
+  );
+}
+
 // Tầng + danh sách phòng riêng lẻ. Tồn kho vẫn đếm theo loại: loại có phòng thì Tổng số phòng = số phòng đang dùng.
 export default function RoomUnits({ types, manage, onChanged }) {
   const act = useAction();
   const fl = useLoad(() => H.listFloors(), []);
   const rm = useLoad(() => H.listRooms(), []);
   const [form, setForm] = useState(null); // { kind: 'floor'|'room'|'bulk', value }
+  const [tab, setTab] = useState(null); // id tầng đang xem
+  const [detail, setDetail] = useState(null); // phòng đang xem chi tiết
   const reload = () => { fl.reload(); rm.reload(); onChanged?.(); };
   const run = async (fn, ok, close = true) => { if (await act.run(fn, ok)) { if (close) setForm(null); reload(); } };
   const sellable = types.filter((t) => !t.retiredAt && t.active !== false);
-  const floors = fl.data?.items || [];
+  const floors = [...(fl.data?.items || [])].sort((a, b) => a.level - b.level || a.sortOrder - b.sortOrder);
   const rooms = rm.data?.items || [];
   const typeOf = (id) => types.find((t) => t.id === id);
+  const active = floors.find((f) => f.id === tab) ?? floors[0];
+  const floorRooms = active ? rooms.filter((r) => r.floorId === active.id) : [];
   const stateRoom = (r) => ({ id: r.id, number: r.number, floorId: r.floorId, roomTypeId: r.roomTypeId, status: r.status, note: r.note || '', view: r.view || '', maxAdults: r.maxAdults == null ? '' : String(r.maxAdults), maxChildren: r.maxChildren == null ? '' : String(r.maxChildren), smoking: r.smoking == null ? '' : r.smoking ? 'yes' : 'no', images: r.images || [] });
   const newRoom = { number: '', floorId: floors[0]?.id || '', roomTypeId: sellable[0]?.id || '', status: 'ACTIVE', note: '', view: '', maxAdults: '', maxChildren: '', smoking: '', images: [] };
   const canAdd = floors.length > 0 && sellable.length > 0;
-  const floorCols = [
-    { key: 'name', header: 'Tên', render: (f) => <strong>{f.name}</strong> },
-    { key: 'level', header: 'Số tầng' },
-    { key: 'roomCount', header: 'Số phòng' },
-    { key: 'note', header: 'Ghi chú', render: (f) => f.note || '' },
-    ...(manage ? [{ key: 'act', header: '', render: (f) => (
-      <div className="row-actions" style={{ marginTop: 0 }}>
-        <button className="btn btn-sm" type="button" onClick={() => setForm({ kind: 'floor', value: { id: f.id, name: f.name, level: String(f.level), note: f.note || '' } })} data-testid="fl-edit">Sửa</button>
-        <ConfirmAction label="Xóa" tone="danger" ask="Xóa tầng này? (chỉ xóa được khi không còn phòng)" disabled={act.busy} testid="fl-del" onConfirm={() => run(() => H.deleteFloor(f.id), 'Đã xóa tầng.', false)} />
-      </div>
-    ) }] : []),
-  ];
   const roomCols = [
-    { key: 'number', header: 'Số phòng', render: (r) => <strong>{r.number}</strong> },
-    { key: 'type', header: 'Loại', render: (r) => typeOf(r.roomTypeId)?.code || '' },
+    { key: 'number', header: 'Số phòng', render: (r) => <button type="button" className="link-btn" onClick={() => setDetail(r)} data-testid="ru-detail"><strong>{r.number}</strong></button> },
+    { key: 'type', header: 'Loại phòng', render: (r) => { const t = typeOf(r.roomTypeId); return t ? <>{t.code && <strong>{t.code}</strong>}{t.code ? ' · ' : ''}{t.name}</> : ''; } },
+    { key: 'bed', header: 'Giường · m²', render: (r) => { const t = typeOf(r.roomTypeId); return t ? `${t.beds ?? ''} ${BED[t.bedType]?.toLowerCase() || 'giường'}${t.areaM2 ? ` · ${t.areaM2} m²` : ''}` : ''; } },
+    { key: 'cap', header: 'Sức chứa', render: (r) => { const e = effective(r, typeOf(r.roomTypeId)); return e.adults ? `${e.adults} người lớn${e.children ? ` + ${e.children} trẻ em` : ''}` : ''; } },
+    { key: 'view', header: 'Hướng · hút thuốc', render: (r) => { const e = effective(r, typeOf(r.roomTypeId)); return `${e.view || '—'} · ${e.smoking ? 'Cho phép hút thuốc' : 'Không hút thuốc'}`; } },
+    { key: 'amen', header: 'Tiện nghi', render: (r) => effective(r, typeOf(r.roomTypeId)).amenities.join(', ') || '—' },
     { key: 'status', header: 'Trạng thái', render: (r) => (r.status === 'ACTIVE' ? <Tag tone="ok">Đang dùng</Tag> : <Tag>Ngừng dùng</Tag>) },
     { key: 'img', header: 'Ảnh', render: (r) => (r.images.length ? r.images[0].url ? <img src={r.images[0].url} alt={`Phòng ${r.number}`} width="48" height="36" style={{ objectFit: 'cover', borderRadius: 6 }} /> : `${r.images.length} ảnh` : '') },
     { key: 'note', header: 'Ghi chú', render: (r) => r.note || '' },
@@ -139,12 +171,9 @@ export default function RoomUnits({ types, manage, onChanged }) {
       {(fl.loading || rm.loading) && !fl.data && <Loading />}
       {fl.err && <ErrorState onRetry={fl.reload}>{describeError(fl.err)}</ErrorState>}
       {rm.err && <ErrorState onRetry={rm.reload}>{describeError(rm.err)}</ErrorState>}
-      <h3>Tầng</h3>
-      <Toolbar end={manage && <button className="btn btn-sm btn-primary" type="button" onClick={() => setForm({ kind: 'floor', value: { name: '', level: '', note: '' } })} data-testid="fl-new">Thêm tầng</button>} />
-      {fl.data && <DataTable columns={floorCols} rows={floors} rowTestid="fl-row" emptyTitle="Chưa có tầng" empty="Chưa có tầng nào. Thêm tầng trước khi thêm phòng." />}
-      <h3>Danh sách phòng</h3>
       {manage && <Toolbar end={<>
-        <button className="btn btn-sm btn-primary" type="button" disabled={!canAdd} onClick={() => setForm({ kind: 'room', value: newRoom })} data-testid="ru-new">Thêm phòng</button>
+        <button className="btn btn-sm btn-primary" type="button" onClick={() => setForm({ kind: 'floor', value: { name: '', level: '', note: '' } })} data-testid="fl-new">Thêm tầng</button>
+        <button className="btn btn-sm btn-primary" type="button" disabled={!canAdd} onClick={() => setForm({ kind: 'room', value: { ...newRoom, floorId: active?.id || newRoom.floorId } })} data-testid="ru-new">Thêm phòng</button>
         <button className="btn btn-sm" type="button" disabled={!canAdd} onClick={() => setForm({ kind: 'bulk' })} data-testid="bk-new">Thêm hàng loạt</button>
       </>}>{!canAdd && <span className="muted">Cần có ít nhất một tầng và một loại phòng đang bán.</span>}</Toolbar>}
       <Modal open={!!form} onClose={() => setForm(null)} size="lg"
@@ -155,16 +184,26 @@ export default function RoomUnits({ types, manage, onChanged }) {
           onSubmit={(b) => run(() => (form.value.id ? H.patchRoom(form.value.id, b) : H.createRoom(b)), 'Đã lưu phòng.')} />}
         {form?.kind === 'bulk' && <BulkForm floors={floors} types={sellable} busy={act.busy} onCancel={() => setForm(null)} onSubmit={(b) => run(() => H.createRoomsBulk(b), 'Đã tạo phòng.')} />}
       </Modal>
-      {rm.data && (rooms.length === 0 ? <DataTable columns={roomCols} rows={[]} emptyTitle="Chưa có phòng" empty="Chưa có phòng nào." /> : floors.map((f) => {
-        const list = rooms.filter((r) => r.floorId === f.id);
-        if (!list.length) return null;
-        return (
-          <div key={f.id} data-testid="ru-floor-group">
-            <h4>{f.name} ({list.length} phòng)</h4>
-            <DataTable columns={roomCols} rows={list} rowTestid="ru-row" />
+      {fl.data && !floors.length && <DataTable columns={roomCols} rows={[]} emptyTitle="Chưa có tầng" empty="Chưa có tầng nào. Thêm tầng trước khi thêm phòng." />}
+      {active && (
+        <>
+          <Tabs label="Tầng" value={active.id} onChange={setTab} tabs={floors.map((f) => ({ id: f.id, label: f.name, count: rooms.filter((r) => r.floorId === f.id).length }))} />
+          <div data-testid="fl-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', margin: '8px 0' }}>
+            <div><strong>{active.name}</strong> <span className="muted">· Số tầng {active.level} · {floorRooms.length} phòng{active.note ? ` · ${active.note}` : ''}</span></div>
+            {manage && (
+              <div className="row-actions" style={{ marginTop: 0 }}>
+                <button className="btn btn-sm" type="button" onClick={() => setForm({ kind: 'floor', value: { id: active.id, name: active.name, level: String(active.level), note: active.note || '' } })} data-testid="fl-edit">Sửa tầng</button>
+                <ConfirmAction label="Xóa tầng" tone="danger" ask="Xóa tầng này? (chỉ xóa được khi không còn phòng)" disabled={act.busy} testid="fl-del" onConfirm={() => run(() => H.deleteFloor(active.id), 'Đã xóa tầng.', false)} />
+              </div>
+            )}
           </div>
-        );
-      }))}
+          <div data-testid="ru-floor-group">
+            {floorRooms.length ? <DataTable columns={roomCols} rows={floorRooms} rowTestid="ru-row" /> : <p className="muted">Tầng này chưa có phòng.</p>}
+          </div>
+        </>
+      )}
+      <RoomDetail room={detail} type={detail ? typeOf(detail.roomTypeId) : null} floor={detail ? floors.find((f) => f.id === detail.floorId) : null} manage={manage}
+        onClose={() => setDetail(null)} onEdit={() => { const r = detail; setDetail(null); setForm({ kind: 'room', value: stateRoom(r) }); }} />
     </section>
   );
 }

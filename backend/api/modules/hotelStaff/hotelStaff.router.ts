@@ -75,8 +75,12 @@ const assertNameFree = async (tx: Db, hotelId: string, n: string, exceptId?: str
   if (dup) throw new AppError(409, 'ROLE_NAME_TAKEN', 'Tên vai trò đã được dùng trong khách sạn');
 };
 
-hotelRolesRouter.get('/', readAny, async (req, res) => {
-  const hotelId = hotelOf(req.auth!);
+// ?hotelId: xem vai trò của khách sạn KHÁC trong phạm vi người gọi (để gán nhân viên làm nhiều khách sạn); ngoài phạm vi -> 404.
+const rolesQuery = z.object({ hotelId: z.string().uuid().optional() });
+hotelRolesRouter.get('/', readAny, validate({ query: rolesQuery }), async (req, res) => {
+  const asked = (req.valid.query as z.infer<typeof rolesQuery>).hotelId;
+  if (asked && !(await reach(db, req.auth!)).includes(asked)) throw new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');
+  const hotelId = asked ?? hotelOf(req.auth!);
   const rows = (await db.query<RoleRow>(`SELECT r.*, ${COUNT} FROM roles r WHERE ${visibleWhere('$1')} ORDER BY r.system DESC, r.created_at, r.name`, [hotelId])).rows;
   res.json({ items: rows.map(roleView) });
 });
@@ -151,22 +155,37 @@ hotelRolesRouter.delete('/:id', manageRoles, validate({ params: idParams }), asy
 });
 
 // ---------- Nhân viên ----------
-const createStaffBody = z.object({ email: z.string().email().max(200), fullName: z.string().trim().min(2).max(100), phone: phone.optional(), roleId: z.string().uuid(), password });
+// Mỗi khách sạn một vai trò (vai trò tùy chỉnh gắn theo khách sạn). Không gửi `hotels` thì dùng khách sạn đang làm việc + roleId.
+const hotelRole = z.object({ hotelId: z.string().uuid(), roleId: z.string().uuid() });
+const createStaffBody = z.object({ email: z.string().email().max(200), fullName: z.string().trim().min(2).max(100), phone: phone.optional(), roleId: z.string().uuid().optional(), hotels: z.array(hotelRole).min(1).max(30).optional(), password })
+  .refine((b) => b.roleId || b.hotels?.length, 'Cần roleId hoặc hotels');
 const patchStaffBody = z
-  .object({ fullName: z.string().trim().min(2).max(100), phone: phone.nullable(), roleId: z.string().uuid(), status: z.enum(['ACTIVE', 'LOCKED']) })
+  .object({ fullName: z.string().trim().min(2).max(100), phone: phone.nullable(), roleId: z.string().uuid(), hotels: z.array(hotelRole).min(1).max(30), status: z.enum(['ACTIVE', 'LOCKED']) })
   .partial()
   .refine((b) => Object.keys(b).length > 0, 'Không có trường nào để cập nhật');
 const resetBody = z.object({ password });
 const listQuery = z.object({ status: z.enum(['ACTIVE', 'LOCKED', 'INVITED']).optional(), roleId: z.string().uuid().optional(), q: z.string().trim().min(1).max(100).optional(), limit: limitQuery, after: seqCursor.optional() });
 
-type StaffRow = AccountDoc & { roleId?: string; roleName?: string };
+type StaffHotel = { hotelId: string; code: string; name: string; roleId: string; roleName: string };
+type StaffRow = AccountDoc & { roleId?: string; roleName?: string; hotels?: StaffHotel[] };
 // Không bao giờ trả passwordHash.
-const staffView = (a: StaffRow) => ({ id: a.id, seq: a.seq, email: a.email, fullName: a.fullName, phone: a.phone ?? null, status: a.status, isOwner: !!a.isOwner, roleId: a.roleId ?? null, roleName: a.roleName ?? null, createdAt: a.createdAt, updatedAt: a.updatedAt });
-const SELECT = 'SELECT a.*, r.id AS role_id, r.name AS role_name FROM accounts a LEFT JOIN roles r ON r.id = a.role_ids[1]';
+const staffView = (a: StaffRow) => ({ id: a.id, seq: a.seq, email: a.email, fullName: a.fullName, phone: a.phone ?? null, status: a.status, isOwner: !!a.isOwner, roleId: a.roleId ?? null, roleName: a.roleName ?? null, hotels: a.hotels ?? [], createdAt: a.createdAt, updatedAt: a.updatedAt });
+// Vai trò hiển thị = vai trò ở khách sạn đang làm việc ($1) theo account_hotels (không có thì vai trò mặc định của tài khoản). `hotels` = các khách sạn của nhân viên mà người xem được thấy (tham số allowed).
+const selectSql = (allowedParam: string) => `SELECT a.*, r.id AS role_id, r.name AS role_name,
+  (SELECT COALESCE(json_agg(json_build_object('hotelId', h2.id, 'code', h2.code, 'name', h2.name, 'roleId', r2.id, 'roleName', r2.name) ORDER BY h2.name), '[]'::json)
+     FROM account_hotels ah2 JOIN hotels h2 ON h2.id = ah2.hotel_id JOIN roles r2 ON r2.id = ah2.role_id WHERE ah2.account_id = a.id AND ah2.hotel_id = ANY(${allowedParam}::uuid[])) AS hotels
+  FROM accounts a LEFT JOIN account_hotels ah ON ah.account_id = a.id AND ah.hotel_id = $1 LEFT JOIN roles r ON r.id = COALESCE(ah.role_id, a.role_ids[1])`;
+// Khách sạn người gọi được thao tác: chủ doanh nghiệp = mọi khách sạn của doanh nghiệp; nhân viên = các khách sạn được gán; luôn gồm khách sạn đang làm việc.
+async function reach(tx: Db, auth: Auth): Promise<string[]> {
+  const rows = auth.businessId
+    ? (await tx.query<{ id: string }>('SELECT id FROM hotels WHERE business_id = $1', [auth.businessId])).rows.map((r) => r.id)
+    : (await tx.query<{ hotelId: string }>('SELECT hotel_id FROM account_hotels WHERE account_id = $1', [auth.sub])).rows.map((r) => r.hotelId);
+  return [...new Set([...rows, hotelOf(auth)])];
+}
 // Nhân viên của khách sạn H = tài khoản HOTEL gắn H (không phải chủ doanh nghiệp), hoặc chủ của doanh nghiệp sở hữu H (chỉ để hiển thị, bị bảo vệ).
-const MINE = "a.type = 'HOTEL' AND ((a.hotel_id = $1 AND a.business_id IS NULL) OR (a.is_owner AND a.business_id IS NOT NULL AND a.business_id = (SELECT business_id FROM hotels WHERE id = $1)))";
-const loadStaff = async (tx: Db, hotelId: string, id: string, lock = false) =>
-  (await tx.query<StaffRow>(`${SELECT} WHERE a.id = $2 AND ${MINE}${lock ? ' FOR UPDATE OF a' : ''}`, [hotelId, id])).rows[0];
+const MINE = "a.type = 'HOTEL' AND ((a.business_id IS NULL AND (a.hotel_id = $1 OR EXISTS (SELECT 1 FROM account_hotels x WHERE x.account_id = a.id AND x.hotel_id = $1))) OR (a.is_owner AND a.business_id IS NOT NULL AND a.business_id = (SELECT business_id FROM hotels WHERE id = $1)))";
+const loadStaff = async (tx: Db, auth: Auth, id: string, lock = false) =>
+  (await tx.query<StaffRow>(`${selectSql('$3')} WHERE a.id = $2 AND ${MINE}${lock ? ' FOR UPDATE OF a' : ''}`, [hotelOf(auth), id, await reach(tx, auth)])).rows[0];
 
 // Vai trò gán được cho nhân viên: mẫu lễ tân/quản lý + vai trò tùy chỉnh của chính khách sạn. Khác -> 404 (không lộ vai trò admin / khách sạn khác).
 async function pickRole(tx: Db, hotelId: string, roleId: string): Promise<RoleDoc> {
@@ -178,7 +197,7 @@ const permsOf = async (tx: Db, accountId: string) =>
   (await tx.query<{ permissions: string[] }>('SELECT r.permissions FROM roles r JOIN accounts a ON r.id = ANY(a.role_ids) WHERE a.id = $1', [accountId])).rows.flatMap((r) => r.permissions);
 // Điều kiện chung để sửa/khóa/đặt lại mật khẩu một nhân viên: tồn tại trong khách sạn mình (IDOR -> 404), không phải chủ, quyền của họ không vượt quá mình.
 async function loadTarget(tx: Db, auth: Auth, id: string): Promise<StaffRow> {
-  const t = await loadStaff(tx, hotelOf(auth), id, true);
+  const t = await loadStaff(tx, auth, id, true);
   if (!t) throw new AppError(404, 'STAFF_NOT_FOUND', 'Không tìm thấy nhân viên');
   if (t.isOwner) throw new AppError(403, 'OWNER_PROTECTED', 'Không thể thao tác lên tài khoản chủ');
   if (t.id !== auth.sub) assertCovers(auth, await permsOf(tx, id));
@@ -188,7 +207,7 @@ async function loadTarget(tx: Db, auth: Auth, id: string): Promise<StaffRow> {
 hotelStaffRouter.get('/', manageStaff, validate({ query: listQuery }), async (req, res) => {
   const hotelId = hotelOf(req.auth!);
   const { status, roleId, q, limit, after } = req.valid.query as z.infer<typeof listQuery>;
-  const params: unknown[] = [hotelId];
+  const params: unknown[] = [hotelId, await reach(db, req.auth!)];
   const where = [MINE];
   const add = (sql: string, v: unknown) => where.push(sql.replace('?', `$${params.push(v)}`));
   if (status) add('a.status = ?', status);
@@ -198,27 +217,47 @@ hotelStaffRouter.get('/', manageStaff, validate({ query: listQuery }), async (re
     where.push(`(a.email ILIKE '%' || $${n} || '%' OR a.full_name ILIKE '%' || $${n} || '%')`);
   }
   if (after !== undefined) add('a.seq < ?', after);
-  const rows = (await db.query<StaffRow>(`${SELECT} WHERE ${where.join(' AND ')} ORDER BY a.seq DESC LIMIT ${limit + 1}`, params)).rows;
+  const rows = (await db.query<StaffRow>(`${selectSql('$2')} WHERE ${where.join(' AND ')} ORDER BY a.seq DESC LIMIT ${limit + 1}`, params)).rows;
   const page = rows.slice(0, limit);
   res.json({ items: page.map(staffView), nextCursor: rows.length > limit ? page[page.length - 1]?.seq : null });
 });
+
+// Kiểm khách sạn đích nằm trong phạm vi người gọi (khác -> 404, không lộ khách sạn khác) và vai trò hợp lệ + không vượt quyền người gọi.
+async function checkTargets(tx: Db, auth: Auth, targets: { hotelId: string; roleId: string }[]) {
+  const allowed = await reach(tx, auth);
+  const seen = new Set<string>();
+  for (const t of targets) {
+    if (!allowed.includes(t.hotelId) || seen.has(t.hotelId)) throw new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');
+    seen.add(t.hotelId);
+    assertCovers(auth, (await pickRole(tx, t.hotelId, t.roleId)).permissions);
+  }
+}
+// Đồng bộ cột mặc định của tài khoản (khách sạn + vai trò) với danh sách liên kết: giữ nếu còn, không thì lấy liên kết đầu tiên.
+const syncDefault = (tx: Db, accountId: string) =>
+  tx.query(
+    `UPDATE accounts a SET hotel_id = d.hotel_id, role_ids = ARRAY[d.role_id], updated_at = now()
+       FROM (SELECT DISTINCT ON (account_id) account_id, hotel_id, role_id FROM account_hotels WHERE account_id = $1
+             ORDER BY account_id, (hotel_id = (SELECT hotel_id FROM accounts WHERE id = $1)) DESC, created_at) d
+      WHERE a.id = d.account_id`, [accountId]);
 
 hotelStaffRouter.post('/', manageStaff, validate({ body: createStaffBody }), async (req, res) => {
   const hotelId = hotelOf(req.auth!);
   const body = req.valid.body as z.infer<typeof createStaffBody>;
   const passwordHash = await hashPassword(body.password);
+  const targets = body.hotels ?? [{ hotelId, roleId: body.roleId! }];
   try {
     const staff = await withTransaction(async (tx) => {
-      const role = await pickRole(tx, hotelId, body.roleId);
-      assertCovers(req.auth!, role.permissions);
+      await checkTargets(tx, req.auth!, targets);
+      const first = targets.find((t) => t.hotelId === hotelId) ?? targets[0]!;
       const id = (
         await tx.query<{ id: string }>(
           `INSERT INTO accounts (type, email, password_hash, full_name, phone, status, hotel_id, role_ids, is_owner, created_by) VALUES ('HOTEL', $1, $2, $3, $4, 'ACTIVE', $5, $6::uuid[], false, $7) RETURNING id`,
-          [body.email.toLowerCase(), passwordHash, body.fullName, body.phone ?? null, hotelId, [role.id], req.auth!.sub],
+          [body.email.toLowerCase(), passwordHash, body.fullName, body.phone ?? null, first.hotelId, [first.roleId], req.auth!.sub],
         )
       ).rows[0]!.id;
-      await writeAudit({ actor: actorOf(req.auth), action: 'HOTEL_STAFF.CREATE', entity: { type: 'account', id }, hotelId, after: { email: body.email.toLowerCase(), fullName: body.fullName, roleId: role.id }, requestId: String(req.id) }, tx);
-      return (await loadStaff(tx, hotelId, id))!;
+      for (const t of targets) await tx.query('INSERT INTO account_hotels (account_id, hotel_id, role_id) VALUES ($1, $2, $3)', [id, t.hotelId, t.roleId]);
+      await writeAudit({ actor: actorOf(req.auth), action: 'HOTEL_STAFF.CREATE', entity: { type: 'account', id }, hotelId, after: { email: body.email.toLowerCase(), fullName: body.fullName, hotels: targets }, requestId: String(req.id) }, tx);
+      return (await loadStaff(tx, req.auth!, id))!;
     });
     res.status(201).json({ staff: staffView(staff) });
   } catch (e) {
@@ -234,21 +273,38 @@ hotelStaffRouter.patch('/:id', manageStaff, validate({ params: idParams, body: p
   const next = await withTransaction(async (tx) => {
     const before = await loadTarget(tx, req.auth!, id);
     const role = patch.roleId ? await pickRole(tx, hotelId, patch.roleId) : undefined;
-    const roleChanged = !!role && role.id !== before.roleIds?.[0];
-    // Tự khóa/tự đổi vai trò dễ làm khách sạn mất người quản lý.
-    if (id === req.auth!.sub && (patch.status === 'LOCKED' || roleChanged)) throw new AppError(409, 'CANNOT_MODIFY_SELF', 'Không thể tự khóa hoặc tự đổi vai trò của mình');
+    const roleChanged = !!role && role.id !== before.roleId;
+    // Tự khóa/tự đổi vai trò/tự đổi khách sạn dễ làm khách sạn mất người quản lý.
+    if (id === req.auth!.sub && (patch.status === 'LOCKED' || roleChanged || patch.hotels)) throw new AppError(409, 'CANNOT_MODIFY_SELF', 'Không thể tự khóa hoặc tự đổi vai trò của mình');
     if (role) assertCovers(req.auth!, role.permissions);
     await tx.query(
-      `UPDATE accounts SET full_name = COALESCE($2, full_name), phone = CASE WHEN $3::boolean THEN $4 ELSE phone END, status = COALESCE($5, status), role_ids = COALESCE($6::uuid[], role_ids), updated_at = now() WHERE id = $1`,
-      [id, patch.fullName ?? null, patch.phone !== undefined, patch.phone ?? null, patch.status ?? null, role ? [role.id] : null],
+      `UPDATE accounts SET full_name = COALESCE($2, full_name), phone = CASE WHEN $3::boolean THEN $4 ELSE phone END, status = COALESCE($5, status), updated_at = now() WHERE id = $1`,
+      [id, patch.fullName ?? null, patch.phone !== undefined, patch.phone ?? null, patch.status ?? null],
     );
+    // Đổi vai trò ở khách sạn đang làm việc (liên kết + cột mặc định nếu đây là khách sạn mặc định).
+    if (role) {
+      await tx.query('UPDATE account_hotels SET role_id = $3 WHERE account_id = $1 AND hotel_id = $2', [id, hotelId, role.id]);
+      await tx.query('UPDATE accounts SET role_ids = ARRAY[$2::uuid] WHERE id = $1 AND (hotel_id = $3 OR NOT EXISTS (SELECT 1 FROM account_hotels WHERE account_id = $1))', [id, role.id, hotelId]);
+    }
+    // Đặt lại danh sách khách sạn trong phạm vi người gọi; liên kết ngoài phạm vi giữ nguyên; luôn còn ít nhất một khách sạn.
+    if (patch.hotels) {
+      await checkTargets(tx, req.auth!, patch.hotels);
+      const allowed = await reach(tx, req.auth!);
+      const keep = patch.hotels.map((h) => h.hotelId);
+      await tx.query('DELETE FROM account_hotels WHERE account_id = $1 AND hotel_id = ANY($2::uuid[]) AND NOT hotel_id = ANY($3::uuid[])', [id, allowed, keep]);
+      for (const t of patch.hotels) {
+        await tx.query('INSERT INTO account_hotels (account_id, hotel_id, role_id) VALUES ($1, $2, $3) ON CONFLICT (account_id, hotel_id) DO UPDATE SET role_id = EXCLUDED.role_id', [id, t.hotelId, t.roleId]);
+      }
+      await syncDefault(tx, id);
+    }
     await writeAudit(
-      { actor: actorOf(req.auth), action: 'HOTEL_STAFF.UPDATE', entity: { type: 'account', id }, hotelId, before: { fullName: before.fullName, status: before.status, roleId: before.roleIds?.[0] }, after: patch, requestId: String(req.id) },
+      { actor: actorOf(req.auth), action: 'HOTEL_STAFF.UPDATE', entity: { type: 'account', id }, hotelId, before: { fullName: before.fullName, status: before.status, roleId: before.roleId, hotels: before.hotels?.map((h) => h.hotelId) }, after: patch, requestId: String(req.id) },
       tx,
     );
-    return (await loadStaff(tx, hotelId, id))!;
+    // Vừa gỡ khỏi khách sạn đang làm việc thì không còn khớp MINE: vẫn trả bản ghi vừa sửa.
+    return (await loadStaff(tx, req.auth!, id)) ?? (await tx.query<StaffRow>(`${selectSql('$3')} WHERE a.id = $2`, [hotelId, id, await reach(tx, req.auth!)])).rows[0]!;
   });
-  forgetAuth(id); // khóa / đổi vai trò có hiệu lực ngay trên bản API này
+  forgetAuth(id); // khóa / đổi vai trò / đổi khách sạn có hiệu lực ngay trên bản API này
   res.json({ staff: staffView(next) });
 });
 

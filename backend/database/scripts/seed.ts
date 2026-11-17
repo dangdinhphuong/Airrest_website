@@ -7,7 +7,7 @@ import { hashPassword } from '../../lib/password';
 import { seedFlights } from '../../services/flights/flightSeed';
 import { seedGeneratedFlights } from '../../services/flights/flightSeedGen';
 import { seedActivity } from './seedActivity';
-import { buildCatalog, seedCatalog } from './seedCatalog';
+import { buildCatalog, seedBusinesses, seedCatalog } from './seedCatalog';
 import { ensureSystemRoles } from '../../services/systemRoles';
 
 // Dữ liệu mẫu để chạy thử API. Chạy lại nhiều lần an toàn (upsert theo khóa tự nhiên). Tự áp migration trước.
@@ -43,6 +43,13 @@ const HOTEL_ID = '65000000-0000-4000-8000-000000000001';
        VALUES ($1, 'DLX', 'Phòng Deluxe', 2, 1, 28, 3, $2::jsonb, true, 'DOUBLE', 'Phòng Deluxe 28 m², giường đôi, cửa sổ lớn.', 'Hướng sân bay', ARRAY['WIFI','AIR_CON','HOT_WATER','TV'], 2, 1)`,
       [hotel.id, json({ baseNightVnd: 600_000 })],
     );
+  }
+
+  // Tầng 1 + 3 phòng lẻ (101-103) cho phòng Deluxe của khách sạn demo (khớp total_rooms = 3); chạy lại không trùng.
+  const dlx = (await db.query<{ id: string }>("SELECT id FROM room_types WHERE hotel_id = $1 AND name = 'Phòng Deluxe'", [hotel.id])).rows[0];
+  if (dlx) {
+    const floor = (await db.query<{ id: string }>("INSERT INTO floors (hotel_id, name, level, sort_order) VALUES ($1, 'Tầng 1', 1, 1) ON CONFLICT (hotel_id, level) DO UPDATE SET updated_at = now() RETURNING id", [hotel.id])).rows[0]!;
+    for (const n of ['101', '102', '103']) await db.query('INSERT INTO rooms (hotel_id, floor_id, room_type_id, number) VALUES ($1, $2, $3, $4) ON CONFLICT (hotel_id, number) DO NOTHING', [hotel.id, floor.id, dlx.id, n]);
   }
 
   // Vai trò = tập quyền. Truy cập chỉ dựa trên quyền.
@@ -96,6 +103,7 @@ const HOTEL_ID = '65000000-0000-4000-8000-000000000001';
   );
   console.log(`Hoạt động mô phỏng: ${await seedActivity()}`);
   console.log(`Seed xong. Hotel ${hotel.id}, tài khoản: letan@demo.airrest.vn / admin@demo.airrest.vn (mật khẩu: SEED_PASSWORD)`);
+  console.log(`Doanh nghiệp mẫu: ${await seedBusinesses()} (mỗi sân bay một doanh nghiệp)`);
   await ensureBusinesses();
   await closeDb();
 })().catch((e) => {

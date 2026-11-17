@@ -6,7 +6,8 @@ import { ApiError } from '@airrest/api-client';
 
 const S = vi.hoisted(() => ({ listStaff: vi.fn(), listRoles: vi.fn(), createStaff: vi.fn(), patchStaff: vi.fn(), resetStaffPassword: vi.fn() }));
 vi.mock('../../data/hotelStaff', async (orig) => ({ ...(await orig()), listStaff: S.listStaff, listRoles: S.listRoles, createStaff: S.createStaff, patchStaff: S.patchStaff, resetStaffPassword: S.resetStaffPassword }));
-vi.mock('../../state/store', () => ({ useApp: () => ({ state: { session: { id: 'me' } } }) }));
+const SESS = vi.hoisted(() => ({ v: { id: 'me' } }));
+vi.mock('../../state/store', () => ({ useApp: () => ({ state: { session: SESS.v } }) }));
 import Staff from './Staff';
 
 const owner = { id: 'o', email: 'chu@x.vn', fullName: 'Chủ', phone: null, status: 'ACTIVE', isOwner: true, roleId: null, roleName: null };
@@ -15,7 +16,7 @@ const lan = { id: 's1', email: 'lan@x.vn', fullName: 'Lan', phone: '0901234567',
 const roles = [{ id: 'r0', name: 'Chủ khách sạn', system: true, assignable: false }, { id: 'r1', name: 'Lễ tân', system: true, assignable: true }, { id: 'r2', name: 'Quản lý khách sạn', system: true, assignable: true }];
 window.scrollTo = () => {};
 beforeEach(() => { S.listStaff.mockResolvedValue({ items: [lan, self, owner], nextCursor: null }); S.listRoles.mockResolvedValue({ items: roles }); });
-afterEach(() => { cleanup(); Object.values(S).forEach((f) => f.mockReset()); });
+afterEach(() => { SESS.v = { id: 'me' }; cleanup(); Object.values(S).forEach((f) => f.mockReset()); });
 
 describe('Nhân viên (cổng khách sạn)', () => {
   it('chủ chỉ đọc có nhãn Chủ; bản thân không có nút khóa/đặt lại', async () => {
@@ -73,5 +74,24 @@ describe('Nhân viên (cổng khách sạn)', () => {
     fireEvent.click(screen.getByTestId('staff-reset'));
     fireEvent.click(screen.getByTestId('rp-save'));
     await screen.findByText('Không thể thao tác lên tài khoản chủ.');
+  });
+  it('nhiều khách sạn: chọn thêm khách sạn khi tạo nhân viên -> tải vai trò của khách sạn đó và gửi hotels với vai trò riêng từng nơi', async () => {
+    SESS.v = { id: 'me', hotelId: 'h1', hotels: [{ id: 'h1', name: 'KS Một' }, { id: 'h2', name: 'KS Hai' }] };
+    S.createStaff.mockResolvedValue({ staff: lan });
+    render(<Staff />);
+    await screen.findAllByTestId('row');
+    await waitFor(() => expect(screen.getByTestId('staff-new').disabled).toBe(false));
+    fireEvent.click(screen.getByTestId('staff-new'));
+    fireEvent.change(screen.getByTestId('sf-email'), { target: { value: 'moi@x.vn' } });
+    fireEvent.change(screen.getByTestId('sf-name'), { target: { value: 'Mới' } });
+    fireEvent.click(screen.getByTestId('sf-hotel-h2'));
+    await waitFor(() => expect(S.listRoles).toHaveBeenCalledWith('h2')); // tải vai trò của khách sạn được chọn
+    const sel = await screen.findByTestId('sf-role-h2'); // Select tùy biến: mở danh sách rồi chọn vai trò riêng cho KS Hai
+    fireEvent.click(sel);
+    fireEvent.click(await screen.findByRole('option', { name: /Quản lý/ }));
+    fireEvent.click(screen.getByTestId('sf-save'));
+    await screen.findByTestId('temp-pw');
+    expect(S.createStaff.mock.calls[0][0].hotels).toEqual([{ hotelId: 'h1', roleId: 'r1' }, { hotelId: 'h2', roleId: 'r2' }]);
+    expect(S.createStaff.mock.calls[0][0].roleId).toBeUndefined();
   });
 });

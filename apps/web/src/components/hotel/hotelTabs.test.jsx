@@ -45,6 +45,9 @@ describe('hotel tabs', () => {
   it('Rooms: bảng loại phòng + tầng + modal', async () => {
     render(<Rooms />);
     await screen.findByTestId('rt-row'); await screen.findByTestId('fl-row'); await screen.findByTestId('ru-row');
+    fireEvent.click(screen.getByTestId('ru-detail')); // bấm số phòng -> hộp chi tiết phòng
+    expect(screen.getByTestId('ru-detail-dlg')).toBeTruthy();
+    fireEvent.click(screen.getByText('Đóng', { selector: 'button.btn' }));
     fireEvent.click(screen.getByTestId('rt-new'));
     expect(screen.getByTestId('room-form')).toBeTruthy();
     fireEvent.click(screen.getByText('Đóng', { selector: 'button.btn' }));

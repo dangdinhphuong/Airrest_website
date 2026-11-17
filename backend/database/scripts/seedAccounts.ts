@@ -6,6 +6,7 @@ import { hashPassword } from '../../lib/password';
 import { ensureSystemRoles } from '../../services/systemRoles';
 import { closeDb, connectDb, db } from '../pg';
 import { ensureBusinesses } from '../backfillBusinesses';
+import { seedBusinesses } from './seedCatalog';
 
 const ADMINS: [string, string][] = [['SYSADMIN', 'Quản trị hệ thống'], ['OPS', 'Điều phối xe'], ['SUPPORT', 'CSKH'], ['FINANCE', 'Kế toán']];
 const HOTELS = ['HAN-01', 'HAN-02', 'SGN-01', 'SGN-02', 'DAD-01', 'CXR-01', 'PQC-01', 'HPH-01'];
@@ -107,6 +108,7 @@ const rows: string[][] = []; // [actor, email/username, họ tên, vai trò, thu
     rows.push(['PASSENGER', u, `Khách thử ${i}`, '(không có vai trò)', 'Khách vãng lai/tài khoản khách']);
   }
 
+  await seedBusinesses(); // gắn tài khoản chủ vừa tạo vào doanh nghiệp của khách sạn
   await ensureBusinesses();
   await closeDb();
   console.log(JSON.stringify(rows));

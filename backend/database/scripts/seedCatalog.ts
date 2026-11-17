@@ -63,6 +63,29 @@ export function buildCatalog() {
   });
 }
 
+// Mỗi sân bay một doanh nghiệp ACTIVE (có MST, người đại diện, liên hệ), gắn mọi khách sạn mã <IATA>-* và các tài khoản chủ của khách sạn đó vào doanh nghiệp.
+// Chạy lại an toàn (upsert theo code BIZ-<IATA>); gọi lại sau khi tạo thêm tài khoản chủ (seedAccounts) để gắn nốt.
+export async function seedBusinesses(): Promise<number> {
+  const aps = new Map(buildCatalog().map((h) => [h.ap, h.airport]));
+  let i = 0;
+  for (const [iata, ap] of aps) {
+    i++;
+    const n = String(i).padStart(2, '0');
+    const id = (await db.query<{ id: string }>(
+      `INSERT INTO businesses (code, name, tax_code, representative, email, phone, status, approved_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE', now())
+       ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, representative = EXCLUDED.representative, email = EXCLUDED.email, phone = EXCLUDED.phone, updated_at = now() RETURNING id`,
+      [`BIZ-${iata}`, `Công ty TNHH Khách sạn ${ap.city} (mô phỏng)`, `03${n}345${String(600 + i).padStart(3, '0')}`, `Nguyễn Văn ${String.fromCharCode(64 + (i % 26 || 26))}`, `lienhe.${iata.toLowerCase()}@doanhnghiep.mo`, `+842890${String(10000 + i).slice(-5)}`],
+    )).rows[0]!.id;
+    await db.query('UPDATE hotels SET business_id = $1 WHERE code LIKE $2 AND business_id IS NULL', [id, `${iata}-%`]);
+  }
+  await db.query('UPDATE accounts a SET business_id = h.business_id FROM hotels h WHERE a.hotel_id = h.id AND a.is_owner AND a.business_id IS NULL AND h.business_id IS NOT NULL');
+  // Liên kết nhân viên (không phải chủ doanh nghiệp) với khách sạn của họ (migration 033 làm việc này cho dữ liệu cũ).
+  await db.query(`INSERT INTO account_hotels (account_id, hotel_id, role_id) SELECT id, hotel_id, role_ids[1] FROM accounts
+    WHERE type = 'HOTEL' AND business_id IS NULL AND hotel_id IS NOT NULL AND cardinality(role_ids) > 0 ON CONFLICT DO NOTHING`);
+  return aps.size;
+}
+
 // Chạy lại nhiều lần an toàn (upsert theo mã khách sạn / email).
 export async function seedCatalog(password: string): Promise<{ hotels: number }> {
   const catalog = buildCatalog();

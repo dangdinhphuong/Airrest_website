@@ -1,8 +1,8 @@
 // Đăng nhập nhân sự (khách sạn / quản trị / lái xe): POST /v1/auth/login. Token giữ trong sessionStorage (lib/api.js), không ghi localStorage.
 import { api, setAuthToken } from '../lib/api';
 
-// Chủ doanh nghiệp có thêm business + hotels[] (danh sách để chọn khách sạn làm việc).
-const toSession = (id, name, type, permissions, auth, me) => ({ id, name, type, permissions, hotelId: auth.hotelId ?? null, ...(me.business && { business: me.business, hotels: me.hotels ?? [] }) });
+// Chủ doanh nghiệp có thêm business + hotels[]; nhân viên nhiều khách sạn có hotels[] (danh sách để chọn khách sạn làm việc).
+const toSession = (id, name, type, permissions, auth, me) => ({ id, name, type, permissions, hotelId: auth.hotelId ?? null, ...(me.business && { business: me.business }), ...((me.business || me.hotels) && { hotels: me.hotels ?? [] }) });
 
 export async function loginStaff(email, password) {
   const { token, account } = await api.post('/v1/auth/login', { email, password }, { auth: false });

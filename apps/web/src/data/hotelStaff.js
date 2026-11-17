@@ -2,7 +2,7 @@
 import { api, describeError } from '../lib/api';
 
 export const listPermissions = () => api.get('/v1/hotel/permissions');
-export const listRoles = () => api.get('/v1/hotel/roles');
+export const listRoles = (hotelId) => api.get('/v1/hotel/roles', hotelId ? { query: { hotelId } } : undefined);
 export const createRole = (body) => api.post('/v1/hotel/roles', body);
 export const patchRole = (id, body) => api.patch(`/v1/hotel/roles/${id}`, body);
 export const deleteRole = (id) => api.delete(`/v1/hotel/roles/${id}`);

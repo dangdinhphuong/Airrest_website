@@ -10,7 +10,7 @@ import { validate } from '../../middleware/validate';
 import { authenticate, denyPassenger } from '../../middleware/auth';
 import { actorOf, writeAudit } from '../../../services/audit';
 import { forgetAuth } from '../../../services/authz';
-import { businessBrief, hotelBrief } from '../../../services/business/business.service';
+import { businessBrief, hotelBrief, linkedHotels } from '../../../services/business/business.service';
 import { idParams } from '../../../lib/zod';
 
 export const authRouter = Router();
@@ -42,11 +42,14 @@ authRouter.post('/login', strictRateLimit, validate({ body: loginBody }), async 
   const permissions = [...new Set(roles.flatMap((r) => r.permissions))];
 
   // Chủ nhiều khách sạn: token mang khách sạn đang làm việc (mặc định = lần làm việc gần nhất), kèm danh sách để chọn.
-  const token = signAccountToken({ sub: account.id, accountType: account.type, ...(account.businessId && account.hotelId && { hotelId: account.hotelId }) });
+  const linked = account.type === 'HOTEL' && !account.businessId ? await linkedHotels(account.id) : [];
+  const current = linked.find((h) => h.id === account.hotelId) ?? linked[0];
+  const token = signAccountToken({ sub: account.id, accountType: account.type, ...(account.businessId && account.hotelId && { hotelId: account.hotelId }), ...(current && { hotelId: current.id }) });
   res.json({
     token,
     account: { id: account.id, fullName: account.fullName, type: account.type, permissions },
     ...(business && { business, hotels: await hotelBrief(business.id), currentHotelId: account.hotelId ?? null }),
+    ...(linked.length > 1 && { hotels: linked, currentHotelId: current!.id }),
   });
 });
 
@@ -54,13 +57,18 @@ authRouter.post('/login', strictRateLimit, validate({ body: loginBody }), async 
 // Token cũ vẫn dùng được cho khách sạn của nó (cùng người, khách sạn vẫn được kiểm ở mỗi request); không có danh sách thu hồi token trong hệ thống này.
 authRouter.post('/switch-hotel', authenticate, validate({ body: z.object({ hotelId: idParams.shape.id }) }), async (req, res) => {
   const auth = req.auth!;
-  if (auth.kind !== 'ACCOUNT' || !auth.businessId) throw new AppError(403, 'FORBIDDEN', 'Chỉ chủ doanh nghiệp được chuyển khách sạn');
+  if (auth.kind !== 'ACCOUNT' || (!auth.businessId && auth.accountType !== 'HOTEL')) throw new AppError(403, 'FORBIDDEN', 'Chỉ chủ doanh nghiệp hoặc nhân viên khách sạn được chuyển khách sạn');
   const { hotelId } = req.valid.body as { hotelId: string };
-  const hotel = (await db.query<{ id: string; code: string; name: string; status: string }>('SELECT id, code, name, status FROM hotels WHERE id = $1 AND business_id = $2', [hotelId, auth.businessId])).rows[0];
+  // Chủ doanh nghiệp: khách sạn thuộc doanh nghiệp. Nhân viên: khách sạn được gán qua account_hotels. Khác -> 404 (chặn IDOR).
+  const hotel = (await db.query<{ id: string; code: string; name: string; status: string }>(
+    auth.businessId
+      ? 'SELECT id, code, name, status FROM hotels WHERE id = $1 AND business_id = $2'
+      : 'SELECT h.id, h.code, h.name, h.status FROM hotels h JOIN account_hotels ah ON ah.hotel_id = h.id WHERE h.id = $1 AND ah.account_id = $2',
+    [hotelId, auth.businessId ?? auth.sub])).rows[0];
   if (!hotel) throw new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');
   await db.query('UPDATE accounts SET hotel_id = $2, updated_at = now() WHERE id = $1', [auth.sub, hotelId]); // nhớ lần làm việc gần nhất cho lần đăng nhập sau
   forgetAuth(auth.sub);
-  res.json({ token: signAccountToken({ sub: auth.sub, accountType: auth.accountType!, hotelId }), hotel, hotels: await hotelBrief(auth.businessId) });
+  res.json({ token: signAccountToken({ sub: auth.sub, accountType: auth.accountType!, hotelId }), hotel, hotels: auth.businessId ? await hotelBrief(auth.businessId) : await linkedHotels(auth.sub) });
 });
 
 // `auth` giữ nguyên như cũ; `user` thêm thông tin hiển thị (PASSENGER: username, fullName, permissions rỗng).
@@ -70,6 +78,7 @@ authRouter.get('/me', authenticate, async (req, res) => {
   res.json({
     auth,
     ...(auth.businessId && { business: await businessBrief(auth.businessId), hotels: await hotelBrief(auth.businessId) }),
+    ...(auth.kind === 'ACCOUNT' && auth.accountType === 'HOTEL' && !auth.businessId && await linkedHotels(auth.sub).then((h) => (h.length > 1 ? { hotels: h } : {}))),
     ...(a && { user: { id: a.id, type: a.type, fullName: a.fullName, ...(a.username && { username: a.username }), ...(a.email && { email: a.email }), ...(a.contactEmail && { email: a.contactEmail }), ...(a.type !== 'PASSENGER' && { phone: a.phone ?? null }), ...(a.type === 'PASSENGER' && { preferences: a.preferences ?? {} }), permissions: auth.permissions } }),
   });
 });
