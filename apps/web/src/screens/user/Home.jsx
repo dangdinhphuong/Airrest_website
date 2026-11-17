@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import Photo from './Photo';
 import {
   ArrowRight, BedDouble, CalendarDays, ChevronRight, CircleHelp, Clock3, Heart, Hotel, MapPin, MoonStar, Plane, PlaneLanding, ScanBarcode, Search, ShieldCheck, Sparkles, Star,
 } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useApp } from '../../state/store';
-import { airportCity, bestRoom, describeApiError, listAirports, listHotels, listTopRated, lookupFlight } from '../../data/user';
+import { airportCity, bestRoom, describeApiError, listAirports, listHotels, listTopRated, lookupFlight, peekHotels } from '../../data/user';
 import { fmtDuration, isoDate, money } from '../../lib/time';
 import { peekStaysIntent, clearStaysIntent, partyFromPrefs, scrollToId, setStaysIntent } from './data';
 import ScanTicket from './ScanTicket';
@@ -69,7 +70,8 @@ export default function Home() {
   // Nơi nghỉ theo sân bay từ API (giá, số phòng còn, cờ tính năng do backend tính).
   useEffect(() => {
     const ctl = new AbortController();
-    setHState('loading');
+    const cached = peekHotels(airport, { sort: 'rating', limit: TOP_N, guests: people, rooms: party.rooms });
+    if (cached) { setHotels(cached); setHState('ok'); } else setHState('loading'); // có sẵn: hiện ngay, tải lại ngầm
     listHotels(airport, ctl.signal, { sort: 'rating', limit: TOP_N, guests: people, rooms: party.rooms }).then((h) => { setHotels(h); setHState('ok'); }).catch((e) => { if (!ctl.signal.aborted) { setHError(describeApiError(e)); setHState('error'); } });
     return () => ctl.abort();
   }, [airport, tick, people, party.rooms]);
@@ -92,7 +94,7 @@ export default function Home() {
 
   const hotelCard = (hotel, onChoose) => (
                 <article data-card key={hotel.id} className="tw:overflow-hidden tw:rounded-2xl tw:border tw:border-slate-200 tw:bg-white tw:shadow-sm tw:transition tw:hover:-translate-y-1 tw:hover:shadow-xl">
-                  <div className="tw:relative tw:h-52 tw:overflow-hidden"><img src={hotel.image} alt={`Không gian tại ${hotel.name}`} loading="lazy" className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /><button type="button" onClick={() => setLiked(liked.includes(hotel.id) ? liked.filter((id) => id !== hotel.id) : [...liked, hotel.id])} aria-label="Lưu khách sạn" aria-pressed={liked.includes(hotel.id)} className="tw:absolute tw:right-3 tw:top-3 tw:grid tw:size-11 tw:place-items-center tw:rounded-full tw:bg-white/95 tw:text-slate-600"><Heart size={18} className={liked.includes(hotel.id) ? 'fill-rose-500 text-rose-500' : ''} /></button></div>
+                  <div className="tw:relative tw:h-52 tw:overflow-hidden"><Photo src={hotel.image} alt={`Không gian tại ${hotel.name}`} size={40} /><button type="button" onClick={() => setLiked(liked.includes(hotel.id) ? liked.filter((id) => id !== hotel.id) : [...liked, hotel.id])} aria-label="Lưu khách sạn" aria-pressed={liked.includes(hotel.id)} className="tw:absolute tw:right-3 tw:top-3 tw:grid tw:size-11 tw:place-items-center tw:rounded-full tw:bg-white/95 tw:text-slate-600"><Heart size={18} className={liked.includes(hotel.id) ? 'fill-rose-500 text-rose-500' : ''} /></button></div>
                   <div className="tw:p-5">
                     <div className="tw:flex tw:items-start tw:justify-between tw:gap-3"><div><h3 className="tw:font-bold">{hotel.name}</h3><p className="tw:mt-2 tw:flex tw:items-center tw:gap-1 tw:text-[11px] tw:text-slate-500"><MapPin size={12} /> {hotel.distanceKm} km · {hotel.travelMinutes} phút đi xe</p></div>{hotel.rating && <span className="tw:flex tw:items-center tw:gap-1 tw:rounded-lg tw:bg-emerald-50 tw:px-2 tw:py-1.5 tw:text-[11px] tw:font-bold tw:text-emerald-700"><Star size={11} fill="currentColor" /> {hotel.rating}</span>}</div>
                     <div className="tw:my-4 tw:flex tw:flex-wrap tw:gap-1.5">{hotel.amenities.slice(0, 3).map((item) => <span key={item} className="tw:rounded-md tw:bg-slate-100 tw:px-2 tw:py-1.5 tw:text-[11px] tw:text-slate-600">{item}</span>)}</div>

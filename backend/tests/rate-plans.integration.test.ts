@@ -94,7 +94,7 @@ run('tích hợp: mức giá Linh hoạt / Không hoàn hủy theo loại phòng
 
   it('hủy: đơn Không hoàn hủy không được hoàn tiền, đơn Linh hoạt còn xa ngày nhận thì hoàn đủ', async () => {
     const make = async (ratePlan: string) => {
-      const b = await book([{ roomTypeId: withNr, qty: 1, ratePlan }], 'VNPAY');
+      const b = await book([{ roomTypeId: withNr, qty: 1, ratePlan }], 'SEPAY');
       expect(b.status, JSON.stringify(b.body)).toBe(201);
       await payBooking(app, b.body.booking.code);
       const id = (await one<{ id: string }>('SELECT id FROM bookings WHERE code = $1', [b.body.booking.code]))!.id;

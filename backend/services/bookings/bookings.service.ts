@@ -10,9 +10,8 @@ import { AppError, isDuplicateKey } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
 import { escapeLike } from '../../lib/zod';
 import { intervalsForCheck, loadActiveIntervals } from '../rooms/availability';
-import { newGatewayOrder } from '../../lib/momo';
+import { newSepayOrder } from '../../lib/sepay';
 import { stayNights } from '../../lib/nights';
-import { vnpDate, vnpKeys } from '../../lib/vnpay';
 import { actorOf, writeAudit } from '../audit';
 import { hotelScope } from '../scope';
 import { getDecision, lazyExpire } from './decisions';
@@ -151,8 +150,8 @@ export async function quoteBooking(input: BookingQuoteBody) {
  * Tạo đơn (T1 trong docs/mongodb mục 6) — ví dụ đầy đủ của một transaction nhiều bảng:
  *  1) khóa tuần tự theo loại phòng (SELECT ... FOR UPDATE) -> hai khách tranh phòng cuối, bên đến sau chờ rồi thấy hết phòng
  *  2) đọc các đoạn đặt giao nhau + tính tồn bằng sweep-line
- *  3) ghi bookings + room_reservations (+ payments nếu VNPay) + audit cùng một transaction
- * Bản đơn giản: 1 loại phòng, theo đêm; trả tại khách sạn hoặc VNPay (đơn PENDING_PAYMENT + bản ghi payments, link tạo sau commit). Xe/chuyến bay ở task riêng.
+ *  3) ghi bookings + room_reservations (+ payments nếu thanh toán trực tuyến SePay) + audit cùng một transaction
+ * Bản đơn giản: 1 loại phòng, theo đêm; trả tại khách sạn hoặc SePay (đơn PENDING_PAYMENT + bản ghi payments, link tạo sau commit). Xe/chuyến bay ở task riêng.
  */
 export const createBooking = (input: CreateBookingBody, requestId?: string, accountId?: string): Promise<BookingDoc> => createBookingImpl(input, requestId, accountId);
 
@@ -175,8 +174,6 @@ export async function createPayerBooking(p: PayerBookingInput, requestId?: strin
 
 async function createBookingImpl(input: CreateBookingBody, requestId?: string, accountId?: string, payer?: PayerBookingInput & { holdMinutes: number }, actor?: Actor): Promise<BookingDoc> {
   const by = actor ?? (accountId ? ({ type: 'PASSENGER', id: accountId } as const) : ({ type: 'GUEST' } as const));
-  if (input.paymentMethod === 'VNPAY' && !env.VNPAY_ENABLED) throw new AppError(409, 'VNPAY_DISABLED', 'Thanh toán VNPay hiện chưa được bật');
-  if (input.paymentMethod === 'MOMO' && !env.MOMO_ENABLED) throw new AppError(409, 'MOMO_DISABLED', 'Thanh toán MoMo hiện chưa được bật');
   if (input.paymentMethod === 'SEPAY' && !env.SEPAY_ENABLED) throw new AppError(409, 'SEPAY_DISABLED', 'Thanh toán SePay hiện chưa được bật');
   const online = !payer && input.paymentMethod !== 'AT_HOTEL';
   const { hotel, rows } = await loadRooms(input.hotelId, input.rooms);
@@ -222,7 +219,7 @@ async function createBookingImpl(input: CreateBookingBody, requestId?: string, a
 
         const bookingId = randomUUID();
         const reservationIds = priced.map(() => randomUUID());
-        // VNPay: giữ chỗ chờ thanh toán trước; sau khi trả tiền mới sang CONFIRMED/PENDING (xem payments.service).
+        // Thanh toán trực tuyến (SePay): giữ chỗ chờ thanh toán trước; sau khi trả tiền mới sang CONFIRMED/PENDING (xem payments.service).
         const status: BookingStatus = online ? 'PENDING_PAYMENT' : needsApproval ? 'PENDING' : 'CONFIRMED';
         const holdMs = payer ? payer.holdMinutes * 60_000 : holdCfg ? holdCfg.value.holdMinutes * 60_000 : approvalMs; // PAYER: hạn theo từng đơn
         // Đơn toàn giờ: giữ chỗ không kéo dài quá giờ vào + 10 phút (giờ vào đã qua mà chưa ai xác nhận thì nhả phòng).
@@ -285,8 +282,8 @@ async function createBookingImpl(input: CreateBookingBody, requestId?: string, a
           await logBookingEvent(tx, { bookingId, hotelId: input.hotelId, actor: by, type: 'SHUTTLE_REQUESTED', data: { requestId: sid, direction: l.direction, airport: l.airport, pickupAt: l.pickupAt, passengers: guests, withBooking: true } });
         }
         if (online) {
-          const { orderId, requestId: gwRequestId } = newGatewayOrder(input.paymentMethod, code);
-          const gw = input.paymentMethod === 'MOMO' || input.paymentMethod === 'SEPAY' ? { orderId, requestId: gwRequestId } : { tmnCode: vnpKeys.tmnCode, orderId, requestId: gwRequestId, createDate: vnpDate(now) };
+          const { orderId, requestId: gwRequestId } = newSepayOrder(code);
+          const gw = { orderId, requestId: gwRequestId };
           await tx.query(
             `INSERT INTO payments (id, booking_id, hotel_id, method, amount_vnd, status, txn_ref, gateway, created_at, updated_at)
              VALUES ($1,$2,$3,$8,$4,'INITIATED',$5,$6::jsonb,$7,$7)`,

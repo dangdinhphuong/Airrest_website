@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
+import Photo from './Photo';
 import { BedDouble, ChevronDown, MapPin, ShoppingBag, Star, X } from 'lucide-react';
 import { useApp } from '../../state/store';
-import { describeApiError, getHotel, listAirports, listHotels } from '../../data/user';
+import { describeApiError, getHotel, listAirports, listHotels, peekHotels } from '../../data/user';
 import { isoDate, money } from '../../lib/time';
 import { peekStaysIntent, clearStaysIntent, partyFromPrefs } from './data';
 import { cartTotal, emptyCart, hasNight, loadCart, reconcile, saveCart, setQty, switchesPlan, totalRooms, changesHotel } from './cart';
@@ -63,7 +64,8 @@ export default function Stays() {
   const searchKey = JSON.stringify(search);
   useEffect(() => {
     const ctl = new AbortController();
-    setState('loading');
+    const cached = peekHotels(airport, JSON.parse(searchKey));
+    if (cached) { setHotels(cached); if (cached.priceRange) setBounds(cached.priceRange); setState('ok'); } else setState('loading'); // có sẵn: hiện ngay, tải lại ngầm
     listHotels(airport, ctl.signal, JSON.parse(searchKey)).then((h) => { setHotels(h); if (h.priceRange) setBounds(h.priceRange); setState('ok'); }).catch((e) => { if (!ctl.signal.aborted) { setError(describeApiError(e)); setState('error'); } });
     return () => ctl.abort();
   }, [airport, tick, searchKey]);
@@ -162,7 +164,7 @@ export default function Stays() {
                   <article key={h.id} id={`hotel-${h.id}`} data-testid="hotel-card" className={`tw:scroll-mt-24 tw:overflow-hidden tw:rounded-xl tw:border tw:bg-white tw:shadow-sm ${open ? 'tw:border-blue-300' : 'tw:border-slate-200'}`}>
                     <h2>
                       <button type="button" aria-expanded={open} aria-controls={`rooms-${h.id}`} onClick={() => setOpenId(open ? null : h.id)} className="tw:flex tw:w-full tw:flex-col tw:text-left tw:hover:bg-slate-50 tw:sm:flex-row">
-                        <span className="tw:relative tw:block tw:h-40 tw:shrink-0 tw:sm:h-auto tw:sm:w-56"><img src={h.image} alt={`Không gian tại ${h.name}`} loading="lazy" className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /></span>
+                        <span className="tw:relative tw:block tw:h-40 tw:shrink-0 tw:sm:h-auto tw:sm:w-56"><Photo src={h.image} alt={`Không gian tại ${h.name}`} size={40} /></span>
                         <span className="tw:flex tw:min-w-0 tw:flex-1 tw:items-start tw:justify-between tw:gap-3 tw:p-4">
                           <span className="tw:block tw:min-w-0">
                             <span className="tw:block tw:text-lg tw:font-bold">{h.name}</span>

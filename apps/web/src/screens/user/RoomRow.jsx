@@ -3,6 +3,7 @@ import { money } from '../../lib/time';
 import { NR, cartPlan, hasNight, hourlyLineOf, isHourly, maxQty, nightPriceOf, qtyOf, roomNote } from './cart';
 import { Stepper } from './BookingModal';
 import HourlyPicker from './HourlyPicker';
+import Photo from './Photo';
 
 const SEG = 'tw:min-h-9 tw:px-3 tw:text-xs tw:font-bold';
 
@@ -24,6 +25,7 @@ export default function RoomRow({ hotel, room: r, people, cart, date, onQty }) {
   const onPick = (p) => { setPick(p); if (line) onQty(line.qty, { kind: 'HOURLY', ...p }); }; // đã có dòng giờ: đổi giờ/số giờ cập nhật luôn dòng đó
   return (
     <li data-testid="room-row" className={`tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:bg-white tw:p-3 ${note && !hourlyMode ? 'tw:border-slate-200 tw:opacity-70' : night || line ? 'tw:border-blue-300' : 'tw:border-slate-200'}`}>
+      {r.images?.[0] && <span className="tw:relative tw:size-14 tw:shrink-0 tw:overflow-hidden tw:rounded-lg"><Photo src={r.images[0]} alt={r.name} size={20} /></span>}
       <span className="tw:block tw:min-w-0 tw:flex-1 tw:basis-48">
         <span className="tw:block tw:text-sm tw:font-bold">{r.name}</span>
         <span className="tw:mt-1 tw:block tw:text-xs tw:text-slate-600">Tối đa {r.maxOccupancy} người · {plan === NR ? 'Không hoàn hủy' : r.cancellationPolicy}</span>

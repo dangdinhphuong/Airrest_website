@@ -3,7 +3,7 @@ import { db, json, withTransaction, type Db } from '../../database/pg';
 import { bookingFromRow, type Actor, type Alternative, type BookingDecisionDoc, type BookingDoc, type RefundDoc } from '../../database/types';
 import { AppError } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
-import { newGatewayOrder } from '../../lib/momo';
+import { newSepayOrder } from '../../lib/sepay';
 import { actorOf, writeAudit } from '../audit';
 import { emitBookingChange } from '../events';
 import { publishBookingStatus } from '../shuttle/events';
@@ -34,7 +34,7 @@ export async function createDecisionRefund(tx: Db, b: BookingDoc, reasonCode: Re
   if (!pay) return null;
   const amount = b.payment.paidVnd - (await legRefundedVnd(tx, b.id)); // trừ phần các chiều xe đã hoàn riêng trước đó (không hoàn hai lần)
   if (amount <= 0) return null;
-  const { orderId, requestId: gwRequestId } = newGatewayOrder(pay.method, `RF${b.code}`);
+  const { orderId, requestId: gwRequestId } = newSepayOrder(`RF${b.code}`);
   const ins = await tx.query<{ id: string }>(
     `INSERT INTO refunds (id, booking_id, hotel_id, payment_id, key, amount_vnd, reason_code, method, status, gateway, due_at, created_at, updated_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$10,'PENDING',$8::jsonb,'infinity',$9,$9) ON CONFLICT (key) DO NOTHING RETURNING id`,

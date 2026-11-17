@@ -7,7 +7,7 @@ import { checkImageFiles, IMAGE_TYPES, makeCover, moveItem } from './roomLogic';
 const API_ERR = { STORAGE_NOT_CONFIGURED: 'Kho ảnh chưa được cấu hình. Vui lòng liên hệ quản trị hệ thống để bật kho ảnh trước khi tải ảnh lên.' };
 
 // Ảnh có thứ tự (ảnh đầu = ảnh bìa). items: [{ key, url? }]; onChange(items mới). Tải thẳng lên kho (presigned) rồi chỉ lưu khóa ảnh.
-export default function ImagePicker({ items, max, onChange, disabled }) {
+export default function ImagePicker({ items, max, onChange, disabled, folder = 'rooms' }) {
   const [uploading, setUploading] = useState(false);
   const [errs, setErrs] = useState([]);
   const file = useRef(null);
@@ -21,7 +21,7 @@ export default function ImagePicker({ items, max, onChange, disabled }) {
     setUploading(true);
     for (const f of ok) {
       try {
-        const up = await H.requestUploadUrl({ folder: 'rooms', contentType: f.type, size: f.size });
+        const up = await H.requestUploadUrl({ folder, contentType: f.type, size: f.size });
         const r = await fetch(up.uploadUrl, { method: up.method || 'PUT', headers: up.headers || { 'Content-Type': f.type }, body: f });
         if (!r.ok) throw Object.assign(new Error('Tải ảnh lên kho thất bại, vui lòng thử lại.'), { code: 'UPLOAD_FAILED' });
         next.push({ key: up.key, url: up.publicUrl || URL.createObjectURL(f) }); // xem trước ngay cả khi kho chưa có URL công khai

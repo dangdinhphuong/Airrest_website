@@ -35,7 +35,7 @@ api/
 services/              bookings/, payments/ (*.service.ts) + audit, authz (quyền nạp từ DB), systemConfig, systemRoles
 database/              pg.ts (pool + withTransaction, camelCase), migrate.ts, migrations/*.sql, types.ts, scripts/ (migrate, seed)
 config/                env (zod, fail-fast), permissions, roles, configKeys
-lib/                   errors, jwt, password(scrypt), codes, money (VND nguyên), crypto, vnpay, momo, logger, zod
+lib/                   errors, jwt, password(scrypt), codes, money (VND nguyên), crypto, sepay, logger, zod
 tests/                 unit, http (middleware), *.integration (cần DB)
 ../packages/*          @airrest/{validation,business-logic,utils,shared-types}: zod schema, tồn phòng, phí DV, SĐT, kiểu chung
 ```
@@ -54,15 +54,13 @@ tests/                 unit, http (middleware), *.integration (cần DB)
 | `POST /v1/hotel/bookings/:id/check-in` | quyền `booking:checkin` | máy trạng thái bằng cập nhật có điều kiện + audit cùng transaction |
 | `POST /v1/hotel/bookings/:id/check-out`, `…/:id/no-show` | quyền `booking:checkin` | CHECKED_IN → CHECKED_OUT; CONFIRMED (đã tới/qua ngày nhận phòng giờ VN) → NO_SHOW (không đụng tiền); khách sạn khác → 404, sai trạng thái → 409 `INVALID_STATE` |
 | `GET/PATCH /v1/hotel/profile`, `POST /v1/hotel/media/upload-url` | quyền `room:manage` | hồ sơ khách sạn tự quản (mô tả, SĐT, giờ đóng lễ tân, chính sách hủy, tiện ích, ảnh); không sửa tài khoản nhận tiền/trạng thái/mã/sân bay/hoa hồng; ảnh lưu `hotels.images` (khóa R2), trả ở `GET /v1/hotels/:id` field `images` |
-| `POST /v1/bookings` với `paymentMethod: "VNPAY"` | khách vãng lai | đơn `PENDING_PAYMENT` + giữ phòng `booking.hold.holdMinutes` phút + bản ghi `payments`; trả `paymentLink.payUrl`. Cần `VNPAY_ENABLED=true` |
-| `POST /v1/bookings` với `paymentMethod: "MOMO"` | khách vãng lai | như VNPay nhưng qua MoMo (`captureWallet`); cần `MOMO_ENABLED=true`, tắt → 409 `MOMO_DISABLED` |
+| `POST /v1/bookings` với `paymentMethod: "SEPAY"` | khách vãng lai | đơn `PENDING_PAYMENT` + giữ phòng `booking.hold.holdMinutes` phút + bản ghi `payments`; trả `paymentLink.payUrl`. Cần `SEPAY_ENABLED=true`, tắt → 409 `SEPAY_DISABLED`. Thanh toán xong đơn `CONFIRMED` ngay (không chờ khách sạn duyệt tay) |
 | `GET /v1/payments/methods` | công khai | cổng đang bật `{methods:[{id,label,mode?}]}`; `AT_HOTEL` luôn có, không lộ khóa |
-| `POST /v1/payments/link` (cũ: `/vnpay/link`, `/momo/link` cùng handler) | khách (mã + SĐT) | lấy lại / tạo lại link theo cổng của đơn khi lần đầu lỗi hoặc link hỏng |
-| `POST /v1/payments/momo/ipn` | **MoMo** gọi (POST JSON) | kiểm `signature` HMAC-SHA256, lệch tiền → anomaly, lặp → bỏ qua, đến muộn → hoàn 100%; trả 204 (đã nhận) hoặc 400 (sai chữ ký) |
-| `POST /v1/payments/momo/dev-simulate` | dev (chỉ `MOMO_MODE=mock`, không production) | giả lập MoMo gọi IPN `{orderId, resultCode?, amount?}` |
-| `GET /v1/payments/vnpay/ipn` | **VNPay** gọi | kiểm `vnp_SecureHash`, lệch tiền → anomaly, lặp → bỏ qua, đến muộn → hoàn 100%; trả JSON `{RspCode, Message}` |
-| `POST /v1/payments/vnpay/dev-simulate` | dev (chỉ `VNPAY_MODE=mock`, không production) | giả lập VNPay gọi IPN `{orderId, resultCode?, amount?}` (resultCode 0 = thành công) |
-| `GET /v1/admin/payments?anomaly=true&method=MOMO\|VNPAY`, `GET /v1/admin/refunds` | `admin:payment:read` | giao dịch VNPay, lệnh hoàn, giao dịch bất thường |
+| `POST /v1/payments/link` | khách (mã + SĐT) | lấy lại / tạo lại link thanh toán SePay khi lần đầu lỗi hoặc link hỏng |
+| `GET /v1/payments/sepay/checkout/:paymentId` | công khai (UUID khó đoán) | trang HTML tự gửi form có chữ ký sang SePay; mỗi lần mở dùng `order_invoice_number` mới |
+| `POST /v1/payments/sepay/ipn` | **SePay** gọi (POST JSON, header `X-Secret-Key`) | `ORDER_PAID` + số tiền khớp → xác nhận; lệch tiền → anomaly; lặp → bỏ qua; đến muộn → hoàn 100%; trả 200 (đã nhận) hoặc 401 (sai khóa) |
+| `POST /v1/payments/sepay/dev-simulate` | dev (chỉ `SEPAY_MODE=mock`, không production) | giả lập SePay gọi IPN `{orderId, resultCode?, amount?}` (resultCode 0 = thành công) |
+| `GET /v1/admin/payments?anomaly=true&method=SEPAY`, `GET /v1/admin/refunds` | `admin:payment:read` | giao dịch cổng thanh toán, lệnh hoàn, giao dịch bất thường |
 | `POST /v1/admin/payments/reconcile`, `POST /v1/admin/refunds/:id/retry` | `admin:payment:manage` | đối soát gọi tay (truy vấn giao dịch treo >15', hết hạn đơn, xử lý hoàn đến hạn); thử lại lệnh `MANUAL_REQUIRED` |
 | `POST /v1/admin/media/upload-url` | `admin:hotel:manage` | URL PUT ký sẵn (5 phút) để tải ảnh JPEG/PNG/WebP ≤ 5MB thẳng lên Cloudflare R2; cần `R2_*` (kiểm tra: `npm run storage:check`) |
 | `POST /v1/auth/passenger/register`, `POST /v1/auth/passenger/login` | khách (tên đăng nhập, không email) | tài khoản khách `accounts.type='PASSENGER'`; mật khẩu >= 8; trùng tên -> 409 `USERNAME_TAKEN`; sai tên/mật khẩu -> 401 `INVALID_CREDENTIALS` (băm giả khi không có user); rate limit riêng 10/phút; trả `{token, user}` |
@@ -218,21 +216,11 @@ Sự kiện do service phát **sau khi transaction commit** (`services/events.ts
 - Admin: Mật khẩu ban đầu do người tạo đặt (chưa có luồng mời qua email / đổi mật khẩu lần đầu). Mã hóa tài khoản nhận tiền là AES-GCM một khóa (`DATA_ENC_KEY`), chưa xoay khóa/KMS. Cấu hình đọc DB mỗi lần, chưa cache.
 - Tài khoản khách: chưa có xác minh/khôi phục mật khẩu (không thu email/SĐT, BR-002), chưa thu hồi phiên khi đổi mật khẩu (token cũ sống tới khi hết hạn), chưa khóa tài khoản theo số lần đăng nhập sai ngoài rate limit theo IP.
 - JWT chỉ chứa định danh (~200 byte, không phình theo số quyền); quyền nạp từ DB mỗi request, cache 30 giây/tiến trình (`lib/authz.ts`). Khóa/đổi vai trò có hiệu lực ngay trên bản API xử lý thay đổi, các bản khác chờ hết 30 giây. Chưa có refresh token/thu hồi phiên.
-- VNPay: mặc định `VNPAY_MODE=mock` (không gọi mạng) — mock chỉ chứng minh logic khớp tài liệu VNPay 2.1.0, **chưa** khớp VNPay thật. Khi có khóa sandbox/production: đặt `VNPAY_MODE=live`, `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`, `VNPAY_RETURN_URL` (trang FE), và khai báo IPN URL `https://<api>/v1/payments/vnpay/ipn` trên cổng VNPay merchant (IPN URL không gửi trong request). `VNPAY_URL`/`VNPAY_API_URL` mặc định là sandbox, đổi sang URL production khi lên thật. **Chạy thử sandbox một lượt** (đặt → trả → IPN → hoàn). Chưa xác thực chữ ký phản hồi querydr/refund, `vnp_IpAddr` đang cố định `127.0.0.1`; chưa có scheduler (đối soát gọi tay qua `/reconcile`); chưa làm chi trả khách sạn, thu thêm khi đổi đơn, hoàn một phần.
-- MoMo (song song VNPay, mỗi cổng bật/tắt độc lập): bảng env
-  | Biến | Ý nghĩa |
-  |---|---|
-  | `MOMO_ENABLED` | mặc định `false`; tắt thì đặt phòng `MOMO` → 409 `MOMO_DISABLED` và `/payments/methods` không liệt kê |
-  | `MOMO_MODE` | `mock` (mặc định, không gọi mạng, khóa sandbox công khai) hoặc `live`; production + enabled + mock bị từ chối khi khởi động |
-  | `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY` | bắt buộc khi `live` |
-  | `MOMO_ENDPOINT` | mặc định `https://test-payment.momo.vn` (sandbox) |
-  | `MOMO_RETURN_URL` | **trang web** MoMo đưa khách về (mặc định như `VNPAY_RETURN_URL`, `/payment/result`) |
-  | `MOMO_IPN_URL` | **API công khai** MoMo gọi POST JSON (mặc định `http://localhost:3000/v1/payments/momo/ipn`; live phải là URL internet) |
-
-  Khác biệt: VNPay IPN là `GET` query + trả JSON `{RspCode}` và IPN URL khai báo trên cổng merchant; MoMo IPN là `POST` JSON + trả HTTP 204, IPN URL gửi kèm trong request tạo link. Cùng một logic xử lý kết quả (`applyGatewayResult`). Luồng MoMo: đặt phòng → `paymentLink.payUrl` (mock: `<MOMO_RETURN_URL>?mock=1&gateway=momo&orderId=…`) → khách trả → MoMo POST IPN → đơn `CONFIRMED`. Hoàn/đối soát chọn cổng theo `payments.method`/`refunds.method`; refund MoMo mã 1000/7000/7002/9000 là "đang chờ", giữ `PROCESSING`. Chưa xác thực chữ ký phản hồi create/query/refund của MoMo; chưa đặt `orderExpireTime` (link MoMo không tự hết hạn theo giữ phòng, đơn vẫn hết hạn phía Airrest và thanh toán trễ được hoàn 100%).
+- SePay (cổng thanh toán duy nhất, xem `docs/sepay-integration.md`): `SEPAY_MODE=mock` (mặc định, không gọi mạng) hoặc `live`. Biến env: `SEPAY_ENABLED`, `SEPAY_MERCHANT_ID`, `SEPAY_SECRET_KEY` (ký form), `SEPAY_IPN_SECRET` (khác khóa merchant, header `X-Secret-Key` của IPN; bắt buộc khi live), `SEPAY_CHECKOUT_URL` (mặc định production; sandbox `https://pay-sandbox.sepay.vn/v1/checkout/init`), `SEPAY_PAYMENT_METHOD`, `SEPAY_RETURN_URL` (trang web), `SEPAY_IPN_URL` (API công khai). Production + enabled + mock bị từ chối khi khởi động.
+- Hoàn tiền: SePay không có API hoàn. `SEPAY_MODE=mock` giả lập hoàn thành công (dev/test); live: lệnh hoàn vào `MANUAL_REQUIRED` ngay, kế toán hoàn tay rồi gọi `POST /v1/admin/refunds/:id/mark-refunded`. Đơn/giao dịch cũ thanh toán bằng VNPay/MoMo (đã gỡ cổng) vẫn xem được; lệnh hoàn của chúng cũng đi đường thủ công này.
+- `createBooking` hỗ trợ trả tại khách sạn hoặc SePay; giá đọc từ `system_configs`.
 - Realtime: sự kiện đơn chỉ phát trong một tiến trình API; chạy nhiều bản API cần Postgres LISTEN/NOTIFY hoặc Supabase Realtime (và adapter cho Socket.io). Không dùng Supabase Auth/Realtime/REST: backend nối thẳng Postgres bằng `DATABASE_URL`, xác thực bằng JWT riêng.
 - Supabase: TLS bật nhưng chưa ghim CA (`database/pg.ts`); bảng `idempotency_keys` chưa có job dọn định kỳ (chỉ dọn key hết hạn khi gặp lại); chưa bật Row Level Security (API là cửa duy nhất vào DB — hãy bật RLS deny-all cho các bảng nếu mở REST của Supabase ra ngoài).
-- `createBooking` mới hỗ trợ 1 loại phòng, theo đêm, trả tại khách sạn, VNPay hoặc MoMo; giá đọc từ `system_configs`.
 - Khóa idempotency không chặn hai request *đang chạy* cùng key với body khác ngoài trả 422/409.
 - Test tích hợp chạy trên Postgres nhúng (embedded-postgres), chưa thử trên Supabase thật; chưa có CI.
 

@@ -67,18 +67,31 @@ export function buildCatalog() {
 export async function seedCatalog(password: string): Promise<{ hotels: number }> {
   const catalog = buildCatalog();
   for (const h of catalog) {
-    const policy = { cancellationTemplate: h.freeCancel ? 'FLEXIBLE' : 'NON_REFUNDABLE', cleaningBufferMin: 0, ...(h.closeExtHour !== undefined && { receptionCloseHour: h.closeExtHour }) };
+    const policy = {
+      cancellationTemplate: h.freeCancel ? 'FLEXIBLE' : 'NON_REFUNDABLE', cleaningBufferMin: 0, ...(h.closeExtHour !== undefined && { receptionCloseHour: h.closeExtHour }),
+      checkInTime: '14:00', checkOutTime: '12:00', childPolicy: 'Trẻ dưới 6 tuổi ở chung giường với bố mẹ, miễn phí.', petsAllowed: h.type === 'Căn hộ',
+    };
+    const n = Number(h.code.slice(-2));
     const hotel = (await db.query<{ id: string }>(
-      `INSERT INTO hotels (code, name, status, location, airports, amenities, policy, approval, rating, address, description)
-       VALUES ($1, $2, 'ACTIVE', $3::jsonb, $4::jsonb, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, $10)
-       ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, location = EXCLUDED.location, airports = EXCLUDED.airports, amenities = EXCLUDED.amenities,
-         policy = EXCLUDED.policy, rating = EXCLUDED.rating, address = EXCLUDED.address, description = EXCLUDED.description, updated_at = now() RETURNING id`,
+      `INSERT INTO hotels (code, name, slug, status, location, airports, amenities, policy, approval, rating, address, description, contact)
+       VALUES ($1, $2, $11, 'ACTIVE', $3::jsonb, $4::jsonb, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, $10, $12::jsonb)
+       ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug, location = EXCLUDED.location, airports = EXCLUDED.airports, amenities = EXCLUDED.amenities,
+         policy = EXCLUDED.policy, rating = EXCLUDED.rating, address = EXCLUDED.address, description = EXCLUDED.description, contact = EXCLUDED.contact, updated_at = now() RETURNING id`,
       [h.code, h.name, json({ type: 'Point', coordinates: [h.lng, h.lat] }), json([{ iata: h.ap, km: h.km, minutes: h.minutes }]), h.amenities, json(policy),
         json({ manual: h.manual }), json({ avg: h.rating, count: 12 + (h.minutes % 30) }),
-        json({ line: `Khu vực quanh sân bay ${h.airport.name} (mô phỏng)`, city: h.airport.city, country: 'VN' }), `${h.type} cách sân bay ${h.airport.name} ${h.km} km. Thông tin mô phỏng phục vụ nghiên cứu.`],
+        json({ line: `${10 + n} Đường Sân Bay (mô phỏng)`, ward: `Phường ${n}`, district: `Khu vực ${h.airport.name}`, city: h.airport.city, country: 'VN' }),
+        `${h.type} cách sân bay ${h.airport.name} ${h.km} km. Thông tin mô phỏng phục vụ nghiên cứu.`, h.code.toLowerCase(),
+        json({ phone: `+8490${String(1000000 + h.minutes * 1000 + n).slice(-7)}`, email: `${h.code.toLowerCase()}@khachsan.mo` })],
     )).rows[0]!;
     const has = (await db.query("SELECT 1 FROM room_types WHERE hotel_id = $1 AND code = 'STD'", [hotel.id])).rowCount;
-    if (!has) await db.query("INSERT INTO room_types (hotel_id, code, name, capacity, beds, area_m2, total_rooms, pricing, active) VALUES ($1, 'STD', $2, $3, 1, 22, $4, $5::jsonb, true)", [hotel.id, h.roomName, h.capacity, h.rooms, json({ baseNightVnd: h.price })]);
+    const stdAmen = ['WIFI', 'AIR_CON', 'HOT_WATER', 'TV'];
+    if (!has) {
+      await db.query(
+        `INSERT INTO room_types (hotel_id, code, name, capacity, beds, area_m2, total_rooms, pricing, active, bed_type, description, view, amenities, smoking, max_adults, max_children)
+         VALUES ($1, 'STD', $2, $3, 1, 22, $4, $5::jsonb, true, $6, $7, $8, $9, false, $3, 1)`,
+        [hotel.id, h.roomName, h.capacity, h.rooms, json({ baseNightVnd: h.price }), h.capacity > 2 ? 'FAMILY' : 'DOUBLE', `${h.roomName}, đầy đủ tiện nghi cơ bản, phù hợp nghỉ ngắn gần sân bay.`, n % 2 ? 'Hướng phố' : 'Hướng sân bay', stdAmen],
+      );
+    }
     // Phòng theo giờ: khách sạn có tag HOURLY (và HAN-01/SGN-01 làm ví dụ) bật giờ cho loại STD; chưa cấu hình thì mới ghi (không đè cấu hình đã sửa tay).
     if (h.amenities.includes('HOURLY') || h.code === 'HAN-01' || h.code === 'SGN-01') {
       const first = h.code === 'HAN-01' ? 120_000 : Math.max(60_000, Math.round((h.price * 0.3) / 10_000) * 10_000);
@@ -90,7 +103,23 @@ export async function seedCatalog(password: string): Promise<{ hotels: number }>
       await db.query("UPDATE hotels SET amenities = array_append(amenities, 'HOURLY') WHERE id = $1 AND NOT 'HOURLY' = ANY(amenities)", [hotel.id]);
     }
     const hasFam = (await db.query("SELECT 1 FROM room_types WHERE hotel_id = $1 AND code = 'FAM'", [hotel.id])).rowCount;
-    if (h.family && !hasFam) await db.query("INSERT INTO room_types (hotel_id, code, name, capacity, beds, area_m2, total_rooms, pricing, active) VALUES ($1, 'FAM', 'Phòng gia đình', 4, 2, 36, $2, $3::jsonb, true)", [hotel.id, Math.max(1, h.rooms), json({ baseNightVnd: Math.round((h.price * 1.6) / 10000) * 10000 })]);
+    if (h.family && !hasFam) {
+      await db.query(
+        `INSERT INTO room_types (hotel_id, code, name, capacity, beds, area_m2, total_rooms, pricing, active, bed_type, family, description, view, amenities, smoking, max_adults, max_children)
+         VALUES ($1, 'FAM', 'Phòng gia đình', 4, 2, 36, $2, $3::jsonb, true, 'FAMILY', true, 'Phòng rộng 2 giường, phù hợp gia đình có trẻ nhỏ.', 'Hướng phố', $4, false, 4, 2)`,
+        [hotel.id, Math.max(1, h.rooms), json({ baseNightVnd: Math.round((h.price * 1.6) / 10000) * 10000 }), [...stdAmen, 'FRIDGE']],
+      );
+    }
+    // Tầng + phòng lẻ: STD ở tầng 1 (101...), FAM ở tầng 2 (201...); số phòng = total_rooms của loại (0 phòng thì bỏ qua). Chạy lại không trùng.
+    for (const [code, level, base] of [['STD', 1, 100], ['FAM', 2, 200]] as const) {
+      const rt = (await db.query<{ id: string; totalRooms: number }>("SELECT id, total_rooms FROM room_types WHERE hotel_id = $1 AND code = $2", [hotel.id, code])).rows[0];
+      if (!rt || rt.totalRooms < 1) continue;
+      const floor = (await db.query<{ id: string }>(
+        `INSERT INTO floors (hotel_id, name, level, sort_order) VALUES ($1, $2, $3, $3) ON CONFLICT (hotel_id, level) DO UPDATE SET updated_at = now() RETURNING id`, [hotel.id, `Tầng ${level}`, level])).rows[0]!;
+      for (let k = 1; k <= rt.totalRooms; k++) {
+        await db.query('INSERT INTO rooms (hotel_id, floor_id, room_type_id, number) VALUES ($1, $2, $3, $4) ON CONFLICT (hotel_id, number) DO NOTHING', [hotel.id, floor.id, rt.id, String(base + k)]);
+      }
+    }
   }
 
   // Tài khoản thử theo vai trò (mật khẩu = SEED_PASSWORD): quản lý khách sạn HAN-01/SGN-01, nhân viên HAN-01 và 4 vai trò quản trị.

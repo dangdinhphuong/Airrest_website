@@ -151,18 +151,18 @@ run('tích hợp: đơn nhiều loại phòng (giai đoạn 1)', () => {
     expect(q.body.rooms).toHaveLength(2);
   });
 
-  it('thanh toán online (VNPay giả lập) đơn nhiều dòng + xe: payment = tổng đơn, thành CONFIRMED; hủy giữ lại tiền xe', async () => {
+  it('thanh toán online (SePay giả lập) đơn nhiều dòng + xe: payment = tổng đơn, thành CONFIRMED; hủy giữ lại tiền xe', async () => {
     await db.query("UPDATE hotels SET amenities = ARRAY['SHUTTLE_PAID'] WHERE id = $1", [H]);
     const o = nextOff();
     const pickupAt = new Date(Date.now() + (o + 0.5) * DAY).toISOString();
-    const res = await make(H, { rooms: [{ roomTypeId: A, qty: 1 }, { roomTypeId: B, qty: 1 }], guests: 4, paymentMethod: 'VNPAY', shuttle: { legs: [{ direction: 'TO_HOTEL', pickupAt }] } }, o);
+    const res = await make(H, { rooms: [{ roomTypeId: A, qty: 1 }, { roomTypeId: B, qty: 1 }], guests: 4, paymentMethod: 'SEPAY', shuttle: { legs: [{ direction: 'TO_HOTEL', pickupAt }] } }, o);
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     const { code, pricing } = res.body.booking;
     expect(res.body.booking.status).toBe('PENDING_PAYMENT');
     const pay = (await one<any>("SELECT txn_ref, amount_vnd FROM payments WHERE booking_id = (SELECT id FROM bookings WHERE code = $1)", [code]))!;
     expect(Number(pay.amountVnd)).toBe(pricing.totalVnd);
-    const sim = await request(app).post('/v1/payments/vnpay/dev-simulate').send({ orderId: pay.txnRef });
-    expect(sim.body.reply.RspCode).toBe('00');
+    const sim = await request(app).post('/v1/payments/sepay/dev-simulate').send({ orderId: pay.txnRef });
+    expect(sim.body.reply.status).toBe(200);
     const { b, rs } = await state(code);
     expect(b.status).toBe('CONFIRMED');
     expect(Number(b.paidVnd)).toBe(pricing.totalVnd);

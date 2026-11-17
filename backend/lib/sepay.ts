@@ -99,3 +99,13 @@ export const sepayApi = {
     return { status: d.order_status, amountVnd: Math.round(Number(d.order_amount)), transactionId: d.transactions?.find((t) => t.transaction_status === 'APPROVED')?.id ?? d.transactions?.[0]?.id };
   },
 };
+
+export interface SepayRefundResult { ok: boolean; code: string; message: string; transId?: number }
+// SePay (cổng thanh toán) KHÔNG có API hoàn tiền cho chuyển khoản QR/thẻ trong tích hợp này.
+// mock (dev/test): giả lập hoàn thành công để các luồng hoàn chạy được; live: code 'MANUAL' -> lệnh hoàn chuyển thẳng MANUAL_REQUIRED, kế toán hoàn tay rồi bấm "đánh dấu đã hoàn".
+export const sepayRefund = {
+  async refund(_p: { requestId: string; orderId: string; amount: number }): Promise<SepayRefundResult> {
+    if (!live) return { ok: true, code: '0', message: 'mock', transId: Date.now() };
+    return { ok: false, code: 'MANUAL', message: 'SePay không có API hoàn tiền: hoàn thủ công' };
+  },
+};

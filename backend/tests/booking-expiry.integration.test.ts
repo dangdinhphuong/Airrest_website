@@ -10,11 +10,17 @@ const run = process.env.RUN_DB_TESTS ? describe : describe.skip;
 const DAY = 86400_000;
 const PHONE = '0912345678';
 
+// Đơn đã trả tiền nhưng còn chờ khách sạn duyệt (PENDING + HOLD): SePay nay xác nhận ngay nên trạng thái này chỉ còn ở đơn cũ (VNPay/MoMo trước khi bỏ); dựng lại để kiểm logic hoàn tiền.
+const asLegacyPaidPending = async (id: string) => {
+  await db.query("UPDATE bookings SET status = 'PENDING', expires_at = now() + interval '1 hour' WHERE id = $1", [id]);
+  await db.query("UPDATE room_reservations SET state = 'HOLD', hold_expires_at = now() + interval '1 hour' WHERE booking_id = $1", [id]);
+};
+
 run('tích hợp: hết hạn đơn chờ xác nhận', () => {
   const app = createApp();
   let H = '';
   let n = 0;
-  const book = (rt: string, off: number, method: 'AT_HOTEL' | 'VNPAY' = 'AT_HOTEL') =>
+  const book = (rt: string, off: number, method: 'AT_HOTEL' | 'SEPAY' = 'AT_HOTEL') =>
     request(app)
       .post('/v1/bookings')
       .set('Idempotency-Key', `ex-${++n}-${Date.now()}`)
@@ -70,12 +76,13 @@ run('tích hợp: hết hạn đơn chờ xác nhận', () => {
     expect(st).toEqual(['CHECKED_IN', 'CONFIRMED', 'PENDING_PAYMENT']);
   });
 
-  it('đơn VNPay đã trả + quá hạn chờ duyệt: một refund PENDING HOTEL_NO_RESPONSE, quét hai lần vẫn một', async () => {
+  it('đơn SePay đã trả + quá hạn chờ duyệt: một refund PENDING HOTEL_NO_RESPONSE, quét hai lần vẫn một', async () => {
     const rt = await mkRoomType(H, 5);
-    const b = await book(rt, 30, 'VNPAY');
+    const b = await book(rt, 30, 'SEPAY');
     const id = await idOf(b.body.booking.code);
     const pay = (await one<any>('SELECT txn_ref FROM payments WHERE booking_id = $1', [id]))!;
-    await request(app).post('/v1/payments/vnpay/dev-simulate').send({ orderId: pay.txnRef });
+    await request(app).post('/v1/payments/sepay/dev-simulate').send({ orderId: pay.txnRef });
+    await asLegacyPaidPending(id);
     await overdue(id);
     await expireOverdueBookings();
     await expireOverdueBookings();

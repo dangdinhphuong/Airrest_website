@@ -6,8 +6,7 @@ import { createApp } from '../api/app';
 import { CONFIG_KEYS } from '../config/configKeys';
 import { PERM } from '../config/permissions';
 import { signAccountToken } from '../lib/jwt';
-import { buildMomoIpn } from '../lib/momo';
-import { buildVnpayIpn } from '../lib/vnpay';
+import { buildSepayIpn } from '../lib/sepay';
 import { processRefund, reconcilePayments } from '../services/payments/payments.service';
 import { closeDb, count, db, freshDb, mkHotel, mkRoomType, mkStaff, one } from './support/db';
 import { guestIp } from './support/flows';
@@ -39,7 +38,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     { direction: 'TO_AIRPORT', pickupAt: dayAt(o + 1, 5).toISOString() },
   ];
 
-  interface BookOpts { hotel?: string; rt?: string; method?: 'AT_HOTEL' | 'VNPAY' | 'MOMO'; legs?: unknown[] | null; guests?: number; children?: number; qty?: number; off?: number; key?: string; shuttle?: unknown }
+  interface BookOpts { hotel?: string; rt?: string; method?: 'AT_HOTEL' | 'SEPAY'; legs?: unknown[] | null; guests?: number; children?: number; qty?: number; off?: number; key?: string; shuttle?: unknown }
   const book = (o: BookOpts = {}) => {
     const d = o.off ?? nextOff();
     const legs = o.legs === undefined ? legs2(d) : o.legs;
@@ -60,10 +59,13 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   const pay = async (code: string) => {
     const b = await row(code);
     const p = await payOf(b.id);
-    const r = p.method === 'MOMO'
-      ? await request(app).post('/v1/payments/momo/ipn').send(buildMomoIpn({ orderId: p.gateway.orderId, requestId: p.gateway.requestId, amount: p.amountVnd, transId: 4242, resultCode: 0 }))
-      : await request(app).get('/v1/payments/vnpay/ipn').query(buildVnpayIpn({ txnRef: p.gateway.orderId, amount: p.amountVnd, transId: 999, success: true }));
+    const r = await request(app).post('/v1/payments/sepay/ipn').send(buildSepayIpn({ invoice: p.gateway.orderId, amount: p.amountVnd, success: true, transactionId: 'tx-test' }));
     expect([200, 204]).toContain(r.status);
+  };
+  // Đơn đã trả tiền nhưng còn chờ khách sạn duyệt (PENDING + HOLD): SePay nay xác nhận ngay nên trạng thái này chỉ còn ở đơn cũ; dựng lại để kiểm logic hoàn tiền khi từ chối.
+  const asLegacyPaidPending = async (id: string) => {
+    await db.query("UPDATE bookings SET status = 'PENDING', expires_at = now() + interval '1 hour' WHERE id = $1", [id]);
+    await db.query("UPDATE room_reservations SET state = 'HOLD', hold_expires_at = now() + interval '1 hour' WHERE booking_id = $1", [id]);
   };
   const ledger = async (bookingId: string) => {
     const rows = (await db.query<{ account: string; s: number }>('SELECT account, sum(amount_vnd) AS s FROM ledger_entries WHERE booking_id = $1 GROUP BY account', [bookingId])).rows;
@@ -114,9 +116,9 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   });
 
   // ---------- Tạo đơn: tiền ----------
-  it('2 chiều có phí (VNPay): tổng = phòng + xe + phí DV(phòng+xe); payments.amount khớp; yêu cầu xe REQUESTED, billed, passengers = guests; quote khớp', async () => {
+  it('2 chiều có phí (SePay): tổng = phòng + xe + phí DV(phòng+xe); payments.amount khớp; yêu cầu xe REQUESTED, billed, passengers = guests; quote khớp', async () => {
     const quote = await request(app).post(`/v1/hotels/${paid}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL' }, { direction: 'TO_AIRPORT' }] });
-    const res = await book({ method: 'VNPAY', guests: 2, qty: 1 });
+    const res = await book({ method: 'SEPAY', guests: 2, qty: 1 });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     const fee = serviceFee(ROOM + 2 * LEG, FEE);
     expect(res.body.booking.pricing).toMatchObject({ roomVnd: ROOM, shuttleVnd: 2 * LEG, serviceFeeVnd: fee, totalVnd: ROOM + 2 * LEG + fee });
@@ -150,7 +152,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   });
 
   it('khách sạn xe miễn phí: giá 0, vẫn tạo yêu cầu, phí DV chỉ trên tiền phòng', async () => {
-    const res = await book({ hotel: free, rt: freeRt, method: 'MOMO' });
+    const res = await book({ hotel: free, rt: freeRt, method: 'SEPAY' });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     expect(res.body.booking.pricing).toMatchObject({ shuttleVnd: 0, totalVnd: ROOM + serviceFee(ROOM, FEE) });
     const b = await row(res.body.booking.code);
@@ -159,7 +161,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   });
 
   it('không gửi shuttle: hành vi cũ nguyên vẹn (shuttleVnd 0, NONE, không yêu cầu xe, tổng = phòng + phí)', async () => {
-    const res = await book({ legs: null, method: 'VNPAY' });
+    const res = await book({ legs: null, method: 'SEPAY' });
     expect(res.status).toBe(201);
     expect(res.body.booking.pricing).toMatchObject({ shuttleVnd: 0, totalVnd: ROOM + serviceFee(ROOM, FEE) });
     expect(res.body.booking.shuttle).toEqual({ tripType: 'NONE', legCount: 0 });
@@ -238,7 +240,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   });
 
   // ---------- Thanh toán + điều phối ----------
-  it.each(['VNPAY', 'MOMO'] as const)('%s: thanh toán thành công -> CONFIRMED, sổ cái cân (xe thuộc HOTEL_PAYABLE), yêu cầu xe vào hàng chờ; 5 khách tới hạn -> 2 xe 4 chỗ', async (method) => {
+  it.each(['SEPAY'] as const)('%s: thanh toán thành công -> CONFIRMED, sổ cái cân (xe thuộc HOTEL_PAYABLE), yêu cầu xe vào hàng chờ; 5 khách tới hạn -> 2 xe 4 chỗ', async (method) => {
     // Khách sạn riêng có 2 xe 4 chỗ để kiểm điều phối.
     const h = await mkHotel({ code: `D${method.slice(0, 2)}` });
     await db.query("UPDATE hotels SET amenities = ARRAY['SHUTTLE_PAID'] WHERE id = $1", [h]);
@@ -246,7 +248,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     await db.query('UPDATE room_types SET capacity = 3 WHERE id = $1', [rt]);
     const owner = (await mkStaff(h, [PERM.FLEET_MANAGE])).token;
     for (const k of [1, 2]) {
-      const v = await request(app).post('/v1/hotel/vehicles').set({ Authorization: `Bearer ${owner}` }).send({ plate: `30A-${method === 'VNPAY' ? 1 : 2}000${k}`, seats: 4, model: 'Xe 4 chỗ' });
+      const v = await request(app).post('/v1/hotel/vehicles').set({ Authorization: `Bearer ${owner}` }).send({ plate: `30A-${method === 'SEPAY' ? 1 : 2}000${k}`, seats: 4, model: 'Xe 4 chỗ' });
       expect(v.status, JSON.stringify(v.body)).toBe(201);
       const d = await request(app).post('/v1/hotel/drivers').set({ Authorization: `Bearer ${owner}` }).send({ email: `d${randomUUID().slice(0, 8)}@airrest.vn`, password: 'MatKhau-Tai-Xe-1', fullName: `Tài xế ${k}`, phone: '0988777666', vehicleId: v.body.vehicle.id });
       expect(d.status, JSON.stringify(d.body)).toBe(201);
@@ -278,7 +280,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   });
 
   it('thanh toán xong, giờ đón còn xa: yêu cầu ở lại hàng chờ (REQUESTED, chưa chuyến); vòng quét điều phối khi tới hạn', async () => {
-    const res = await book({ method: 'MOMO' });
+    const res = await book({ method: 'SEPAY' });
     await pay(res.body.booking.code);
     const b = await row(res.body.booking.code);
     expect(b.status).toBe('CONFIRMED');
@@ -290,8 +292,8 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   it('Idempotency-Key lặp: không tạo trùng đơn/yêu cầu xe/giao dịch', async () => {
     const key = `idem-${randomUUID()}`;
     const d = nextOff();
-    const a = await book({ method: 'VNPAY', key, off: d });
-    const c = await book({ method: 'VNPAY', key, off: d });
+    const a = await book({ method: 'SEPAY', key, off: d });
+    const c = await book({ method: 'SEPAY', key, off: d });
     expect(a.status).toBe(201);
     expect(c.body.booking.code).toBe(a.body.booking.code);
     const b = await row(a.body.booking.code);
@@ -313,7 +315,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
 
   // ---------- Hết hạn ----------
   it('hết hạn giữ phòng chưa thanh toán: đơn EXPIRED, yêu cầu xe bị hủy cùng transaction; thanh toán đến muộn -> hoàn 100%, xe vẫn hủy', async () => {
-    const res = await book({ method: 'VNPAY' });
+    const res = await book({ method: 'SEPAY' });
     const b = await row(res.body.booking.code);
     await db.query("UPDATE bookings SET expires_at = now() - interval '1 second' WHERE id = $1", [b.id]);
     await reconcilePayments({ type: 'SYSTEM' });
@@ -331,8 +333,10 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     await db.query("UPDATE hotels SET amenities = ARRAY['SHUTTLE_PAID'] WHERE id = $1", [h]);
     const rt = await mkRoomType(h, 30, ROOM);
     const t = (await mkStaff(h, [PERM.BOOKING_DECIDE, PERM.BOOKING_READ])).token;
-    const a = await book({ hotel: h, rt, method: 'VNPAY' });
+    const a = await book({ hotel: h, rt, method: 'SEPAY' });
     await pay(a.body.booking.code);
+    expect((await row(a.body.booking.code)).status).toBe('CONFIRMED'); // SePay: xác nhận ngay, không chờ duyệt
+    await asLegacyPaidPending((await row(a.body.booking.code)).id);
     const ba = await row(a.body.booking.code);
     expect(ba.status).toBe('PENDING');
     const rj = await request(app).post(`/v1/hotel/bookings/${ba.id}/reject`).set({ Authorization: `Bearer ${t}` }).send({ reason: 'Hết phòng thật' });
@@ -342,8 +346,9 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     expect(ra[0]).toMatchObject({ reasonCode: 'HOTEL_REJECTED', amountVnd: ba.pricing.totalVnd });
     expect((await reqs(ba.id)).map((r) => r.status)).toEqual(['CANCELLED', 'CANCELLED']);
     // đơn khác: khách hủy riêng 1 chiều (không hoàn) rồi khách sạn từ chối -> hoàn đủ số đã trả, gồm cả xe
-    const c = await book({ hotel: h, rt, method: 'MOMO' });
+    const c = await book({ hotel: h, rt, method: 'SEPAY' });
     await pay(c.body.booking.code);
+    await asLegacyPaidPending((await row(c.body.booking.code)).id);
     const bc = await row(c.body.booking.code);
     const toHotel = (await reqs(bc.id))[0];
     expect((await cancelLeg(bc.code, toHotel.id)).status).toBe(200);
@@ -354,7 +359,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   });
 
   // ---------- Hủy riêng một chiều ----------
-  it.each(['VNPAY', 'MOMO'] as const)('%s: hủy riêng chiều (trước/sau khi tài xế nhận) -> KHÔNG hoàn, số tiền đơn giữ nguyên, idempotent, sổ cái không đổi', async (method) => {
+  it.each(['SEPAY'] as const)('%s: hủy riêng chiều (trước/sau khi tài xế nhận) -> KHÔNG hoàn, số tiền đơn giữ nguyên, idempotent, sổ cái không đổi', async (method) => {
     const res = await book({ method });
     await pay(res.body.booking.code);
     const b = await row(res.body.booking.code);
@@ -382,7 +387,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   });
 
   it('hủy chiều đã ONBOARD -> 409 TRIP_ALREADY_STARTED; AT_HOTEL: giảm tổng đơn, không refund; đơn chờ thanh toán: cho hủy, tiền link giữ nguyên', async () => {
-    const r1 = await book({ method: 'VNPAY' });
+    const r1 = await book({ method: 'SEPAY' });
     await pay(r1.body.booking.code);
     const b1 = await row(r1.body.booking.code);
     const [x] = await reqs(b1.id);
@@ -402,7 +407,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     expect((await cancelLeg(b2.code, y2.id)).status).toBe(200);
     expect((await row(b2.code)).pricing.totalVnd).toBe(b2.pricing.totalVnd - LEG);
 
-    const r3 = await book({ method: 'VNPAY' });
+    const r3 = await book({ method: 'SEPAY' });
     const b3 = await row(r3.body.booking.code);
     const [z] = await reqs(b3.id);
     expect((await cancelLeg(b3.code, z.id)).status).toBe(200);
@@ -412,7 +417,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   });
 
   it('khách sạn tự hủy yêu cầu xe đã thu tiền: không hoàn, tổng đơn giữ nguyên', async () => {
-    const res = await book({ method: 'VNPAY' });
+    const res = await book({ method: 'SEPAY' });
     await pay(res.body.booking.code);
     const b = await row(res.body.booking.code);
     const [x] = await reqs(b.id);
@@ -425,7 +430,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
 
   // ---------- Hủy cả đơn ----------
   it('hủy cả đơn (gói FLEXIBLE, hủy sớm): xe đã thu KHÔNG hoàn (shuttleRefundVnd = 0, shuttleKeepVnd = phí xe), số hoàn = phòng + phí DV', async () => {
-    const res = await book({ method: 'VNPAY' });
+    const res = await book({ method: 'SEPAY' });
     await pay(res.body.booking.code);
     const b = await row(res.body.booking.code);
     const [toHotel] = await reqs(b.id);
@@ -439,7 +444,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     expect((await row(b.code)).status).toBe('CANCELLED');
     const refunds = (await db.query<any>('SELECT * FROM refunds WHERE booking_id = $1', [b.id])).rows;
     expect(refunds).toHaveLength(1);
-    expect(refunds[0]).toMatchObject({ reasonCode: 'CANCEL_APPROVED', amountVnd: b.paidVnd - 2 * LEG, method: 'VNPAY' });
+    expect(refunds[0]).toMatchObject({ reasonCode: 'CANCEL_APPROVED', amountVnd: b.paidVnd - 2 * LEG, method: 'SEPAY' });
     expect((await reqs(b.id)).map((r) => r.status)).toEqual(['CANCELLED', 'CANCELLED']);
     expect((await approve(cr.body.request.id)).status).toBe(200); // duyệt lặp: không hoàn thêm
     expect(await count('refunds', 'booking_id = $1', [b.id])).toBe(1);
@@ -448,12 +453,12 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     expect(l.paid).toBe(2 * LEG); // CUSTOMER_PAID còn đúng phần xe giữ lại (phòng đã hoàn)
   });
 
-  it('hủy cả đơn gói NON_REFUNDABLE: giữ phòng + phí DV + xe, không hoàn gì (MoMo)', async () => {
+  it('hủy cả đơn gói NON_REFUNDABLE: giữ phòng + phí DV + xe, không hoàn gì (SePay)', async () => {
     const h = await mkHotel({ code: 'NRF' });
     await db.query("UPDATE hotels SET amenities = ARRAY['SHUTTLE_PAID'], policy = policy || '{\"cancellationTemplate\":\"NON_REFUNDABLE\"}'::jsonb WHERE id = $1", [h]);
     const rt = await mkRoomType(h, 30, ROOM);
     const t = (await mkStaff(h, [PERM.REQUEST_HANDLE])).token;
-    const res = await book({ hotel: h, rt, method: 'MOMO' });
+    const res = await book({ hotel: h, rt, method: 'SEPAY' });
     await pay(res.body.booking.code);
     const b = await row(res.body.booking.code);
     const q = await request(app).post('/v1/change-requests/quote').set(ipFor()).send({ code: b.code, phone: '+84912345678' });
@@ -465,7 +470,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   });
 
   it('khách hủy chiều giữa lúc chờ duyệt hủy đơn: số hoàn vẫn chỉ là phần phòng, không hoàn xe', async () => {
-    const res = await book({ method: 'VNPAY' });
+    const res = await book({ method: 'SEPAY' });
     await pay(res.body.booking.code);
     const b = await row(res.body.booking.code);
     const cr = await askCancelOrder(b.code);
@@ -487,7 +492,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   });
 
   it('đơn không chọn xe: báo giá hủy y hệt trước đây (không trường xe làm đổi số)', async () => {
-    const res = await book({ legs: null, method: 'VNPAY' });
+    const res = await book({ legs: null, method: 'SEPAY' });
     await pay(res.body.booking.code);
     const b = await row(res.body.booking.code);
     const q = await request(app).post('/v1/change-requests/quote').set(ipFor()).send({ code: b.code, phone: '+84912345678' });

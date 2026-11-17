@@ -35,9 +35,9 @@ run('tích hợp: hồ sơ khách, cấu hình và ticket của tôi', () => {
 
   it('cấu hình: lưu chuẩn hóa (mã sân bay in hoa), sửa họ tên không làm mất cấu hình, gửi {} thì xóa sạch', async () => {
     const a = await signup('minh.tri');
-    const r = await patch(a.token, { preferences: { airport: 'sgn', adults: 2, children: 1, rooms: 1, paymentMethod: 'MOMO' } });
+    const r = await patch(a.token, { preferences: { airport: 'sgn', adults: 2, children: 1, rooms: 1, paymentMethod: 'SEPAY' } });
     expect(r.status).toBe(200);
-    expect(r.body.user.preferences).toEqual({ airport: 'SGN', adults: 2, children: 1, rooms: 1, paymentMethod: 'MOMO' });
+    expect(r.body.user.preferences).toEqual({ airport: 'SGN', adults: 2, children: 1, rooms: 1, paymentMethod: 'SEPAY' });
     await patch(a.token, { fullName: 'Trí Minh' });
     expect((await request(app).get('/v1/auth/me').set(bearer(a.token))).body.user.preferences.airport).toBe('SGN');
     expect((await patch(a.token, { preferences: {} })).body.user.preferences).toEqual({});

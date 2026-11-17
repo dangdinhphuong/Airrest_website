@@ -2,7 +2,6 @@
 import { ApiError, newIdempotencyKey } from '@airrest/api-client';
 import { api, apiBase, asGuest, describeError } from '../lib/api';
 
-const IMAGES = ['/images/hotel-1.jpg', '/images/hotel-2.jpg', '/images/hotel-3.jpg'];
 // Tag trong hotels.amenities -> nhãn hiển thị (xem backend/services/hotels/catalog.ts).
 export const AMENITY_LABEL = {
   HOT_WATER: 'Tắm nước nóng', WIFI: 'Wifi', LUGGAGE: 'Gửi hành lý', AIR_CON: 'Điều hòa', KITCHENETTE: 'Bếp nhỏ',
@@ -40,10 +39,10 @@ export function toHotelView(h, iata) {
   const ap = h.airports.find((a) => a.iata === iata) ?? (iata ? h.airports[0] : [...h.airports].sort((a, b) => a.km - b.km)[0]); // không chỉ định sân bay: lấy sân bay gần nhất
   const f = h.features;
   const apiImgs = Array.isArray(h.images) ? h.images.map((x) => (typeof x === 'string' ? x : x?.url)).filter((x) => typeof x === 'string' && x) : [];
-  const gallery = apiImgs.length ? apiImgs : [IMAGES[Number(String(h.code).slice(-2)) % IMAGES.length || 0]];
+  const gallery = apiImgs; // chỉ ảnh khách sạn tự tải lên (R2); chưa có thì rỗng, giao diện hiện khung trống, không dùng ảnh mẫu
   return {
     id: h.id, name: h.name, code: h.code, airportCode: ap?.iata ?? iata, distanceKm: ap?.km ?? 0, travelMinutes: ap?.minutes ?? 0,
-    image: gallery[0], images: gallery,
+    image: gallery[0] ?? null, images: gallery,
     rating: h.rating?.count ? Number(h.rating.avg).toFixed(1) : null,
     amenities: h.amenities.map((a) => AMENITY_LABEL[a]).filter(Boolean),
     shuttleAvailable: f.shuttle !== 'none', shuttleMode: f.shuttle, airports: h.airports.map((a) => a.iata), freeCancel: f.freeCancel, hourly: f.hourly, familyRoom: f.family, reception24: f.reception24,
@@ -56,10 +55,19 @@ export function toHotelView(h, iata) {
 
 // `search` (tuỳ chọn): { sort, guests, rooms, maxKm, priceUnder, minRating, shuttle, freeCancel, hourly, family, reception24, limit } — backend lọc/sắp xếp/cắt top N.
 // Trả mảng khách sạn (đã đúng thứ tự khi có `sort`); `.total` = số khớp lọc trước khi cắt top N; `.priceRange` = { min, max } giá/đêm của sân bay (biên thanh kéo giá).
+// Bộ nhớ đệm danh sách (stale-while-revalidate): màn hình hiện ngay kết quả đã có rồi tải lại ngầm. Xóa khi số phòng đổi (đặt phòng thành công / hết phòng).
+const HOTEL_CACHE = new Map();
+const HOTEL_CACHE_MS = 5 * 60_000;
+const hotelKey = (airport, search) => JSON.stringify([airport ?? '', search]);
+export const peekHotels = (airport, search = {}) => { const e = HOTEL_CACHE.get(hotelKey(airport, search)); return e && Date.now() - e.at < HOTEL_CACHE_MS ? e.data : null; };
+export const clearHotelCache = () => HOTEL_CACHE.clear();
+
 export async function listHotels(airport, signal, search = {}) {
   const query = Object.fromEntries(Object.entries({ limit: 50, ...search }).filter(([, v]) => v !== undefined && v !== '' && v !== false));
   const { items, total, priceRange = null } = await api.get('/v1/hotels', { query: { ...(airport && { airport }), ...query }, signal });
-  return Object.assign(items.map((h) => toHotelView(h, airport)).filter(Boolean), { total: total ?? items.length, priceRange });
+  const out = Object.assign(items.map((h) => toHotelView(h, airport)).filter(Boolean), { total: total ?? items.length, priceRange });
+  HOTEL_CACHE.set(hotelKey(airport, search), { data: out, at: Date.now() });
+  return out;
 }
 
 // 'Được khách đánh giá cao': toàn hệ thống, sắp theo điểm giảm dần, ưu tiên >= 3 lượt đánh giá.
@@ -159,6 +167,7 @@ export function windowFor(rooms, checkIn, checkOut, times) {
 export async function createBooking({ hotelId, rooms, guest, checkIn, checkOut, paymentMethod, idempotencyKey, guests = 1, children = 0, shuttle, times }) {
   const { from, to } = windowFor(rooms, checkIn, checkOut, times);
   const { booking, paymentLink, shuttles } = await api.post('/v1/bookings', { hotelId, rooms, guests, children, ...(shuttle && { shuttle }), paymentMethod, from, to, guest }, { auth: asGuest(), idempotencyKey: idempotencyKey ?? newIdempotencyKey() }); // khách đã đăng nhập: gửi Bearer để đơn gắn vào tài khoản
+  clearHotelCache(); // số phòng còn đã đổi
   return { ...booking, paymentLink, shuttles };
 }
 
@@ -185,7 +194,7 @@ export async function getPaymentLink(code, phone) {
 // Cổng đang bật (GET /v1/payments/methods). Lỗi mạng/API: chỉ còn 'tại khách sạn'.
 export const AT_HOTEL_ONLY = [{ id: 'AT_HOTEL', label: 'Thanh toán tại khách sạn' }];
 export const listPaymentMethods = () => api.get('/v1/payments/methods', { auth: false }).then((r) => r.methods);
-export const PAY_LABEL = { AT_HOTEL: 'Tại khách sạn', VNPAY: 'VNPay', MOMO: 'MoMo', SEPAY: 'SePay' };
+export const PAY_LABEL = { AT_HOTEL: 'Tại khách sạn', SEPAY: 'SePay', VNPAY: 'VNPay (cũ)', MOMO: 'MoMo (cũ)' }; // VNPAY/MOMO chỉ để hiển thị đơn cũ
 
 // Đơn vừa tạo, để trang kết quả thanh toán tra lại trạng thái thật (chỉ giữ đơn gần nhất, mất khi đóng tab).
 const LAST = 'airrest.lastBooking';
@@ -193,10 +202,7 @@ export const saveLastBooking = (code, phone) => { try { sessionStorage.setItem(L
 export const readLastBooking = () => { try { const v = JSON.parse(sessionStorage.getItem(LAST)); return v?.code && v?.phone ? v : null; } catch { return null; } };
 export const clearLastBooking = () => { try { sessionStorage.removeItem(LAST); } catch { /* bỏ qua */ } };
 
-// Chỉ có khi backend chạy VNPAY_MODE=mock (không production): giả lập VNPay gọi IPN.
-export const simulatePayment = (orderId, success) => api.post('/v1/payments/vnpay/dev-simulate', { orderId, resultCode: success ? 0 : 24 }, { auth: false });
 export const simulateSepayPayment = (orderId, success) => api.post('/v1/payments/sepay/dev-simulate', { orderId, resultCode: success ? 0 : 1 }, { auth: false });
-export const simulateMomoPayment = (orderId, success) => api.post('/v1/payments/momo/dev-simulate', { orderId, resultCode: success ? 0 : 1006 }, { auth: false });
 
 export async function createTicket({ bookingCode, phone, fullName, email, subject, message }) {
   const { ticket } = await api.post('/v1/support', { bookingCode: bookingCode || undefined, phone, fullName: fullName || undefined, email: email || undefined, subject, message }, { auth: asGuest(), idempotencyKey: newIdempotencyKey() }); // khách đã đăng nhập: gửi Bearer để ticket gắn vào tài khoản

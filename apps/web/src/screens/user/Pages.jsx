@@ -3,7 +3,7 @@ import {
   ArrowLeft, CalendarDays, Check, CheckCircle2, Clock3, Headphones, Hotel, LogOut, MapPin, Search, Send, ShieldCheck, Star, UserRound,
 } from 'lucide-react';
 import { useApp } from '../../state/store';
-import { ATTACH, airportName, attachFile, createTicket, describeApiError, getHotel, getPaymentLink, listAirports, lookupBooking, lookupBookingFull, lookupGroup, lookupTicket, replyTicket, simulatePayment, simulateMomoPayment, simulateSepayPayment, readLastBooking, clearLastBooking, saveLastBooking, PAY_LABEL, changePassword, describeAuthError, listMyBookings, PASSWORD_MIN, PASSWORD_MAX } from '../../data/user';
+import { ATTACH, airportName, attachFile, createTicket, describeApiError, getHotel, getPaymentLink, listAirports, lookupBooking, lookupBookingFull, lookupGroup, lookupTicket, replyTicket, simulateSepayPayment, readLastBooking, clearLastBooking, saveLastBooking, PAY_LABEL, changePassword, describeAuthError, listMyBookings, PASSWORD_MIN, PASSWORD_MAX } from '../../data/user';
 import { money } from '../../lib/time';
 import BookingActions from './BookingActions';
 import ShuttleTracker from './ShuttleTracker';
@@ -315,18 +315,16 @@ export function Support() {
   );
 }
 
-// Trang cổng thanh toán (VNPay/MoMo) đưa khách về (*_RETURN_URL = /payment/result). KHÔNG tin query: kết quả thật lấy bằng tra cứu đơn
+// Trang cổng thanh toán (SePay) đưa khách về (SEPAY_RETURN_URL = /payment/result). KHÔNG tin query: kết quả thật lấy bằng tra cứu đơn
 // ({code, phone} lưu lúc đặt); IPN phía máy chủ có thể đến chậm nên tự thử lại vài lần. mock=1: cho bấm giả lập thành công/thất bại.
 const POLL_MS = 8000;
 const POLL_MAX = 4; // ~32 giây, dưới giới hạn 10 yêu cầu/phút
 export function PaymentResult() {
   const q = new URLSearchParams(window.location.search);
-  const sepay = q.get('gateway') === 'sepay';
-  const momo = !sepay && (q.get('gateway') === 'momo' || (q.has('resultCode') && q.has('orderId')));
-  const gate = sepay ? 'SePay' : momo ? 'MoMo' : 'VNPay';
+  const gate = 'SePay';
   const mockOrder = q.get('mock') === '1' ? q.get('orderId') : null;
-  const queryCode = sepay ? q.get('status') : momo ? q.get('resultCode') : q.get('vnp_ResponseCode');
-  const hint = queryCode == null ? null : (queryCode === (sepay ? 'success' : momo ? '0' : '00') ? 'ok' : 'fail'); // chưa xác thực; kết quả thật chỉ đến từ IPN
+  const queryCode = q.get('status');
+  const hint = queryCode == null ? null : (queryCode === 'success' ? 'ok' : 'fail'); // chưa xác thực; kết quả thật lấy bằng tra cứu đơn (backend hỏi SePay)
   const [saved] = useState(readLastBooking);
   const [info, setInfo] = useState({ s: saved ? 'loading' : 'none', booking: null }); // loading | done | error | none
   const [simFail, setSimFail] = useState(false);
@@ -359,7 +357,7 @@ export function PaymentResult() {
   const simulate = async (success) => {
     setBusy(true); setError('');
     try {
-      await (sepay ? simulateSepayPayment : momo ? simulateMomoPayment : simulatePayment)(mockOrder, success);
+      await simulateSepayPayment(mockOrder, success);
       setSimFail(!success); setSimulated(true); tries.current = 0;
       await check();
     } catch (err) { setError(describeApiError(err)); }

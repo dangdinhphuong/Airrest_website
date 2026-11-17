@@ -16,9 +16,9 @@ Airrest_website/
 │   └── api-client/          client gọi API (fetch, lỗi chuẩn hóa ApiError, Idempotency-Key); không đọc env
 ├── backend/                 xem backend/README.md
 │   ├── api/                 Express: app, server, middleware, router, Socket.io
-│   ├── services/            nghiệp vụ: bookings, payments (VNPay), audit, authz, cấu hình
+│   ├── services/            nghiệp vụ: bookings, payments (SePay), audit, authz, cấu hình
 │   ├── database/            Postgres/Supabase: pool + transaction, migrations SQL, types, seed
-│   ├── config/  lib/        env/quyền/vai trò · tiện ích hạ tầng (jwt, crypto, vnpay...)
+│   ├── config/  lib/        env/quyền/vai trò · tiện ích hạ tầng (jwt, crypto, sepay...)
 │   └── tests/
 ├── docker-compose.yml       api + web (+ Postgres local qua profile `local`)
 └── package.json             workspaces: apps/*, packages/*, backend
@@ -36,7 +36,7 @@ VITE_API_BASE_URL=http://localhost:3000   # production: https://<airrest-api>.on
 
 - Thiếu hoặc sai URL: giao diện hiện màn "Chưa cấu hình địa chỉ máy chủ" thay vì chạy mù. Đổi giá trị thì khởi động lại dev server; khi triển khai phải build lại (Vite nhúng biến lúc build). Render: khai báo `VITE_API_BASE_URL` ở dịch vụ `airrest-web` trong `render.yaml`.
 - Backend phải cho phép origin của giao diện: `CORS_ORIGINS` trong `backend/.env` (dev: `http://localhost:5173` khi chạy `npm run dev:web`, `http://localhost:5174` khi chạy bằng Docker).
-- VNPay: `VNPAY_RETURN_URL` trỏ về `<origin giao diện>/payment/result` (giao diện đã có trang xử lý).
+- SePay: `SEPAY_RETURN_URL` trỏ về `<origin giao diện>/payment/result` (giao diện đã có trang xử lý); `SEPAY_IPN_URL` là URL API công khai khai báo ở SePay.
 - Phân quyền menu và nút theo `permissions` trả về từ `POST /v1/auth/login` (lib/access.js); máy chủ vẫn kiểm quyền ở mọi route.
 
 ## Chạy nhanh

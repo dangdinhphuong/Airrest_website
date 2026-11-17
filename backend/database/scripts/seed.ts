@@ -19,22 +19,30 @@ const HOTEL_ID = '65000000-0000-4000-8000-000000000001';
   const pw = await hashPassword(env.SEED_PASSWORD);
 
   await db.query(
-    `INSERT INTO hotels (id, code, name, status, location, airports, amenities, policy, approval, rating)
-     VALUES ($1, 'HAN-DEMO-01', 'Khách sạn Demo Nội Bài', 'ACTIVE', $2::jsonb, $3::jsonb, $4, $5::jsonb, '{"manual":true}', '{"avg":4.5,"count":12}')
-     ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, airports = EXCLUDED.airports, approval = EXCLUDED.approval, updated_at = now()`,
+    `INSERT INTO hotels (id, code, name, slug, status, location, airports, amenities, policy, approval, rating, address, description, contact)
+     VALUES ($1, 'HAN-DEMO-01', 'Khách sạn Demo Nội Bài', 'han-demo-01', 'ACTIVE', $2::jsonb, $3::jsonb, $4, $5::jsonb, '{"manual":true}', '{"avg":4.5,"count":12}', $6::jsonb, $7, $8::jsonb)
+     ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug, airports = EXCLUDED.airports, approval = EXCLUDED.approval,
+       address = EXCLUDED.address, description = EXCLUDED.description, contact = EXCLUDED.contact, updated_at = now()`,
     [
       HOTEL_ID,
       json({ type: 'Point', coordinates: [105.8, 21.2] }),
       json([{ iata: 'HAN', km: 6.5, minutes: 14 }]),
       ['WIFI', 'SHUTTLE', '24H_RECEPTION'],
-      json({ cancellationTemplate: 'FLEXIBLE', cleaningBufferMin: 0 }),
+      json({ cancellationTemplate: 'FLEXIBLE', cleaningBufferMin: 0, checkInTime: '14:00', checkOutTime: '12:00', childPolicy: 'Trẻ dưới 6 tuổi ở chung giường, miễn phí.', petsAllowed: false }),
+      json({ line: '1 Đường Sân Bay', ward: 'Xã Phú Minh', district: 'Sóc Sơn', city: 'Hà Nội', country: 'VN' }),
+      'Khách sạn demo cách sân bay Nội Bài 6,5 km, có xe đưa đón và lễ tân 24/24.',
+      json({ phone: '+84901000001', email: 'demo@khachsan.mo' }),
     ],
   );
   const hotel = (await db.query<{ id: string }>("SELECT id FROM hotels WHERE code = 'HAN-DEMO-01'")).rows[0]!;
 
   const hasRoom = (await db.query("SELECT 1 FROM room_types WHERE hotel_id = $1 AND name = 'Phòng Deluxe'", [hotel.id])).rowCount;
   if (!hasRoom) {
-    await db.query("INSERT INTO room_types (hotel_id, name, total_rooms, pricing, active) VALUES ($1, 'Phòng Deluxe', 3, $2::jsonb, true)", [hotel.id, json({ baseNightVnd: 600_000 })]);
+    await db.query(
+      `INSERT INTO room_types (hotel_id, code, name, capacity, beds, area_m2, total_rooms, pricing, active, bed_type, description, view, amenities, max_adults, max_children)
+       VALUES ($1, 'DLX', 'Phòng Deluxe', 2, 1, 28, 3, $2::jsonb, true, 'DOUBLE', 'Phòng Deluxe 28 m², giường đôi, cửa sổ lớn.', 'Hướng sân bay', ARRAY['WIFI','AIR_CON','HOT_WATER','TV'], 2, 1)`,
+      [hotel.id, json({ baseNightVnd: 600_000 })],
+    );
   }
 
   // Vai trò = tập quyền. Truy cập chỉ dựa trên quyền.
@@ -76,6 +84,16 @@ const HOTEL_ID = '65000000-0000-4000-8000-000000000001';
     console.log(`Danh mục khách sạn mẫu: ${(await seedCatalog(env.SEED_PASSWORD)).hotels} cơ sở + tài khoản thử theo vai trò`);
     console.log(`Chuyến bay sinh theo mạng đường bay (22 sân bay): chèn mới ${await seedGeneratedFlights(db)}`);
   }
+  // Mã giảm giá mẫu + yêu thích cho khách nguoidung (không ghi đè nếu đã có).
+  for (const [code, title, type, value, min] of [['WELCOME50', 'Giảm 50.000đ cho đơn đầu', 'AMOUNT', 50_000, 300_000], ['AIR10', 'Giảm 10% phòng gần sân bay', 'PERCENT', 10, 0]] as const) {
+    await db.query(
+      `INSERT INTO vouchers (code, title, description, discount_type, value, min_total_vnd, expires_at) VALUES ($1, $2, $2, $3, $4, $5, now() + interval '1 year') ON CONFLICT (upper(code)) DO NOTHING`,
+      [code, title, type, value, min],
+    );
+  }
+  await db.query(
+    `INSERT INTO passenger_favorites (account_id, hotel_id) SELECT a.id, h.id FROM accounts a, hotels h WHERE a.username = 'nguoidung' AND h.code IN ('HAN-01', 'SGN-01') ON CONFLICT DO NOTHING`,
+  );
   console.log(`Hoạt động mô phỏng: ${await seedActivity()}`);
   console.log(`Seed xong. Hotel ${hotel.id}, tài khoản: letan@demo.airrest.vn / admin@demo.airrest.vn (mật khẩu: SEED_PASSWORD)`);
   await ensureBusinesses();

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import Photo from './Photo';
 import { ArrowRight, Check, Minus, Plus, X } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -20,7 +21,7 @@ const dmy = (iso) => iso.split('-').reverse().join('/');
 const nextDay = (iso) => new Date(Date.parse(`${iso}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
 const vnLocal = (ms) => new Date(ms + 7 * 3600_000).toISOString().slice(0, 16);
 const peopleText = (g, c) => `${g} người${c ? ` (trong đó ${c} trẻ em)` : ''}`;
-const PAY_HINT = { AT_HOTEL: 'Không thu tiền trước.', VNPAY: 'Giữ phòng trong thời gian ngắn, thanh toán qua cổng VNPay.', MOMO: 'Giữ phòng trong thời gian ngắn, thanh toán qua ví MoMo.', SEPAY: 'Giữ phòng trong thời gian ngắn, thanh toán qua SePay (chuyển khoản QR ngân hàng hoặc thẻ).' };
+const PAY_HINT = { AT_HOTEL: 'Không thu tiền trước.', SEPAY: 'Giữ phòng trong thời gian ngắn, thanh toán qua SePay (chuyển khoản QR ngân hàng hoặc thẻ).' };
 const GATE_OFF = 'Cổng thanh toán này vừa tạm ngưng. Danh sách hình thức thanh toán đã được cập nhật, vui lòng chọn lại.';
 const focusField = (f, shuttle) => window.setTimeout(() => {
   const id = f === 'guests' ? 'guests-block' : f === 'airport' ? (document.getElementById('shuttle-airport') ? 'shuttle-airport' : 'shuttle-block') : f === 'pickup' ? (shuttle?.TO_HOTEL?.on ? 'pickup-TO_HOTEL' : 'pickup-TO_AIRPORT') : 'shuttle-block';
@@ -163,7 +164,7 @@ export default function BookingModal({ hotel, cart, onCart, dates: initDates, pe
       if (r.payment.method !== 'AT_HOTEL' && r.paymentLink?.payUrl) window.location.assign(r.paymentLink.payUrl); // online: tự chuyển sang cổng, bước 3 là dự phòng nếu chuyển lỗi
     } catch (err) {
       const fe = bookingFieldError(err);
-      if (err.code === 'VNPAY_DISABLED' || err.code === 'MOMO_DISABLED') {
+      if (err.code === 'SEPAY_DISABLED') {
         setActionError(GATE_OFF);
         loadMethods().then((list) => setPayMethod((m) => (list.some((x) => x.id === m) ? m : 'AT_HOTEL')));
       } else if (err.status === 409 && err.code === 'SOLD_OUT') {
@@ -193,7 +194,7 @@ export default function BookingModal({ hotel, cart, onCart, dates: initDates, pe
           <form onSubmit={captureBooking}>
             <h2 className="tw:text-2xl tw:font-bold">Đặt phòng</h2>
             <div className="tw:mt-5 tw:flex tw:gap-3 tw:rounded-xl tw:border tw:border-slate-200 tw:p-3">
-              <div className="tw:relative tw:h-20 tw:w-24 tw:shrink-0 tw:self-start tw:overflow-hidden tw:rounded-lg"><img src={hotel.image} alt="" className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /></div>
+              <div className="tw:relative tw:h-20 tw:w-24 tw:shrink-0 tw:self-start tw:overflow-hidden tw:rounded-lg"><Photo src={hotel.image} /></div>
               <div className="tw:min-w-0 tw:flex-1"><strong className="tw:text-sm">{hotel.name}</strong>
                 <ul data-testid="cart-lines" className="tw:mt-2 tw:grid tw:gap-2">
                   {cart.lines.map((l) => { const r = hotel.rooms.find((x) => x.id === l.roomTypeId); const h = isHourly(l); return (

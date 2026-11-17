@@ -4,7 +4,7 @@ services:
   - type: web
     name: airrest-api
     runtime: node
-    plan: free # free: ngủ sau ~15 phút không có request -> IPN VNPay có thể trễ; dùng gói trả phí khi chạy thật
+    plan: free # free: ngủ sau ~15 phút không có request -> IPN SePay có thể trễ; dùng gói trả phí khi chạy thật
     buildCommand: npm ci && npm run db:migrate -w @airrest/backend # áp schema mỗi lần deploy (chạy lại an toàn)
     startCommand: npm run start -w @airrest/backend
     healthCheckPath: /health
@@ -32,20 +32,6 @@ services:
       - { key: SHUTTLE_SIM_TICK_MS, value: "2000" }
       - { key: OSRM_URL, value: "https://router.project-osrm.org" }
       - { key: EXTERNAL_RIDE_LINK_HOSTS, value: "grab.com,xanhsm.com" } # PHẢI kiểm tra tên miền chia sẻ thực tế của Grab/Xanh SM
-      - { key: VNPAY_ENABLED, value: "false" }
-      - { key: VNPAY_MODE, value: mock }
-      - { key: VNPAY_TMN_CODE, sync: false }
-      - { key: VNPAY_HASH_SECRET, sync: false }
-      - { key: VNPAY_RETURN_URL, sync: false } # https://<airrest-web>.onrender.com/payment/result
-      # IPN URL khai báo trên cổng VNPay merchant: https://airrest-api.onrender.com/v1/payments/vnpay/ipn
-      - { key: MOMO_ENABLED, value: "false" }
-      - { key: MOMO_MODE, value: mock }
-      - { key: MOMO_PARTNER_CODE, sync: false }
-      - { key: MOMO_ACCESS_KEY, sync: false }
-      - { key: MOMO_SECRET_KEY, sync: false }
-      - { key: MOMO_ENDPOINT, sync: false } # mặc định sandbox; production https://payment.momo.vn
-      - { key: MOMO_RETURN_URL, sync: false } # https://<airrest-web>.onrender.com/payment/result
-      - { key: MOMO_IPN_URL, sync: false } # https://airrest-api.onrender.com/v1/payments/momo/ipn
       - { key: SEPAY_ENABLED, value: "true" }
       - { key: SEPAY_MODE, value: live }
       - { key: SEPAY_MERCHANT_ID, sync: false }

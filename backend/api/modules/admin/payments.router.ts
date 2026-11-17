@@ -7,7 +7,7 @@ import type { AuthContext } from '../../../lib/jwt';
 import { idParams, limitQuery, seqCursor, uuid } from '../../../lib/zod';
 import { requirePermission } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
-import { reconcilePayments, retryRefund } from '../../../services/payments/payments.service';
+import { reconcilePayments, markRefundDone, retryRefund } from '../../../services/payments/payments.service';
 
 // Admin: xem giao dịch cổng thanh toán / lệnh hoàn, đối soát gọi tay, thử lại hoàn. Quyền kiểm ở từng route.
 export const adminPaymentsRouter = Router();
@@ -15,7 +15,7 @@ export const adminPaymentsRouter = Router();
 const listQuery = z.object({
   status: z.string().max(30).optional(),
   bookingId: uuid.optional(),
-  method: z.enum(['VNPAY', 'MOMO', 'SEPAY']).optional(), // lọc theo cổng
+  method: z.enum(['SEPAY']).optional(), // lọc theo cổng (chỉ còn SePay; đơn cũ VNPay/MoMo vẫn hiển thị khi không lọc)
   anomaly: z.enum(['true']).optional(), // chỉ giao dịch bất thường
   limit: limitQuery,
   cursor: seqCursor.optional(),
@@ -46,6 +46,12 @@ adminPaymentsRouter.get('/refunds', requirePermission(PERM.ADMIN_PAYMENT_READ), 
 
 adminPaymentsRouter.post('/payments/reconcile', requirePermission(PERM.ADMIN_PAYMENT_MANAGE), async (req, res) => {
   res.json(await reconcilePayments(actorOf(req.auth as AuthContext), String(req.id)));
+});
+
+// Kế toán đã hoàn tay (SePay không có API hoàn): đánh dấu REFUNDED + ghi sổ cái.
+adminPaymentsRouter.post('/refunds/:id/mark-refunded', requirePermission(PERM.ADMIN_PAYMENT_MANAGE), validate({ params: idParams }), async (req, res) => {
+  const { id } = req.valid.params as { id: string };
+  res.json({ refund: await markRefundDone(id, actorOf(req.auth as AuthContext), String(req.id)) });
 });
 
 adminPaymentsRouter.post('/refunds/:id/retry', requirePermission(PERM.ADMIN_PAYMENT_MANAGE), validate({ params: idParams }), async (req, res) => {

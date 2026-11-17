@@ -2,12 +2,12 @@ import request from 'supertest';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../api/app';
 import { signAccountToken } from '../lib/jwt';
-import { buildVnpayIpn, vnpayGateway } from '../lib/vnpay';
+import { buildSepayIpn, sepayApi, sepayRefund } from '../lib/sepay';
 import { closeDb, count, db, freshDb, mkAccount, mkHotel, mkRoomType, one, systemRoleId } from './support/db';
 
 const run = process.env.RUN_DB_TESTS ? describe : describe.skip;
 
-run('tích hợp: thanh toán VNPay (mock) — tạo link, IPN, hoàn, đối soát', () => {
+run('tích hợp: thanh toán SePay (mock) — link, IPN, hoàn, đối soát', () => {
   const app = createApp();
   let hotelId: string;
   let roomTypeId: string;
@@ -25,8 +25,8 @@ run('tích hợp: thanh toán VNPay (mock) — tạo link, IPN, hoàn, đối so
       .send({
         hotelId, roomTypeId,
         from: new Date(Date.now() + off * day).toISOString(), to: new Date(Date.now() + (off + 1) * day).toISOString(),
-        guest: { fullName: 'Khách VNPay', phone: opts.phone ?? '0912345678' },
-        ...(opts.online !== false && { paymentMethod: 'VNPAY' }),
+        guest: { fullName: 'Khách SePay', phone: opts.phone ?? '0912345678' },
+        ...(opts.online !== false && { paymentMethod: 'SEPAY' }),
       });
     return res;
   };
@@ -38,8 +38,8 @@ run('tích hợp: thanh toán VNPay (mock) — tạo link, IPN, hoàn, đối so
     return { b, p };
   };
   const stateOf = async (id: string) => (await one<any>('SELECT * FROM bookings WHERE id = $1', [id]))!;
-  const ipn = (p: { gateway: { orderId: string } }, amount: number, resultCode = 0) =>
-    request(app).get('/v1/payments/vnpay/ipn').query(buildVnpayIpn({ txnRef: p.gateway.orderId, amount, transId: 999, success: resultCode === 0 }));
+  const ipn = (p: { gateway: { orderId: string } }, amount: number, success = true) =>
+    request(app).post('/v1/payments/sepay/ipn').send(buildSepayIpn({ invoice: p.gateway.orderId, amount, success, transactionId: `tx-${Date.now()}` }));
 
   beforeAll(async () => {
     await freshDb({ roles: true });
@@ -57,7 +57,7 @@ run('tích hợp: thanh toán VNPay (mock) — tạo link, IPN, hoàn, đối so
   const resv = async (bookingId: string) => (await one<{ state: string }>('SELECT state FROM room_reservations WHERE booking_id = $1', [bookingId]))!;
   const expire = (bookingId: string) => db.query("UPDATE bookings SET expires_at = now() - interval '1 second' WHERE id = $1", [bookingId]);
 
-  it('đặt VNPay: đơn PENDING_PAYMENT, giữ phòng, có link', async () => {
+  it('đặt SePay: đơn PENDING_PAYMENT, giữ phòng, có link', async () => {
     const res = await book();
     expect(res.status).toBe(201);
     expect(res.body.booking.status).toBe('PENDING_PAYMENT');
@@ -69,22 +69,13 @@ run('tích hợp: thanh toán VNPay (mock) — tạo link, IPN, hoàn, đối so
     expect((await resv(b.id)).state).toBe('HOLD');
   });
 
-  it('IPN sai chữ ký -> RspCode 97, đơn không đổi', async () => {
-    const res = await book();
-    const { b, p } = await payOf(res.body.booking.code);
-    const bad = buildVnpayIpn({ txnRef: p.gateway.orderId, amount: p.amountVnd, transId: 1, success: true });
-    const r = await request(app).get('/v1/payments/vnpay/ipn').query({ ...bad, vnp_SecureHash: 'f'.repeat(128) });
-    expect(r.body.RspCode).toBe('97');
-    expect((await stateOf(b.id)).status).toBe('PENDING_PAYMENT');
-  });
-
   it('IPN thành công: đơn CONFIRMED, phòng CONFIRMED, sổ cái cân bằng; IPN lặp (kể cả đồng thời) không ghi thêm', async () => {
     const res = await book();
     const { b, p } = await payOf(res.body.booking.code);
     const amount = p.amountVnd;
     const both = await Promise.all([ipn(p, amount), ipn(p, amount)]); // hai IPN cùng lúc
     expect(both.map((r) => r.status)).toEqual([200, 200]);
-    expect((await ipn(p, amount)).body.RspCode).toBe('02'); // lặp: đã xác nhận
+    expect((await ipn(p, amount)).status).toBe(200); // lặp: đã xác nhận, không ghi thêm
     const after = await stateOf(b.id);
     expect(after.status).toBe('CONFIRMED');
     expect(after.paymentStatus).toBe('PAID');
@@ -101,48 +92,31 @@ run('tích hợp: thanh toán VNPay (mock) — tạo link, IPN, hoàn, đối so
   it('IPN lệch số tiền: không xác nhận, ghi anomaly AMOUNT_MISMATCH, admin thấy trong danh sách bất thường', async () => {
     const res = await book();
     const { b, p } = await payOf(res.body.booking.code);
-    expect((await ipn(p, 1000)).body.RspCode).toBe('04');
+    expect((await ipn(p, 1000)).status).toBe(200);
     expect((await stateOf(b.id)).status).toBe('PENDING_PAYMENT');
     const list = await request(app).get('/v1/admin/payments?anomaly=true').set(auth(fin));
     expect(list.status).toBe(200);
     expect(list.body.items.some((x: { anomaly?: { kind: string } }) => x.anomaly?.kind === 'AMOUNT_MISMATCH')).toBe(true);
   });
 
-  it('IPN thất bại (khách hủy ở VNPay): payment FAILED, đơn vẫn chờ, lấy được link mới', async () => {
+  it('lấy lại link: còn link hợp lệ thì trả link cũ (không tạo thêm); sai SĐT -> 404; khách hủy ở SePay (void) không đổi đơn', async () => {
     const res = await book();
     const { b, p } = await payOf(res.body.booking.code);
-    await ipn(p, p.amountVnd, 1006);
-    expect((await one<P>('SELECT status FROM payments WHERE id = $1', [p.id]))!.status).toBe('FAILED');
+    await ipn(p, p.amountVnd, false); // TRANSACTION_VOID: chỉ ghi vết
     expect((await stateOf(b.id)).status).toBe('PENDING_PAYMENT');
-    const link = await request(app).post('/v1/payments/vnpay/link').send({ code: b.code, phone: '0912345678' });
+    const link = await request(app).post('/v1/payments/link').send({ code: b.code, phone: '0912345678' });
     expect(link.status).toBe(200);
     expect(link.body.paymentLink.payUrl).toContain('orderId=');
-    expect(await count('payments', 'booking_id = $1', [b.id])).toBe(2);
-    // gọi lại khi còn link hợp lệ -> trả link cũ, không tạo thêm
-    await request(app).post('/v1/payments/vnpay/link').send({ code: b.code, phone: '0912345678' });
-    expect(await count('payments', 'booking_id = $1', [b.id])).toBe(2);
-    // sai SĐT -> 404
-    expect((await request(app).post('/v1/payments/vnpay/link').send({ code: b.code, phone: '0999999999' })).status).toBe(404);
+    expect(await count('payments', 'booking_id = $1', [b.id])).toBe(1);
+    expect((await request(app).post('/v1/payments/link').send({ code: b.code, phone: '0999999999' })).status).toBe(404);
   });
 
-  it('VNPay lỗi lúc tạo đơn: đơn vẫn giữ chỗ, trả paymentLink.error; lấy lại link sau đó được', async () => {
-    vi.spyOn(vnpayGateway, 'create').mockImplementationOnce(() => {
-      throw new Error('boom');
-    });
-    const res = await book();
-    expect(res.status).toBe(201);
-    expect(res.body.paymentLink.error).toBe('VNPAY_UNAVAILABLE');
-    const code = res.body.booking.code;
-    const retry = await request(app).post('/v1/payments/vnpay/link').send({ code, phone: '0912345678' });
-    expect(retry.status).toBe(200);
-  });
-
-  it('IPN đến sau khi đơn hết hạn: đơn EXPIRED, phòng nhả, tự hoàn 100% qua VNPay, sổ cái về 0', async () => {
+  it('IPN đến sau khi đơn hết hạn: đơn EXPIRED, phòng nhả, tự hoàn 100% (mock), sổ cái về 0', async () => {
     const res = await book();
     const { b, p } = await payOf(res.body.booking.code);
     await expire(b.id);
     const amount = p.amountVnd;
-    expect((await ipn(p, amount)).body.RspCode).toBe('00');
+    expect((await ipn(p, amount)).status).toBe(200);
     const after = await stateOf(b.id);
     expect(after.status).toBe('EXPIRED');
     expect((await resv(b.id)).state).toBe('RELEASED');
@@ -159,10 +133,11 @@ run('tích hợp: thanh toán VNPay (mock) — tạo link, IPN, hoàn, đối so
   it('hai giao dịch cùng thanh toán một đơn: giao dịch thứ hai bị hoàn 100% (DUPLICATE)', async () => {
     const res = await book();
     const { b, p } = await payOf(res.body.booking.code);
-    await ipn(p, p.amountVnd, 1006); // payment 1 thất bại -> FAILED
-    const second = await request(app).post('/v1/payments/vnpay/link').send({ code: b.code, phone: '0912345678' });
+    await db.query("UPDATE payments SET status = 'FAILED' WHERE id = $1", [p.id]); // payment 1 hỏng -> khách lấy link mới
+    const second = await request(app).post('/v1/payments/link').send({ code: b.code, phone: '0912345678' });
     expect(second.status).toBe(200);
     const all = (await db.query<P>('SELECT * FROM payments WHERE booking_id = $1 ORDER BY created_at', [b.id])).rows;
+    expect(all).toHaveLength(2);
     await ipn(all[1]!, all[1]!.amountVnd); // thanh toán link mới
     await ipn(all[0]!, all[0]!.amountVnd); // link cũ cũng bị trả tiền (success muộn)
     expect((await stateOf(b.id)).status).toBe('CONFIRMED');
@@ -173,8 +148,8 @@ run('tích hợp: thanh toán VNPay (mock) — tạo link, IPN, hoàn, đối so
     expect((await stateOf(b.id)).paymentStatus).toBe('PAID'); // đơn vẫn PAID: hoàn một giao dịch trong hai
   });
 
-  it('hoàn thất bại: thử lại tới hết lượt rồi MANUAL_REQUIRED; admin thử lại lệnh thành công', async () => {
-    const spy = vi.spyOn(vnpayGateway, 'refund').mockResolvedValue({ ok: false, code: '10', message: 'ví khách đóng' });
+  it('hoàn lỗi tạm thời: thử lại tới hết lượt rồi MANUAL_REQUIRED; admin thử lại lệnh thành công', async () => {
+    const spy = vi.spyOn(sepayRefund, 'refund').mockResolvedValue({ ok: false, code: '10', message: 'lỗi tạm thời' });
     const res = await book();
     const { b, p } = await payOf(res.body.booking.code);
     await expire(b.id);
@@ -194,14 +169,33 @@ run('tích hợp: thanh toán VNPay (mock) — tạo link, IPN, hoàn, đối so
     expect(spy.mock.calls.every((c) => c[0].requestId === r.gateway.requestId)).toBe(true); // luôn cùng requestId -> không hoàn kép
     // thiếu quyền -> 403
     expect((await request(app).post(`/v1/admin/refunds/${r.id}/retry`).set(auth(sup))).status).toBe(403);
-    vi.spyOn(vnpayGateway, 'refund').mockResolvedValue({ ok: true, code: '00', message: 'ok', transId: 5 });
+    vi.spyOn(sepayRefund, 'refund').mockResolvedValue({ ok: true, code: '0', message: 'ok', transId: 5 });
     const retry = await request(app).post(`/v1/admin/refunds/${r.id}/retry`).set(auth(fin));
     expect(retry.status).toBe(200);
     expect(retry.body.refund.status).toBe('REFUNDED');
     expect((await request(app).post(`/v1/admin/refunds/${r.id}/retry`).set(auth(fin))).status).toBe(409);
   });
 
-  it('đối soát: đơn quá hạn thanh toán -> EXPIRED + nhả phòng; giao dịch treo hỏi VNPay ra thành công -> xác nhận', async () => {
+  it('SePay không có API hoàn (live): lệnh hoàn vào MANUAL_REQUIRED ngay; kế toán đánh dấu đã hoàn -> REFUNDED + sổ cái về 0, bấm lại 409, thiếu quyền 403', async () => {
+    vi.spyOn(sepayRefund, 'refund').mockResolvedValue({ ok: false, code: 'MANUAL', message: 'hoàn thủ công' });
+    const res = await book();
+    const { b, p } = await payOf(res.body.booking.code);
+    await expire(b.id);
+    await ipn(p, p.amountVnd); // tiền về muộn -> cần hoàn
+    const r = (await one<any>('SELECT * FROM refunds WHERE booking_id = $1', [b.id]))!;
+    expect(r.status).toBe('MANUAL_REQUIRED');
+    expect(r.attempts).toHaveLength(1);
+    expect((await request(app).post(`/v1/admin/refunds/${r.id}/mark-refunded`).set(auth(sup))).status).toBe(403);
+    const done = await request(app).post(`/v1/admin/refunds/${r.id}/mark-refunded`).set(auth(fin));
+    expect(done.status).toBe(200);
+    expect(done.body.refund.status).toBe('REFUNDED');
+    expect((await stateOf(b.id)).paymentStatus).toBe('REFUNDED');
+    const sum = (await one<{ s: number }>("SELECT sum(amount_vnd) AS s FROM ledger_entries WHERE booking_id = $1 AND account = 'CUSTOMER_PAID'", [b.id]))!.s;
+    expect(sum).toBe(0);
+    expect((await request(app).post(`/v1/admin/refunds/${r.id}/mark-refunded`).set(auth(fin))).status).toBe(409);
+  });
+
+  it('đối soát: đơn quá hạn thanh toán -> EXPIRED + nhả phòng; giao dịch treo hỏi SePay ra đã thanh toán -> xác nhận', async () => {
     const a = await book();
     const expired = (await payOf(a.body.booking.code)).b;
     await expire(expired.id);
@@ -209,8 +203,8 @@ run('tích hợp: thanh toán VNPay (mock) — tạo link, IPN, hoàn, đối so
     const c = await book();
     const { b: stuck, p: stuckP } = await payOf(c.body.booking.code);
     await db.query("UPDATE payments SET created_at = now() - interval '20 minutes' WHERE id = $1", [stuckP.id]);
-    vi.spyOn(vnpayGateway, 'query').mockImplementation(async ({ txnRef }) =>
-      txnRef === stuckP.gateway.orderId ? { status: 'SUCCESS', message: 'ok', transId: 77, amount: stuckP.amountVnd } : { status: 'PENDING', message: 'chờ' });
+    vi.spyOn(sepayApi, 'orderDetail').mockImplementation(async (invoice) =>
+      invoice === stuckP.gateway.orderId ? { status: 'CAPTURED', amountVnd: stuckP.amountVnd, transactionId: 'tx-77' } : null);
 
     const rec = await request(app).post('/v1/admin/payments/reconcile').set(auth(fin));
     expect(rec.status).toBe(200);
@@ -226,7 +220,7 @@ run('tích hợp: thanh toán VNPay (mock) — tạo link, IPN, hoàn, đối so
   it('simulate IPN (mock) đi qua đường thật; đơn AT_HOTEL không đổi', async () => {
     const res = await book();
     const { b, p } = await payOf(res.body.booking.code);
-    const sim = await request(app).post('/v1/payments/vnpay/dev-simulate').send({ orderId: p.gateway.orderId });
+    const sim = await request(app).post('/v1/payments/sepay/dev-simulate').send({ orderId: p.gateway.orderId });
     expect(sim.status).toBe(200);
     expect((await stateOf(b.id)).status).toBe('CONFIRMED');
 

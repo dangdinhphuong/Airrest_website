@@ -12,7 +12,7 @@ import { fmtDT, useAction, useLoad, usePaged } from './kit';
 import Select from '../Select';
 import { lineLabel, stayLabel, stayShort } from '../../lib/bookingText';
 
-const PAY_METHOD = { VNPAY: 'VNPay', MOMO: 'MoMo', AT_HOTEL: 'Thanh toán tại khách sạn' };
+const PAY_METHOD = { SEPAY: 'SePay', VNPAY: 'VNPay (cũ)', MOMO: 'MoMo (cũ)', AT_HOTEL: 'Thanh toán tại khách sạn' }; // VNPAY/MOMO chỉ để hiển thị đơn cũ
 const PAY_STATUS = { NONE: 'Chưa phát sinh', UNPAID: 'Chưa thanh toán', PENDING: 'Chờ thanh toán', PAID: 'Đã thanh toán', PARTIALLY_REFUNDED: 'Đã hoàn một phần', REFUNDED: 'Đã hoàn tiền', FAILED: 'Thanh toán lỗi', EXPIRED: 'Hết hạn thanh toán', CANCELLED: 'Đã hủy' };
 export const pay = (p) => `${PAY_METHOD[p.method] || p.method || PAY_METHOD.AT_HOTEL} · ${PAY_STATUS[p.status] || p.status}`;
 const DECISION = { CONFIRMED: 'Đã xác nhận', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối' };

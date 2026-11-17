@@ -131,7 +131,7 @@ export async function reply(text, ctx) {
   const q = parseQuery(text, ctx.airport);
   if (q.maxPrice != null || q.maxKm != null || (q.flags.length && SEARCH.test(n))) return beginSearch(mem, text, ctx, { immediate: true });
   if (SHUTTLE.test(n)) return beginShuttle(mem);
-  if (POLICY.test(n)) return { text: 'Mỗi nơi nghỉ có chính sách riêng: nơi gắn nhãn “Hủy miễn phí” cho hủy không mất phí, nơi còn lại không hoàn hủy. Bạn có thể thanh toán tại khách sạn hoặc online qua cổng thanh toán đang bật như VNPay hoặc MoMo. Muốn hủy hoặc đổi ngày, mình có thể gửi yêu cầu giúp bạn ngay trong chat.', chips: ['Hủy / đổi ngày', 'Tìm & đặt phòng'] };
+  if (POLICY.test(n)) return { text: 'Mỗi nơi nghỉ có chính sách riêng: nơi gắn nhãn “Hủy miễn phí” cho hủy không mất phí, nơi còn lại không hoàn hủy. Bạn có thể thanh toán tại khách sạn hoặc online qua SePay (chuyển khoản QR ngân hàng hoặc thẻ). Muốn hủy hoặc đổi ngày, mình có thể gửi yêu cầu giúp bạn ngay trong chat.', chips: ['Hủy / đổi ngày', 'Tìm & đặt phòng'] };
   if (SEARCH.test(n)) return beginSearch(mem, text, ctx);
   if (GREET.test(n)) return { text: `Xin chào! Mình là trợ lý AIRREST. ${MENU}`, chips: START };
   mem.fails = fails + 1;

@@ -8,6 +8,7 @@ import { useFavorites } from '../../data/favorites';
 import { copyText, partyFromPrefs, setStaysIntent } from './data';
 import GuestsPicker from './GuestsPicker';
 import HotelMap from './HotelMap';
+import Photo from './Photo';
 
 const TABS = [['overview', 'Tổng quan'], ['rooms', 'Phòng'], ['amenities', 'Tiện ích'], ['location', 'Vị trí'], ['policy', 'Chính sách'], ['reviews', 'Đánh giá']];
 const SERVICE_TAGS = new Set(['SHUTTLE_FREE', 'SHUTTLE_PAID', 'SHUTTLE', '24H_RECEPTION', 'HOURLY', 'FAMILY_ROOM', 'LUGGAGE']);
@@ -19,15 +20,30 @@ const windowOf = ({ checkIn, checkOut }) => ({ from: new Date(`${checkIn}T14:00:
 const go = (el) => document.getElementById(el)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
 export function Gallery({ p }) {
-  const imgs = p.images?.length ? p.images : [p.image];
+  const imgs = p.images ?? [];
   const [i, setI] = useState(0);
   const [bad, setBad] = useState({});
   const ok = imgs.filter((u) => !bad[u]);
-  const cur = ok[Math.min(i, ok.length - 1)] ?? p.image;
+  const cur = ok[Math.min(i, ok.length - 1)];
   return (
     <div>
-      <div className="tw:relative tw:h-[340px] tw:overflow-hidden tw:rounded-3xl tw:sm:h-[460px]"><img src={cur} alt={p.name} onError={() => setBad((b) => ({ ...b, [cur]: true }))} className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /></div>
+      <div className="tw:relative tw:h-[340px] tw:overflow-hidden tw:rounded-3xl tw:sm:h-[460px]">{cur ? <img src={cur} alt={p.name} onError={() => setBad((b) => ({ ...b, [cur]: true }))} className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /> : <Photo alt={p.name} size={64} />}</div>
       {ok.length > 1 && <div className="tw:mt-3 tw:flex tw:gap-2 tw:overflow-x-auto" role="group" aria-label="Ảnh khách sạn">{ok.map((u, k) => <button type="button" key={u} onClick={() => setI(k)} aria-label={`Ảnh ${k + 1}`} aria-pressed={u === cur} className={`tw:relative tw:h-16 tw:w-24 tw:shrink-0 tw:overflow-hidden tw:rounded-xl tw:border-2 ${u === cur ? 'tw:border-blue-600' : 'tw:border-transparent'}`}><img src={u} alt="" className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /></button>)}</div>}
+    </div>
+  );
+}
+
+// Ảnh phòng do khách sạn tải lên: ảnh bìa + dải ảnh nhỏ bấm để xem; phòng chưa có ảnh thì không chừa khung.
+function RoomPhotos({ images, name }) {
+  const [i, setI] = useState(0);
+  const [bad, setBad] = useState({});
+  const ok = (images ?? []).filter((u) => !bad[u]);
+  if (!ok.length) return null;
+  const cur = ok[Math.min(i, ok.length - 1)];
+  return (
+    <div className="tw:shrink-0 tw:sm:w-44" data-testid="room-photos">
+      <div className="tw:relative tw:h-40 tw:w-full tw:overflow-hidden tw:rounded-lg tw:sm:h-32"><img src={cur} alt={name} loading="lazy" onError={() => setBad((b) => ({ ...b, [cur]: true }))} className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /></div>
+      {ok.length > 1 && <div className="tw:mt-1.5 tw:flex tw:gap-1.5 tw:overflow-x-auto" role="group" aria-label={`Ảnh ${name}`}>{ok.map((u, k) => <button type="button" key={u} onClick={() => setI(k)} aria-label={`Ảnh ${k + 1} của ${name}`} aria-pressed={u === cur} className={`tw:relative tw:size-9 tw:shrink-0 tw:overflow-hidden tw:rounded-md tw:border-2 ${u === cur ? 'tw:border-blue-600' : 'tw:border-transparent'}`}><img src={u} alt="" loading="lazy" className="tw:absolute tw:inset-0 tw:size-full tw:object-cover" /></button>)}</div>}
     </div>
   );
 }
@@ -36,7 +52,7 @@ function RoomCard({ room: r, nights, onPick }) {
   const full = r.availableRooms <= 0;
   return (
     <li data-testid="detail-room" className="tw:flex tw:flex-col tw:gap-4 tw:rounded-xl tw:border tw:border-slate-200 tw:p-4 tw:sm:flex-row">
-      {r.images[0] && <img src={r.images[0]} alt={r.name} loading="lazy" className="tw:h-40 tw:w-full tw:shrink-0 tw:rounded-lg tw:object-cover tw:sm:h-32 tw:sm:w-44" />}
+      <RoomPhotos images={r.images} name={r.name} />
       <div className="tw:min-w-0 tw:flex-1">
         <h3 className="tw:font-bold">{r.name}</h3>
         <p className="tw:mt-2 tw:flex tw:flex-wrap tw:gap-x-4 tw:gap-y-1 tw:text-xs tw:text-slate-600">

@@ -43,7 +43,7 @@ export const preferencesSchema = z
     adults: z.number().int().min(1).max(30).optional(),
     children: z.number().int().min(0).max(29).optional(),
     rooms: z.number().int().min(1).max(5).optional(),
-    paymentMethod: z.enum(['AT_HOTEL', 'VNPAY', 'MOMO', 'SEPAY']).optional(),
+    paymentMethod: z.enum(['AT_HOTEL', 'SEPAY']).optional(),
   })
   .strict()
   .refine((p) => (p.adults ?? 1) + (p.children ?? 0) <= 30, { message: 'Tổng số khách tối đa 30.', path: ['children'] });

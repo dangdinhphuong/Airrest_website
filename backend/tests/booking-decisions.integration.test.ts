@@ -10,6 +10,12 @@ const run = process.env.RUN_DB_TESTS ? describe : describe.skip;
 const DAY = 86400_000;
 const PHONE = '0912345678';
 
+// Đơn đã trả tiền nhưng còn chờ khách sạn duyệt (PENDING + HOLD): SePay nay xác nhận ngay nên trạng thái này chỉ còn ở đơn cũ (VNPay/MoMo trước khi bỏ); dựng lại để kiểm logic hoàn tiền.
+const asLegacyPaidPending = async (id: string) => {
+  await db.query("UPDATE bookings SET status = 'PENDING', expires_at = now() + interval '1 hour' WHERE id = $1", [id]);
+  await db.query("UPDATE room_reservations SET state = 'HOLD', hold_expires_at = now() + interval '1 hour' WHERE booking_id = $1", [id]);
+};
+
 run('tích hợp: xác nhận / từ chối booking', () => {
   const app = createApp();
   let H1 = '';
@@ -22,7 +28,7 @@ run('tích hợp: xác nhận / từ chối booking', () => {
   let admin = '';
   let n = 0;
   const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
-  const book = (hotel = H1, rt = RT3, off = 10, method: 'AT_HOTEL' | 'VNPAY' = 'AT_HOTEL') =>
+  const book = (hotel = H1, rt = RT3, off = 10, method: 'AT_HOTEL' | 'SEPAY' = 'AT_HOTEL') =>
     request(app)
       .post('/v1/bookings')
       .set('Idempotency-Key', `dc-${++n}-${Date.now()}`)
@@ -127,13 +133,14 @@ run('tích hợp: xác nhận / từ chối booking', () => {
     expect(again.body.error.code).toBe('INVALID_STATE');
   });
 
-  it('đơn VNPay đã trả: reject tạo đúng một refund PENDING (vô hạn), đối soát không xử lý; AT_HOTEL không có refund', async () => {
-    const b = await book(H1, RT3, 40, 'VNPAY');
+  it('đơn SePay đã trả: reject tạo đúng một refund PENDING (vô hạn), đối soát không xử lý; AT_HOTEL không có refund', async () => {
+    const b = await book(H1, RT3, 40, 'SEPAY');
     const id = await idOf(b.body.booking.code);
     const pay = (await one<any>('SELECT txn_ref FROM payments WHERE booking_id = $1', [id]))!;
-    expect((await request(app).post('/v1/payments/vnpay/dev-simulate').send({ orderId: pay.txnRef })).status).toBe(200);
+    expect((await request(app).post('/v1/payments/sepay/dev-simulate').send({ orderId: pay.txnRef })).status).toBe(200);
     const paid = (await one<any>('SELECT status, payment_status, paid_vnd FROM bookings WHERE id = $1', [id]))!;
-    expect(paid).toMatchObject({ status: 'PENDING', paymentStatus: 'PAID' });
+    expect(paid).toMatchObject({ status: 'CONFIRMED', paymentStatus: 'PAID' }); // SePay: xác nhận ngay, không chờ duyệt
+    await asLegacyPaidPending(id);
     const [a, c] = await Promise.all([reject(id), reject(id)]);
     expect([a.status, c.status].sort()).toEqual([200, 409]);
     const refunds = (await db.query<any>('SELECT * FROM refunds WHERE booking_id = $1', [id])).rows;

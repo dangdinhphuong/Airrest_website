@@ -3,9 +3,10 @@ import { pay } from './Bookings';
 import { quoteText } from './Changes';
 
 describe('nhãn cổng hotel portal', () => {
-  it('thanh toán MoMo không bị hiện thành "tại khách sạn"', () => {
-    expect(pay({ method: 'MOMO', status: 'PAID' })).toBe('MoMo · Đã thanh toán');
-    expect(pay({ method: 'VNPAY', status: 'PENDING' })).toBe('VNPay · Chờ thanh toán');
+  it('thanh toán SePay (và đơn cũ VNPay/MoMo) không bị hiện thành "tại khách sạn"', () => {
+    expect(pay({ method: 'SEPAY', status: 'PAID' })).toBe('SePay · Đã thanh toán');
+    expect(pay({ method: 'MOMO', status: 'PAID' })).toBe('MoMo (cũ) · Đã thanh toán');
+    expect(pay({ method: 'VNPAY', status: 'PENDING' })).toBe('VNPay (cũ) · Chờ thanh toán');
     expect(pay({ method: 'AT_HOTEL', status: 'UNPAID' })).toBe('Thanh toán tại khách sạn · Chưa thanh toán');
   });
   it('báo giá yêu cầu đổi ngày / hủy hiện số đêm, tổng mới, chênh lệch', () => {

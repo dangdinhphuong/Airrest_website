@@ -2,7 +2,7 @@ import { canBook, dayWindow, hourlyOf, hourlyPrice, hourlyViolation, hourlyWindo
 import { AppError } from '../../lib/errors';
 import { db } from '../../database/pg';
 import type { HotelDoc, RoomTypeDoc } from '../../database/types';
-import { intervalsForCheck, loadActiveIntervals } from '../rooms/availability';
+import { intervalsForCheck, loadActiveIntervals, loadActiveIntervalsMany } from '../rooms/availability';
 
 // Cờ tính năng công khai của khách sạn, suy ra từ dữ liệu có sẵn (KHÔNG đổi schema):
 //  - hotels.amenities mang thêm tag: SHUTTLE_FREE | SHUTTLE_PAID | SHUTTLE (cũ, coi là miễn phí), 24H_RECEPTION, HOURLY, FAMILY_ROOM
@@ -21,14 +21,15 @@ export function hotelFeatures(h: Pick<HotelDoc, 'amenities' | 'policy'>) {
 
 export type PublicRoom = { id: string; hotelId: string; name: string; capacity: number; beds: number; areaM2: number; baseNightVnd: number; nonRefundablePct?: number; roomsLeft: number; hourly?: HourlyConfig | null };
 
-// Loại phòng đang bán + số phòng còn trong cửa sổ [from, to) (sweep-line như lúc đặt phòng). Mỗi loại phòng 2 truy vấn, giới hạn bởi limit của danh sách.
+// Loại phòng đang bán + số phòng còn trong cửa sổ [from, to) (sweep-line như lúc đặt phòng). Tổng cộng 3 truy vấn cho cả danh sách (khách sạn đã lấy trước): loại phòng, đơn giữ chỗ, khóa phòng.
 export async function publicRooms(hotelIds: string[], window: { from: Date; to: Date }, now = new Date()): Promise<Map<string, PublicRoom[]>> {
   const byHotel = new Map<string, PublicRoom[]>();
   if (!hotelIds.length) return byHotel;
   const rts = (await db.query<RoomTypeDoc>('SELECT * FROM room_types WHERE hotel_id = ANY($1::uuid[]) AND active ORDER BY hotel_id, name', [hotelIds])).rows;
+  const intervals = await loadActiveIntervalsMany(db, rts.map((rt) => rt.id), window.from, window.to, now); // 2 truy vấn cho mọi loại phòng (trước đây 2 truy vấn mỗi loại)
   await Promise.all(
     rts.map(async (rt) => {
-      const used = intervalsForCheck(await loadActiveIntervals(db, rt.id, window.from, window.to, now), now);
+      const used = intervalsForCheck(intervals.get(rt.id)!, now);
       const room: PublicRoom = { id: rt.id, hotelId: rt.hotelId, name: rt.name, capacity: rt.capacity, beds: rt.beds, areaM2: rt.areaM2, baseNightVnd: Number(rt.pricing.baseNightVnd), ...(rt.pricing.nonRefundablePct && { nonRefundablePct: rt.pricing.nonRefundablePct }), roomsLeft: Math.max(0, remainingRooms(rt.totalRooms, used, window)), hourly: hourlyOf(rt.pricing) };
       byHotel.set(rt.hotelId, [...(byHotel.get(rt.hotelId) ?? []), room]);
     }),

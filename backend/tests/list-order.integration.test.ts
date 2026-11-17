@@ -130,13 +130,13 @@ run('tích hợp: danh sách quản trị — mới nhất trước + phân tran
     const hotel = await mkHotel({ code: 'PAYLO' });
     const rt = await mkRoomType(hotel, 10);
     const bookings: string[] = [];
-    for (let i = 0; i < 3; i++) bookings.push((await createBookingVia(app, { hotelId: hotel, roomTypeId: rt, paymentMethod: 'VNPAY', offDays: 20 + i })).id);
+    for (let i = 0; i < 3; i++) bookings.push((await createBookingVia(app, { hotelId: hotel, roomTypeId: rt, paymentMethod: 'SEPAY', offDays: 20 + i })).id);
     const expected = (await db.query<{ id: string }>('SELECT id FROM payments WHERE booking_id = ANY($1::uuid[]) ORDER BY seq', [bookings])).rows.map((r) => r.id);
     expect(expected).toHaveLength(3);
     const all = await walk('/v1/admin/payments', 'cursor');
     expect(all.pages).toBe(2);
     expectNewestFirst(all.ids, expected);
-    expect((await walk('/v1/admin/payments', 'cursor', { method: 'MOMO' })).ids).toHaveLength(0);
+    expect((await walk('/v1/admin/payments', 'cursor', { method: 'SEPAY' })).ids).toEqual(all.ids); // chỉ còn cổng SePay
   });
 
   it('đơn vị chi trả: mới nhất trước, qua 3 trang; lọc trạng thái', async () => {

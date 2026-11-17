@@ -35,7 +35,7 @@ describe('xe ngoài mô phỏng: dữ liệu giả hợp lệ', () => {
 describe('cấu hình: production + SHUTTLE_SIM_AUTO', () => {
   const load = (auto?: string) => {
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('MOMO_ENABLED', 'false');
+    vi.stubEnv('SEPAY_ENABLED', 'false'); // production cấm SePay mock; test này chỉ xét SHUTTLE_SIM_AUTO
     if (auto !== undefined) vi.stubEnv('SHUTTLE_SIM_AUTO', auto);
     else delete process.env.SHUTTLE_SIM_AUTO;
     vi.resetModules();

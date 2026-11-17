@@ -90,7 +90,7 @@ export const createBookingBody = z
     guests: z.number().int().min(1).max(30).default(1), // số người ở; kiểm sức chứa loại phòng × qty ở server
     children: z.number().int().min(0).max(30).default(0), // trẻ em nằm TRONG `guests` (guests = người lớn + trẻ em); không dùng riêng cho sức chứa/xe
     shuttle: bookingShuttleBody.optional(),
-    paymentMethod: z.enum(['AT_HOTEL', 'VNPAY', 'MOMO', 'SEPAY']).default('AT_HOTEL'),
+    paymentMethod: z.enum(['AT_HOTEL', 'SEPAY']).default('AT_HOTEL'),
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
     guest: z.object({

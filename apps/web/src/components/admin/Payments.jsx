@@ -9,7 +9,7 @@ import { Act, cols, dt, pagedProps, shortId, useRun, usePaged } from './kit';
 import Select from '../Select';
 
 const TONE = { SUCCEEDED: 'ok', COMPLETED: 'ok', PENDING: 'warn', FAILED: 'error', MANUAL_REQUIRED: 'error' };
-const GATE = { VNPAY: 'VNPay', MOMO: 'MoMo' };
+const GATE = { SEPAY: 'SePay', VNPAY: 'VNPay (cũ)', MOMO: 'MoMo (cũ)' }; // VNPAY/MOMO chỉ để hiển thị giao dịch cũ
 const MAP = Object.fromEntries(Object.entries(TONE).map(([k, t]) => [k, [k, t]]));
 const St = ({ s }) => <StatusBadge status={s} map={MAP} />;
 
@@ -30,7 +30,7 @@ export default function Payments() {
         actions={canManage && <Act label="Đối soát ngay" confirm="Chạy đối soát: truy vấn giao dịch treo, hết hạn đơn chưa trả, xử lý lệnh hoàn đến hạn?" onDo={doReconcile} testid="reconcile" />}>
         <Tabs label="Loại" value={tab} onChange={setTab} tabs={[{ id: 'payments', label: 'Giao dịch' }, { id: 'anomaly', label: 'Bất thường' }, { id: 'refunds', label: 'Lệnh hoàn' }]} />
       </PageHeader>
-      <Toolbar label="Lọc"><label>Cổng <Select value={gate} onChange={(e) => setGate(e.target.value)} data-testid="gate-filter"><option value="">Tất cả</option><option value="VNPAY">VNPay</option><option value="MOMO">MoMo</option></Select></label></Toolbar>
+      <Toolbar label="Lọc"><label>Cổng <Select value={gate} onChange={(e) => setGate(e.target.value)} data-testid="gate-filter"><option value="">Tất cả</option><option value="SEPAY">SePay</option></Select></label></Toolbar>
       {result && <p className="muted" data-testid="reconcile-result">Kết quả: truy vấn {result.queried}, ghi nhận thành công {result.settled}, thất bại {result.failed}, đơn hết hạn {result.expiredBookings}, lệnh hoàn xử lý {result.refundsProcessed}.</p>}
       {node}
       <DataTable empty={tab === 'anomaly' ? 'Không có giao dịch bất thường.' : 'Chưa có dữ liệu.'} {...pagedProps(p)}

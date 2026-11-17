@@ -52,7 +52,7 @@ export const openapi = {
     { name: 'Hotels (công khai)' },
     { name: 'Bookings (khách)' },
     { name: 'Bookings (lễ tân)' },
-    { name: 'Payments (VNPay)', description: 'VNPay + MoMo' },
+    { name: 'Payments (SePay)', description: 'Cổng thanh toán SePay' },
     { name: 'Hotel · Nhân viên' },
     { name: 'Admin · Tài khoản' },
     { name: 'Admin · Cấu hình' },
@@ -89,7 +89,7 @@ export const openapi = {
           rooms: { type: 'array', minItems: 1, maxItems: 10, description: 'Một hoặc nhiều loại phòng CÙNG khách sạn, chung ngày và chung số khách. roomTypeId không trùng, đều active (404 ROOM_TYPE_NOT_FOUND). Thiếu chỗ ở bất kỳ dòng nào -> 409 SOLD_OUT cho cả đơn (details.soldOut[] nêu dòng thiếu). guests <= tổng (capacity × qty) các dòng', items: obj({ roomTypeId: uuid, qty: { type: 'integer', minimum: 1, maximum: 5, default: 1 } }, ['roomTypeId']) },
           roomTypeId: { ...uuid, description: 'LEGACY: dùng cùng `qty` thay cho `rooms` (quy về một dòng); gửi lẫn với `rooms` -> 422' },
           qty: { type: 'integer', minimum: 1, maximum: 5, description: 'LEGACY, đi với roomTypeId; mặc định 1' },
-          paymentMethod: { type: 'string', enum: ['AT_HOTEL', 'VNPAY', 'MOMO', 'SEPAY'], default: 'AT_HOTEL' },
+          paymentMethod: { type: 'string', enum: ['AT_HOTEL', 'SEPAY'], default: 'AT_HOTEL' },
           from: { type: 'string', format: 'date-time' },
           to: { type: 'string', format: 'date-time' },
           guest: ref('Guest'),
@@ -157,7 +157,7 @@ export const openapi = {
       patch: op({
         tag: 'Khách (tài khoản)',
         summary: 'Sửa họ tên và/hoặc cấu hình cá nhân (preferences thay nguyên khối; không nhận SĐT/email)',
-        body: body(obj({ fullName: str, preferences: obj({ airport: str, adults: { type: 'integer' }, children: { type: 'integer' }, rooms: { type: 'integer' }, paymentMethod: { type: 'string', enum: ['AT_HOTEL', 'VNPAY', 'MOMO'] } }) })),
+        body: body(obj({ fullName: str, preferences: obj({ airport: str, adults: { type: 'integer' }, children: { type: 'integer' }, rooms: { type: 'integer' }, paymentMethod: { type: 'string', enum: ['AT_HOTEL', 'SEPAY'] } }) })),
       }),
     },
     '/v1/me/tickets': {
@@ -196,7 +196,7 @@ export const openapi = {
         public: true,
         params: [{ ...param('Idempotency-Key', 'header'), required: true, description: 'Chuỗi duy nhất mỗi lần đặt, gửi lại cùng key sẽ trả kết quả cũ' }],
         body: body(ref('CreateBooking')),
-        extra: { 201: ok('Đã tạo booking (VNPAY/MOMO kèm paymentLink). booking: guests, children, shuttle{tripType,legCount}, pricing{roomVnd,shuttleVnd,serviceFeeVnd,totalVnd}; shuttles[] khi có xe cùng đơn'), 422: err('SHUTTLE_NOT_OFFERED | GUESTS_EXCEED_CAPACITY | PICKUP_OUT_OF_STAY_WINDOW | AIRPORT_NOT_SERVED | SHUTTLE_OUT_OF_RANGE | VALIDATION_ERROR'), 409: err('Hết phòng, trùng yêu cầu, hoặc cổng tắt (VNPAY_DISABLED/MOMO_DISABLED)') },
+        extra: { 201: ok('Đã tạo booking (SEPAY kèm paymentLink). booking: guests, children, shuttle{tripType,legCount}, pricing{roomVnd,shuttleVnd,serviceFeeVnd,totalVnd}; shuttles[] khi có xe cùng đơn'), 422: err('SHUTTLE_NOT_OFFERED | GUESTS_EXCEED_CAPACITY | PICKUP_OUT_OF_STAY_WINDOW | AIRPORT_NOT_SERVED | SHUTTLE_OUT_OF_RANGE | VALIDATION_ERROR'), 409: err('Hết phòng, trùng yêu cầu, hoặc cổng tắt (VNPAY_DISABLED/MOMO_DISABLED)') },
       }),
     },
     '/v1/hotels/{id}/hourly-slots': {
@@ -239,52 +239,32 @@ export const openapi = {
       }),
     },
 
-    '/v1/payments/vnpay/ipn': {
-      get: op({
-        tag: 'Payments (VNPay)',
-        summary: 'VNPay gọi lại (IPN) bằng query vnp_*, xác thực bằng vnp_SecureHash. Trả JSON {RspCode, Message}: 00 ok, 01 không thấy đơn, 02 đã xác nhận, 04 sai số tiền, 97 sai chữ ký',
+    '/v1/payments/sepay/ipn': {
+      post: op({
+        tag: 'Payments (SePay)',
+        summary: 'SePay gọi lại (IPN) bằng POST JSON, xác thực bằng header X-Secret-Key (= SEPAY_IPN_SECRET). 200 = đã nhận (kể cả lặp/lệch tiền/không thấy đơn), 401 = sai khóa. Chỉ ORDER_PAID mới xác nhận thanh toán',
         public: true,
-        params: [param('vnp_TxnRef', 'query'), param('vnp_Amount', 'query'), param('vnp_ResponseCode', 'query'), param('vnp_TransactionStatus', 'query'), param('vnp_TransactionNo', 'query'), param('vnp_SecureHash', 'query')],
-        res: ok('RspCode/Message', obj({ RspCode: str, Message: str })),
+        body: body(obj({ timestamp: int, notification_type: str, order: obj({ order_invoice_number: str, order_status: str, order_amount: str }), transaction: obj({ transaction_id: str, transaction_status: str }) }, ['notification_type', 'order'])),
       }),
     },
-    '/v1/payments/vnpay/link': {
-      post: op({ tag: 'Payments (VNPay)', summary: 'Lấy lại link thanh toán (giữ tương thích; giống /v1/payments/link)', public: true, body: body(ref('Lookup')) }),
+    '/v1/payments/sepay/checkout/{paymentId}': {
+      get: op({ tag: 'Payments (SePay)', summary: 'Trang HTML tự gửi form có chữ ký sang SePay (link thanh toán của đơn). 404 nếu link không còn dùng được', public: true, params: [param('paymentId', 'path')] }),
     },
     '/v1/payments/link': {
-      post: op({ tag: 'Payments (VNPay)', summary: 'Lấy lại link thanh toán theo cổng của đơn (VNPay/MoMo). 409 PAYMENT_NOT_AVAILABLE/BOOKING_EXPIRED, 502 VNPAY_UNAVAILABLE/MOMO_UNAVAILABLE', public: true, body: body(ref('Lookup')) }),
-    },
-    '/v1/payments/momo/link': {
-      post: op({ tag: 'Payments (VNPay)', summary: 'Bí danh của /v1/payments/link', public: true, body: body(ref('Lookup')) }),
+      post: op({ tag: 'Payments (SePay)', summary: 'Lấy lại link thanh toán SePay của đơn. 409 PAYMENT_NOT_AVAILABLE/BOOKING_EXPIRED', public: true, body: body(ref('Lookup')) }),
     },
     '/v1/payments/methods': {
       get: op({
-        tag: 'Payments (VNPay)',
-        summary: 'Cổng thanh toán đang bật (AT_HOTEL luôn có; VNPAY/MOMO theo env, kèm mode mock|live). Không lộ khóa',
+        tag: 'Payments (SePay)',
+        summary: 'Cổng thanh toán đang bật (AT_HOTEL luôn có; SEPAY theo env, kèm mode mock|live). Không lộ khóa',
         public: true,
         res: ok('methods', obj({ methods: { type: 'array', items: obj({ id: str, label: str, mode: str }, ['id', 'label']) } })),
       }),
     },
-    '/v1/payments/momo/ipn': {
+    '/v1/payments/sepay/dev-simulate': {
       post: op({
-        tag: 'Payments (VNPay)',
-        summary: 'MoMo gọi lại (IPN) bằng POST JSON, xác thực bằng signature HMAC-SHA256. 204 = đã nhận (kể cả lặp/lệch tiền/không thấy đơn), 400 = sai chữ ký',
-        public: true,
-        body: body(obj({ partnerCode: str, orderId: str, requestId: str, amount: int, orderInfo: str, orderType: str, transId: int, resultCode: int, message: str, payType: str, responseTime: int, extraData: str, signature: str }, ['orderId', 'amount', 'resultCode', 'signature'])),
-      }),
-    },
-    '/v1/payments/momo/dev-simulate': {
-      post: op({
-        tag: 'Payments (VNPay)',
-        summary: '[chỉ MOMO_MODE=mock, không production] Giả lập MoMo báo kết quả qua đúng đường IPN (resultCode 0 = thành công)',
-        public: true,
-        body: body(obj({ orderId: str, resultCode: { type: 'integer', default: 0 }, amount: int }, ['orderId']), { orderId: 'AR...', resultCode: 0 }),
-      }),
-    },
-    '/v1/payments/vnpay/dev-simulate': {
-      post: op({
-        tag: 'Payments (VNPay)',
-        summary: '[chỉ mock, không production] Giả lập VNPay báo kết quả (resultCode 0 = thành công)',
+        tag: 'Payments (SePay)',
+        summary: '[chỉ SEPAY_MODE=mock, không production] Giả lập SePay báo kết quả qua đúng đường IPN (resultCode 0 = thành công)',
         public: true,
         body: body(obj({ orderId: str, resultCode: { type: 'integer', default: 0 }, amount: int }, ['orderId']), { orderId: 'AR...', resultCode: 0 }),
       }),
@@ -471,9 +451,10 @@ export const openapi = {
       get: op({ tag: 'Admin · Khách sạn', summary: 'Thống kê khách sạn', perm: 'admin:hotel:read', params: [hotelId, param('from', 'query'), param('to', 'query')] }),
     },
 
-    '/v1/admin/payments': { get: op({ tag: 'Admin · Thanh toán', summary: 'Giao dịch cổng thanh toán (VNPay/MoMo)', perm: 'admin:payment:read', params: [param('method', 'query', { type: 'string', enum: ['VNPAY', 'MOMO'] }), param('anomaly', 'query', { type: 'boolean' }), limit, cursor] }) },
+    '/v1/admin/payments': { get: op({ tag: 'Admin · Thanh toán', summary: 'Giao dịch cổng thanh toán (SePay)', perm: 'admin:payment:read', params: [param('method', 'query', { type: 'string', enum: ['VNPAY', 'MOMO'] }), param('anomaly', 'query', { type: 'boolean' }), limit, cursor] }) },
     '/v1/admin/refunds': { get: op({ tag: 'Admin · Thanh toán', summary: 'Lệnh hoàn tiền', perm: 'admin:payment:read', params: [limit, cursor] }) },
     '/v1/admin/payments/reconcile': { post: op({ tag: 'Admin · Thanh toán', summary: 'Đối soát gọi tay', perm: 'admin:payment:manage' }) },
+    '/v1/admin/refunds/{id}/mark-refunded': { post: op({ tag: 'Admin · Thanh toán', summary: 'Kế toán đã hoàn tay (SePay không có API hoàn): đánh dấu lệnh hoàn REFUNDED + ghi sổ cái. 409 nếu đã hoàn/không hợp lệ', perm: 'admin:payment:manage', params: [idParam] }) },
     '/v1/admin/refunds/{id}/retry': { post: op({ tag: 'Admin · Thanh toán', summary: 'Thử lại lệnh hoàn MANUAL_REQUIRED', perm: 'admin:payment:manage', params: [idParam] }) },
 
     '/v1/admin/audit-logs': {

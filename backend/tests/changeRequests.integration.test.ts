@@ -25,7 +25,7 @@ run('tích hợp: yêu cầu đổi/hủy của khách', () => {
   const offDay = (() => { let d = 20; return () => (d += 3); })();
   const mk = async (o: { hotel?: 'FLEX' | 'STD'; paid?: boolean } = {}) => {
     const std = o.hotel === 'STD';
-    const b = await createBookingVia(app, { hotelId: std ? stdHotel : flexHotel, roomTypeId: std ? stdRt : flexRt, paymentMethod: o.paid ? 'VNPAY' : 'AT_HOTEL', offDays: offDay() });
+    const b = await createBookingVia(app, { hotelId: std ? stdHotel : flexHotel, roomTypeId: std ? stdRt : flexRt, paymentMethod: o.paid ? 'SEPAY' : 'AT_HOTEL', offDays: offDay() });
     if (o.paid) await payBooking(app, b.code);
     return b;
   };
@@ -183,7 +183,7 @@ run('tích hợp: xử lý yêu cầu hủy / đổi ngày', () => {
   const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
   const guest = () => guestIp(++ipn);
   const mk = async (hotel = H1, rt = RT1, paid = false, offDays = (off += 3)) => {
-    const b = await createBookingVia(app, { hotelId: hotel, roomTypeId: rt, paymentMethod: paid ? 'VNPAY' : 'AT_HOTEL', offDays });
+    const b = await createBookingVia(app, { hotelId: hotel, roomTypeId: rt, paymentMethod: paid ? 'SEPAY' : 'AT_HOTEL', offDays });
     if (paid) await payBooking(app, b.code);
     return b;
   };

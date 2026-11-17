@@ -10,16 +10,18 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
   const app = createApp();
   let hotelId: string;
   let roomTypeId: string;
+  let manualHotelId: string;
+  let manualRoomTypeId: string;
   let n = 0;
   const day = 86400_000;
 
-  const book = () => {
+  const book = (h = hotelId, r = roomTypeId) => {
     const off = 2 + n;
     return request(app)
       .post('/v1/bookings')
       .set('Idempotency-Key', `sepay-key-${++n}-${Date.now()}`)
       .send({
-        hotelId, roomTypeId,
+        hotelId: h, roomTypeId: r,
         from: new Date(Date.now() + off * day).toISOString(), to: new Date(Date.now() + (off + 1) * day).toISOString(),
         guest: { fullName: 'Khách SePay', phone: '0912345678' },
         paymentMethod: 'SEPAY',
@@ -38,6 +40,8 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
     await freshDb({ roles: true });
     hotelId = await mkHotel({ code: 'S1', name: 'KS SePay' });
     roomTypeId = await mkRoomType(hotelId, 1, 800_000);
+    manualHotelId = await mkHotel({ code: 'S2', name: 'KS duyệt tay', manual: true });
+    manualRoomTypeId = await mkRoomType(manualHotelId, 1, 800_000);
   });
   afterAll(async () => closeDb());
   afterEach(() => vi.restoreAllMocks());
@@ -133,5 +137,13 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
     vi.spyOn(sepayApi, 'orderDetail').mockResolvedValue({ status: 'CAPTURED', amountVnd: p.amountVnd - 1000 });
     expect((await lookup()).body.booking.status).toBe('PENDING_PAYMENT');
     expect((await payOf(b.code)).p.anomaly?.kind).toBe('AMOUNT_MISMATCH');
+  });
+
+  it('khách sạn duyệt tay: thanh toán SePay xong vẫn CONFIRMED ngay (không chờ duyệt)', async () => {
+    const { b, p } = await payOf((await book(manualHotelId, manualRoomTypeId)).body.booking.code);
+    expect((await ipn(buildSepayIpn({ invoice: p.gateway.orderId, amount: p.amountVnd, success: true, transactionId: 'tx-manual' }))).status).toBe(200);
+    expect(await status(b.id)).toBe('CONFIRMED');
+    expect((await one<any>('SELECT expires_at FROM bookings WHERE id = $1', [b.id]))!.expiresAt).toBeUndefined();
+    expect(await count('room_reservations', "booking_id = $1 AND state = 'CONFIRMED'", [b.id])).toBe(1);
   });
 });

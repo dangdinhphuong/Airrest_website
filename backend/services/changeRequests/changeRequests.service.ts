@@ -7,7 +7,7 @@ import { db, json, withTransaction, type Db } from '../../database/pg';
 import { bookingFromRow, type Actor, type BookingDoc, type ChangeRequestDoc, type HotelDoc } from '../../database/types';
 import { AppError, isDuplicateKey } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
-import { newGatewayOrder } from '../../lib/momo';
+import { newSepayOrder } from '../../lib/sepay';
 import { actorOf, writeAudit } from '../audit';
 import { legRefundedVnd } from '../shuttle/billing';
 import { cancelShuttlesForBooking } from '../shuttle/cascade';
@@ -155,7 +155,7 @@ export async function createRequestRefund(tx: Db, b: BookingDoc, key: string, am
   if (amount <= 0) return null;
   const pay = (await tx.query<{ id: string; method: string }>("SELECT id, method FROM payments WHERE booking_id = $1 AND status = 'SUCCEEDED' ORDER BY paid_at DESC LIMIT 1", [b.id])).rows[0];
   if (!pay) return null;
-  const { orderId, requestId: gw } = newGatewayOrder(pay.method, `RF${b.code}`);
+  const { orderId, requestId: gw } = newSepayOrder(`RF${b.code}`);
   const ins = await tx.query<{ id: string }>(
     `INSERT INTO refunds (id, booking_id, hotel_id, payment_id, key, amount_vnd, reason_code, method, status, gateway, due_at, created_at, updated_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$10,'PENDING',$8::jsonb,'infinity',$9,$9) ON CONFLICT (key) DO NOTHING RETURNING id`,

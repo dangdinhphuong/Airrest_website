@@ -50,27 +50,6 @@ const schema = z.object({
   R2_BUCKET: z.string().optional(),
   R2_PUBLIC_BASE_URL: z.string().url().optional(), // URL công khai của bucket (r2.dev hoặc domain riêng), không có dấu / cuối
 
-  // --- VNPay (thanh toán thu tiền + hoàn). mock = cổng giả lập cục bộ, live = gọi VNPay thật (sandbox/production).
-  // VNPAY_ENABLED=false: API đặt phòng từ chối paymentMethod=VNPAY.
-  VNPAY_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
-  VNPAY_MODE: z.enum(['mock', 'live']).default('mock'),
-  VNPAY_TMN_CODE: z.string().optional(),
-  VNPAY_HASH_SECRET: z.string().optional(),
-  VNPAY_URL: z.string().url().default('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'), // trang thanh toán
-  VNPAY_API_URL: z.string().url().default('https://sandbox.vnpayment.vn/merchant_webapi/api/transaction'), // querydr + refund
-  VNPAY_RETURN_URL: z.string().url().default('http://localhost:5174/payment/result'), // VNPay đưa khách về trang FE này
-  // IPN URL (https://<api>/v1/payments/vnpay/ipn) KHÔNG gửi trong request: khai báo trên cổng quản trị VNPay của merchant.
-
-  // --- MoMo v2 (captureWallet). mock = không gọi mạng; live = gọi MOMO_ENDPOINT (mặc định sandbox). MOMO_ENABLED=false: đặt phòng từ chối paymentMethod=MOMO.
-  MOMO_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
-  MOMO_MODE: z.enum(['mock', 'live']).default('mock'),
-  MOMO_PARTNER_CODE: z.string().optional(),
-  MOMO_ACCESS_KEY: z.string().optional(),
-  MOMO_SECRET_KEY: z.string().optional(),
-  MOMO_ENDPOINT: z.string().url().default('https://test-payment.momo.vn'),
-  MOMO_RETURN_URL: z.string().url().default('http://localhost:5174/payment/result'), // MoMo đưa khách về trang FE này
-  MOMO_IPN_URL: z.string().url().default('http://localhost:3000/v1/payments/momo/ipn'), // API công khai MoMo gọi POST JSON
-
   // --- SePay (cổng thanh toán, https://developer.sepay.vn). Khách được chuyển sang trang SePay bằng form POST có chữ ký HMAC-SHA256 (khóa SEPAY_SECRET_KEY);
   // SePay gọi IPN (POST JSON, header X-Secret-Key = SEPAY_IPN_SECRET, khai báo ở Cổng thanh toán > Cấu hình > IPN, kiểu xác thực SECRET_KEY).
   // mock = không gọi mạng (dev/test). SEPAY_ENABLED=false: đặt phòng từ chối paymentMethod=SEPAY.
@@ -87,15 +66,6 @@ const schema = z.object({
 
 const parsed = schema
   .superRefine((e, ctx) => {
-    if (e.VNPAY_MODE === 'live') {
-      for (const k of ['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET'] as const) {
-        if (!e[k]) ctx.addIssue({ code: 'custom', path: [k], message: `${k} bắt buộc khi VNPAY_MODE=live` });
-      }
-    }
-    // Mock dùng khóa sandbox công khai: ai cũng giả mạo được IPN -> cấm bật ở production.
-    if (e.MOMO_ENABLED && e.MOMO_MODE === 'mock' && e.NODE_ENV === 'production') {
-      ctx.addIssue({ code: 'custom', path: ['MOMO_MODE'], message: 'MOMO_ENABLED ở production yêu cầu MOMO_MODE=live' });
-    }
     // Xe ngoài mô phỏng tạo liên kết GIẢ cho khách bấm: cấm bật tường minh ở production.
     if (e.NODE_ENV === 'production' && e.SHUTTLE_SIM_AUTO === true) {
       ctx.addIssue({ code: 'custom', path: ['SHUTTLE_SIM_AUTO'], message: 'SHUTTLE_SIM_AUTO=true không được dùng ở production (tự đặt xe ngoài với liên kết giả)' });
@@ -112,11 +82,6 @@ const parsed = schema
     }
     if (e.SEPAY_ENABLED && e.SEPAY_MODE === 'mock' && e.NODE_ENV === 'production') {
       ctx.addIssue({ code: 'custom', path: ['SEPAY_MODE'], message: 'SEPAY_ENABLED ở production yêu cầu SEPAY_MODE=live' });
-    }
-    if (e.MOMO_MODE === 'live') {
-      for (const k of ['MOMO_PARTNER_CODE', 'MOMO_ACCESS_KEY', 'MOMO_SECRET_KEY'] as const) {
-        if (!e[k]) ctx.addIssue({ code: 'custom', path: [k], message: `${k} bắt buộc khi MOMO_MODE=live` });
-      }
     }
   })
   .transform((e) => ({ ...e, SHUTTLE_SIM_AUTO: e.SHUTTLE_SIM_AUTO ?? e.NODE_ENV !== 'production', DELAY_SIM_ENABLED: e.DELAY_SIM_ENABLED ?? e.NODE_ENV !== 'production' }))
