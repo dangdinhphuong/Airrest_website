@@ -70,6 +70,18 @@ const schema = z.object({
   MOMO_ENDPOINT: z.string().url().default('https://test-payment.momo.vn'),
   MOMO_RETURN_URL: z.string().url().default('http://localhost:5174/payment/result'), // MoMo đưa khách về trang FE này
   MOMO_IPN_URL: z.string().url().default('http://localhost:3000/v1/payments/momo/ipn'), // API công khai MoMo gọi POST JSON
+
+  // --- SePay (cổng thanh toán, https://developer.sepay.vn). Khách được chuyển sang trang SePay bằng form POST có chữ ký HMAC-SHA256 (khóa SEPAY_SECRET_KEY);
+  // SePay gọi IPN (POST JSON, header X-Secret-Key = SEPAY_IPN_SECRET, khai báo ở Cổng thanh toán > Cấu hình > IPN, kiểu xác thực SECRET_KEY).
+  // mock = không gọi mạng (dev/test). SEPAY_ENABLED=false: đặt phòng từ chối paymentMethod=SEPAY.
+  SEPAY_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  SEPAY_MODE: z.enum(['mock', 'live']).default('mock'),
+  SEPAY_MERCHANT_ID: z.string().optional(),
+  SEPAY_SECRET_KEY: z.string().optional(), // khóa merchant: ký form checkout
+  SEPAY_IPN_SECRET: z.string().optional(), // khóa IPN (KHÁC khóa merchant): SePay gửi trong header X-Secret-Key
+  SEPAY_CHECKOUT_URL: z.string().url().default('https://pay.sepay.vn/v1/checkout/init'), // sandbox: dùng URL sandbox trong tài liệu SePay
+  SEPAY_RETURN_URL: z.string().url().default('http://localhost:5174/payment/result'), // SePay đưa khách về trang FE này (kèm status=success|error|cancel)
+  SEPAY_IPN_URL: z.string().url().default('http://localhost:3000/v1/payments/sepay/ipn'), // API công khai SePay gọi; origin của nó cũng là nơi phục vụ trang chuyển hướng checkout
 });
 
 const parsed = schema
@@ -90,6 +102,15 @@ const parsed = schema
     // Chuyến/hành khách mô phỏng lẫn vào dữ liệu thật của đơn vị chi trả: cấm bật tường minh ở production.
     if (e.NODE_ENV === 'production' && e.DELAY_SIM_ENABLED === true) {
       ctx.addIssue({ code: 'custom', path: ['DELAY_SIM_ENABLED'], message: 'DELAY_SIM_ENABLED=true không được dùng ở production (tạo chuyến/hành khách mô phỏng)' });
+    }
+    // Không có SEPAY_IPN_SECRET thì IPN không xác thực được -> ai cũng giả mạo "đã thanh toán": bắt buộc khi live, và cấm mock ở production.
+    if (e.SEPAY_MODE === 'live') {
+      for (const k of ['SEPAY_MERCHANT_ID', 'SEPAY_SECRET_KEY', 'SEPAY_IPN_SECRET'] as const) {
+        if (!e[k]) ctx.addIssue({ code: 'custom', path: [k], message: `${k} bắt buộc khi SEPAY_MODE=live` });
+      }
+    }
+    if (e.SEPAY_ENABLED && e.SEPAY_MODE === 'mock' && e.NODE_ENV === 'production') {
+      ctx.addIssue({ code: 'custom', path: ['SEPAY_MODE'], message: 'SEPAY_ENABLED ở production yêu cầu SEPAY_MODE=live' });
     }
     if (e.MOMO_MODE === 'live') {
       for (const k of ['MOMO_PARTNER_CODE', 'MOMO_ACCESS_KEY', 'MOMO_SECRET_KEY'] as const) {

@@ -31,7 +31,7 @@ services:
       DATA_ENC_KEY: dev-only-data-key-change-me-0123456789
       CORS_ORIGINS: http://localhost:5174
       SEED_PASSWORD: ChangeMe123!
-      VNPAY_ENABLED: "true"
+      VNPAY_ENABLED: "false" # ẩn VNPay (đang chỉ dùng SePay); bật lại "true" khi có VNPay thật
       VNPAY_MODE: mock # chuyển live + điền VNPAY_TMN_CODE/VNPAY_HASH_SECRET khi có khóa
       VNPAY_RETURN_URL: http://localhost:5174/payment/result
     ports: ["3000:3000"]

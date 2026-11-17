@@ -115,3 +115,5 @@ export const saveCart = (cart) => store((s) => (cart.lines.length ? s.setItem(CA
 // Họ tên + SĐT khách đã nhập trên thiết bị này (không lưu email/thanh toán).
 export const loadGuest = () => { const g = store((s) => JSON.parse(s.getItem(GUEST_KEY))); return { fullName: typeof g?.fullName === 'string' ? g.fullName : '', phone: typeof g?.phone === 'string' ? g.phone : '' }; };
 export const saveGuest = ({ fullName, phone }) => store((s) => s.setItem(GUEST_KEY, JSON.stringify({ fullName, phone })));
+export const loadPay = () => store((s) => s.getItem('airrest.pay')) ?? null;
+export const savePay = (m) => store((s) => s.setItem('airrest.pay', m));

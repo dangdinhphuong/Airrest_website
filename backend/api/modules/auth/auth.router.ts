@@ -66,11 +66,11 @@ authRouter.post('/switch-hotel', authenticate, validate({ body: z.object({ hotel
 // `auth` giữ nguyên như cũ; `user` thêm thông tin hiển thị (PASSENGER: username, fullName, permissions rỗng).
 authRouter.get('/me', authenticate, async (req, res) => {
   const auth = req.auth!;
-  const a = auth.kind === 'ACCOUNT' ? (await db.query<AccountDoc>('SELECT id, type, full_name, username, email, phone, preferences FROM accounts WHERE id = $1', [auth.sub])).rows[0] : undefined;
+  const a = auth.kind === 'ACCOUNT' ? (await db.query<AccountDoc>('SELECT id, type, full_name, username, email, contact_email, phone, preferences FROM accounts WHERE id = $1', [auth.sub])).rows[0] : undefined;
   res.json({
     auth,
     ...(auth.businessId && { business: await businessBrief(auth.businessId), hotels: await hotelBrief(auth.businessId) }),
-    ...(a && { user: { id: a.id, type: a.type, fullName: a.fullName, ...(a.username && { username: a.username }), ...(a.email && { email: a.email }), ...(a.type !== 'PASSENGER' && { phone: a.phone ?? null }), ...(a.type === 'PASSENGER' && { preferences: a.preferences ?? {} }), permissions: auth.permissions } }),
+    ...(a && { user: { id: a.id, type: a.type, fullName: a.fullName, ...(a.username && { username: a.username }), ...(a.email && { email: a.email }), ...(a.contactEmail && { email: a.contactEmail }), ...(a.type !== 'PASSENGER' && { phone: a.phone ?? null }), ...(a.type === 'PASSENGER' && { preferences: a.preferences ?? {} }), permissions: auth.permissions } }),
   });
 });
 

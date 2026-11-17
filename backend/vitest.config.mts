@@ -21,6 +21,8 @@ export default defineConfig({
       VNPAY_MODE: 'mock',
       MOMO_ENABLED: 'true',
       MOMO_MODE: 'mock',
+      SEPAY_ENABLED: 'true',
+      SEPAY_MODE: 'mock',
       LOG_LEVEL: 'silent',
     },
   },

@@ -1,7 +1,7 @@
 // Trợ lý chat AIRREST: trả lời theo kịch bản (từ khóa), KHÔNG gọi AI hay dịch vụ ngoài. Dữ liệu lấy từ API qua data/user.js.
 // reply(text, { airport, mem }) trả { text, hotels?, actions?, chips? }; action = { label, act } với act: { type: 'openProperty', id } | { type: 'go', screen } | { type: 'stays' } | { type: 'book', hotelId, airport, party, dates }.
 // Hội thoại nhiều lượt (đặt phòng, hủy/đổi ngày, xe, khiếu nại) nằm ở botFlows.js; trạng thái giữ trong ctx.mem.
-import { airportName, getAirports, listAirports, lookupFlight } from '../../data/user';
+import { airportName, getAirports, listAirports, lookupBookingFull, lookupFlight } from '../../data/user';
 import { describeError } from '../../lib/api';
 import { fmtDuration, isoDate } from '../../lib/time';
 import { CHIPS, parseTrack, statusCopy } from './data';
@@ -83,13 +83,13 @@ const hhmmVn = (iso) => new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-dig
 
 async function trackReply({ ref, phone }, mem) {
   const open = [{ label: 'Mở trang theo dõi', act: { type: 'go', screen: 'track' } }];
-  if (!ref || !phone) return { text: `Để tra cứu, bạn gửi cả mã booking và số điện thoại đã dùng khi đặt, ví dụ: "AR-7K3M9P2Q 0912345678".${ref ? ` (Mình đã nhận mã ${ref.toUpperCase()}, còn thiếu số điện thoại.)` : ''}`, actions: open };
+  if (!ref) return { text: 'Để tra cứu, bạn gửi mã booking, ví dụ: "AR-7K3M9P2Q".', actions: open };
   try {
-    const { booking: b } = await getBooking(mem, ref, phone);
+    const { booking: b } = phone ? await getBooking(mem, ref, phone) : await lookupBookingFull(ref.toUpperCase()); // chỉ mã: xem trạng thái; hủy/đổi/xe vẫn cần SĐT
     const d = (iso) => new Date(iso).toLocaleDateString('vi-VN');
-    return { text: `Booking ${b.code}: ${b.hotel?.name} (${bookingRooms(b)}), ${b.stay.type === 'HOURLY' ? `${d(b.stay.from)} (theo giờ)` : `${d(b.stay.from)} → ${d(b.stay.to)}`}. Trạng thái: ${statusCopy(b.status)}.${b.decision?.reason ? ` Lý do: ${b.decision.reason}.` : ''}`, actions: open, chips: ['Hủy / đổi ngày', 'Xe đưa đón', 'Gửi khiếu nại'] };
+    return { text: `Booking ${b.code}: ${b.hotel?.name} (${bookingRooms(b)}), ${b.stay.type === 'HOURLY' ? `${d(b.stay.from)} (theo giờ)` : `${d(b.stay.from)} → ${d(b.stay.to)}`}. Trạng thái: ${statusCopy(b.status)}.${b.decision?.reason ? ` Lý do: ${b.decision.reason}.` : ''}`, actions: open, chips: ['Hủy / đổi ngày', 'Xe đưa đón', 'Gửi khiếu nại'] }; // các luồng này sẽ hỏi SĐT
   } catch (e) {
-    return { text: e.status === 404 ? 'Mình không tìm thấy booking khớp mã và số điện thoại này. Bạn kiểm tra lại thông tin giúp mình nhé.' : describeError(e), actions: open };
+    return { text: e.status === 404 ? 'Mình không tìm thấy booking khớp thông tin này. Bạn kiểm tra lại mã giúp mình nhé.' : describeError(e), actions: open };
   }
 }
 

@@ -42,7 +42,7 @@ run('tích hợp: nhân sự tự đổi mật khẩu + hồ sơ', () => {
   });
 
   it('hành khách bị chặn ở endpoint nhân sự (403)', async () => {
-    const reg = await request(app).post('/v1/auth/passenger/register').set(ip(4)).send({ username: 'khach01', password: 'MatKhauKhach1', fullName: 'Khách' });
+    const reg = await request(app).post('/v1/auth/passenger/register').set(ip(4)).send({ email: 'khach01@example.com', username: 'khach01', password: 'MatKhauKhach1', fullName: 'Khách' });
     const t = (reg.body.token ?? (await request(app).post('/v1/auth/passenger/login').set(ip(4)).send({ username: 'khach01', password: 'MatKhauKhach1' })).body.token) as string;
     expect(t).toBeTruthy();
     expect((await patchPw(t, { currentPassword: 'MatKhauKhach1', newPassword: NEW }, 4)).status).toBe(403);

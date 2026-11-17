@@ -3,15 +3,16 @@ import {
   ArrowLeft, CalendarDays, Check, CheckCircle2, Clock3, Headphones, Hotel, LogOut, MapPin, Search, Send, ShieldCheck, Star, UserRound,
 } from 'lucide-react';
 import { useApp } from '../../state/store';
-import { ATTACH, airportName, attachFile, createTicket, describeApiError, getHotel, getPaymentLink, listAirports, lookupBooking, lookupBookingFull, lookupGroup, lookupTicket, replyTicket, simulatePayment, simulateMomoPayment, readLastBooking, clearLastBooking, saveLastBooking, PAY_LABEL, changePassword, describeAuthError, listMyBookings, PASSWORD_MIN, PASSWORD_MAX } from '../../data/user';
+import { ATTACH, airportName, attachFile, createTicket, describeApiError, getHotel, getPaymentLink, listAirports, lookupBooking, lookupBookingFull, lookupGroup, lookupTicket, replyTicket, simulatePayment, simulateMomoPayment, simulateSepayPayment, readLastBooking, clearLastBooking, saveLastBooking, PAY_LABEL, changePassword, describeAuthError, listMyBookings, PASSWORD_MIN, PASSWORD_MAX } from '../../data/user';
 import { money } from '../../lib/time';
 import BookingActions from './BookingActions';
 import ShuttleTracker from './ShuttleTracker';
-import { loadGuest } from './cart';
 import { endLabel, hhmm } from './HourlyPicker';
 import { normalizeGroup, parseGroupQuery } from './groupLookup';
 import { parseTrack, scrollToId, setTrackPrefill, takeSupportPrefill, takeTicketPrefill, takeTrackPrefill, statusCopy, statusTone } from './data';
-import { EditProfile, MyTickets, Preferences } from './AccountSections';
+import { EditProfile, MyTickets } from './AccountSections';
+import { ACCOUNT_TABS, DEFAULT_TAB, tabLabel } from './accountTabs';
+import { FavoritesPanel, NotificationsPanel, VouchersPanel } from './AccountExtras';
 
 const PAGE = 'tw:min-h-screen tw:bg-slate-50 tw:px-5 tw:py-8 tw:sm:py-14';
 const BACK = 'tw:inline-flex tw:items-center tw:gap-2 tw:text-xs tw:font-bold tw:text-blue-700';
@@ -45,7 +46,24 @@ const dmy = (iso) => new Date(iso).toLocaleDateString('vi-VN');
 const lineText = (l) => `${l.roomTypeName} × ${l.qty ?? 1}${l.kind === 'HOURLY' ? ` · theo giờ ${hhmm(l.startsAt)}–${endLabel(l.startsAt, l.endsAt)} ngày ${dmy(l.startsAt)} (${l.hours} giờ)` : ''}`;
 const stayText = (b) => (b.stay.type === 'HOURLY' ? `${dmy(b.stay.from)}, ${hhmm(b.stay.from)} → ${endLabel(b.stay.from, b.stay.to)}` : `${dmy(b.stay.from)} → ${dmy(b.stay.to)}${b.stay.type === 'MIXED' ? ' (có phòng theo giờ)' : ''}`);
 
-function BookingDetail({ b, phone, track, onPay, payError, onRelookup }) {
+function PhoneGate({ onUnlock }) {
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault(); setErr(''); setBusy(true);
+    try { await onUnlock(new FormData(e.currentTarget).get('phone')); }
+    catch (x) { setErr(x.status === 404 ? 'Số điện thoại không khớp với đơn này.' : describeApiError(x)); setBusy(false); }
+  };
+  return (
+    <form onSubmit={submit} data-testid="phone-gate" className="tw:mt-5 tw:grid tw:gap-3 tw:rounded-xl tw:border tw:border-slate-200 tw:bg-slate-50 tw:p-4 tw:text-xs">
+      <label className="tw:grid tw:gap-2 tw:font-semibold tw:text-slate-700">Cần thanh toán, hủy, đổi hoặc xem xe đưa đón? Nhập số điện thoại đã dùng khi đặt<input name="phone" type="tel" inputMode="tel" required pattern="[0-9+ ]{9,15}" autoComplete="tel" placeholder="0912345678" /></label>
+      {err && <p role="alert" className="tw:rounded-lg tw:bg-rose-50 tw:p-2 tw:font-semibold tw:text-rose-700">{err}</p>}
+      <button disabled={busy} className="tw:min-h-11 tw:rounded-xl tw:bg-blue-600 tw:font-bold tw:text-white tw:disabled:opacity-60">{busy ? 'Đang xác minh…' : 'Xác minh số điện thoại'}</button>
+    </form>
+  );
+}
+
+function BookingDetail({ b, phone, track, onPay, payError, onRelookup, onUnlock }) {
   const go = useGo();
   const lines = b.lines?.length ? b.lines : [{ roomTypeName: b.roomTypeName, qty: b.qty ?? 1 }]; // đơn nhiều loại phòng: một dòng mỗi loại
   const rooms = lines.reduce((n, l) => n + (l.qty ?? 1), 0);
@@ -59,11 +77,12 @@ function BookingDetail({ b, phone, track, onPay, payError, onRelookup }) {
       <div className="tw:mt-5 tw:divide-y tw:divide-slate-100 tw:rounded-xl tw:border tw:border-slate-200 tw:px-4 tw:text-xs"><div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Tiền phòng</span><span>{money(b.pricing.roomVnd)}</span></div>{b.pricing.shuttleVnd > 0 && <div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Xe đưa đón</span><span>{money(b.pricing.shuttleVnd)}</span></div>}<div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Phí dịch vụ</span><span>{money(b.pricing.serviceFeeVnd)}</span></div>{b.pricing.discountVnd > 0 && <div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Giảm giá</span><span>-{money(b.pricing.discountVnd)}</span></div>}<div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Tổng tiền</span><strong>{money(b.pricing.totalVnd)}</strong></div><div className="tw:flex tw:justify-between tw:py-3"><span className="tw:text-slate-500">Thanh toán</span><strong>{PAY_LABEL[b.payment.method] ?? b.payment.method} · {{ UNPAID: 'chưa thanh toán', PENDING: 'đang xử lý', PAID: 'đã thanh toán', REFUNDED: 'đã hoàn tiền' }[b.payment.status] ?? b.payment.status}</strong></div></div>
       <div className="tw:mt-5 tw:flex tw:items-start tw:gap-3 tw:rounded-xl tw:bg-blue-50 tw:p-4"><Clock3 className="tw:shrink-0 tw:text-blue-600" /><p className="tw:text-xs tw:leading-6 tw:text-slate-600"><strong className="tw:text-slate-900">Trạng thái hiện tại: {statusCopy(b.status)}.</strong><br />Trạng thái do khách sạn cập nhật và hiển thị tại đây.</p></div>
       {b.decision?.reason && <p className="tw:mt-4 tw:rounded-xl tw:bg-amber-50 tw:p-4 tw:text-xs tw:text-amber-900">Lý do: {b.decision.reason}</p>}
-      {b.status === 'PENDING_PAYMENT' && b.payment.method !== 'AT_HOTEL' && <button type="button" onClick={onPay} className="tw:mt-4 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:rounded-xl tw:bg-emerald-600 tw:text-xs tw:font-bold tw:text-white">Thanh toán / lấy lại liên kết {PAY_LABEL[b.payment.method]}</button>}
+      {phone && b.status === 'PENDING_PAYMENT' && b.payment.method !== 'AT_HOTEL' && <button type="button" onClick={onPay} className="tw:mt-4 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:rounded-xl tw:bg-emerald-600 tw:text-xs tw:font-bold tw:text-white">Thanh toán / lấy lại liên kết {PAY_LABEL[b.payment.method]}</button>}
       {payError && <p role="alert" className="tw:mt-3 tw:rounded-xl tw:bg-rose-50 tw:p-3 tw:text-xs tw:font-semibold tw:text-rose-700">{payError}</p>}
-      <ShuttleTracker booking={b} phone={phone} initial={track} token={track.guestToken} onRelookup={onRelookup}>
+      {!phone && <PhoneGate onUnlock={onUnlock} />}
+      {phone && <ShuttleTracker booking={b} phone={phone} initial={track} token={track.guestToken} onRelookup={onRelookup}>
         {(refresh) => <BookingActions booking={b} phone={phone} onShuttleChange={refresh} />}
-      </ShuttleTracker>
+      </ShuttleTracker>}
       <div className="tw:mt-6 tw:flex tw:flex-col tw:gap-3 tw:sm:flex-row"><button type="button" onClick={() => go('support')} className="tw:flex tw:min-h-11 tw:flex-1 tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:border tw:border-blue-200 tw:text-xs tw:font-bold tw:text-blue-700"><ShieldCheck size={17} /> Yêu cầu hỗ trợ</button><span className="tw:flex tw:min-h-11 tw:flex-1 tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-emerald-50 tw:text-xs tw:font-bold tw:text-emerald-700"><CheckCircle2 size={17} /> Đã xác minh thông tin</span></div>
     </section>
   );
@@ -76,7 +95,7 @@ export function Track() {
   const [busy, setBusy] = useState(false);
   const [group, setGroup] = useState(null); // kết quả tra cứu mã nhóm NH-: { phone, ...normalizeGroup }
   // Từ trang tài khoản / đặt phòng xong: mã booking (+ SĐT). Mở lại trang giữa chừng: lấy đơn gần nhất trong phiên.
-  const [prefill] = useState(() => { const q = takeTrackPrefill(); if (q) return q; const l = readLastBooking(); return l ? `${l.code} ${l.phone}` : loadGuest().phone; }); // chưa có đơn: điền sẵn SĐT đã nhớ trên thiết bị, khách chỉ cần thêm mã
+  const [prefill] = useState(() => { const q = takeTrackPrefill(); if (q) return q; const l = readLastBooking(); return l ? `${l.code} ${l.phone}` : ''; });
   const lookup = async (text) => {
     const g = parseGroupQuery(text);
     if (g.groupCode) { // mã nhóm: hỏi SĐT rồi xem cả nhóm
@@ -91,9 +110,9 @@ export function Track() {
     setGroup(null);
     const { ref, phone } = parseTrack(text);
     setPayError('');
-    if (!ref || !phone) {
+    if (!ref) {
       setFound(null);
-      setError(!ref && !phone ? 'Nhập mã booking kèm số điện thoại đã dùng khi đặt, ví dụ AR-XXXXXXXX 0912345678.' : !phone ? 'Còn thiếu số điện thoại đã dùng khi đặt. Nhập mã booking kèm số điện thoại, ví dụ AR-XXXXXXXX 0912345678.' : 'Còn thiếu mã booking hợp lệ (dạng AR-XXXXXXXX). Nhập mã booking kèm số điện thoại, ví dụ AR-XXXXXXXX 0912345678.');
+      setError('Nhập mã booking hợp lệ, dạng AR- cùng 8 ký tự (ví dụ AR-ABCD1234).');
       return;
     }
     setBusy(true);
@@ -103,8 +122,12 @@ export function Track() {
   };
   const form = useRef(null);
   const submit = (e) => { e.preventDefault(); lookup(new FormData(e.currentTarget).get('query')); };
-  const relookup = () => lookup(form.current.elements.query.value);
-  useEffect(() => { if ((parseTrack(prefill).ref || parseGroupQuery(prefill).groupCode) && (parseTrack(prefill).phone || parseGroupQuery(prefill).phone)) lookup(prefill); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const relookup = () => lookup(found?.phone ? `${found.booking.code} ${found.phone}` : form.current.elements.query.value);
+  useEffect(() => { if (parseTrack(prefill).ref || (parseGroupQuery(prefill).groupCode && parseGroupQuery(prefill).phone)) lookup(prefill); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const unlock = async (phone) => { // khách nhập SĐT đã đặt để thanh toán/hủy/đổi/xem xe: tra lại đơn kèm SĐT
+    const { booking, ...track } = await lookupBookingFull(found.booking.code, phone);
+    setFound({ booking, phone, track });
+  };
   const pay = async () => {
     setPayError('');
     try { const link = await getPaymentLink(found.booking.code, found.phone); saveLastBooking(found.booking.code, found.phone); window.location.assign(link.payUrl); }
@@ -116,10 +139,10 @@ export function Track() {
       <div className="tw:mx-auto tw:max-w-3xl">
         <Back />
         <div className="tw:mt-6 tw:overflow-hidden tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:shadow-xl">
-          <div className="tw:bg-[#062253] tw:px-6 tw:py-8 tw:text-white tw:sm:px-9"><span className="tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-[.16em] tw:text-blue-200">Xác minh bắt buộc</span><h1 className="tw:mt-2 tw:text-3xl tw:font-bold tw:tracking-tight">Theo dõi booking</h1><p className="tw:mt-3 tw:max-w-xl tw:text-xs tw:leading-6 tw:text-blue-100">Chi tiết chỉ hiển thị khi mã booking và số điện thoại trùng khớp.</p></div>
+          <div className="tw:bg-[#062253] tw:px-6 tw:py-8 tw:text-white tw:sm:px-9"><span className="tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-[.16em] tw:text-blue-200">Tra cứu nhanh</span><h1 className="tw:mt-2 tw:text-3xl tw:font-bold tw:tracking-tight">Theo dõi booking</h1><p className="tw:mt-3 tw:max-w-xl tw:text-xs tw:leading-6 tw:text-blue-100">Nhập mã booking để xem trạng thái đơn, không cần đăng nhập.</p></div>
           <form ref={form} onSubmit={submit} className="tw:grid tw:gap-4 tw:p-6 tw:sm:p-9">
-            <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Mã booking và số điện thoại xác minh<input name="query" required autoComplete="off" defaultValue={prefill} placeholder="AR-XXXXXXXX hoặc NH-XXXXXXXX, kèm số điện thoại" /></label>
-            <p className="tw:-mt-2 tw:text-[11px] tw:leading-4 tw:text-slate-500">Nhập mã booking kèm số điện thoại đã dùng khi đặt, ví dụ AR-XXXXXXXX 0912345678 (cách nhau một khoảng trắng).</p>
+            <label className="tw:grid tw:gap-2 tw:text-[13px] tw:font-semibold tw:text-slate-700">Mã booking<input name="query" required autoComplete="off" defaultValue={prefill} placeholder="AR-XXXXXXXX" /></label>
+            <p className="tw:-mt-2 tw:text-[11px] tw:leading-4 tw:text-slate-500">Chỉ cần mã booking, ví dụ AR-XXXXXXXX. Mã nhóm NH-XXXXXXXX cần thêm số điện thoại của người đại diện.</p>
             <button disabled={busy} className="tw:flex tw:min-h-11 tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-blue-600 tw:text-xs tw:font-bold tw:text-white tw:disabled:opacity-60"><Search size={17} /> {busy ? 'Đang tra cứu…' : 'Tra cứu booking'}</button>
             {error && <p role="alert" className="tw:rounded-xl tw:bg-rose-50 tw:p-4 tw:text-xs tw:font-semibold tw:text-rose-700">{error}</p>}
           </form>
@@ -143,7 +166,7 @@ export function Track() {
             </ul>
           </section>
         )}
-        {found && <BookingDetail key={found.booking.code} b={found.booking} phone={found.phone} track={found.track} onPay={pay} payError={payError} onRelookup={relookup} />}
+        {found && <BookingDetail key={found.booking.code} b={found.booking} phone={found.phone} track={found.track} onPay={pay} payError={payError} onRelookup={relookup} onUnlock={unlock} />}
       </div>
     </div>
   );
@@ -298,11 +321,12 @@ const POLL_MS = 8000;
 const POLL_MAX = 4; // ~32 giây, dưới giới hạn 10 yêu cầu/phút
 export function PaymentResult() {
   const q = new URLSearchParams(window.location.search);
-  const momo = q.get('gateway') === 'momo' || (q.has('resultCode') && q.has('orderId'));
-  const gate = momo ? 'MoMo' : 'VNPay';
+  const sepay = q.get('gateway') === 'sepay';
+  const momo = !sepay && (q.get('gateway') === 'momo' || (q.has('resultCode') && q.has('orderId')));
+  const gate = sepay ? 'SePay' : momo ? 'MoMo' : 'VNPay';
   const mockOrder = q.get('mock') === '1' ? q.get('orderId') : null;
-  const queryCode = momo ? q.get('resultCode') : q.get('vnp_ResponseCode');
-  const hint = queryCode == null ? null : (queryCode === (momo ? '0' : '00') ? 'ok' : 'fail'); // chưa xác thực
+  const queryCode = sepay ? q.get('status') : momo ? q.get('resultCode') : q.get('vnp_ResponseCode');
+  const hint = queryCode == null ? null : (queryCode === (sepay ? 'success' : momo ? '0' : '00') ? 'ok' : 'fail'); // chưa xác thực; kết quả thật chỉ đến từ IPN
   const [saved] = useState(readLastBooking);
   const [info, setInfo] = useState({ s: saved ? 'loading' : 'none', booking: null }); // loading | done | error | none
   const [simFail, setSimFail] = useState(false);
@@ -335,7 +359,7 @@ export function PaymentResult() {
   const simulate = async (success) => {
     setBusy(true); setError('');
     try {
-      await (momo ? simulateMomoPayment : simulatePayment)(mockOrder, success);
+      await (sepay ? simulateSepayPayment : momo ? simulateMomoPayment : simulatePayment)(mockOrder, success);
       setSimFail(!success); setSimulated(true); tries.current = 0;
       await check();
     } catch (err) { setError(describeApiError(err)); }
@@ -460,31 +484,53 @@ export function Account() {
   const { state, dispatch } = useApp();
   const go = useGo();
   const user = state.user;
+  const tab = state.partnerTab || DEFAULT_TAB; // /tai-khoan/<mục>
+  const pick = (id) => { dispatch({ type: 'route', screen: 'account', partnerTab: id }); window.scrollTo({ top: 0 }); };
   const logout = () => { dispatch({ type: 'logout' }); dispatch({ type: 'go', screen: 'home' }); };
-  const toStays = () => { dispatch({ type: 'go', screen: 'home' }); scrollToId('stays'); };
 
   if (!user) {
-    return <div className={PAGE}><div className="tw:mx-auto tw:max-w-3xl"><Back /><div className="tw:mt-6 tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:p-8 tw:text-center tw:shadow-xl"><h1 className="tw:text-2xl tw:font-bold">Bạn chưa đăng nhập</h1><button type="button" onClick={() => go('login')} className="tw:mt-6 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Đăng nhập</button></div></div></div>;
+    return <div className={PAGE}><div className="tw:mx-auto tw:max-w-3xl"><Back /><div className="tw:mt-6 tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:p-8 tw:text-center tw:shadow-xl"><h1 className="tw:text-xl tw:font-bold">Bạn chưa đăng nhập</h1><p className="tw:mt-2 tw:text-xs tw:text-slate-500">Đăng nhập để xem hồ sơ, đơn đặt phòng, mã giảm giá và khiếu nại.</p><button type="button" onClick={() => go('login')} className="tw:mt-5 tw:min-h-11 tw:rounded-xl tw:bg-blue-600 tw:px-6 tw:text-xs tw:font-bold tw:text-white">Đăng nhập</button></div></div></div>;
   }
+  const initial = (user.name || user.username || '?').trim().charAt(0).toUpperCase();
+  const ITEM = 'tw:flex tw:min-h-11 tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-xl tw:border tw:px-3 tw:text-sm tw:font-semibold';
   return (
-    <div className="tw:min-h-screen tw:bg-slate-50 tw:px-5 tw:py-10">
-      <div className="tw:mx-auto tw:max-w-3xl">
-        <div className="tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:p-6 tw:shadow-xl tw:sm:p-9">
-          <div className="tw:flex tw:flex-col tw:justify-between tw:gap-5 tw:border-b tw:border-slate-100 tw:pb-7 tw:sm:flex-row tw:sm:items-center">
-            <div className="tw:flex tw:min-w-0 tw:items-center tw:gap-4"><span className="tw:grid tw:size-14 tw:shrink-0 tw:place-items-center tw:rounded-2xl tw:bg-blue-50 tw:text-blue-700"><UserRound size={25} /></span><div className="tw:min-w-0"><span className={`${LABEL} tw:text-blue-600`}>Tài khoản người dùng</span><h1 className="tw:mt-1 tw:truncate tw:text-2xl tw:font-bold" data-testid="account-name">{user.name}</h1></div></div>
-            <button type="button" onClick={logout} data-testid="account-logout" className="tw:flex tw:min-h-11 tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:border tw:border-slate-300 tw:px-4 tw:text-xs tw:font-bold tw:text-slate-600"><LogOut size={16} /> Đăng xuất</button>
+    <div className="tw:min-h-screen tw:bg-slate-50 tw:px-4 tw:py-6 tw:sm:py-10">
+      <div className="tw:mx-auto tw:grid tw:max-w-[1080px] tw:items-start tw:gap-5 tw:md:grid-cols-[240px_1fr]">
+        <aside aria-label="Menu tài khoản" className="tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:p-3 tw:shadow-sm tw:md:sticky tw:md:top-24">
+          <div className="tw:hidden tw:items-center tw:gap-3 tw:border-b tw:border-slate-100 tw:px-2 tw:pb-3 tw:pt-1 tw:md:flex">
+            <span className="tw:grid tw:size-10 tw:shrink-0 tw:place-items-center tw:rounded-full tw:bg-blue-600 tw:font-extrabold tw:text-white">{initial}</span>
+            <strong className="tw:min-w-0 tw:truncate tw:text-sm">{user.name}</strong>
           </div>
-          <dl className="tw:mt-6 tw:grid tw:gap-3 tw:text-sm tw:sm:grid-cols-2" data-testid="account-info">
-            <div className="tw:rounded-xl tw:bg-slate-50 tw:p-4"><dt className="tw:text-[11px] tw:text-slate-500">Tên đăng nhập</dt><dd className="tw:mt-1 tw:break-all tw:font-bold">{user.username}</dd></div>
-            <div className="tw:rounded-xl tw:bg-slate-50 tw:p-4"><dt className="tw:text-[11px] tw:text-slate-500">Họ và tên</dt><dd className="tw:mt-1 tw:break-words tw:font-bold">{user.fullName || user.username}</dd></div>
-          </dl>
-          <EditProfile />
-          <Preferences />
-          <MyBookings />
-          <MyTickets />
-          <ChangePassword />
-          <div className="tw:mt-8 tw:grid tw:gap-4 tw:sm:grid-cols-2"><button type="button" onClick={() => go('track')} className="tw:flex tw:min-h-20 tw:items-center tw:gap-4 tw:rounded-2xl tw:border tw:border-slate-200 tw:p-5 tw:text-left tw:hover:border-blue-300"><Search className="tw:text-blue-600" /><div><strong className="tw:text-sm">Theo dõi booking</strong><p className="tw:mt-1 tw:text-[11px] tw:text-slate-500">Tra cứu bằng mã và số điện thoại</p></div></button><button type="button" onClick={toStays} className="tw:flex tw:min-h-20 tw:items-center tw:gap-4 tw:rounded-2xl tw:border tw:border-slate-200 tw:p-5 tw:text-left tw:hover:border-blue-300"><CalendarDays className="tw:text-blue-600" /><div><strong className="tw:text-sm">Tìm nơi nghỉ</strong><p className="tw:mt-1 tw:text-[11px] tw:text-slate-500">Xem phòng gần HAN và SGN</p></div></button></div>
-          <button type="button" onClick={() => go('home')} className="tw:mt-7 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:rounded-xl tw:bg-blue-600 tw:text-xs tw:font-bold tw:text-white">Về trang chủ</button>
+          <nav className="tw:flex tw:gap-2 tw:overflow-x-auto tw:md:mt-3 tw:md:flex-col">
+            {ACCOUNT_TABS.map(({ id, label, Icon }) => (
+              <button key={id} type="button" onClick={() => pick(id)} aria-current={tab === id ? 'page' : undefined} data-testid={`acc-tab-${id}`} className={`${ITEM} ${tab === id ? 'tw:border-blue-300 tw:bg-blue-50 tw:text-blue-700' : 'tw:border-transparent tw:text-slate-700 tw:hover:bg-slate-50'}`}><Icon size={17} />{label}</button>
+            ))}
+            <button type="button" onClick={logout} data-testid="account-logout" className={`${ITEM} tw:border-transparent tw:text-rose-600 tw:hover:bg-rose-50 tw:md:mt-2`}><LogOut size={17} />Đăng xuất</button>
+          </nav>
+        </aside>
+        <div className="tw:min-w-0">
+          <header className="tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:p-5 tw:shadow-sm tw:sm:p-7">
+            <p className="tw:text-xs tw:text-slate-500">Tài khoản của tôi <span aria-hidden="true">›</span> <strong className="tw:text-slate-800">{tabLabel(tab)}</strong></p>
+            <h1 className="tw:mt-1 tw:text-2xl tw:font-extrabold">{tabLabel(tab)}</h1>
+          </header>
+          <div data-testid={`acc-${tab}`} className="tw:mt-4 tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:p-5 tw:shadow-sm tw:sm:p-7 tw:[&>section:first-child]:mt-0 tw:[&>section:first-child]:border-0 tw:[&>section:first-child]:pt-0">
+            {tab === 'don-dat-phong' ? <MyBookings />
+              : tab === 'ma-giam-gia' ? <VouchersPanel />
+              : tab === 'khieu-nai' ? <MyTickets />
+              : tab === 'thong-bao' ? <NotificationsPanel />
+              : tab === 'yeu-thich' ? <FavoritesPanel />
+              : (
+                <>
+                  <dl className="tw:grid tw:gap-3 tw:text-sm tw:sm:grid-cols-2" data-testid="account-info">
+                    <div className="tw:rounded-xl tw:bg-slate-50 tw:p-4"><dt className="tw:text-[11px] tw:text-slate-500">Họ và tên</dt><dd className="tw:mt-1 tw:break-words tw:font-bold">{user.fullName || user.username}</dd></div>
+                    <div className="tw:rounded-xl tw:bg-slate-50 tw:p-4"><dt className="tw:text-[11px] tw:text-slate-500">Tên đăng nhập</dt><dd className="tw:mt-1 tw:break-all tw:font-bold">{user.username}</dd></div>
+                    <div className="tw:rounded-xl tw:bg-slate-50 tw:p-4 tw:sm:col-span-2"><dt className="tw:text-[11px] tw:text-slate-500">Email</dt><dd className="tw:mt-1 tw:break-all tw:font-bold" data-testid="account-email">{user.email || <span className="tw:font-normal tw:text-slate-400">Chưa có email</span>}</dd></div>
+                  </dl>
+                  <EditProfile />
+                  <ChangePassword />
+                </>
+              )}
+          </div>
         </div>
       </div>
     </div>

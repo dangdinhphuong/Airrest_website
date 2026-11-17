@@ -28,6 +28,7 @@ export const usernameSchema = z
 export const passengerPassword = z.string().min(PASSWORD_MIN, `Mật khẩu tối thiểu ${PASSWORD_MIN} ký tự.`).max(PASSWORD_MAX);
 
 export const registerBody = z.object({
+  email: z.string().trim().toLowerCase().email('Email không hợp lệ.').max(200),
   username: usernameSchema,
   password: passengerPassword,
   fullName: z.string().trim().max(100).optional(),
@@ -41,7 +42,7 @@ export const preferencesSchema = z
     adults: z.number().int().min(1).max(30).optional(),
     children: z.number().int().min(0).max(29).optional(),
     rooms: z.number().int().min(1).max(5).optional(),
-    paymentMethod: z.enum(['AT_HOTEL', 'VNPAY', 'MOMO']).optional(),
+    paymentMethod: z.enum(['AT_HOTEL', 'VNPAY', 'MOMO', 'SEPAY']).optional(),
   })
   .strict()
   .refine((p) => (p.adults ?? 1) + (p.children ?? 0) <= 30, { message: 'Tổng số khách tối đa 30.', path: ['children'] });
@@ -59,11 +60,12 @@ export const meBookingsQuery = z.object({
 let dummyHash: Promise<string> | undefined;
 const getDummyHash = () => (dummyHash ??= hashPassword(randomUUID()));
 
-export const passengerView = (a: Pick<AccountDoc, 'id' | 'username' | 'fullName' | 'preferences'>) => ({
+export const passengerView = (a: Pick<AccountDoc, 'id' | 'username' | 'fullName' | 'preferences' | 'contactEmail'>) => ({
   id: a.id,
   type: 'PASSENGER' as const,
   username: a.username,
   fullName: a.fullName,
+  email: a.contactEmail ?? null,
   preferences: a.preferences ?? {},
   permissions: [] as string[],
 });
@@ -76,15 +78,18 @@ export async function registerPassenger(input: z.infer<typeof registerBody>, req
     acc = await withTransaction(async (tx) => {
       const created = (
         await tx.query<AccountDoc>(
-          `INSERT INTO accounts (type, username, password_hash, full_name, status, role_ids) VALUES ('PASSENGER', $1, $2, $3, 'ACTIVE', '{}'::uuid[]) RETURNING *`,
-          [input.username, passwordHash, fullName],
+          `INSERT INTO accounts (type, username, contact_email, password_hash, full_name, status, role_ids) VALUES ('PASSENGER', $1, $2, $3, $4, 'ACTIVE', '{}'::uuid[]) RETURNING *`,
+          [input.username, input.email, passwordHash, fullName],
         )
       ).rows[0]!;
       await writeAudit({ actor: { type: 'PASSENGER', id: created.id }, action: 'PASSENGER.REGISTER', entity: { type: 'account', id: created.id }, requestId }, tx);
       return created;
     });
   } catch (e) {
-    if (isDuplicateKey(e)) throw new AppError(409, 'USERNAME_TAKEN', 'Tên đăng nhập này đã được dùng. Chọn tên khác.');
+    if (isDuplicateKey(e)) {
+      const emailDup = /contact_email/.test(String((e as { constraint?: string; detail?: string }).constraint ?? (e as { detail?: string }).detail ?? ''));
+      throw emailDup ? new AppError(409, 'EMAIL_TAKEN', 'Email này đã được dùng cho một tài khoản khác.') : new AppError(409, 'USERNAME_TAKEN', 'Tên đăng nhập này đã được dùng. Chọn tên khác.');
+    }
     throw e;
   }
   return { token: signAccountToken({ sub: acc.id, accountType: 'PASSENGER' }), user: passengerView(acc) };

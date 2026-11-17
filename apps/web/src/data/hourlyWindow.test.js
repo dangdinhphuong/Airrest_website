@@ -18,8 +18,17 @@ describe('cửa sổ đơn theo giờ và xe', () => {
     const now = Date.parse('2030-12-01T00:00:00Z');
     expect(defaultPickup('TO_HOTEL', day, '2030-12-06', now, hourly)).toBe('2030-12-05T16:30');
     expect(defaultPickup('TO_AIRPORT', day, '2030-12-06', now, hourly)).toBe('2030-12-05T19:30');
-    expect(defaultPickup('TO_HOTEL', day, '2030-12-06', now)).toBe('2030-12-05T12:00'); // không có giờ: như cũ
+    expect(defaultPickup('TO_HOTEL', day, '2030-12-06', now)).toBe('2030-12-05T14:00'); // không có giờ: bám giờ nhận phòng
     const legs = buildShuttle({ airport: 'HAN', TO_HOTEL: { on: true }, TO_AIRPORT: { on: false } }, day, '2030-12-06', now, hourly);
     expect(legs.legs[0].pickupAt).toBe('2030-12-05T16:30:00+07:00');
+  });
+  it('giờ nhận/trả khách chọn đi vào cửa sổ lưu trú và giờ đón mặc định', () => {
+    const times = { checkInTime: '09:30', checkOutTime: '18:00' };
+    const w = windowFor([{ roomTypeId: 'a', qty: 1 }], day, '2030-12-06', times);
+    expect(w.from.toISOString()).toBe('2030-12-05T02:30:00.000Z'); // 09:30 VN
+    expect(w.to.toISOString()).toBe('2030-12-06T11:00:00.000Z'); // 18:00 VN
+    const now = Date.parse('2030-12-01T00:00:00Z');
+    expect(defaultPickup('TO_HOTEL', day, '2030-12-06', now, undefined, times)).toBe('2030-12-05T09:30');
+    expect(defaultPickup('TO_AIRPORT', day, '2030-12-06', now, undefined, times)).toBe('2030-12-06T18:00');
   });
 });

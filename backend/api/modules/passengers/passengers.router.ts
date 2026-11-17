@@ -16,6 +16,7 @@ import {
   registerPassenger,
   updatePassengerProfile,
 } from '../../../services/passengers/passengers.service';
+import { addFavorite, hotelIdParams, listFavorites, listNotifications, listVouchers, markNotificationsRead, removeFavorite } from '../../../services/passengers/extras';
 import type { z } from 'zod';
 
 // /v1/auth/passenger/{register,login}: công khai, rate limit chặt.
@@ -44,3 +45,17 @@ meRouter.get('/tickets', validate({ query: meTicketsQuery }), async (req, res) =
 meRouter.get('/bookings', validate({ query: meBookingsQuery }), async (req, res) => {
   res.json(await listPassengerBookings(req.auth!.sub, req.valid.query as z.infer<typeof meBookingsQuery>));
 });
+
+// Yêu thích / thông báo / mã giảm giá của khách.
+meRouter.get('/favorites', async (req, res) => { res.json(await listFavorites(req.auth!.sub)); });
+meRouter.put('/favorites/:hotelId', validate({ params: hotelIdParams }), async (req, res) => {
+  await addFavorite(req.auth!.sub, (req.valid.params as { hotelId: string }).hotelId);
+  res.status(204).end();
+});
+meRouter.delete('/favorites/:hotelId', validate({ params: hotelIdParams }), async (req, res) => {
+  await removeFavorite(req.auth!.sub, (req.valid.params as { hotelId: string }).hotelId);
+  res.status(204).end();
+});
+meRouter.get('/notifications', async (req, res) => { res.json(await listNotifications(req.auth!.sub)); });
+meRouter.post('/notifications/read', async (req, res) => { await markNotificationsRead(req.auth!.sub); res.status(204).end(); });
+meRouter.get('/vouchers', async (_req, res) => { res.json(await listVouchers()); });

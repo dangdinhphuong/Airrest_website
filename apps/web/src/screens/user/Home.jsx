@@ -180,6 +180,7 @@ export default function Home() {
               </div>
             )}
             <button type={mode === 'flight' ? 'submit' : 'button'} disabled={result.s === 'loading'} onClick={mode === 'hotel' ? () => toStays() : undefined} className="tw:mt-4 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-[#1262e8] tw:px-5 tw:text-sm tw:font-bold tw:text-white tw:hover:bg-[#0b45c6] tw:disabled:opacity-60"><Search size={18} /> {mode === 'flight' ? (result.s === 'loading' ? 'Đang kiểm tra…' : 'Kiểm tra trạng thái') : 'Tìm nơi nghỉ'} <ArrowRight size={18} className="tw:ml-auto" /></button>
+            {mode === 'hotel' && <button type="button" data-testid="hero-hourly" onClick={() => { setStaysIntent({ airport, party, chips: ['hourly'] }); dispatch({ type: 'go', screen: 'stays' }); window.scrollTo({ top: 0 }); }} className="tw:mt-2 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:border tw:border-amber-300 tw:bg-amber-50 tw:px-5 tw:text-sm tw:font-bold tw:text-amber-900"><Clock3 size={18} /> Thuê theo giờ (nghỉ ngắn, từ 1 giờ)</button>}
             <p className="tw:mt-3 tw:flex tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-[11px] tw:leading-4 tw:text-slate-500"><ShieldCheck size={14} /> Chỉ thu thập thông tin cần thiết khi bạn gửi booking.</p>
           </form>
         </div>

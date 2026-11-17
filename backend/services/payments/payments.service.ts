@@ -5,6 +5,7 @@ import { bookingFromRow } from '../../database/types';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { MOMO_PENDING_CODES, momoGateway, newGatewayOrder, newMomoOrder, verifyMomoIpn } from '../../lib/momo';
+import { sepayIpnAuthorized, sepayPayUrl, buildCheckoutFields, checkoutPage } from '../../lib/sepay';
 import { newVnpOrder, verifyVnpay, vnpDate, vnpKeys, vnpayGateway } from '../../lib/vnpay';
 import { writeAudit } from '../audit';
 import { emitBookingChange } from '../events';
@@ -62,7 +63,7 @@ export async function ensurePaymentLink(bookingId: string): Promise<PayLink> {
   const method = booking.payment.method;
   const { orderId, requestId } = newGatewayOrder(method, booking.code);
   const id = randomUUID();
-  const gateway = method === 'MOMO' ? { orderId, requestId } : { tmnCode: vnpKeys.tmnCode, orderId, requestId, createDate: vnpDate(now) };
+  const gateway = method === 'MOMO' || method === 'SEPAY' ? { orderId, requestId } : { tmnCode: vnpKeys.tmnCode, orderId, requestId, createDate: vnpDate(now) };
   const ins = await db.query<PaymentDoc>(
     `INSERT INTO payments (id, booking_id, hotel_id, method, amount_vnd, status, txn_ref, gateway, created_at, updated_at)
      VALUES ($1,$2,$3,$8,$4,'INITIATED',$5,$6::jsonb,$7,$7) RETURNING *`,
@@ -78,7 +79,29 @@ export async function startBookingPayment(bookingId: string, code: string): Prom
   return startPayment(p, code);
 }
 
-const startPayment = (p: PaymentDoc, code: string) => (p.method === 'MOMO' ? startMomoPayment(p, code) : startVnpayPayment(p, code));
+const startPayment = (p: PaymentDoc, code: string) => (p.method === 'MOMO' ? startMomoPayment(p, code) : p.method === 'SEPAY' ? startSepayPayment(p) : startVnpayPayment(p, code));
+
+// SePay: không gọi mạng khi tạo link. Link = trang /v1/payments/sepay/checkout/:id (live) tự gửi form có chữ ký sang SePay; mock = về thẳng trang kết quả giả lập.
+async function startSepayPayment(payment: PaymentDoc): Promise<PayLink> {
+  const b = (await db.query<{ expiresAt?: Date }>('SELECT expires_at FROM bookings WHERE id = $1', [payment.bookingId])).rows[0];
+  const payUrl = sepayPayUrl(payment.id, payment.gateway.orderId);
+  await db.query("UPDATE payments SET status = 'PENDING', gateway = gateway || $2::jsonb, updated_at = now() WHERE id = $1 AND status = 'INITIATED'", [payment.id, json({ payUrl })]);
+  return { payUrl, expiresAt: b?.expiresAt };
+}
+
+/**
+ * Dựng form checkout SePay cho một giao dịch còn chờ (INITIATED/PENDING) của đơn chưa hết hạn giữ chỗ. paymentId là UUID khó đoán; trang không chứa khóa bí mật, chỉ có chữ ký.
+ * Trả null nếu không dùng được (router trả 404).
+ */
+export async function sepayCheckoutFor(paymentId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(paymentId)) return null;
+  const p = (await db.query<PaymentDoc & { code: string; expiresAt?: Date; bookingStatus: string }>(
+    "SELECT p.*, b.code, b.expires_at AS expires_at, b.status AS booking_status FROM payments p JOIN bookings b ON b.id = p.booking_id WHERE p.id = $1 AND p.method = 'SEPAY' AND p.status IN ('INITIATED','PENDING')",
+    [paymentId],
+  )).rows[0];
+  if (!p || p.bookingStatus !== 'PENDING_PAYMENT' || !p.expiresAt || p.expiresAt <= new Date()) return null;
+  return checkoutPage(buildCheckoutFields({ invoice: p.gateway.orderId, amount: p.amountVnd, description: `Airrest ${p.code}` }));
+}
 
 // Tạo link MoMo cho bản ghi payments INITIATED. Live gọi mạng: lỗi/từ chối -> payment FAILED + 502 (IPN muộn vẫn xử lý được theo orderId).
 async function startMomoPayment(payment: PaymentDoc, code: string): Promise<PayLink> {
@@ -201,6 +224,34 @@ export async function handleMomoIpn(body: Record<string, unknown>, requestId?: s
 }
 
 /**
+ * IPN SePay (POST JSON, header X-Secret-Key). Trả { status, body }: 401 sai/thiếu khóa; 200 đã tiếp nhận (kể cả lặp, lệch tiền đã ghi anomaly, không thấy đơn, loại thông báo khác)
+ * để SePay không gọi lại vô ích. Chỉ ORDER_PAID + CAPTURED/APPROVED mới xác nhận thanh toán; số tiền phải khớp (BR-PAY-01).
+ */
+export async function handleSepayIpn(secretHeader: string | undefined, body: Record<string, any>, requestId?: string): Promise<{ status: number; body: Record<string, unknown> }> {
+  if (!sepayIpnAuthorized(secretHeader)) return { status: 401, body: { error: 'Unauthorized' } };
+  const ok = { status: 200, body: { success: true } };
+  const invoice = String(body?.order?.order_invoice_number ?? '');
+  const payment = invoice ? (await db.query<PaymentDoc>("SELECT * FROM payments WHERE txn_ref = $1 AND method = 'SEPAY'", [invoice])).rows[0] : undefined;
+  if (!payment) {
+    logger.warn({ invoice, type: body?.notification_type }, 'IPN SePay cho mã đơn không tồn tại, bỏ qua');
+    return ok;
+  }
+  if (body.notification_type !== 'ORDER_PAID') {
+    // TRANSACTION_VOID: giao dịch bị hủy bên SePay. Không tự đảo đơn đã xác nhận (cần đối soát tay); chỉ ghi vết để kế toán thấy.
+    logger.warn({ invoice, type: body.notification_type, paymentId: payment.id }, 'IPN SePay loại không xử lý tự động');
+    await db.query('UPDATE payments SET callbacks = callbacks || $2::jsonb, updated_at = now() WHERE id = $1', [payment.id, json([{ at: new Date(), type: String(body.notification_type), signatureOk: true }])]);
+    return ok;
+  }
+  const amount = Number(body.order?.order_amount);
+  const paid = body.order?.order_status === 'CAPTURED' && body.transaction?.transaction_status === 'APPROVED';
+  if (!Number.isFinite(amount)) return ok;
+  const sepayTxn = String(body.transaction?.transaction_id ?? body.transaction?.id ?? '');
+  if (sepayTxn) await db.query("UPDATE payments SET gateway = gateway || $2::jsonb WHERE id = $1 AND status <> 'SUCCEEDED'", [payment.id, json({ sepayTransactionId: sepayTxn })]);
+  await applyGatewayResult(payment, { amountVnd: Math.round(amount), success: paid, resultCode: paid ? 0 : -1, message: String(body.transaction?.transaction_status ?? ''), transId: 0 }, requestId);
+  return ok;
+}
+
+/**
  * Giao dịch thành công. Trong MỘT transaction: payment -> SUCCEEDED, đơn -> CONFIRMED/PENDING, giữ phòng, sổ cái, audit.
  * Thành công đến sau khi đơn hết hạn/hủy hoặc đã có giao dịch khác thanh toán rồi -> ghi anomaly và tạo lệnh hoàn 100% (BR-CXL-14).
  */
@@ -289,6 +340,12 @@ export async function processRefund(refundId: string, requestId?: string): Promi
   const pay = (await db.query<PaymentDoc>('SELECT method, txn_ref, gateway FROM payments WHERE id = $1', [r.paymentId])).rows[0];
   let res: { ok: boolean; code: string; message: string; transId?: number };
   try {
+    if (pay!.method === 'SEPAY') {
+      // SePay (cổng thanh toán) chưa có API hoàn tiền trong tích hợp này: chuyển thẳng cho kế toán hoàn tay, không đếm lượt thử.
+      res = { ok: false, code: 'MANUAL', message: 'SePay: hoàn tiền thủ công' };
+      await db.query("UPDATE refunds SET status = 'MANUAL_REQUIRED', attempts = attempts || $2::jsonb, updated_at = $3 WHERE id = $1", [r.id, json([{ at: now, ok: false, code: -1, message: res.message }]), now]);
+      return (await db.query<RefundDoc>('SELECT * FROM refunds WHERE id = $1', [r.id])).rows[0] ?? null;
+    }
     if (pay!.method === 'MOMO') {
       const m = await momoGateway.refund({ orderId: r.gateway.orderId, requestId: r.gateway.requestId, amount: r.amountVnd, transId: pay!.gateway.transId ?? 0, description: 'Airrest hoan tien' });
       // Đang xử lý (không phải thất bại): giữ PROCESSING, không tốn lượt thử; lệnh kẹt >15 phút được trả về PENDING và gọi lại với CÙNG requestId.
@@ -353,6 +410,7 @@ export async function retryRefund(refundId: string, actor: Actor, requestId?: st
 
 type QueryResult = { status: 'SUCCESS' | 'FAILED' | 'PENDING'; amount?: number; transId?: number; message?: string };
 async function queryPayment(p: PaymentDoc): Promise<QueryResult> {
+  if (p.method === 'SEPAY') return { status: 'PENDING', message: 'SePay: chưa có API truy vấn, chờ IPN' };
   if (p.method !== 'MOMO') return vnpayGateway.query({ txnRef: p.gateway.orderId, requestId: newVnpOrder('Q').requestId, transactionDate: p.gateway.createDate! });
   const q = await momoGateway.query({ orderId: p.gateway.orderId, requestId: newMomoOrder('Q').requestId });
   const status = q.resultCode === 0 ? 'SUCCESS' : MOMO_PENDING_CODES.includes(q.resultCode) ? 'PENDING' : 'FAILED';

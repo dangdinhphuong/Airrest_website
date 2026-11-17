@@ -90,7 +90,7 @@ export const createBookingBody = z
     guests: z.number().int().min(1).max(30).default(1), // số người ở; kiểm sức chứa loại phòng × qty ở server
     children: z.number().int().min(0).max(30).default(0), // trẻ em nằm TRONG `guests` (guests = người lớn + trẻ em); không dùng riêng cho sức chứa/xe
     shuttle: bookingShuttleBody.optional(),
-    paymentMethod: z.enum(['AT_HOTEL', 'VNPAY', 'MOMO']).default('AT_HOTEL'),
+    paymentMethod: z.enum(['AT_HOTEL', 'VNPAY', 'MOMO', 'SEPAY']).default('AT_HOTEL'),
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
     guest: z.object({
@@ -128,6 +128,10 @@ export const lookupBody = z.object({
   phone,
 });
 export type LookupBody = z.infer<typeof lookupBody>;
+
+// Tra cứu đơn chỉ bằng mã (khách chưa đăng nhập): SĐT tùy chọn; có SĐT mới được thông tin xe/tài xế và thao tác (thanh toán, hủy, đổi).
+export const lookupByCodeBody = lookupBody.extend({ phone: lookupBody.shape.phone.optional() });
+export type LookupByCodeBody = z.infer<typeof lookupByCodeBody>;
 
 export const groupLookupBody = z.object({
   groupCode: z.string().trim().toUpperCase().regex(/^NH-[0-9A-Z]{8}$/, 'Mã nhóm không hợp lệ'),

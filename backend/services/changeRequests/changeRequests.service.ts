@@ -1,3 +1,4 @@
+import { stayNights } from '../../lib/nights';
 import { cancellationQuote, changeQuote, type CancellationTier } from '@airrest/business-logic';
 import type { CreateChangeRequestBody } from '@airrest/validation';
 import { randomUUID } from 'node:crypto';
@@ -17,7 +18,6 @@ import { emitBookingChange } from '../events';
 import { publishBookingStatus } from '../shuttle/events';
 import { getConfig } from '../systemConfig';
 
-const DAY_MS = 24 * 3600_000;
 export const CANCELLABLE = ['PENDING_PAYMENT', 'PENDING', 'CONFIRMED'];
 const CHANGEABLE = ['PENDING', 'CONFIRMED'];
 
@@ -74,7 +74,7 @@ export async function createChangeRequest(input: CreateChangeRequestBody, reques
       if (newFrom.getTime() === new Date(b.stay.from).getTime() && newTo.getTime() === new Date(b.stay.to).getTime()) throw new AppError(422, 'CHANGE_SAME_DATES', 'Ngày mới trùng ngày hiện tại');
       const cq = await cancelQuoteFor(b, now, tx);
       if (cq.template === 'NON_REFUNDABLE' && cq.hoursBefore < 24) throw new AppError(409, 'CHANGE_NOT_ALLOWED', 'Gói không hoàn không cho đổi ngày trong vòng 24 giờ trước nhận phòng');
-      const newNights = Math.max(1, Math.ceil((newTo.getTime() - newFrom.getTime()) / DAY_MS));
+      const newNights = stayNights(newFrom, newTo);
       const fee = await getConfig('pricing.serviceFee', now);
       quote = {
         kind: 'CHANGE', newNights,

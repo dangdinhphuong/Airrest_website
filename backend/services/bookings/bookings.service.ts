@@ -11,6 +11,7 @@ import type { AuthContext } from '../../lib/jwt';
 import { escapeLike } from '../../lib/zod';
 import { intervalsForCheck, loadActiveIntervals } from '../rooms/availability';
 import { newGatewayOrder } from '../../lib/momo';
+import { stayNights } from '../../lib/nights';
 import { vnpDate, vnpKeys } from '../../lib/vnpay';
 import { actorOf, writeAudit } from '../audit';
 import { hotelScope } from '../scope';
@@ -23,7 +24,6 @@ import { dispatchDueForBooking } from '../shuttle/dispatch';
 import { priceLeg } from '../shuttle/pricing';
 import { logBookingEvent } from './bookingEvents';
 
-const DAY_MS = 24 * 3600 * 1000;
 export const approvalHoldMs = async (): Promise<number> => (await getConfig('booking.hold')).value.approvalExpireMin * 60_000;
 export const HOLD_MS = 20 * 60_000; // đơn chờ khách sạn duyệt: giữ phòng 20 phút (BA §3.3, P-04)
 
@@ -84,7 +84,7 @@ type LoadedRow = Awaited<ReturnType<typeof loadRooms>>['rows'][number];
 // Lỗi 422 có details.lineNo (1-based) + roomTypeId để client chỉ đúng dòng.
 function priceRows(hotel: HotelDoc, rows: LoadedRow[], input: { from: Date; to: Date }, now: Date) {
   const hasNight = rows.some((r) => r.kind === 'NIGHT');
-  const nights = hasNight ? Math.max(1, Math.ceil((input.to.getTime() - input.from.getTime()) / DAY_MS)) : 1;
+  const nights = hasNight ? stayNights(input.from, input.to) : 1;
   const priced = rows.map((r, i): PricedRow => {
     const { roomType, qty } = r;
     if (r.kind === 'NIGHT') {
@@ -177,6 +177,7 @@ async function createBookingImpl(input: CreateBookingBody, requestId?: string, a
   const by = actor ?? (accountId ? ({ type: 'PASSENGER', id: accountId } as const) : ({ type: 'GUEST' } as const));
   if (input.paymentMethod === 'VNPAY' && !env.VNPAY_ENABLED) throw new AppError(409, 'VNPAY_DISABLED', 'Thanh toán VNPay hiện chưa được bật');
   if (input.paymentMethod === 'MOMO' && !env.MOMO_ENABLED) throw new AppError(409, 'MOMO_DISABLED', 'Thanh toán MoMo hiện chưa được bật');
+  if (input.paymentMethod === 'SEPAY' && !env.SEPAY_ENABLED) throw new AppError(409, 'SEPAY_DISABLED', 'Thanh toán SePay hiện chưa được bật');
   const online = !payer && input.paymentMethod !== 'AT_HOTEL';
   const { hotel, rows } = await loadRooms(input.hotelId, input.rooms);
 
@@ -285,7 +286,7 @@ async function createBookingImpl(input: CreateBookingBody, requestId?: string, a
         }
         if (online) {
           const { orderId, requestId: gwRequestId } = newGatewayOrder(input.paymentMethod, code);
-          const gw = input.paymentMethod === 'MOMO' ? { orderId, requestId: gwRequestId } : { tmnCode: vnpKeys.tmnCode, orderId, requestId: gwRequestId, createDate: vnpDate(now) };
+          const gw = input.paymentMethod === 'MOMO' || input.paymentMethod === 'SEPAY' ? { orderId, requestId: gwRequestId } : { tmnCode: vnpKeys.tmnCode, orderId, requestId: gwRequestId, createDate: vnpDate(now) };
           await tx.query(
             `INSERT INTO payments (id, booking_id, hotel_id, method, amount_vnd, status, txn_ref, gateway, created_at, updated_at)
              VALUES ($1,$2,$3,$8,$4,'INITIATED',$5,$6::jsonb,$7,$7)`,
@@ -311,8 +312,8 @@ async function createBookingImpl(input: CreateBookingBody, requestId?: string, a
 
 // Tra cứu đơn của khách vãng lai: phải khớp CẢ mã lẫn SĐT; sai thì cùng một lỗi 404 (không lộ mã nào tồn tại).
 export { getDecision };
-export async function lookupBooking(code: string, phone: string): Promise<BookingDoc> {
-  const row = (await db.query("SELECT * FROM bookings WHERE code = $1 AND guest->>'phone' = $2", [code, phone])).rows[0];
+export async function lookupBooking(code: string, phone?: string): Promise<BookingDoc> { // phone bỏ trống = chỉ tra cứu xem (route /lookup); mọi thao tác ghi vẫn bắt buộc SĐT
+  const row = (await db.query(phone ? "SELECT * FROM bookings WHERE code = $1 AND guest->>'phone' = $2" : 'SELECT * FROM bookings WHERE code = $1', phone ? [code, phone] : [code])).rows[0];
   if (!row) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Không tìm thấy đơn với thông tin đã nhập');
   const b = bookingFromRow(row);
   if (b.status === 'PENDING' && b.expiresAt && b.expiresAt <= new Date()) {

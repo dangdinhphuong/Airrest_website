@@ -11,14 +11,14 @@ import {
   eventsQuery,
   groupLookupBody,
   idParams,
-  lookupBody,
+  lookupByCodeBody,
   rejectBookingBody,
   staffListQuery,
   type BookingQuoteBody,
   type CreateBookingBody,
   type EventsQuery,
   type GroupLookupBody,
-  type LookupBody,
+  type LookupByCodeBody,
   type RejectBookingBody,
   type StaffListQuery,
 } from '@airrest/validation';
@@ -51,11 +51,13 @@ bookingsRouter.post('/quote', validate({ body: bookingQuoteBody }), async (req, 
 });
 
 // FR-BKG-08: tra cứu bằng Booking Code + SĐT. Trả thêm guestToken ngắn hạn để vào phòng Socket.io `booking:{code}`.
-bookingsRouter.post('/lookup', strictRateLimit, validate({ body: lookupBody }), async (req, res) => {
-  const { code, phone } = req.valid.body as LookupBody;
+bookingsRouter.post('/lookup', strictRateLimit, validate({ body: lookupByCodeBody }), async (req, res) => {
+  const { code, phone } = req.valid.body as LookupByCodeBody;
   const booking = await lookupBooking(code, phone);
+  const decision = await getDecision(booking.id);
+  if (!phone) { res.json({ booking: toGuestView(booking, decision) }); return; } // chỉ mã: xem thông tin đơn, không lộ xe/tài xế/guestToken
   const state = await guestShuttleState(booking);
-  res.json({ booking: { ...toGuestView(booking, await getDecision(booking.id)), hotel: state.hotel }, guestToken: signGuestToken(booking.code), ...state }); // + stage, shuttles, events (đã làm sạch)
+  res.json({ booking: { ...toGuestView(booking, decision), hotel: state.hotel }, guestToken: signGuestToken(booking.code), ...state }); // + stage, shuttles, events (đã làm sạch)
 });
 
 // Tra cứu theo mã nhóm (luồng delay): mã nhóm + SĐT của một người trong nhóm. Sai mã hoặc SĐT -> cùng một 404.

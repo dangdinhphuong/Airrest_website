@@ -14,6 +14,7 @@ export interface AccountDoc {
   type: 'HOTEL' | 'DRIVER' | 'ADMIN' | 'PASSENGER' | 'PAYER';
   email?: string; // null với PASSENGER (đăng nhập bằng username)
   username?: string; // chỉ PASSENGER
+  contactEmail?: string; // chỉ PASSENGER (đăng ký mới; tài khoản cũ không có)
   passwordHash: string;
   fullName: string;
   status: 'INVITED' | 'ACTIVE' | 'LOCKED';
@@ -388,7 +389,7 @@ export interface PaymentDoc {
   seq: number;
   bookingId: string;
   hotelId: string;
-  method: 'VNPAY' | 'MOMO';
+  method: 'VNPAY' | 'MOMO' | 'SEPAY';
   amountVnd: Money;
   status: PaymentStatus;
   gateway: {
@@ -417,7 +418,7 @@ export interface RefundDoc {
   key: string; // unique: chống hoàn kép (BR-CXL-12)
   amountVnd: Money;
   reasonCode: 'LATE_PAYMENT' | 'DUPLICATE_PAYMENT' | 'HOTEL_REJECTED' | 'HOTEL_NO_RESPONSE' | 'CANCEL_APPROVED' | 'CHANGE_DOWNSIZE' | 'SHUTTLE_CANCELLED';
-  method: 'VNPAY' | 'MOMO';
+  method: 'VNPAY' | 'MOMO' | 'SEPAY';
   status: RefundStatus;
   attempts: Array<{ at: Date | string; ok: boolean; code?: number; message?: string }>;
   gateway: { orderId: string; requestId: string; refundTransId?: number; resultCode?: number };

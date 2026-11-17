@@ -2,22 +2,26 @@
 import { describe, expect, it } from 'vitest';
 import { checkAttachments, listTopRated, bestRoom, bookingFieldError, buildShuttle, defaultPickup, describeAuthError, guestsSummary, roomFits, validateRegister, weekdayLabel } from './user';
 
-const ok = { username: 'minhanh', password: 'matkhau123', confirm: 'matkhau123' };
+const ok = { email: 'minhanh@example.com', username: 'minhanh', fullName: 'Minh Anh', password: 'matkhau123' };
 
 describe('validateRegister', () => {
   it('hợp lệ thì không có lỗi', () => expect(validateRegister(ok)).toEqual({}));
   it('tên đăng nhập: bắt buộc, <= 50, không email/dãy >= 6 chữ số', () => {
     expect(validateRegister({ ...ok, username: '  ' }).username).toMatch(/Nhập/);
     expect(validateRegister({ ...ok, username: 'a'.repeat(51) }).username).toMatch(/50/);
-    expect(validateRegister({ ...ok, username: 'a@b.vn' }).username).toMatch(/email/);
+    expect(validateRegister({ ...ok, username: 'a@b.vn' }).username).toMatch(/@/);
     expect(validateRegister({ ...ok, username: 'u0912345678' }).username).toMatch(/số điện thoại/);
     expect(validateRegister({ ...ok, username: 'u12345' }).username).toBeUndefined();
   });
-  it('mật khẩu 8-128 ký tự và phải nhập lại khớp', () => {
-    expect(validateRegister({ ...ok, password: 'short', confirm: 'short' }).password).toMatch(/8/);
-    expect(validateRegister({ ...ok, password: 'a'.repeat(129), confirm: 'a'.repeat(129) }).password).toMatch(/128/);
-    expect(validateRegister({ ...ok, confirm: '' }).confirm).toMatch(/Nhập lại/);
-    expect(validateRegister({ ...ok, confirm: 'khac' }).confirm).toMatch(/không khớp/);
+  it('mật khẩu 8-128 ký tự', () => {
+    expect(validateRegister({ ...ok, password: 'short' }).password).toMatch(/8/);
+    expect(validateRegister({ ...ok, password: 'a'.repeat(129) }).password).toMatch(/128/);
+  });
+  it('email hợp lệ và họ tên bắt buộc', () => {
+    expect(validateRegister({ ...ok, email: '' }).email).toMatch(/email/);
+    expect(validateRegister({ ...ok, email: 'khong-phai-email' }).email).toMatch(/email/);
+    expect(validateRegister({ ...ok, fullName: '  ' }).fullName).toMatch(/Nhập/);
+    expect(validateRegister({ ...ok, fullName: 'a'.repeat(101) }).fullName).toMatch(/100/);
   });
 });
 
@@ -59,9 +63,9 @@ describe('thứ trong tuần', () => {
 
 describe('giờ đón mặc định (giờ VN)', () => {
   const now = Date.parse('2026-11-10T00:00:00+07:00');
-  it('đón sân bay 12:00 ngày nhận, ra sân bay 10:00 ngày trả', () => {
-    expect(defaultPickup('TO_HOTEL', '2026-11-12', '2026-11-14', now)).toBe('2026-11-12T12:00');
-    expect(defaultPickup('TO_AIRPORT', '2026-11-12', '2026-11-14', now)).toBe('2026-11-14T10:00');
+  it('đón sân bay lúc nhận phòng 14:00, ra sân bay lúc trả phòng 12:00', () => {
+    expect(defaultPickup('TO_HOTEL', '2026-11-12', '2026-11-14', now)).toBe('2026-11-12T14:00');
+    expect(defaultPickup('TO_AIRPORT', '2026-11-12', '2026-11-14', now)).toBe('2026-11-14T12:00');
   });
   it('đã qua thì dời tới khoảng 1 giờ nữa', () => {
     const late = Date.parse('2026-11-12T15:30:00+07:00');
@@ -75,7 +79,7 @@ describe('buildShuttle', () => {
   it('dựng legs đúng định dạng, không có giá/passengers', () => {
     const b = buildShuttle({ airport: 'HAN', TO_HOTEL: { on: true, at: '', location: ' Cổng A ' }, TO_AIRPORT: { on: true, at: '2026-11-13T09:30' } }, '2026-11-12', '2026-11-13', now);
     expect(b).toEqual({ legs: [
-      { direction: 'TO_HOTEL', pickupAt: '2026-11-12T12:00:00+07:00', airport: 'HAN', location: 'Cổng A' },
+      { direction: 'TO_HOTEL', pickupAt: '2026-11-12T14:00:00+07:00', airport: 'HAN', location: 'Cổng A' },
       { direction: 'TO_AIRPORT', pickupAt: '2026-11-13T09:30:00+07:00', airport: 'HAN' },
     ] });
   });

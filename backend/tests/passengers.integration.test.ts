@@ -15,7 +15,8 @@ run('tích hợp: tài khoản khách (PASSENGER)', () => {
   let hotelId = '';
   let roomTypeId = '';
 
-  const register = (body: object, n = 1) => request(app).post('/v1/auth/passenger/register').set(ip(n)).send(body);
+  let emailSeq = 0;
+  const register = (body: object, n = 1) => request(app).post('/v1/auth/passenger/register').set(ip(n)).send({ email: `u${++emailSeq}@example.com`, ...body });
   const login = (body: object, n = 1) => request(app).post('/v1/auth/passenger/login').set(ip(n)).send(body);
   const book = (token: string | undefined, key: string) =>
     request(app)

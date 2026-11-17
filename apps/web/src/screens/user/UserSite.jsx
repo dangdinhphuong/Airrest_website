@@ -6,6 +6,7 @@ import { useApp } from '../../state/store';
 import { areasOf } from '../../lib/access';
 import { scrollToId } from './data';
 import ChatBot from './ChatBot';
+import AccountMenu from './AccountMenu';
 
 gsap.registerPlugin(useGSAP);
 
@@ -53,13 +54,13 @@ export default function UserSite({ page, children }) {
           <div className="tw:flex tw:items-center tw:gap-2">
             <button type="button" onClick={() => go('track')} className="tw:hidden tw:items-center tw:gap-2 tw:rounded-xl tw:bg-[#1262e8] tw:px-4 tw:py-3 tw:text-xs tw:font-bold tw:text-white tw:lg:flex"><Search size={16} /> Tra cứu</button>
             {state.user ? (
-              <button type="button" onClick={() => go('account')} className="tw:hidden tw:max-w-[170px] tw:items-center tw:gap-2 tw:rounded-xl tw:border tw:border-slate-300 tw:px-3 tw:py-2.5 tw:text-xs tw:font-bold tw:text-slate-700 tw:hover:bg-slate-50 tw:md:flex"><UserRound size={16} className="tw:shrink-0" /><span className="tw:truncate">{state.user.name}</span></button>
+              <AccountMenu />
             ) : state.session ? (
               <button type="button" onClick={goPartner} className="tw:hidden tw:items-center tw:rounded-xl tw:border tw:border-slate-300 tw:px-4 tw:py-3 tw:text-xs tw:font-bold tw:text-slate-700 tw:hover:bg-slate-50 tw:md:flex">Cổng làm việc</button>
             ) : (
               <button type="button" onClick={() => go('login')} className="tw:hidden tw:rounded-xl tw:border tw:border-slate-300 tw:px-4 tw:py-3 tw:text-xs tw:font-bold tw:text-slate-700 tw:hover:bg-slate-50 tw:md:block">Đăng nhập</button>
             )}
-            <button type="button" onClick={() => go(state.user ? 'account' : 'login')} aria-label={state.user ? 'Tài khoản' : 'Đăng nhập'} className="tw:grid tw:size-11 tw:place-items-center tw:rounded-xl tw:bg-slate-100 tw:md:hidden"><UserRound /></button>
+            {!state.user && <button type="button" onClick={() => go('login')} aria-label="Đăng nhập" className="tw:grid tw:size-11 tw:place-items-center tw:rounded-xl tw:bg-slate-100 tw:md:hidden"><UserRound /></button>}
           </div>
         </nav>
       </header>

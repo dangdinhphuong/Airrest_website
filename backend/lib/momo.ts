@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { env } from '../config/env';
 import { AppError } from './errors';
+import { newSepayOrder } from './sepay';
 import { newVnpOrder } from './vnpay';
 
 // Cổng MoMo v2 (https://developers.momo.vn). Chữ ký = HMAC-SHA256(secretKey, "k1=v1&k2=v2..."), khóa xếp A→Z.
@@ -57,7 +58,7 @@ export function buildMomoIpn(o: { orderId: string; requestId: string; amount: nu
 
 // orderId/requestId duy nhất mỗi lần gọi (MoMo không cho dùng lại): [A-Za-z0-9-], < 50 ký tự.
 // Chọn bộ sinh mã theo cổng (dùng cho lệnh hoàn tạo ở nhiều nơi).
-export const newGatewayOrder = (method: string, prefix: string) => (method === 'MOMO' ? newMomoOrder(prefix) : newVnpOrder(prefix));
+export const newGatewayOrder = (method: string, prefix: string) => (method === 'MOMO' ? newMomoOrder(prefix) : method === 'SEPAY' ? newSepayOrder(prefix) : newVnpOrder(prefix));
 
 export const newMomoOrder = (prefix: string) => {
   const id = `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;

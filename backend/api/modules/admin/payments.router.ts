@@ -15,7 +15,7 @@ export const adminPaymentsRouter = Router();
 const listQuery = z.object({
   status: z.string().max(30).optional(),
   bookingId: uuid.optional(),
-  method: z.enum(['VNPAY', 'MOMO']).optional(), // lọc theo cổng
+  method: z.enum(['VNPAY', 'MOMO', 'SEPAY']).optional(), // lọc theo cổng
   anomaly: z.enum(['true']).optional(), // chỉ giao dịch bất thường
   limit: limitQuery,
   cursor: seqCursor.optional(),

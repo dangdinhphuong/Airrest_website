@@ -93,9 +93,12 @@ export async function lookupFlight(code, dateIso) {
 }
 
 // Thời gian lưu trú theo ngày nhận/trả (giờ VN): nhận 14:00 (hoặc ngay bây giờ nếu hôm nay đã quá), trả 12:00.
-export function stayWindow(checkIn, checkOut) {
-  const from = new Date(Math.max(Date.now() + 60_000, new Date(`${checkIn}T14:00:00+07:00`).getTime()));
-  return { from, to: new Date(`${checkOut}T12:00:00+07:00`) };
+// `times` = { checkInTime, checkOutTime } ('HH:MM' giờ VN, khách chọn); thiếu thì dùng 14:00 / 12:00.
+export function stayWindow(checkIn, checkOut, times = {}) {
+  const inAt = times.checkInTime || CHECKIN_HHMM;
+  const outAt = times.checkOutTime || CHECKOUT_HHMM;
+  const from = new Date(Math.max(Date.now() + 60_000, new Date(`${checkIn}T${inAt}:00+07:00`).getTime()));
+  return { from, to: new Date(`${checkOut}T${outAt}:00+07:00`) };
 }
 
 // ---- Khách và phòng / xe cùng đơn: hàm thuần (có test ở user.test.js) ----
@@ -110,20 +113,23 @@ export const weekdayLabel = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocale
 export const guestsSummary = ({ adults, children, rooms }) => `${adults} người lớn${children ? `, ${children} trẻ em` : ''} · ${rooms} phòng`;
 
 // Giờ đón dạng 'yyyy-mm-ddTHH:mm' theo GIỜ VIỆT NAM (khớp cách backend tính ngày lưu trú và phụ thu đêm).
-// Mặc định: đón sân bay 12:00 ngày nhận phòng, ra sân bay 10:00 ngày trả phòng; nếu đã qua thì dời tới ~1 giờ nữa (backend không nhận giờ đón trong quá khứ).
+// Giờ nhận/trả phòng cố định (khớp windowFor): nhận 14:00, trả 12:00 giờ VN.
+export const CHECKIN_HHMM = '14:00';
+export const CHECKOUT_HHMM = '12:00';
+// Mặc định bám giờ nhận/trả phòng: đón từ sân bay lúc nhận phòng (14:00), ra sân bay lúc trả phòng (12:00); nếu đã qua thì dời tới ~1 giờ nữa (backend không nhận giờ đón trong quá khứ).
 export const vnNowLocal = (nowMs = Date.now()) => new Date(nowMs + 7 * 3600_000).toISOString().slice(0, 16);
 // `hourly` = { arrive, leave } ('yyyy-mm-ddTHH:mm' giờ VN) khi đơn có phòng theo giờ: xe bám giờ đến (giờ vào sớm nhất) và giờ ra muộn nhất của đơn.
-export function defaultPickup(direction, checkIn, checkOut, nowMs = Date.now(), hourly) {
-  const want = hourly ? (direction === 'TO_HOTEL' ? hourly.arrive : hourly.leave) : direction === 'TO_HOTEL' ? `${checkIn}T12:00` : `${checkOut}T10:00`;
+export function defaultPickup(direction, checkIn, checkOut, nowMs = Date.now(), hourly, times = {}) {
+  const want = hourly ? (direction === 'TO_HOTEL' ? hourly.arrive : hourly.leave) : direction === 'TO_HOTEL' ? `${checkIn}T${times.checkInTime || CHECKIN_HHMM}` : `${checkOut}T${times.checkOutTime || CHECKOUT_HHMM}`;
   const soon = vnNowLocal(nowMs + 3600_000);
   return want < soon ? soon : want;
 }
 export const pickupIso = (local) => `${local}:00+07:00`;
 // state: { airport, TO_HOTEL: {on, at, location}, TO_AIRPORT: {...} } -> body.shuttle (undefined nếu không chọn chiều nào). Không gửi giá/passengers.
-export function buildShuttle(state, checkIn, checkOut, nowMs, hourly) {
+export function buildShuttle(state, checkIn, checkOut, nowMs, hourly, times) {
   const legs = ['TO_HOTEL', 'TO_AIRPORT'].filter((d) => state[d]?.on).map((direction) => {
     const l = state[direction];
-    return { direction, pickupAt: pickupIso(l.at || defaultPickup(direction, checkIn, checkOut, nowMs, hourly)), ...(state.airport && { airport: state.airport }), ...(l.location?.trim() && { location: l.location.trim() }) };
+    return { direction, pickupAt: pickupIso(l.at || defaultPickup(direction, checkIn, checkOut, nowMs, hourly, times)), ...(state.airport && { airport: state.airport }), ...(l.location?.trim() && { location: l.location.trim() }) };
   });
   return legs.length ? { legs } : undefined;
 }
@@ -144,21 +150,21 @@ export const quoteHotelShuttle = (hotelId, body, signal) => api.post(`/v1/hotels
 // `rooms` = [{ roomTypeId, qty }] (nhiều loại phòng cùng khách sạn).
 // Đơn toàn giờ không gửi from/to (backend suy ra từ các dòng giờ); có dòng đêm thì gửi ngày nhận/trả như cũ.
 // Đơn trộn mà giờ vào sớm nhất đã nằm trước `from` (hôm nay quá 14:00, from = bây giờ): kéo `from` về giờ vào đó để dòng giờ nằm trong khoảng ở của đơn.
-export function windowFor(rooms, checkIn, checkOut) {
+export function windowFor(rooms, checkIn, checkOut, times) {
   if (!rooms.some((r) => (r.kind ?? 'NIGHT') === 'NIGHT')) return {};
-  const w = stayWindow(checkIn, checkOut);
+  const w = stayWindow(checkIn, checkOut, times);
   const starts = rooms.filter((r) => r.kind === 'HOURLY').map((r) => Date.parse(r.startsAt));
   return starts.length && Math.min(...starts) < w.from.getTime() ? { ...w, from: new Date(Math.min(...starts)) } : w;
 }
-export async function createBooking({ hotelId, rooms, guest, checkIn, checkOut, paymentMethod, idempotencyKey, guests = 1, children = 0, shuttle }) {
-  const { from, to } = windowFor(rooms, checkIn, checkOut);
+export async function createBooking({ hotelId, rooms, guest, checkIn, checkOut, paymentMethod, idempotencyKey, guests = 1, children = 0, shuttle, times }) {
+  const { from, to } = windowFor(rooms, checkIn, checkOut, times);
   const { booking, paymentLink, shuttles } = await api.post('/v1/bookings', { hotelId, rooms, guests, children, ...(shuttle && { shuttle }), paymentMethod, from, to, guest }, { auth: asGuest(), idempotencyKey: idempotencyKey ?? newIdempotencyKey() }); // khách đã đăng nhập: gửi Bearer để đơn gắn vào tài khoản
   return { ...booking, paymentLink, shuttles };
 }
 
 // Báo giá trước khi gửi yêu cầu (backend tính phòng + xe + phí dịch vụ + tổng; không giữ phòng).
-export async function quoteBooking({ hotelId, rooms, checkIn, checkOut, shuttle }, signal) {
-  const { from, to } = windowFor(rooms, checkIn, checkOut);
+export async function quoteBooking({ hotelId, rooms, checkIn, checkOut, shuttle, times }, signal) {
+  const { from, to } = windowFor(rooms, checkIn, checkOut, times);
   return api.post('/v1/bookings/quote', { hotelId, rooms, ...(shuttle && { shuttle }), from, to }, { auth: false, signal });
 }
 
@@ -179,7 +185,7 @@ export async function getPaymentLink(code, phone) {
 // Cổng đang bật (GET /v1/payments/methods). Lỗi mạng/API: chỉ còn 'tại khách sạn'.
 export const AT_HOTEL_ONLY = [{ id: 'AT_HOTEL', label: 'Thanh toán tại khách sạn' }];
 export const listPaymentMethods = () => api.get('/v1/payments/methods', { auth: false }).then((r) => r.methods);
-export const PAY_LABEL = { AT_HOTEL: 'Tại khách sạn', VNPAY: 'VNPay', MOMO: 'MoMo' };
+export const PAY_LABEL = { AT_HOTEL: 'Tại khách sạn', VNPAY: 'VNPay', MOMO: 'MoMo', SEPAY: 'SePay' };
 
 // Đơn vừa tạo, để trang kết quả thanh toán tra lại trạng thái thật (chỉ giữ đơn gần nhất, mất khi đóng tab).
 const LAST = 'airrest.lastBooking';
@@ -189,6 +195,7 @@ export const clearLastBooking = () => { try { sessionStorage.removeItem(LAST); }
 
 // Chỉ có khi backend chạy VNPAY_MODE=mock (không production): giả lập VNPay gọi IPN.
 export const simulatePayment = (orderId, success) => api.post('/v1/payments/vnpay/dev-simulate', { orderId, resultCode: success ? 0 : 24 }, { auth: false });
+export const simulateSepayPayment = (orderId, success) => api.post('/v1/payments/sepay/dev-simulate', { orderId, resultCode: success ? 0 : 1 }, { auth: false });
 export const simulateMomoPayment = (orderId, success) => api.post('/v1/payments/momo/dev-simulate', { orderId, resultCode: success ? 0 : 1006 }, { auth: false });
 
 export async function createTicket({ bookingCode, phone, fullName, email, subject, message }) {
@@ -206,7 +213,7 @@ export const quoteShuttle = (body) => api.post('/v1/shuttle-requests/quote', bod
 export const createShuttle = (body) => api.post('/v1/shuttle-requests', body, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.shuttle);
 export const listShuttles = (code, phone) => api.post('/v1/shuttle-requests/lookup', { code, phone }, { auth: false }).then((r) => r.shuttles);
 // Tra cứu đầy đủ (giới hạn nghiêm): { booking, guestToken, stage, shuttles, events }. Làm mới sau đó chỉ dùng getTrackState (không dính giới hạn nghiêm).
-export const lookupBookingFull = (code, phone) => api.post('/v1/bookings/lookup', { code, phone }, { auth: false });
+export const lookupBookingFull = (code, phone) => api.post('/v1/bookings/lookup', { code, ...(phone && { phone }) }, { auth: false }); // không SĐT: chỉ xem đơn
 // Token theo dõi khác token tài khoản khách nên không đi qua `api` (nó gắn token phiên); lỗi chuẩn hóa thành ApiError (401 = token hết hạn).
 export async function getTrackState(guestToken, signal) {
   let res;
@@ -263,26 +270,26 @@ export const FULLNAME_MAX = 100;
 const LOOKS_LIKE_CONTACT = /@|\d{6,}/;
 
 // Luật kiểm tra phía client khớp backend (services/passengers/passengers.service.ts); máy chủ vẫn kiểm lại.
-export function validateRegister({ username, password, confirm, fullName }) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export function validateRegister({ email, username, password, fullName }) {
   const n = (username || '').normalize('NFC').trim();
   const errors = {};
   if (!n) errors.username = 'Nhập tên đăng nhập.';
   else if (n.length > USERNAME_MAX) errors.username = `Tên đăng nhập tối đa ${USERNAME_MAX} ký tự.`;
-  else if (LOOKS_LIKE_CONTACT.test(n)) errors.username = 'Không nhập email hoặc số điện thoại. Airrest không thu thông tin liên hệ (BR-002).';
-  if ((fullName || '').trim().length > FULLNAME_MAX) errors.fullName = `Họ và tên tối đa ${FULLNAME_MAX} ký tự.`;
+  else if (LOOKS_LIKE_CONTACT.test(n)) errors.username = 'Tên đăng nhập không được chứa @ hoặc dãy số giống số điện thoại.';
+  if (!EMAIL_RE.test((email || '').trim())) errors.email = 'Nhập email hợp lệ, ví dụ ban@example.com.';
+  if (!(fullName || '').trim()) errors.fullName = 'Nhập họ và tên.';
+  else if (fullName.trim().length > FULLNAME_MAX) errors.fullName = `Họ và tên tối đa ${FULLNAME_MAX} ký tự.`;
   if (!password) errors.password = 'Nhập mật khẩu.';
   else if (password.length < PASSWORD_MIN) errors.password = `Mật khẩu tối thiểu ${PASSWORD_MIN} ký tự.`;
   else if (password.length > PASSWORD_MAX) errors.password = `Mật khẩu tối đa ${PASSWORD_MAX} ký tự.`;
-  if (!errors.password) {
-    if (!confirm) errors.confirm = 'Nhập lại mật khẩu.';
-    else if (password !== confirm) errors.confirm = 'Mật khẩu nhập lại không khớp.';
-  }
   return errors;
 }
 
 // Lỗi của API tài khoản khách -> câu tiếng Việt.
 export function describeAuthError(e) {
   if (e?.code === 'USERNAME_TAKEN') return 'Tên đăng nhập đã được dùng.';
+  if (e?.code === 'EMAIL_TAKEN') return 'Email này đã được dùng cho một tài khoản khác.';
   if (e?.code === 'INVALID_CREDENTIALS') return 'Sai tên đăng nhập hoặc mật khẩu.';
   if (e?.code === 'WRONG_CURRENT_PASSWORD') return 'Mật khẩu hiện tại không đúng.';
   if (e?.code === 'SAME_PASSWORD') return 'Mật khẩu mới phải khác mật khẩu hiện tại.';
@@ -290,11 +297,11 @@ export function describeAuthError(e) {
   return describeApiError(e);
 }
 
-const userView = (u) => ({ id: u.id, username: u.username ?? '', fullName: u.fullName ?? '', name: u.fullName || u.username || 'Tài khoản', preferences: u.preferences ?? {} });
+const userView = (u) => ({ id: u.id, username: u.username ?? '', email: u.email ?? '', fullName: u.fullName ?? '', name: u.fullName || u.username || 'Tài khoản', preferences: u.preferences ?? {} });
 
 // Đăng ký / đăng nhập: trả { token, user }; người gọi tự lưu token (setGuestToken) rồi cập nhật store.
-export async function registerPassenger({ username, password, fullName }) {
-  const r = await api.post('/v1/auth/passenger/register', { username: username.trim(), password, ...(fullName?.trim() && { fullName: fullName.trim() }) }, { auth: false });
+export async function registerPassenger({ email, username, password, fullName }) {
+  const r = await api.post('/v1/auth/passenger/register', { email: email.trim(), username: username.trim(), password, ...(fullName?.trim() && { fullName: fullName.trim() }) }, { auth: false });
   return { token: r.token, user: userView(r.user) };
 }
 export async function loginPassenger(username, password) {
@@ -311,6 +318,13 @@ export const changePassword = (currentPassword, newPassword) => api.patch('/v1/m
 export const listMyBookings = (cursor, signal) => api.get('/v1/me/bookings', { query: { limit: 10, cursor }, signal });
 // Sửa họ tên và/hoặc cấu hình cá nhân { airport, adults, children, rooms, paymentMethod } (gửi là thay nguyên khối). Trả user mới.
 export const updateProfile = (body) => api.patch('/v1/me/profile', body).then((r) => userView(r.user));
+// Yêu thích (trả hotelIds), thông báo (đổi trạng thái đơn của tôi + số chưa đọc), mã giảm giá còn hiệu lực.
+export const listFavoriteIds = () => api.get('/v1/me/favorites').then((r) => r.hotelIds);
+export const addFavorite = (hotelId) => api.put(`/v1/me/favorites/${hotelId}`, {});
+export const removeFavorite = (hotelId) => api.delete(`/v1/me/favorites/${hotelId}`);
+export const listNotifications = () => api.get('/v1/me/notifications');
+export const markNotificationsRead = () => api.post('/v1/me/notifications/read', {});
+export const listMyVouchers = () => api.get('/v1/me/vouchers').then((r) => r.items);
 export const listMyTickets = (cursor, signal) => api.get('/v1/me/tickets', { query: { limit: 10, cursor }, signal });
 
 // Tra cứu cả nhóm khách delay bằng mã nhóm NH-XXXXXXXX + SĐT người đại diện (backend: strictRateLimit, 404 không phân biệt sai mã/SĐT).

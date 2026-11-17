@@ -11,7 +11,7 @@ export type BookingStatus =
   | 'NO_SHOW';
 
 export type ReservationState = 'HOLD' | 'CONFIRMED' | 'CHECKED_IN' | 'RELEASED' | 'COMPLETED';
-export type PaymentMethod = 'VNPAY' | 'MOMO' | 'AT_HOTEL' | 'PAYER';
+export type PaymentMethod = 'VNPAY' | 'MOMO' | 'SEPAY' | 'AT_HOTEL' | 'PAYER';
 export type PaymentStatus = 'INITIATED' | 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'EXPIRED';
 export type RefundStatus = 'PENDING' | 'PROCESSING' | 'REFUNDED' | 'MANUAL_REQUIRED';
 

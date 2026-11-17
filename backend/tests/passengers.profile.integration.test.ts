@@ -12,7 +12,7 @@ run('tích hợp: hồ sơ khách, cấu hình và ticket của tôi', () => {
   const app = createApp();
   let n = 0;
   let key = 0;
-  const signup = async (username: string) => (await request(app).post('/v1/auth/passenger/register').set(ip(++n)).send({ username, password: 'MatKhau123', fullName: `Tên ${username}` })).body as { token: string; user: { id: string } };
+  const signup = async (username: string) => (await request(app).post('/v1/auth/passenger/register').set(ip(++n)).send({ email: `${username}@example.com`, username, password: 'MatKhau123', fullName: `Tên ${username}` })).body as { token: string; user: { id: string } };
   const patch = (token: string | undefined, body: object) => request(app).patch('/v1/me/profile').set(token ? bearer(token) : {}).send(body);
   const ticket = (token: string | undefined, subject = 'Cần hỗ trợ') =>
     request(app).post('/v1/support').set({ ...(token ? bearer(token) : {}), ...ip(++n), 'Idempotency-Key': `pf-${++key}-${Date.now()}` }).send({ phone: PHONE, subject, message: 'Nội dung hỗ trợ' });

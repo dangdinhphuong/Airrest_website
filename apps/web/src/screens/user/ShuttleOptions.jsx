@@ -11,9 +11,9 @@ const errCls = (on) => (on ? 'tw:ring-2 tw:ring-rose-400' : '');
 
 // Xe đưa đón cùng đơn: số khách đi xe = số người đặt phòng (chỉ hiển thị). Giá lấy từ POST /v1/hotels/:id/shuttle-quote (có pickupAt để khớp phụ thu đêm).
 // `value.<chiều>.at` rỗng = dùng giờ mặc định theo ngày nhận/trả (đổi ngày thì giờ mặc định đổi theo, chỉ khi khách chưa sửa tay).
-export default function ShuttleOptions({ hotel, checkIn, checkOut, people, value, onChange, error, onQuote, hourly }) {
+export default function ShuttleOptions({ hotel, checkIn, checkOut, people, value, onChange, error, onQuote, hourly, times }) {
   const [quote, setQuote] = useState({ s: 'idle' }); // idle | loading | ok | error
-  const pick = (d) => value[d].at || defaultPickup(d, checkIn, checkOut, Date.now(), hourly);
+  const pick = (d) => value[d].at || defaultPickup(d, checkIn, checkOut, Date.now(), hourly, times);
   const setLeg = (d, patch) => onChange({ ...value, [d]: { ...value[d], ...patch } });
   const legsKey = DIRS.filter((d) => value[d].on).map((d) => `${d}@${pick(d)}`).join('|') + `#${value.airport}`;
   const free = hotel.shuttleMode === 'free';

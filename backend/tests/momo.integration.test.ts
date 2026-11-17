@@ -164,12 +164,13 @@ run('tích hợp: thanh toán MoMo (mock) — link, IPN POST JSON, hoàn, đối
 
   it('GET /payments/methods theo cờ env; cổng tắt -> đặt phòng 409', async () => {
     const ids = async () => ((await request(app).get('/v1/payments/methods')).body.methods as Array<{ id: string; mode?: string }>).map((m) => m.id);
-    expect(await ids()).toEqual(['AT_HOTEL', 'VNPAY', 'MOMO']);
+    expect(await ids()).toEqual(['AT_HOTEL', 'VNPAY', 'MOMO', 'SEPAY']);
     const body = (await request(app).get('/v1/payments/methods')).body;
     expect(JSON.stringify(body)).not.toMatch(/partner|secret|key/i);
 
-    const e = env as { MOMO_ENABLED: boolean; VNPAY_ENABLED: boolean };
+    const e = env as { MOMO_ENABLED: boolean; VNPAY_ENABLED: boolean; SEPAY_ENABLED: boolean };
     try {
+      e.SEPAY_ENABLED = false; // SePay có test riêng (sepay.integration.test.ts)
       e.MOMO_ENABLED = false;
       expect(await ids()).toEqual(['AT_HOTEL', 'VNPAY']);
       const off = await book('MOMO');
@@ -181,6 +182,7 @@ run('tích hợp: thanh toán MoMo (mock) — link, IPN POST JSON, hoàn, đối
     } finally {
       e.MOMO_ENABLED = true;
       e.VNPAY_ENABLED = true;
+      e.SEPAY_ENABLED = true;
     }
   });
 });

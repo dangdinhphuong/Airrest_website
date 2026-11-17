@@ -42,7 +42,7 @@ export default function Stays() {
   const [state, setState] = useState('loading'); // loading | ok | error
   const [error, setError] = useState('');
   const [tick, setTick] = useState(0);
-  const [chips, setChips] = useState([]);
+  const [chips, setChips] = useState(intent?.chips ?? []);
   const [maxKm, setMaxKm] = useState('');
   const [sort, setSort] = useState(intent?.sort && SORTS[intent.sort] ? intent.sort : 'distance');
   const [price, setPrice] = useState(null); // null = cả khoảng; { min, max } (VND/đêm)
@@ -119,6 +119,8 @@ export default function Stays() {
     return () => el?.removeAttribute('data-cart-bar');
   }, [cartRooms > 0]); // eslint-disable-line react-hooks/exhaustive-deps
   const bookingHotel = shown.find((h) => h.id === cart.hotelId) ?? cartHotel;
+  const autoBooked = useRef(false);
+  useEffect(() => { if (intent?.book && bookingHotel && !autoBooked.current) { autoBooked.current = true; setBooking(bookingHotel); } }, [bookingHotel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="tw:min-h-screen tw:bg-white">
@@ -165,7 +167,7 @@ export default function Stays() {
                           <span className="tw:block tw:min-w-0">
                             <span className="tw:block tw:text-lg tw:font-bold">{h.name}</span>
                             <span className="tw:mt-2 tw:flex tw:items-center tw:gap-1 tw:text-xs tw:font-normal tw:text-slate-500"><MapPin size={13} /> {h.distanceKm} km · {h.travelMinutes} phút đi xe</span>
-                            <span className="tw:mt-3 tw:flex tw:flex-wrap tw:gap-1.5">{h.amenities.slice(0, 3).map((item) => <span key={item} className="tw:rounded-md tw:bg-slate-100 tw:px-2 tw:py-1.5 tw:text-[11px] tw:font-normal tw:text-slate-600">{item}</span>)}</span>
+                            <span className="tw:mt-3 tw:flex tw:flex-wrap tw:gap-1.5">{h.freeCancel && <span className="tw:rounded-md tw:bg-emerald-50 tw:px-2 tw:py-1.5 tw:text-[11px] tw:font-semibold tw:text-emerald-700">Hủy miễn phí</span>}{h.hourly && <span className="tw:rounded-md tw:bg-amber-50 tw:px-2 tw:py-1.5 tw:text-[11px] tw:font-semibold tw:text-amber-800">Theo giờ</span>}{h.amenities.slice(0, 3).map((item) => <span key={item} className="tw:rounded-md tw:bg-slate-100 tw:px-2 tw:py-1.5 tw:text-[11px] tw:font-normal tw:text-slate-600">{item}</span>)}</span>
                             {inCart > 0 && <span className="tw:mt-3 tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:bg-blue-600 tw:px-2.5 tw:py-1 tw:text-[11px] tw:font-bold tw:text-white"><ShoppingBag size={12} /> {inCart} phòng trong giỏ</span>}
                           </span>
                           <span className="tw:flex tw:shrink-0 tw:flex-col tw:items-end tw:gap-2">

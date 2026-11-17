@@ -41,7 +41,7 @@ export default function Login() {
 
   const [accountType, setAccountType] = useState('passenger'); // 'passenger' | 'admin'
   const [tab, setTab] = useState('login'); // 'login' | 'register'
-  const [form, setForm] = useState({ username: '', password: '', regUsername: '', fullName: '', regPassword: '', confirm: '' });
+  const [form, setForm] = useState({ username: '', password: '', regEmail: '', regUsername: '', fullName: '', regPassword: '' });
   const [errors, setErrors] = useState({});
   const [show, setShow] = useState(false);
   const [staff, setStaff] = useState({ email: '', password: '' });
@@ -56,7 +56,7 @@ export default function Login() {
   const switchTab = (t) => {
     setTab(t);
     setErrors({});
-    setForm((f) => ({ ...f, password: '', regPassword: '', confirm: '' }));
+    setForm((f) => ({ ...f, password: '', regPassword: '' }));
     setShow(false);
   };
 
@@ -85,16 +85,16 @@ export default function Login() {
 
   const submitRegister = async (e) => {
     e.preventDefault();
-    const errs = validateRegister({ username: form.regUsername, fullName: form.fullName, password: form.regPassword, confirm: form.confirm });
+    const errs = validateRegister({ email: form.regEmail, username: form.regUsername, fullName: form.fullName, password: form.regPassword });
     if (Object.keys(errs).length) {
       setErrors(errs);
       return;
     }
     setBusy(true);
     try {
-      enter(await registerPassenger({ username: form.regUsername, fullName: form.fullName, password: form.regPassword }), 'account');
+      enter(await registerPassenger({ email: form.regEmail, username: form.regUsername, fullName: form.fullName, password: form.regPassword }), 'account');
     } catch (err) {
-      setErrors(err?.code === 'USERNAME_TAKEN' ? { username: describeAuthError(err) } : { form: describeAuthError(err) });
+      setErrors(err?.code === 'USERNAME_TAKEN' ? { username: describeAuthError(err) } : err?.code === 'EMAIL_TAKEN' ? { email: describeAuthError(err) } : { form: describeAuthError(err) });
       setBusy(false);
     }
   };
@@ -336,6 +336,26 @@ export default function Login() {
               ) : (
                 <form onSubmit={submitRegister} noValidate>
                   <div className="hero-input-field">
+                    <label htmlFor="a-remail">Email *</label>
+                    <div className="hero-input-box">
+                      <Mail size={17} style={{ color: '#94a3b8' }} />
+                      <input
+                        id="a-remail"
+                        type="email"
+                        value={form.regEmail}
+                        maxLength={200}
+                        onChange={(e) => set('regEmail', e.target.value)}
+                        autoComplete="email"
+                        aria-invalid={!!errors.email || undefined}
+                        placeholder="ban@example.com"
+                        data-testid="register-email"
+                        required
+                      />
+                    </div>
+                    {errors.email && <small className="ui-error" role="alert" data-testid="register-email-error">{errors.email}</small>}
+                  </div>
+
+                  <div className="hero-input-field">
                     <label htmlFor="a-ruser">Tên đăng nhập *</label>
                     <div className="hero-input-box">
                       <UserRound size={17} style={{ color: '#94a3b8' }} />
@@ -355,7 +375,7 @@ export default function Login() {
                   </div>
 
                   <div className="hero-input-field">
-                    <label htmlFor="a-name">Họ và tên (tùy chọn)</label>
+                    <label htmlFor="a-name">Họ và tên *</label>
                     <div className="hero-input-box">
                       <UserRound size={17} style={{ color: '#94a3b8' }} />
                       <input
@@ -383,20 +403,6 @@ export default function Login() {
                       onToggle={() => setShow((v) => !v)}
                     />
                     {errors.password && <small style={{ color: '#ef4444', fontSize: '11.5px', fontWeight: '600' }}>{errors.password}</small>}
-                  </div>
-
-                  <div className="hero-input-field">
-                    <label htmlFor="a-rcf">Nhập lại mật khẩu *</label>
-                    <PasswordInput
-                      id="a-rcf"
-                      value={form.confirm}
-                      onChange={(e) => set('confirm', e.target.value)}
-                      autoComplete="new-password"
-                      invalid={!!errors.confirm}
-                      show={show}
-                      onToggle={() => setShow((v) => !v)}
-                    />
-                    {errors.confirm && <small style={{ color: '#ef4444', fontSize: '11.5px', fontWeight: '600' }}>{errors.confirm}</small>}
                   </div>
 
                   {errors.form && (

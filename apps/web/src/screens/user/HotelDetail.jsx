@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, BedDouble, Check, ChevronDown, Clock3, Hotel, MapPin, Maximize2, Plane, ShieldCheck, Star, Users } from 'lucide-react';
+import { ArrowLeft, BedDouble, Check, ChevronDown, Clock3, Heart, Hotel, MapPin, Maximize2, Plane, ShieldCheck, Star, Users } from 'lucide-react';
 import { useApp } from '../../state/store';
 import { AMENITY_LABEL, airportName, describeApiError, getHotel, getReviews, listAirports, listHotels, postReview } from '../../data/user';
 import { isoDate, money } from '../../lib/time';
 import { NR, loadCart, saveCart, setQty } from './cart';
+import { useFavorites } from '../../data/favorites';
 import { copyText, partyFromPrefs, setStaysIntent } from './data';
 import GuestsPicker from './GuestsPicker';
 import HotelMap from './HotelMap';
@@ -128,6 +129,7 @@ function Similar({ p, onOpen }) {
 
 export default function HotelDetail() {
   const { state, dispatch } = useApp();
+  const fav = useFavorites(!!state.user);
   const [p, setP] = useState(null);
   const [st, setSt] = useState({ loading: true, error: '' });
   const [dates, setDates] = useState({ checkIn: isoDate(0), checkOut: isoDate(1) });
@@ -162,12 +164,12 @@ export default function HotelDetail() {
   const mapUrl = hasMap ? `https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lng}#map=16/${p.lat}/${p.lng}` : null;
   const open = (id) => dispatch({ type: 'openProperty', id });
 
-  // Chọn phòng: thêm 1 phòng vào giỏ rồi sang trang đặt phòng (đã có giỏ + bước chốt đơn) với đúng ngày/khách.
+  // Chọn phòng: thêm 1 phòng vào giỏ rồi mở thẳng form đặt phòng với đúng ngày/khách.
   const pick = (room, plan) => {
     const cart = setQty(loadCart(), p, room, 1, Date.now(), { plan });
     if (!cart.lines.length) { setNotice('Không thêm được phòng này vào giỏ.'); return; }
     saveCart(cart);
-    setStaysIntent({ airport: p.airportCode, hotelId: p.id, dates, party });
+    setStaysIntent({ airport: p.airportCode, hotelId: p.id, dates, party, book: true }); // book: Stays mở thẳng form đặt phòng, khách không phải tìm thanh giỏ
     dispatch({ type: 'go', screen: 'stays' });
     window.scrollTo({ top: 0 });
   };
@@ -189,10 +191,14 @@ export default function HotelDetail() {
           <div className="tw:hidden tw:items-center tw:gap-3 tw:sm:flex"><span className="tw:text-xs tw:text-slate-500">từ <b className="tw:text-sm tw:text-blue-700">{money(cheapest)}</b>/đêm</span><button type="button" onClick={() => go('rooms')} className="tw:min-h-11 tw:rounded-xl tw:bg-blue-600 tw:px-4 tw:text-xs tw:font-bold tw:text-white">Chọn phòng</button></div>
         </div>
       </nav>
+      {cheapest != null && <div data-testid="mobile-price-bar" className="tw:fixed tw:inset-x-0 tw:bottom-16 tw:z-30 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:border-t tw:border-slate-200 tw:bg-white tw:px-5 tw:py-2 tw:shadow-[0_-8px_24px_rgba(15,23,42,.12)] tw:sm:hidden"><span className="tw:text-xs tw:text-slate-500">từ <b className="tw:text-base tw:text-blue-700">{money(cheapest)}</b>/đêm</span><button type="button" onClick={() => go('rooms')} className="tw:min-h-11 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:text-sm tw:font-bold tw:text-white">Chọn phòng</button></div>}
       <div className="tw:mx-auto tw:max-w-[1080px] tw:space-y-6 tw:px-5 tw:pt-6">
         <Gallery key={p.id} p={p} />
         <section id="overview" className={CARD} aria-label="Tổng quan">
-          <h1 className="tw:text-3xl tw:font-bold tw:tracking-tight">{p.name}</h1>
+          <div className="tw:flex tw:items-start tw:justify-between tw:gap-3">
+            <h1 className="tw:text-3xl tw:font-bold tw:tracking-tight">{p.name}</h1>
+            <button type="button" data-testid="fav-toggle" aria-pressed={fav.ids.has(p.id)} aria-label={fav.ids.has(p.id) ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'} onClick={() => (state.user ? fav.toggle(p.id) : dispatch({ type: 'go', screen: 'login' }))} className={`tw:grid tw:size-11 tw:shrink-0 tw:place-items-center tw:rounded-xl tw:border tw:border-slate-200 ${fav.ids.has(p.id) ? 'tw:text-rose-600' : 'tw:text-slate-500'}`}><Heart size={20} fill={fav.ids.has(p.id) ? 'currentColor' : 'none'} /></button>
+          </div>
           <div className="tw:mt-3 tw:flex tw:flex-wrap tw:items-center tw:gap-4 tw:text-xs tw:text-slate-500">
             <span className="tw:flex tw:items-center tw:gap-1"><MapPin size={15} /> {p.address || `Gần sân bay ${apName}`}</span>
             {p.rating && <span className="tw:flex tw:items-center tw:gap-1 tw:font-bold tw:text-emerald-700"><Star size={14} fill="currentColor" /> {p.rating}/10 · {p.ratingCount} đánh giá</span>}

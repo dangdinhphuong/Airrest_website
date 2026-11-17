@@ -89,7 +89,7 @@ export const openapi = {
           rooms: { type: 'array', minItems: 1, maxItems: 10, description: 'Một hoặc nhiều loại phòng CÙNG khách sạn, chung ngày và chung số khách. roomTypeId không trùng, đều active (404 ROOM_TYPE_NOT_FOUND). Thiếu chỗ ở bất kỳ dòng nào -> 409 SOLD_OUT cho cả đơn (details.soldOut[] nêu dòng thiếu). guests <= tổng (capacity × qty) các dòng', items: obj({ roomTypeId: uuid, qty: { type: 'integer', minimum: 1, maximum: 5, default: 1 } }, ['roomTypeId']) },
           roomTypeId: { ...uuid, description: 'LEGACY: dùng cùng `qty` thay cho `rooms` (quy về một dòng); gửi lẫn với `rooms` -> 422' },
           qty: { type: 'integer', minimum: 1, maximum: 5, description: 'LEGACY, đi với roomTypeId; mặc định 1' },
-          paymentMethod: { type: 'string', enum: ['AT_HOTEL', 'VNPAY', 'MOMO'], default: 'AT_HOTEL' },
+          paymentMethod: { type: 'string', enum: ['AT_HOTEL', 'VNPAY', 'MOMO', 'SEPAY'], default: 'AT_HOTEL' },
           from: { type: 'string', format: 'date-time' },
           to: { type: 'string', format: 'date-time' },
           guest: ref('Guest'),

@@ -85,6 +85,17 @@ run('tích hợp: đặt phòng + realtime (cần Postgres)', () => {
     expect(bad.status).toBe(404);
   });
 
+  it('tra cứu chỉ bằng mã: xem được đơn, không lộ guestToken/xe/SĐT; mã sai -> 404', async () => {
+    const created = (await one<{ code: string }>('SELECT code FROM bookings'))!;
+    const r = await request(app).post('/v1/bookings/lookup').send({ code: created.code });
+    expect(r.status).toBe(200);
+    expect(r.body.booking.pricing.totalVnd).toBe(612_000);
+    expect(r.body.guestToken).toBeUndefined();
+    expect(r.body.shuttles).toBeUndefined();
+    expect(JSON.stringify(r.body)).not.toContain('0912345678');
+    expect((await request(app).post('/v1/bookings/lookup').send({ code: 'AR-ZZZZZZZZ' })).status).toBe(404);
+  });
+
   it('lookup + shuttle lookup + track trả hotel {name,address,location} công khai, không lộ SĐT/email/id nội bộ', async () => {
     await db.query("UPDATE hotels SET address = $2::jsonb, contact = $3::jsonb WHERE id = $1", [hotelId, JSON.stringify({ line: '12 Nguyễn Trãi', district: 'Thanh Xuân', city: 'Hà Nội', country: 'VN' }), JSON.stringify({ phone: '0911000111', email: 'noibo@ks.vn' })]);
     const created = (await one<{ code: string }>('SELECT code FROM bookings'))!;
