@@ -15,6 +15,11 @@
     "test": "npm test -w @airrest/backend",
     "test:db": "npm run test:db -w @airrest/backend",
     "db:seed": "npm run db:seed -w @airrest/backend",
-    "dev:db": "npm run dev:db -w @airrest/backend"
+    "dev:db": "npm run dev:db -w @airrest/backend",
+    "test:e2e": "e2e run"
+  },
+  "devDependencies": {
+    "e2e": "^0.23.1",
+    "@e2e-dev/web": "^0.16.0"
   }
 }

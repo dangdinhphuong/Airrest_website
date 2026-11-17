@@ -15,9 +15,10 @@ export const apiRateLimit = rateLimit({
 });
 
 // Chặt hơn cho endpoint dò thông tin (đăng nhập, tra cứu đơn): chống dò mã/SĐT.
+const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 export const strictRateLimit = rateLimit({
   windowMs: 60_000,
-  limit: 10,
+  limit: isDev ? 100 : 10,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: tooMany,
@@ -26,7 +27,7 @@ export const strictRateLimit = rateLimit({
 // Riêng cho đăng ký/đăng nhập/đổi mật khẩu của khách: bộ đếm tách khỏi strictRateLimit để không ảnh hưởng đăng nhập nhân sự / tra cứu đơn.
 export const passengerAuthRateLimit = rateLimit({
   windowMs: 60_000,
-  limit: 10,
+  limit: isDev ? 100 : 10,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: tooMany,

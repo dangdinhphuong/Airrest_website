@@ -1,0 +1,1936 @@
+[
+  {
+    "global_idx": 366,
+    "type": "p",
+    "style": "TitleProposal",
+    "text": "CHƯƠNG 4 PHÂN TÍCH YÊU CẦU VÀ THIẾT KẾ HỆ THỐNG",
+    "images": []
+  },
+  {
+    "global_idx": 367,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "4.1. Phạm vi, tác nhân và kiến trúc thông tin",
+    "images": []
+  },
+  {
+    "global_idx": 368,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Trong phạm vi đề tài, trạng thái chuyến bay, giá, tồn phòng, thanh toán và phản hồi của hãng/cơ sở lưu trú đều là dữ liệu mô phỏng có nhãn. Prototype không gửi giao dịch thật và không thu thập dữ liệu định danh. Yêu cầu được viết theo hướng có tác nhân, đầu ra và điều kiện nghiệm thu; mức ưu tiên dùng MoSCoW để tách chức năng cốt lõi khỏi phần mở rộng [12], [21], [23].",
+    "images": []
+  },
+  {
+    "global_idx": 369,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "4.2. Yêu cầu chức năng và phi chức năng",
+    "images": []
+  },
+  {
+    "global_idx": 370,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 4. SEQ Bảng \\r 1 \\* ARABIC 1. Phạm vi và ranh giới MVP AIRREST",
+    "images": []
+  },
+  {
+    "global_idx": 371,
+    "type": "tbl",
+    "rows": 6,
+    "cols": 2,
+    "data": [
+      [
+        "Hạng mục",
+        "Phạm vi chốt"
+      ],
+      [
+        "Người dùng/địa bàn",
+        "Hành khách từ 18 tuổi gặp chậm hoặc hủy chuyến; Nội Bài là địa bàn chính, Tân Sơn Nhất dùng để đối chiếu dữ liệu."
+      ],
+      [
+        "Nền tảng",
+        "Website responsive, mobile-first; không yêu cầu cài ứng dụng hoặc đăng nhập để thực hiện luồng chính."
+      ],
+      [
+        "Luồng cốt lõi",
+        "Tự tìm và tự chi trả; gửi đề nghị hãng xem xét hỗ trợ rồi theo dõi hoặc chuyển sang tự chi trả."
+      ],
+      [
+        "Phạm vi hiện thực",
+        "Prototype React một trang với dữ liệu tĩnh và phản hồi mô phỏng; các màn hình quản trị/đối tác mới ở mức thiết kế."
+      ],
+      [
+        "Ngoài phạm vi",
+        "API và dữ liệu thời gian thực, cơ sở dữ liệu, thanh toán thật, xác thực/RBAC, ứng dụng native và hợp tác B2B."
+      ]
+    ]
+  },
+  {
+    "global_idx": 372,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 373,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 4. SEQ Bảng \\* ARABIC 2. Ma trận yêu cầu chức năng và mức độ hiện thực",
+    "images": []
+  },
+  {
+    "global_idx": 374,
+    "type": "tbl",
+    "rows": 25,
+    "cols": 5,
+    "data": [
+      [
+        "Mã",
+        "Chức năng/đầu ra",
+        "Ưu tiên",
+        "Trạng thái V1",
+        "Điều kiện nghiệm thu rút gọn"
+      ],
+      [
+        "FR-01",
+        "Tra cứu chuyến bay theo số hiệu/ngày",
+        "M",
+        "Có, mô phỏng",
+        "Hiển thị giờ cũ/mới, trạng thái và thời điểm cập nhật."
+      ],
+      [
+        "FR-02",
+        "Nhập sân bay/giờ khi thiếu số hiệu",
+        "M",
+        "Có, mô phỏng",
+        "Người dùng vẫn đi tiếp được khi không có số hiệu."
+      ],
+      [
+        "FR-03",
+        "Thẻ trạng thái và cảnh báo đổi giờ",
+        "M",
+        "Một phần",
+        "Cập nhật đồng nhất các mốc giờ liên quan."
+      ],
+      [
+        "FR-04",
+        "Giải thích quyền lợi theo mốc/điều kiện",
+        "M",
+        "Một phần",
+        "Nêu nguồn, điều kiện áp dụng và không hứa quyền lợi tự động."
+      ],
+      [
+        "FR-05",
+        "Gợi ý ở lại hay đi nơi nghỉ",
+        "S",
+        "Có, mô phỏng",
+        "Giải thích gợi ý bằng thời gian nghỉ thực tế."
+      ],
+      [
+        "FR-06",
+        "Danh sách nơi nghỉ nhận khách",
+        "M",
+        "Có, dữ liệu tĩnh",
+        "Ưu tiên nơi còn nhận khách và gần sân bay."
+      ],
+      [
+        "FR-07",
+        "Thời gian/cách di chuyển",
+        "M",
+        "Có, dữ liệu tĩnh",
+        "Thẻ kết quả có phút di chuyển và tùy chọn đưa đón."
+      ],
+      [
+        "FR-08",
+        "Bộ lọc nhanh",
+        "S",
+        "Một phần",
+        "Lọc theo các thuộc tính đang có mà không làm mất trạng thái."
+      ],
+      [
+        "FR-09",
+        "Bản đồ nơi nghỉ",
+        "C",
+        "Đề xuất",
+        "Mở đúng vị trí sân bay và nơi nghỉ khi được tích hợp."
+      ],
+      [
+        "FR-10",
+        "Chi tiết giá và điều kiện",
+        "M",
+        "Một phần",
+        "Giá, điều kiện hủy và giờ nhận khách nhất quán trước xác nhận."
+      ],
+      [
+        "FR-11",
+        "Đặt chỗ nhanh không bắt đăng nhập",
+        "M",
+        "Có, mô phỏng",
+        "Hoàn thành trong hai bước và nhận mã mô phỏng."
+      ],
+      [
+        "FR-12",
+        "Thanh toán linh hoạt",
+        "S",
+        "Đề xuất",
+        "Nêu rõ phương thức và thời điểm ghi nhận tiền."
+      ],
+      [
+        "FR-13",
+        "Nhắc giờ quay lại sân bay",
+        "S",
+        "Một phần (toast)",
+        "Tính lại giờ rời nơi nghỉ khi giờ bay thay đổi."
+      ],
+      [
+        "FR-14",
+        "Gọi xe/chỉ đường",
+        "C",
+        "Đề xuất",
+        "Chuyển đúng điểm đến sang dịch vụ bản đồ/gọi xe."
+      ],
+      [
+        "FR-15",
+        "Tiện ích trong nhà ga",
+        "S",
+        "Đề xuất",
+        "Có vị trí, giờ mở cửa và giá khi người dùng ở lại sân bay."
+      ],
+      [
+        "FR-16",
+        "Kênh hỗ trợ",
+        "S",
+        "Một phần",
+        "Truy cập được trong một thao tác và nêu kênh liên hệ."
+      ],
+      [
+        "FR-17",
+        "Lưu chứng từ",
+        "C",
+        "Đề xuất",
+        "Tạo bản tóm tắt có chuyến bay, chi phí và tệp đính kèm."
+      ],
+      [
+        "FR-18",
+        "Dùng luồng chính không cần tài khoản",
+        "M",
+        "Có",
+        "Không xuất hiện màn hình đăng nhập bắt buộc."
+      ],
+      [
+        "FR-19",
+        "Tài khoản/lịch sử/điểm thưởng",
+        "W",
+        "Ngoài phạm vi",
+        "Chỉ xem xét sau khi có xác thực và lưu trữ bền vững."
+      ],
+      [
+        "FR-20",
+        "Voucher hãng (B2B)",
+        "W",
+        "Ngoài phạm vi",
+        "Chỉ triển khai khi có hợp đồng và cơ chế đối soát."
+      ],
+      [
+        "FR-21",
+        "Gửi đề nghị hãng hỗ trợ",
+        "M",
+        "Có, mô phỏng",
+        "Tạo mã yêu cầu và trạng thái chờ rõ ràng."
+      ],
+      [
+        "FR-22",
+        "Hãng duyệt/từ chối kèm lý do",
+        "M",
+        "Đề xuất",
+        "Mọi phản hồi phải có tác nhân, lý do và thời điểm."
+      ],
+      [
+        "FR-23",
+        "Cơ sở xác nhận/từ chối phòng",
+        "M",
+        "Đề xuất",
+        "Nếu hết phòng phải có phương án thay thế hoặc tự chi trả."
+      ],
+      [
+        "FR-24",
+        "Chuyển tự chi trả/cập nhật khi đổi giờ",
+        "S",
+        "Đề xuất",
+        "Giữ dấu vết yêu cầu và tính lại mốc thời gian."
+      ]
+    ]
+  },
+  {
+    "global_idx": 375,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 376,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 4. SEQ Bảng \\* ARABIC 3. Ma trận yêu cầu phi chức năng",
+    "images": []
+  },
+  {
+    "global_idx": 377,
+    "type": "tbl",
+    "rows": 9,
+    "cols": 5,
+    "data": [
+      [
+        "Mã",
+        "Yêu cầu",
+        "Ưu tiên",
+        "Bằng chứng hiện có",
+        "Tiêu chí đánh giá"
+      ],
+      [
+        "NFR-01",
+        "Responsive/mobile-first",
+        "M",
+        "Có breakpoint 900/620 px",
+        "Không cuộn ngang ở 360, 768 và 1280 px."
+      ],
+      [
+        "NFR-02",
+        "Khả năng tiếp cận",
+        "M",
+        "Một phần",
+        "Đối chiếu WCAG 2.2 AA; còn kiểm thử bàn phím/screen reader."
+      ],
+      [
+        "NFR-03",
+        "Hiệu năng mạng yếu",
+        "S",
+        "Chưa đo",
+        "Đo Lighthouse mobile; kết quả chính không quá 3 giây là mục tiêu."
+      ],
+      [
+        "NFR-04",
+        "Ngôn ngữ dễ hiểu/song ngữ",
+        "S",
+        "Tiếng Việt",
+        "Câu ngắn, giải thích thuật ngữ; tiếng Anh là phần mở rộng."
+      ],
+      [
+        "NFR-05",
+        "Bảo vệ dữ liệu cá nhân",
+        "M",
+        "Không thu PII trong prototype",
+        "Nếu mở rộng phải có mục đích, đồng ý và thời hạn lưu."
+      ],
+      [
+        "NFR-06",
+        "Minh bạch nguồn/độ mới",
+        "M",
+        "Một phần",
+        "Nêu nguồn pháp lý, nhãn mô phỏng và thời điểm cập nhật."
+      ],
+      [
+        "NFR-07",
+        "Thiết kế cho trạng thái căng thẳng",
+        "M",
+        "Một phần",
+        "Một hành động chính, lỗi có cách khắc phục, xác nhận trước thao tác."
+      ],
+      [
+        "NFR-08",
+        "Quy tắc pháp lý cấu hình được",
+        "S",
+        "Đề xuất",
+        "Thay ngưỡng/mức không cần sửa mã giao diện."
+      ]
+    ]
+  },
+  {
+    "global_idx": 378,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 379,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 4. SEQ Bảng \\* ARABIC 4. Ánh xạ màn hình, yêu cầu và phạm vi MVP",
+    "images": []
+  },
+  {
+    "global_idx": 380,
+    "type": "tbl",
+    "rows": 11,
+    "cols": 4,
+    "data": [
+      [
+        "Mã",
+        "Màn hình/khu vực",
+        "Yêu cầu",
+        "Trạng thái V1"
+      ],
+      [
+        "M0",
+        "Tra cứu chuyến bay/sân bay",
+        "FR-01, 02, 18",
+        "Có"
+      ],
+      [
+        "M1",
+        "Trạng thái và quyền lợi",
+        "FR-03, 04",
+        "Một phần"
+      ],
+      [
+        "M2",
+        "Gợi ý phương án nghỉ",
+        "FR-05",
+        "Có, mô phỏng"
+      ],
+      [
+        "M3",
+        "Danh sách/bộ lọc nơi nghỉ",
+        "FR-06, 07, 08",
+        "Có, dữ liệu tĩnh"
+      ],
+      [
+        "M4",
+        "Chi tiết nơi nghỉ",
+        "FR-10",
+        "Một phần"
+      ],
+      [
+        "M5",
+        "Đặt chỗ và xác nhận",
+        "FR-11, 12",
+        "Có, mô phỏng"
+      ],
+      [
+        "M6",
+        "Nhắc giờ quay lại",
+        "FR-13",
+        "Một phần"
+      ],
+      [
+        "M7",
+        "Tiện ích nhà ga",
+        "FR-15",
+        "Đề xuất"
+      ],
+      [
+        "M8",
+        "Hỗ trợ toàn cục",
+        "FR-16",
+        "Một phần"
+      ],
+      [
+        "M9",
+        "Theo dõi đề nghị hãng",
+        "FR-21–24",
+        "Một phần/đề xuất"
+      ]
+    ]
+  },
+  {
+    "global_idx": 381,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 382,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "MVP ưu tiên các yêu cầu Must và những yêu cầu Should trực tiếp giảm bất định trong hai luồng cốt lõi. Bảng 4.2–4.4 đồng thời phân biệt yêu cầu đích với bằng chứng đã có trong kho mã; trạng thái “đề xuất” không được tính là chức năng đã triển khai.",
+    "images": []
+  },
+  {
+    "global_idx": 383,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "4.3. Hai luồng nghiệp vụ cốt lõi",
+    "images": []
+  },
+  {
+    "global_idx": 384,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Luồng tự chi trả bắt đầu từ tra cứu chuyến bay, gợi ý quyết định, lọc nơi nghỉ, xem chi tiết, xác nhận điều kiện, nhập thông tin tối thiểu và nhận xác nhận mô phỏng. Luồng đề nghị hãng hỗ trợ thêm trạng thái chờ xem xét, phản hồi chấp thuận/từ chối và lối chuyển sang tự chi trả. Hai luồng dùng chung hồ sơ chuyến bay và danh mục nơi nghỉ nhưng không dùng chung trạng thái thanh toán/hỗ trợ.",
+    "images": []
+  },
+  {
+    "global_idx": 385,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Biên hệ thống: website responsive (prototype) gồm 10 màn hình M0-M9 (B03 mục 6.2). Ngoài biên: hệ thống đặt chỗ thật của OTA/khách sạn, hệ thống của hãng, cổng thanh toán, tài khoản người dùng, ứng dụng native.",
+    "images": []
+  },
+  {
+    "global_idx": 386,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image3.png"
+    ]
+  },
+  {
+    "global_idx": 387,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 4. SEQ Hình \\r 1 \\* ARABIC 1. Sơ đồ use case tổng quát",
+    "images": []
+  },
+  {
+    "global_idx": 388,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Nguồn: Hồ sơ B04 của nhóm",
+    "images": []
+  },
+  {
+    "global_idx": 389,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image4.png"
+    ]
+  },
+  {
+    "global_idx": 390,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 4. SEQ Hình \\* ARABIC 2. Sơ đồ phân rã chức năng BFD",
+    "images": []
+  },
+  {
+    "global_idx": 391,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Nguồn: Hồ sơ B04 của nhóm",
+    "images": []
+  },
+  {
+    "global_idx": 392,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image5.png"
+    ]
+  },
+  {
+    "global_idx": 393,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 4. SEQ Hình \\* ARABIC 3. DFD ngữ cảnh",
+    "images": []
+  },
+  {
+    "global_idx": 394,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Nguồn: Hồ sơ B04 của nhóm",
+    "images": []
+  },
+  {
+    "global_idx": 395,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image6.png"
+    ]
+  },
+  {
+    "global_idx": 396,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 4. SEQ Hình \\* ARABIC 4. DFD mức 0",
+    "images": []
+  },
+  {
+    "global_idx": 397,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Nguồn: Hồ sơ B04 của nhóm",
+    "images": []
+  },
+  {
+    "global_idx": 398,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image7.png"
+    ]
+  },
+  {
+    "global_idx": 399,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 4. SEQ Hình \\* ARABIC 5. DFD mức 1 - luồng tự đặt",
+    "images": []
+  },
+  {
+    "global_idx": 400,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Nguồn: Hồ sơ B04 của nhóm",
+    "images": []
+  },
+  {
+    "global_idx": 401,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image8.png"
+    ]
+  },
+  {
+    "global_idx": 402,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 4. SEQ Hình \\* ARABIC 6. DFD mức 1 - luồng hãng hỗ trợ",
+    "images": []
+  },
+  {
+    "global_idx": 403,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Nguồn: Hồ sơ B04 của nhóm",
+    "images": []
+  },
+  {
+    "global_idx": 404,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "4.3.1. Luồng theo vai trò và cấu trúc trang",
+    "images": []
+  },
+  {
+    "global_idx": 405,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Các sơ đồ chuyển yêu cầu thành luồng thao tác và cấu trúc trang. Luồng hành khách là phạm vi prototype; luồng quản trị, điều phối và các chức năng V2 là thiết kế mở rộng, chưa có trong kho mã hiện tại. Cách ghi này giữ ranh giới rõ giữa sản phẩm đã hiện thực và kiến trúc đích.",
+    "images": []
+  },
+  {
+    "global_idx": 406,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image9.png"
+    ]
+  },
+  {
+    "global_idx": 407,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 4. SEQ Hình \\* ARABIC 7. Luồng nghiệp vụ hành khách của hệ thống AIRREST",
+    "images": []
+  },
+  {
+    "global_idx": 408,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Nguồn: Nhóm tác giả xây dựng từ kết quả phân tích nghiệp vụ, tháng 11/2026",
+    "images": []
+  },
+  {
+    "global_idx": 409,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image10.png"
+    ]
+  },
+  {
+    "global_idx": 410,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 4. SEQ Hình \\* ARABIC 8. Luồng quản trị và điều phối nghiệp vụ AIRREST",
+    "images": []
+  },
+  {
+    "global_idx": 411,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Nguồn: Nhóm tác giả xây dựng từ kết quả phân tích nghiệp vụ, tháng 11/2026",
+    "images": []
+  },
+  {
+    "global_idx": 412,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image11.png"
+    ]
+  },
+  {
+    "global_idx": 413,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 4. SEQ Hình \\* ARABIC 9. Sơ đồ trang dành cho hành khách",
+    "images": []
+  },
+  {
+    "global_idx": 414,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Nguồn: Nhóm tác giả xây dựng từ kết quả phân tích nghiệp vụ, tháng 11/2026",
+    "images": []
+  },
+  {
+    "global_idx": 415,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image12.png"
+    ]
+  },
+  {
+    "global_idx": 416,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 4. SEQ Hình \\* ARABIC 10. Sơ đồ trang quản trị hệ thống",
+    "images": []
+  },
+  {
+    "global_idx": 417,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Nguồn: Nhóm tác giả xây dựng từ kết quả phân tích nghiệp vụ, tháng 11/2026",
+    "images": []
+  },
+  {
+    "global_idx": 418,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Trong V1, hành khách có thể tra cứu và tạo booking mà không bắt buộc đăng ký. Quản trị viên thực hiện các nghiệp vụ chính thay cho tài khoản khách sạn. Các chức năng đối soát định kỳ, hồ sơ đối tác và quản lý đánh giá được đánh dấu cho V2, phù hợp với lộ trình ở Chương 5.",
+    "images": []
+  },
+  {
+    "global_idx": 419,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "4.4. Danh mục 15 use case",
+    "images": []
+  },
+  {
+    "global_idx": 420,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 4. SEQ Bảng \\* ARABIC 5. Danh mục use case của AIRREST",
+    "images": []
+  },
+  {
+    "global_idx": 421,
+    "type": "tbl",
+    "rows": 16,
+    "cols": 3,
+    "data": [
+      [
+        "Mã",
+        "Tên use case",
+        "Tác nhân chính"
+      ],
+      [
+        "UC01",
+        "Tra cứu và theo dõi chuyến bay",
+        "Hành khách; nguồn chuyến bay"
+      ],
+      [
+        "UC02",
+        "Xem quyền lợi theo tình huống",
+        "Hành khách"
+      ],
+      [
+        "UC03",
+        "Nhận gợi ý ở lại hoặc đi nghỉ",
+        "Hành khách"
+      ],
+      [
+        "UC04",
+        "Tìm/lọc nơi nghỉ nhận khách",
+        "Hành khách"
+      ],
+      [
+        "UC05",
+        "Xem chi tiết nơi nghỉ",
+        "Hành khách"
+      ],
+      [
+        "UC06",
+        "Đặt chỗ mô phỏng",
+        "Hành khách; cơ sở lưu trú"
+      ],
+      [
+        "UC07",
+        "Nhắc giờ quay lại sân bay",
+        "Hành khách"
+      ],
+      [
+        "UC08",
+        "Xem tiện ích nhà ga",
+        "Hành khách"
+      ],
+      [
+        "UC09",
+        "Lưu chứng từ",
+        "Hành khách"
+      ],
+      [
+        "UC10",
+        "Liên hệ hỗ trợ",
+        "Hành khách"
+      ],
+      [
+        "UC11",
+        "Gửi đề nghị hãng hỗ trợ",
+        "Hành khách; hãng"
+      ],
+      [
+        "UC12",
+        "Hãng duyệt/từ chối",
+        "Hãng hàng không"
+      ],
+      [
+        "UC13",
+        "Cơ sở xác nhận/từ chối phòng",
+        "Cơ sở lưu trú"
+      ],
+      [
+        "UC14",
+        "Chuyển sang tự chi trả",
+        "Hành khách"
+      ],
+      [
+        "UC15",
+        "Cập nhật khi giờ bay đổi",
+        "Nguồn chuyến bay"
+      ]
+    ]
+  },
+  {
+    "global_idx": 422,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 423,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "4.5. Tác nhân và đặc tả use case trọng tâm",
+    "images": []
+  },
+  {
+    "global_idx": 424,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Theo cách trình bày của một báo cáo hệ thống, danh mục use case được giữ gọn ở Bảng 4.5; chỉ bốn cụm use case quyết định trải nghiệm và trạng thái nghiệp vụ được đặc tả sâu. Các tác nhân ngoài hệ thống đều là mô phỏng trong V1.",
+    "images": []
+  },
+  {
+    "global_idx": 425,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Prototype không thu thập họ tên thật, số điện thoại, email, giấy tờ, mã đặt chỗ hãng, thông tin thẻ hoặc vị trí chính xác. Nếu phiên bản vận hành cần các trường này, phải công bố mục đích, căn cứ xử lý, thời hạn lưu và cơ chế đồng ý trước khi gửi.",
+    "images": []
+  },
+  {
+    "global_idx": 426,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 4. SEQ Bảng \\* ARABIC 6. Tác nhân và vai trò trong hệ thống",
+    "images": []
+  },
+  {
+    "global_idx": 427,
+    "type": "tbl",
+    "rows": 5,
+    "cols": 4,
+    "data": [
+      [
+        "Tác nhân",
+        "Loại",
+        "Vai trò",
+        "Use case"
+      ],
+      [
+        "Hành khách",
+        "Chính",
+        "Tra cứu, ra quyết định, đặt chỗ/gửi đề nghị và theo dõi",
+        "UC01–UC11, UC14"
+      ],
+      [
+        "Hãng hàng không",
+        "Ngoài hệ thống, mô phỏng",
+        "Duyệt/từ chối và nêu lý do",
+        "UC11–UC12"
+      ],
+      [
+        "Cơ sở lưu trú",
+        "Ngoài hệ thống, mô phỏng",
+        "Cung cấp thông tin và xác nhận khả năng tiếp nhận",
+        "UC06, UC13"
+      ],
+      [
+        "Nguồn chuyến bay",
+        "Ngoài hệ thống, mô phỏng",
+        "Cung cấp trạng thái/giờ mới và sự kiện thay đổi",
+        "UC01, UC15"
+      ]
+    ]
+  },
+  {
+    "global_idx": 428,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 429,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 4. SEQ Bảng \\* ARABIC 7. Đặc tả các use case trọng tâm",
+    "images": []
+  },
+  {
+    "global_idx": 430,
+    "type": "tbl",
+    "rows": 5,
+    "cols": 5,
+    "data": [
+      [
+        "Use case",
+        "Tiền điều kiện/kích hoạt",
+        "Luồng chính",
+        "Ngoại lệ và hậu điều kiện",
+        "Truy vết"
+      ],
+      [
+        "UC01",
+        "Có số hiệu/ngày hoặc sân bay/giờ nhập tay",
+        "Nhập → tra dữ liệu mô phỏng → hiển thị trạng thái, giờ cũ/mới và độ mới",
+        "Không tìm thấy: hướng dẫn sửa/nhập tay; đúng giờ: không gợi ý lưu trú",
+        "FR-01–03"
+      ],
+      [
+        "UC02–03",
+        "Đã có thời lượng chậm và khung giờ",
+        "Đối chiếu mốc quyền lợi → tính thời gian nghỉ → giải thích phương án ở lại/đi nghỉ",
+        "Thiếu nguyên nhân: nêu các kịch bản; thời gian ngắn: cảnh báo không rời sân bay",
+        "FR-04–05"
+      ],
+      [
+        "UC04–06",
+        "Biết sân bay/giờ; có dữ liệu nơi nghỉ",
+        "Lọc/sắp xếp → xem điều kiện → chọn nơi → xác nhận hai bước → mã mô phỏng",
+        "Hết phòng/đóng nhận khách: quay lại danh sách và gợi ý phương án khác",
+        "FR-06–12, 18"
+      ],
+      [
+        "UC11–14",
+        "Tình huống đủ điều kiện để gửi đề nghị",
+        "Tạo yêu cầu → chờ hãng → hãng/cơ sở phản hồi → xác nhận hoặc chuyển tự chi trả",
+        "Từ chối/hết phòng/đổi giờ: nêu lý do, giữ dấu vết và tính lại phương án",
+        "FR-21–24"
+      ]
+    ]
+  },
+  {
+    "global_idx": 431,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 432,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "4.5.1. Mô hình dữ liệu logic và ràng buộc trạng thái",
+    "images": []
+  },
+  {
+    "global_idx": 433,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Mô hình khái niệm xác định sáu nhóm thực thể: Chuyến bay (Flight), Hành khách/Yêu cầu (Passenger/Request), Cơ sở lưu trú (Property), Phòng/Loại phòng (RoomType), Đề nghị hỗ trợ (SupportRequest) và Xác nhận lưu trú (StayConfirmation). Các quan hệ được mô tả bằng khóa định danh và khóa ngoại dự kiến; đây là đặc tả phục vụ triển khai backend trong tương lai, không phải cơ sở dữ liệu đã vận hành.",
+    "images": []
+  },
+  {
+    "global_idx": 434,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Mỗi yêu cầu lưu trú tham chiếu một chuyến bay và một phương án chi trả. Nhánh tự chi trả kết thúc ở trạng thái xác nhận mô phỏng; nhánh đề nghị hãng hỗ trợ chuyển sang trạng thái chờ duyệt. Quy tắc bất biến: không hiển thị “đã được hãng phê duyệt” nếu chưa có kết quả xét duyệt hợp lệ; không coi dữ liệu phòng mô phỏng là tồn kho thực tế; thay đổi giờ bay phải kích hoạt kiểm tra lại tính phù hợp của khoảng lưu trú.",
+    "images": []
+  },
+  {
+    "global_idx": 435,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Việc mô hình hóa sử dụng sơ đồ ca sử dụng, luồng nghiệp vụ, mô hình trạng thái và ma trận truy vết yêu cầu. Mỗi yêu cầu quan trọng cần ánh xạ tới tác nhân, điều kiện đầu vào, đầu ra, trạng thái lỗi và bằng chứng kiểm thử. Phân tách này giúp đánh giá tính nhất quán của thiết kế ngay cả khi prototype chưa có tầng lưu trữ và tích hợp ngoài.",
+    "images": []
+  },
+  {
+    "global_idx": 436,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "4.5.2. Mô hình dữ liệu mở rộng phục vụ vận hành",
+    "images": []
+  },
+  {
+    "global_idx": 437,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Với định hướng xây dựng một hệ thống website thay vì chỉ một luồng giao diện, mô hình dữ liệu được mở rộng từ các thực thể hành khách sang nhóm đối tác, điều phối, hỗ trợ và quản trị. Trong bản hiện thực frontend, các bảng được biểu diễn bằng đối tượng và collection trong bộ nhớ. Khi chuyển sang cơ sở dữ liệu, cần bổ sung chỉ mục, khóa duy nhất, quan hệ tham chiếu, quy tắc lưu giữ và mã hóa thông tin nhạy cảm.",
+    "images": []
+  },
+  {
+    "global_idx": 438,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 4. SEQ Bảng \\* ARABIC 8. Nhóm dữ liệu phục vụ hệ thống AIRREST",
+    "images": []
+  },
+  {
+    "global_idx": 439,
+    "type": "tbl",
+    "rows": 6,
+    "cols": 3,
+    "data": [
+      [
+        "Nhóm dữ liệu",
+        "Thực thể chính",
+        "Mục đích vận hành"
+      ],
+      [
+        "Hành khách",
+        "FLIGHT, RIGHTS, PROPERTY, BOOKING, BOOKING_HISTORY, SUPPORT_REQUEST, APP_STATE, END_USER",
+        "Tra cứu, ra quyết định, đặt chỗ, theo dõi trạng thái và lưu phiên."
+      ],
+      [
+        "Tài khoản và đối tác",
+        "ACCOUNT, SESSION, PARTNER_PROFILE",
+        "Xác thực, phân quyền và quản lý vòng đời hồ sơ đối tác."
+      ],
+      [
+        "Phòng, giá và tồn",
+        "ROOM_TYPE, RATE, RATE_LOG, INVENTORY, POLICY",
+        "Quản lý loại phòng, giá, lịch sử điều chỉnh, số phòng và điều kiện lưu trú."
+      ],
+      [
+        "Vận hành và hỗ trợ",
+        "PICKUP, SUPPORT_CASE, INCIDENT, QUALITY_ISSUE",
+        "Điều phối đón khách, xử lý ca hỗ trợ, sự cố hệ thống và sự cố chất lượng."
+      ],
+      [
+        "Quản trị và kiểm soát",
+        "FEATURE_FLAG, CONFIG_CHANGE, CATALOG, AUDIT_LOG, SIM",
+        "Kiểm soát cấu hình, danh mục, tham số mô phỏng và truy vết thao tác."
+      ]
+    ]
+  },
+  {
+    "global_idx": 440,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 441,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "4.6. Ma trận truy vết",
+    "images": []
+  },
+  {
+    "global_idx": 442,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Ma trận truy vết liên kết nguồn nhu cầu, yêu cầu FR/NFR, use case, thành phần giao diện và kịch bản kiểm thử. Quan hệ nhiều-nhiều được giữ rõ: một phát hiện có thể sinh nhiều yêu cầu; một use case có thể đáp ứng nhiều yêu cầu; một kịch bản kiểm thử có thể kiểm tra đồng thời chức năng và ràng buộc phi chức năng. Bản chi tiết được trình bày tại Phụ lục G.",
+    "images": []
+  },
+  {
+    "global_idx": 443,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 4. SEQ Bảng \\* ARABIC 9. Trích ma trận truy vết yêu cầu",
+    "images": []
+  },
+  {
+    "global_idx": 444,
+    "type": "tbl",
+    "rows": 6,
+    "cols": 5,
+    "data": [
+      [
+        "Nguồn",
+        "Nhu cầu",
+        "FR/NFR",
+        "Use case",
+        "Minh chứng"
+      ],
+      [
+        "Khảo sát/ca thứ cấp",
+        "Biết giờ bay mới",
+        "FR-01–03, NFR-03/06",
+        "UC01, UC15",
+        "Thẻ trạng thái, độ mới"
+      ],
+      [
+        "Pháp lý",
+        "Hiểu quyền lợi",
+        "FR-04, NFR-06/08",
+        "UC02",
+        "Mốc thời gian, điều kiện, nguồn"
+      ],
+      [
+        "A08",
+        "Nơi nghỉ nhận khách",
+        "FR-06–10",
+        "UC04–06",
+        "Bộ lọc, thẻ và xác nhận"
+      ],
+      [
+        "Hành trình",
+        "Thời gian nghỉ thực",
+        "FR-05, FR-13",
+        "UC03, UC07",
+        "Gợi ý và mốc quay lại"
+      ],
+      [
+        "Luồng hỗ trợ",
+        "Theo dõi phản hồi",
+        "FR-21–24",
+        "UC11–14",
+        "Mã và trạng thái yêu cầu"
+      ]
+    ]
+  },
+  {
+    "global_idx": 445,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 446,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "4.7. Kết luận chương",
+    "images": []
+  },
+  {
+    "global_idx": 447,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Mô hình hệ thống giữ ranh giới rõ giữa hỗ trợ quyết định và giao dịch thật. Các trạng thái nhạy cảm như hãng chấp thuận, nơi nghỉ xác nhận và thanh toán thành công phải đến từ nguồn có thẩm quyền khi vận hành thật. Bản hiện thực hiện nay mô phỏng các luồng để kiểm tra kiến trúc thông tin, trạng thái nghiệp vụ và phân quyền trước khi kết nối các dịch vụ bên ngoài.",
+    "images": []
+  },
+  {
+    "global_idx": 448,
+    "type": "p",
+    "style": "TitleProposal",
+    "text": "CHƯƠNG 5 THIẾT KẾ, XÂY DỰNG VÀ KIỂM THỬ HỆ THỐNG WEBSITE",
+    "images": []
+  },
+  {
+    "global_idx": 449,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.1. Mục tiêu và phạm vi hiện thực",
+    "images": []
+  },
+  {
+    "global_idx": 450,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Phiên bản hiện tại là prototype React một trang dành cho hành khách. Phạm vi đã hiện thực gồm tra cứu chuyến bay mô phỏng, hiển thị kết quả gián đoạn, gợi ý phương án nghỉ, lọc ba nơi lưu trú mẫu, đặt chỗ mô phỏng hai bước và gửi yêu cầu hỗ trợ ở mức giao diện. Các cổng đối tác, quản trị, API, cơ sở dữ liệu, thanh toán và tích hợp thật chưa có trong kho mã này; chúng được giữ ở mức thiết kế mở rộng.",
+    "images": []
+  },
+  {
+    "global_idx": 451,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 5. SEQ Bảng \\r 1 \\* ARABIC 1. Phạm vi kỹ thuật của prototype",
+    "images": []
+  },
+  {
+    "global_idx": 452,
+    "type": "tbl",
+    "rows": 5,
+    "cols": 4,
+    "data": [
+      [
+        "Lớp",
+        "Thành phần hiện có",
+        "Cách xử lý",
+        "Đầu ra"
+      ],
+      [
+        "Trình bày",
+        "App, Logo, các section ngữ nghĩa và styles.css",
+        "React render có điều kiện theo state",
+        "SPA một trang responsive"
+      ],
+      [
+        "Trạng thái",
+        "11 useState và 1 useMemo",
+        "Event handler cập nhật state, useMemo lọc hotels",
+        "Kết quả, modal, toast, bộ lọc, yêu thích"
+      ],
+      [
+        "Dữ liệu",
+        "Mảng hotels và ảnh tĩnh",
+        "Đọc trực tiếp trong component",
+        "Ba nơi nghỉ và kết quả mô phỏng"
+      ],
+      [
+        "Ranh giới tích hợp",
+        "Chưa có service/API",
+        "Không phát sinh HTTP",
+        "Backend đích được mô tả ở Phụ lục 4"
+      ]
+    ]
+  },
+  {
+    "global_idx": 453,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 454,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.2. Hệ thống thiết kế và nguyên tắc giao diện",
+    "images": []
+  },
+  {
+    "global_idx": 455,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Mã giao diện định nghĩa hệ thống thiết kế bằng CSS custom properties: dải xanh từ #062253 đến #1262E8, màu xác nhận #09875C, cảnh báo #F3A712, lỗi #D64545; bán kính 12-28 px và hai cấp bóng. Bố cục dùng khung tối đa 1180 px, thẻ trắng trên nền nhạt và nhãn “Dữ liệu mô phỏng”/“Mô phỏng” để tách rõ prototype khỏi giao dịch thật. Phụ lục 4 trình bày design token, trạng thái và ảnh giao diện từ bản build.",
+    "images": []
+  },
+  {
+    "global_idx": 456,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 5. SEQ Bảng \\* ARABIC 2. Quy ước của hệ thống thiết kế",
+    "images": []
+  },
+  {
+    "global_idx": 457,
+    "type": "tbl",
+    "rows": 7,
+    "cols": 3,
+    "data": [
+      [
+        "Quy ước",
+        "Cách áp dụng",
+        "Mục đích"
+      ],
+      [
+        "Phân cấp",
+        "Kicker, heading, mô tả, dữ liệu chính và ghi chú",
+        "Giúp quét nhanh trong tình trạng căng thẳng"
+      ],
+      [
+        "Màu trạng thái",
+        "Xanh hành động; xanh lá xác nhận; nền cảnh báo riêng",
+        "Tách hành động và kết quả"
+      ],
+      [
+        "Thẻ nhất quán",
+        "Gợi ý, nơi nghỉ, quyền lợi dùng cấu trúc lặp",
+        "Giảm tải nhận thức"
+      ],
+      [
+        "Nhãn mô phỏng",
+        "Tra cứu, giá/tồn phòng, hỗ trợ và xác nhận",
+        "Tránh hiểu nhầm là giao dịch thật"
+      ],
+      [
+        "Responsive",
+        "Ba cột, hai cột rồi một cột theo viewport",
+        "Bảo toàn thứ tự nội dung trên mobile"
+      ],
+      [
+        "Chuyển động",
+        "Có chế độ prefers-reduced-motion",
+        "Giảm chuyển động khi người dùng yêu cầu"
+      ]
+    ]
+  },
+  {
+    "global_idx": 458,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 459,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "5.2.1. Quy trình thiết kế UI/UX",
+    "images": []
+  },
+  {
+    "global_idx": 460,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Quy trình thiết kế đi từ nhu cầu đã khảo sát, kiến trúc thông tin và hai luồng trọng tâm đến wireframe, style token và prototype React. Kho mã cho thấy giao diện được hiện thực thành một trang có các section theo anchor, chứ không phải nhiều route. Vì gói mã chỉ chứa metadata Figma Make mà không chứa tệp thiết kế có thể chỉnh sửa, báo cáo dùng wireframe tái dựng và ảnh chụp từ bản build làm bằng chứng.",
+    "images": []
+  },
+  {
+    "global_idx": 461,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "5.2.2. Wireframe và bố cục màn hình",
+    "images": []
+  },
+  {
+    "global_idx": 462,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Wireframe mức khái quát thể hiện thứ tự thông tin và vị trí nhóm thao tác trước khi hoàn thiện giao diện trực quan. Các sơ đồ dưới đây được tái dựng từ luồng nghiệp vụ và phạm vi prototype, không phải ảnh xuất từ bản thiết kế Figma của nhóm.",
+    "images": []
+  },
+  {
+    "global_idx": 463,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image13.png"
+    ]
+  },
+  {
+    "global_idx": 464,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 5. SEQ Hình \\r 1 \\* ARABIC 1. Wireframe khái quát màn hình tra cứu và hỗ trợ quyết định",
+    "images": []
+  },
+  {
+    "global_idx": 465,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": [
+      "media/image14.png"
+    ]
+  },
+  {
+    "global_idx": 466,
+    "type": "p",
+    "style": "Caption",
+    "text": "Hình 5. SEQ Hình \\* ARABIC 2. Wireframe khái quát màn hình tìm nơi nghỉ và xác nhận",
+    "images": []
+  },
+  {
+    "global_idx": 467,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "5.2.3. Nguyên tắc thiết kế giao diện",
+    "images": []
+  },
+  {
+    "global_idx": 468,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Giao diện ưu tiên thông tin ra quyết định: trạng thái chuyến bay, thời gian nghỉ thực, quãng đường, giá tổng và khả năng nhận phòng được đặt cạnh hành động. Giao diện dùng phông Be Vietnam Pro, biểu tượng Lucide và hệ thẻ lặp lại. Hai breakpoint 900 px và 620 px chuyển bố cục sang một cột, ẩn menu desktop và hiện thanh điều hướng cố định phía dưới. Mã có aria-label, role=dialog, alt cho ảnh và prefers-reduced-motion; tuy nhiên vẫn cần kiểm thử bàn phím, focus trap và screen reader trước khi tuyên bố tuân thủ WCAG.",
+    "images": []
+  },
+  {
+    "global_idx": 469,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.3. Công nghệ và công cụ sử dụng",
+    "images": []
+  },
+  {
+    "global_idx": 470,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Công nghệ của AIRREST được phân loại theo ba trạng thái: đang được sử dụng trong mã frontend; đang được mô phỏng bằng dịch vụ và dữ liệu cục bộ; hoặc được xác định cho backend vận hành. Cách phân loại này giúp báo cáo mô tả đúng sản phẩm đã xây dựng mà không đồng nhất giao diện mô phỏng với hệ thống đã kết nối dịch vụ thật.",
+    "images": []
+  },
+  {
+    "global_idx": 471,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 5. SEQ Bảng \\* ARABIC 3. Công nghệ và công cụ của AIRREST",
+    "images": []
+  },
+  {
+    "global_idx": 472,
+    "type": "tbl",
+    "rows": 9,
+    "cols": 4,
+    "data": [
+      [
+        "Nhóm",
+        "Công nghệ/công cụ",
+        "Vai trò",
+        "Trạng thái"
+      ],
+      [
+        "Frontend",
+        "HTML5, CSS3, JavaScript, JSX",
+        "Cấu trúc, trình bày và tương tác",
+        "Đang dùng"
+      ],
+      [
+        "Frontend",
+        "React 18.3.1, React DOM 18.3.1",
+        "Render giao diện và quản lý state cục bộ",
+        "Đang dùng"
+      ],
+      [
+        "Build",
+        "Vite 6.4.4",
+        "Máy chủ phát triển và build bundle tĩnh",
+        "Đang dùng"
+      ],
+      [
+        "Biểu tượng",
+        "lucide-react 0.468.0",
+        "Hệ icon nhất quán",
+        "Đang dùng"
+      ],
+      [
+        "Dữ liệu",
+        "Mảng JavaScript, JPG trong public/images",
+        "Cung cấp dữ liệu và ảnh mô phỏng",
+        "Đang dùng"
+      ],
+      [
+        "Trình duyệt",
+        "DOM, scrollIntoView, form input, tel link",
+        "Cuộn trang, nhập dữ liệu và thao tác cơ bản",
+        "Đang dùng"
+      ],
+      [
+        "Thiết kế/build",
+        "Figma Make metadata",
+        "Hỗ trợ quy trình build/preview",
+        "Có metadata, không có tệp thiết kế gốc"
+      ],
+      [
+        "Tích hợp đích",
+        "REST API, backend, CSDL, realtime",
+        "Lưu trữ, xác thực và đồng bộ",
+        "Chưa có trong mã nguồn"
+      ]
+    ]
+  },
+  {
+    "global_idx": 473,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 474,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "5.3.1. Frontend React và Vite",
+    "images": []
+  },
+  {
+    "global_idx": 475,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Kho mã dùng React 18.3.1 và React DOM 18.3.1. Cấu trúc hiện tại chỉ có component App và Logo trong src/main.jsx; các section, thẻ khách sạn và modal được render trực tiếp trong App. Mười một biến useState quản lý menu, chế độ tra cứu, dữ liệu nhập, kết quả, bộ lọc, yêu thích, đặt chỗ, bước xác nhận, yêu cầu hỗ trợ và toast; useMemo lọc mảng hotels. Kho mã không có Context, reducer, router hay store đối tác. Vite 6.4.4 build bundle tĩnh vào dist.",
+    "images": []
+  },
+  {
+    "global_idx": 476,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "5.3.2. Dịch vụ mô phỏng và hợp đồng API",
+    "images": []
+  },
+  {
+    "global_idx": 477,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "AIRREST hiện không có lớp service và không thực hiện fetch/axios. Dữ liệu ba nơi nghỉ được khai báo trực tiếp trong mảng hotels; tra cứu chuyến bay, xác nhận đặt chỗ và gửi hỗ trợ chỉ thay đổi state cục bộ. Phụ lục 4 đề xuất ranh giới service và hợp đồng REST để tách dữ liệu khỏi component khi xây dựng backend.",
+    "images": []
+  },
+  {
+    "global_idx": 478,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "5.3.3. Bản đồ, thông báo và lịch",
+    "images": []
+  },
+  {
+    "global_idx": 479,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Kho mã hiện không cài Leaflet/OpenStreetMap, không gọi Notification API, không xuất iCalendar và không ghi localStorage. Nút “Xem trên bản đồ” mới là thành phần trình bày; nhắc giờ kết thúc bằng toast. Bản đồ, thông báo hệ thống, lịch và lưu cấu hình là các tích hợp đề xuất cho phiên bản sau.",
+    "images": []
+  },
+  {
+    "global_idx": 480,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.4. Kiến trúc hệ thống",
+    "images": []
+  },
+  {
+    "global_idx": 481,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Kiến trúc hiện thực là SPA phía trình duyệt: index.html nạp src/main.jsx; React render App vào phần tử root; styles.css cung cấp toàn bộ style; dữ liệu và state đều nằm trong bộ nhớ trang. Kiến trúc chưa tách presentation, domain và service thành các module vật lý. Kiến trúc đích vẫn theo hướng client-service-API-data, nhưng trong báo cáo phải được đánh dấu là đề xuất chưa hiện thực.",
+    "images": []
+  },
+  {
+    "global_idx": 482,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 5. SEQ Bảng \\* ARABIC 4. Các lớp kiến trúc AIRREST",
+    "images": []
+  },
+  {
+    "global_idx": 483,
+    "type": "tbl",
+    "rows": 7,
+    "cols": 4,
+    "data": [
+      [
+        "Lớp",
+        "Thành phần",
+        "Trách nhiệm",
+        "Hiện trạng"
+      ],
+      [
+        "Trình bày",
+        "App, Logo, các section, modal, toast",
+        "Hiển thị và nhận thao tác",
+        "Gộp trong main.jsx"
+      ],
+      [
+        "Trạng thái",
+        "useState, useMemo",
+        "Lưu trạng thái phiên và dẫn xuất danh sách",
+        "Cục bộ trong App"
+      ],
+      [
+        "Nghiệp vụ UI",
+        "runSearch, openBooking, notify, money",
+        "Tra cứu mô phỏng, mở modal, toast, định dạng tiền",
+        "Có trong main.jsx"
+      ],
+      [
+        "Dữ liệu",
+        "hotels[] và public/images",
+        "Cung cấp ba nơi nghỉ mẫu",
+        "Tĩnh, trong bundle"
+      ],
+      [
+        "Điều hướng",
+        "Liên kết anchor và scrollIntoView",
+        "Di chuyển giữa khu vực trang",
+        "Không có router"
+      ],
+      [
+        "Backend đích",
+        "Service adapter, API, CSDL, realtime",
+        "Lưu trữ bền vững và tích hợp",
+        "Đề xuất, chưa hiện thực"
+      ]
+    ]
+  },
+  {
+    "global_idx": 484,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 485,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "5.4.1. Luồng xử lý một yêu cầu",
+    "images": []
+  },
+  {
+    "global_idx": 486,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Trong mã hiện tại, event handler nhận thao tác, cập nhật state bằng hàm set và React render lại cây giao diện. runSearch đặt searched=true rồi cuộn tới thẻ trạng thái; filter làm useMemo tính lại danh sách; openBooking đặt hotel đang chọn và bước 1; xác nhận chuyển sang bước 2; hoàn tất đóng modal và hiển thị toast. Không có request bất đồng bộ, token, RBAC, MongoDB hay Socket.IO trong luồng này.",
+    "images": []
+  },
+  {
+    "global_idx": 487,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "5.4.2. Mô hình triển khai",
+    "images": []
+  },
+  {
+    "global_idx": 488,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Lệnh vite build tạo tệp tĩnh trong dist, gồm HTML, CSS, JavaScript bundle và ảnh. Kho mã có metadata Figma Make cho dev/deploy preview nhưng không có cấu hình backend, Docker, cơ sở dữ liệu hoặc biến môi trường tích hợp. Mô hình triển khai hiện tại vì vậy chỉ là static hosting; mô hình frontend-API-database là phương án mở rộng.",
+    "images": []
+  },
+  {
+    "global_idx": 489,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.5. Các phân hệ chức năng",
+    "images": []
+  },
+  {
+    "global_idx": 490,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Tên đề tài mới yêu cầu AIRREST được nhìn như một hệ thống website có nhiều tác nhân. Hai luồng hành khách vẫn là trọng tâm, nhưng các phân hệ đối tác và quản trị được bổ sung để khép kín chuỗi vận hành.",
+    "images": []
+  },
+  {
+    "global_idx": 491,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 5. SEQ Bảng \\* ARABIC 5. Phạm vi chức năng theo phân hệ",
+    "images": []
+  },
+  {
+    "global_idx": 492,
+    "type": "tbl",
+    "rows": 7,
+    "cols": 4,
+    "data": [
+      [
+        "Phân hệ",
+        "Chức năng trong kho mã",
+        "Mức hiện thực",
+        "Khoảng trống"
+      ],
+      [
+        "Cổng hành khách",
+        "Trang chủ, tra cứu, gợi ý, nơi nghỉ, quyền lợi, trợ giúp",
+        "Có trong SPA một trang",
+        "Chưa tách route/component"
+      ],
+      [
+        "Chuyến bay",
+        "Nhập số hiệu/ngày hoặc sân bay; hiển thị VN218 mô phỏng",
+        "State cục bộ",
+        "Chưa có API, loading, error, empty"
+      ],
+      [
+        "Nơi nghỉ",
+        "Danh sách ba khách sạn, bộ lọc, yêu thích",
+        "Dữ liệu tĩnh",
+        "Chưa có bản đồ, tồn và phân trang"
+      ],
+      [
+        "Đặt chỗ",
+        "Modal kiểm tra lựa chọn và xác nhận hai bước",
+        "Mô phỏng trong phiên",
+        "Chưa validation bắt buộc, thanh toán, tra cứu mã"
+      ],
+      [
+        "Hãng/hỗ trợ",
+        "Nút gửi yêu cầu và trạng thái đang chờ",
+        "Boolean supportSent",
+        "Chưa có workflow, phản hồi hoặc ticket"
+      ],
+      [
+        "Đối tác/quản trị",
+        "Không có trong kho mã",
+        "Chưa hiện thực",
+        "Cần route, màn hình, RBAC, API và audit log"
+      ]
+    ]
+  },
+  {
+    "global_idx": 493,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 494,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.6. Trạng thái nghiệp vụ và dữ liệu",
+    "images": []
+  },
+  {
+    "global_idx": 495,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Trạng thái được xem là thành phần cốt lõi của hệ thống. Một yêu cầu không được hiển thị là “đã có phòng” chỉ vì hành khách đã gửi biểu mẫu. Luồng phải phân biệt tối thiểu: bản nháp, đã gửi, đang chờ hãng, hãng từ chối, hãng chấp thuận, đang chờ cơ sở, cơ sở từ chối/hết phòng, đã xác nhận, đã hủy và chuyển sang tự chi trả. Mỗi chuyển trạng thái cần ghi thời điểm, tác nhân và lý do.",
+    "images": []
+  },
+  {
+    "global_idx": 496,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 5. SEQ Bảng \\* ARABIC 6. Quy tắc dữ liệu khi chuyển sang backend",
+    "images": []
+  },
+  {
+    "global_idx": 497,
+    "type": "tbl",
+    "rows": 6,
+    "cols": 2,
+    "data": [
+      [
+        "Nội dung",
+        "Yêu cầu"
+      ],
+      [
+        "Khóa và chỉ mục",
+        "Mã chuyến bay/ngày, mã đặt chỗ, mã yêu cầu và tài khoản phải duy nhất; chỉ mục theo sân bay, trạng thái và thời gian."
+      ],
+      [
+        "Nhất quán",
+        "Giá, tồn và trạng thái được cập nhật nguyên tử; chống gửi trùng và xung đột."
+      ],
+      [
+        "Lịch sử",
+        "Không ghi đè các thay đổi quan trọng; lưu history, rate log, config change và audit log."
+      ],
+      [
+        "Riêng tư",
+        "Tối thiểu hóa dữ liệu cá nhân, quy định thời hạn lưu và phân quyền theo vai trò/phạm vi cơ sở."
+      ],
+      [
+        "Nguồn và độ mới",
+        "Mọi dữ liệu chuyến bay, giá và tồn phải có nguồn, thời điểm cập nhật và cờ dữ liệu cũ."
+      ]
+    ]
+  },
+  {
+    "global_idx": 498,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 499,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.7. Hiện thực luồng hành khách",
+    "images": []
+  },
+  {
+    "global_idx": 500,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Cổng hành khách cho phép duyệt nơi nghỉ mà không cần tài khoản. Khi cần tính thời gian nghỉ, nhắc giờ hoặc đề nghị hãng hỗ trợ, người dùng nhập số hiệu/ngày bay hoặc nhập thủ công. Kết quả hiển thị trạng thái, giờ cũ/mới, nguyên nhân, thời điểm cập nhật và quyền lợi tham khảo.",
+    "images": []
+  },
+  {
+    "global_idx": 501,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "5.7.1. Tìm, lọc và đặt nơi nghỉ",
+    "images": []
+  },
+  {
+    "global_idx": 502,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Danh sách nơi nghỉ được lọc theo sân bay, thời điểm còn nhận khách, phòng gia đình, thuê theo giờ, hủy miễn phí và xe đưa đón. Thẻ kết quả cần hiển thị giá tổng, khoảng cách, phút di chuyển, giờ nhận phòng và thời điểm cập nhật. Đặt chỗ trong bản hiện thực không thu tiền và chỉ tạo mã mô phỏng; trạng thái xác nhận phải được tách khỏi thao tác gửi yêu cầu.",
+    "images": []
+  },
+  {
+    "global_idx": 503,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "5.7.2. Đề nghị hãng hỗ trợ",
+    "images": []
+  },
+  {
+    "global_idx": 504,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Luồng hỗ trợ được xây dựng theo máy trạng thái, cho phép trình diễn các kịch bản hãng duyệt, hãng từ chối, cơ sở hết phòng hoặc không phản hồi. Thời gian phản hồi là tham số mô phỏng. Website không tự phán quyết quyền lợi và không cam kết hãng sẽ thanh toán khi chưa có phản hồi có thẩm quyền.",
+    "images": []
+  },
+  {
+    "global_idx": 505,
+    "type": "p",
+    "style": "HeadProposal3",
+    "text": "5.7.3. Nhắc giờ quay lại sân bay",
+    "images": []
+  },
+  {
+    "global_idx": 506,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Giờ rời nơi nghỉ được tính từ giờ bay mới, thời gian có mặt trước chuyến, thời gian di chuyển và phần đệm. Khi giờ bay thay đổi, hệ thống phải tính lại và cảnh báo nếu thời gian nghỉ không còn phù hợp. Thông báo trình duyệt chỉ là kênh tiện ích; tệp lịch và hướng dẫn thủ công là phương án dự phòng.",
+    "images": []
+  },
+  {
+    "global_idx": 507,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.8. Hiện thực phân hệ đối tác và quản trị",
+    "images": []
+  },
+  {
+    "global_idx": 508,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Phân hệ đối tác và quản trị mới xuất hiện trong tài liệu phân tích và sitemap; kho mã hiện không có route, màn hình, biểu mẫu hoặc store cho các vai trò này. Khi hiện thực, các phân hệ cần được tách module, có máy trạng thái hợp lệ, phân quyền theo cơ sở, audit log bền vững và quy trình maker-checker.",
+    "images": []
+  },
+  {
+    "global_idx": 509,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.9. Xác thực, phân quyền và bảo vệ dữ liệu",
+    "images": []
+  },
+  {
+    "global_idx": 510,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Phiên bản hiện tại không có đăng nhập, tài khoản mẫu, token hoặc RBAC. Điểm tích cực là biểu mẫu công khai không yêu cầu số điện thoại, email hay giấy tờ cá nhân. Khi mở rộng sang cổng đối tác/quản trị, backend phải thực thi xác thực, băm mật khẩu, phiên, RBAC theo vai trò và phạm vi cơ sở, giới hạn tần suất, kiểm tra đầu vào và audit log; ẩn nút trên frontend không được coi là kiểm soát quyền.",
+    "images": []
+  },
+  {
+    "global_idx": 511,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.10. Responsive và khả năng tiếp cận",
+    "images": []
+  },
+  {
+    "global_idx": 512,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Responsive được hiện thực bằng breakpoint 900 px và 620 px. Ở màn hình nhỏ, menu desktop chuyển thành nút hamburger, các lưới về một cột, modal giới hạn chiều cao và thanh điều hướng bốn mục cố định ở dưới. Mã có nhãn biểu mẫu, alt cho ảnh, aria-label, role=dialog/aria-modal và prefers-reduced-motion. Các khoảng trống còn lại là focus trap cho modal, khôi phục focus khi đóng, thông báo trạng thái động cho screen reader và kiểm thử tương phản thực tế.",
+    "images": []
+  },
+  {
+    "global_idx": 513,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.11. Chiến lược kiểm thử",
+    "images": []
+  },
+  {
+    "global_idx": 514,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Kho mã chỉ khai báo hai script dev và build; không có lint, unit, integration hay E2E test. Bản build Vite tạo dist thành công và ảnh chụp trên desktop/mobile chứng minh các màn hình có thể hiển thị, nhưng không chứng minh nghiệp vụ, khả năng tiếp cận hay tích hợp. Kế hoạch kiểm thử cần bắt đầu từ các state transition đang có, sau đó bổ sung test dịch vụ và theo vai trò khi backend được hiện thực.",
+    "images": []
+  },
+  {
+    "global_idx": 515,
+    "type": "p",
+    "style": "Caption",
+    "text": "Bảng 5. SEQ Bảng \\* ARABIC 7. Bằng chứng hiện có và khoảng trống kiểm thử",
+    "images": []
+  },
+  {
+    "global_idx": 516,
+    "type": "tbl",
+    "rows": 6,
+    "cols": 3,
+    "data": [
+      [
+        "Nhóm kiểm thử",
+        "Bằng chứng hiện có",
+        "Khoảng trống"
+      ],
+      [
+        "Build",
+        "Script vite build tạo dist thành công",
+        "Chưa có CI và kiểm tra bundle budget"
+      ],
+      [
+        "Lint/tĩnh",
+        "Không có script lint/typecheck",
+        "Cần ESLint và quy tắc accessibility"
+      ],
+      [
+        "Unit/integration",
+        "Không có framework hoặc test case",
+        "Cần test state transition, bộ lọc, đặt chỗ và service"
+      ],
+      [
+        "E2E",
+        "Ảnh chụp thủ công các trạng thái chính",
+        "Chưa có kịch bản tự động hay dữ liệu reset"
+      ],
+      [
+        "Tiếp cận/usability",
+        "Có thuộc tính ngữ nghĩa trong mã",
+        "Chưa có audit screen reader, bàn phím, tương phản hoặc phiên thử người dùng"
+      ]
+    ]
+  },
+  {
+    "global_idx": 517,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "",
+    "images": []
+  },
+  {
+    "global_idx": 518,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.12. Giới hạn của bản hiện thực",
+    "images": []
+  },
+  {
+    "global_idx": 519,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Bản hiện thực bao quát một trang hành khách với dữ liệu tĩnh và state cục bộ; chưa có các màn hình theo nhiều vai trò như phạm vi phân tích. Tra cứu, giá, tồn phòng, mã đặt chỗ và yêu cầu hỗ trợ đều là mô phỏng và mất khi tải lại trang. Chưa có API, cơ sở dữ liệu, xác thực, thanh toán, bản đồ, thông báo hệ thống, tồn thời gian thực hay phản hồi chính thức. Do đó sản phẩm hiện phù hợp để trình diễn UI/UX và thử luồng, chưa được dùng cho giao dịch thật.",
+    "images": []
+  },
+  {
+    "global_idx": 520,
+    "type": "p",
+    "style": "HeadProposal2",
+    "text": "5.13. Lộ trình hoàn thiện hệ thống",
+    "images": []
+  },
+  {
+    "global_idx": 521,
+    "type": "p",
+    "style": "BodyProposal",
+    "text": "Lộ trình hợp lý là: (1) tách App thành component, route, domain và service; (2) khóa schema, máy trạng thái và hợp đồng API; (3) xây dựng backend, cơ sở dữ liệu, xác thực/RBAC và audit log; (4) chuyển bộ A08 thành seed có nguồn, ngày cập nhật và cờ dữ liệu mô phỏng; (5) hiện thực cổng đối tác, hãng, điều phối và quản trị; (6) bổ sung bản đồ, thông báo, lịch và kênh thời gian thực; (7) thiết lập lint, unit, integration, E2E, accessibility và usability test trước khi tích hợp dịch vụ ngoài.",
+    "images": []
+  }
+]
