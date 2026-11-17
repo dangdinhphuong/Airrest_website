@@ -5,7 +5,7 @@ import { bookingFromRow } from '../../database/types';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { MOMO_PENDING_CODES, momoGateway, newGatewayOrder, newMomoOrder, verifyMomoIpn } from '../../lib/momo';
-import { sepayIpnAuthorized, sepayPayUrl, buildCheckoutFields, checkoutPage } from '../../lib/sepay';
+import { sepayIpnAuthorized, sepayPayUrl, buildCheckoutFields, checkoutPage, newSepayOrder } from '../../lib/sepay';
 import { newVnpOrder, verifyVnpay, vnpDate, vnpKeys, vnpayGateway } from '../../lib/vnpay';
 import { writeAudit } from '../audit';
 import { emitBookingChange } from '../events';
@@ -100,7 +100,11 @@ export async function sepayCheckoutFor(paymentId: string) {
     [paymentId],
   )).rows[0];
   if (!p || p.bookingStatus !== 'PENDING_PAYMENT' || !p.expiresAt || p.expiresAt <= new Date()) return null;
-  return checkoutPage(buildCheckoutFields({ invoice: p.gateway.orderId, amount: p.amountVnd, description: `Airrest ${p.code}` }));
+  // SePay đòi order_invoice_number không trùng: mỗi lần mở trang (khách quay lại, bấm lại) dùng mã MỚI. Mã cũ giữ trong gateway.invoices để IPN muộn vẫn khớp được.
+  const invoice = newSepayOrder(p.code).orderId;
+  const seen = [...new Set([...(p.gateway.invoices ?? []), p.gateway.orderId])];
+  await db.query("UPDATE payments SET txn_ref = $2, gateway = gateway || $3::jsonb, updated_at = now() WHERE id = $1 AND status IN ('INITIATED','PENDING')", [paymentId, invoice, json({ orderId: invoice, requestId: invoice, invoices: [...seen, invoice] })]);
+  return checkoutPage(buildCheckoutFields({ invoice, amount: p.amountVnd, description: `Airrest ${p.code}` }));
 }
 
 // Tạo link MoMo cho bản ghi payments INITIATED. Live gọi mạng: lỗi/từ chối -> payment FAILED + 502 (IPN muộn vẫn xử lý được theo orderId).
@@ -231,7 +235,8 @@ export async function handleSepayIpn(secretHeader: string | undefined, body: Rec
   if (!sepayIpnAuthorized(secretHeader)) return { status: 401, body: { error: 'Unauthorized' } };
   const ok = { status: 200, body: { success: true } };
   const invoice = String(body?.order?.order_invoice_number ?? '');
-  const payment = invoice ? (await db.query<PaymentDoc>("SELECT * FROM payments WHERE txn_ref = $1 AND method = 'SEPAY'", [invoice])).rows[0] : undefined;
+  // Khớp mã hiện tại (txn_ref) hoặc một mã cũ của cùng giao dịch (khách có thể thanh toán ở phiên mở trước).
+  const payment = invoice ? (await db.query<PaymentDoc>("SELECT * FROM payments WHERE method = 'SEPAY' AND (txn_ref = $1 OR gateway->'invoices' @> to_jsonb($1::text)) LIMIT 1", [invoice])).rows[0] : undefined;
   if (!payment) {
     logger.warn({ invoice, type: body?.notification_type }, 'IPN SePay cho mã đơn không tồn tại, bỏ qua');
     return ok;

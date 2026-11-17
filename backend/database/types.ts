@@ -399,6 +399,8 @@ export interface PaymentDoc {
     createDate?: string; // chỉ VNPay: vnp_CreateDate (yyyyMMddHHmmss GMT+7), cần cho querydr/refund
     transId?: number; // vnp_TransactionNo
     payUrl?: string;
+    invoices?: string[]; // chỉ SePay: mọi order_invoice_number đã dùng cho giao dịch này (mỗi lần mở trang thanh toán một mã mới)
+    sepayTransactionId?: string; // chỉ SePay
     resultCode?: number;
     message?: string;
   };

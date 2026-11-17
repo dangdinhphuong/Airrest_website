@@ -53,15 +53,27 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
     expect(m.body.methods.some((x: { id: string }) => x.id === 'SEPAY')).toBe(true);
   });
 
-  it('trang checkout: form POST có chữ ký, CSP riêng; id lạ -> 404', async () => {
+  it('trang checkout: form POST có chữ ký, CSP riêng; mỗi lần mở dùng mã đơn MỚI; id lạ -> 404', async () => {
     const { p } = await payOf((await book()).body.booking.code);
-    const page = await request(app).get(`/v1/payments/sepay/checkout/${p.id}`);
-    expect(page.status).toBe(200);
-    expect(page.text).toContain(`name="order_invoice_number" value="${p.gateway.orderId}"`);
-    expect(page.text).toContain('name="signature"');
-    expect(page.headers['content-security-policy']).toContain('form-action https://pay.sepay.vn');
+    const open = () => request(app).get(`/v1/payments/sepay/checkout/${p.id}`);
+    const inv = (html: string) => /name="order_invoice_number" value="([^"]+)"/.exec(html)![1]!;
+    const a = await open();
+    expect(a.status).toBe(200);
+    expect(a.text).toContain('name="signature"');
+    expect(a.headers['content-security-policy']).toContain('form-action https://pay.sepay.vn');
+    const b = await open(); // khách mở lại / bấm lại: SePay không chấp nhận mã trùng
+    expect(inv(b.text)).not.toBe(inv(a.text));
+    expect((await one<P>('SELECT * FROM payments WHERE id = $1', [p.id]))!.gateway.orderId).toBe(inv(b.text)); // bản ghi giữ mã mới nhất
     expect((await request(app).get('/v1/payments/sepay/checkout/00000000-0000-4000-8000-000000000000')).status).toBe(404);
     expect((await request(app).get('/v1/payments/sepay/checkout/khong-phai-uuid')).status).toBe(404);
+  });
+
+  it('IPN theo mã ĐÃ DÙNG ở phiên mở trước vẫn khớp giao dịch (khách thanh toán ở tab cũ)', async () => {
+    const { b, p } = await payOf((await book()).body.booking.code);
+    const first = /name="order_invoice_number" value="([^"]+)"/.exec((await request(app).get(`/v1/payments/sepay/checkout/${p.id}`)).text)![1]!;
+    await request(app).get(`/v1/payments/sepay/checkout/${p.id}`); // mở lần 2 -> mã hiện tại đổi, `first` thành mã cũ
+    expect((await ipn(buildSepayIpn({ invoice: first, amount: p.amountVnd, success: true, transactionId: 'tx-old' }))).status).toBe(200);
+    expect(await status(b.id)).toBe('CONFIRMED');
   });
 
   it('IPN ORDER_PAID: CONFIRMED, lưu mã giao dịch SePay; IPN lặp idempotent (1 payment SUCCEEDED, 3 dòng sổ cái)', async () => {
