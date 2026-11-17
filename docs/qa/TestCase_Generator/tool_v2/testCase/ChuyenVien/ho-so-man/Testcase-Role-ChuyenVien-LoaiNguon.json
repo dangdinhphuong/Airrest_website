@@ -1,0 +1,329 @@
+{
+ "title": "Loại nguồn",
+ "prefix": "LoaiNguon",
+ "url": [
+  "https://moet-datalake.saas.vsystem.vn/ingestion/source-types"
+ ],
+ "nav": [
+  "Dữ liệu",
+  "Quản lý khai báo",
+  "Loại nguồn"
+ ],
+ "grounding": {
+  "ngay": "2026-09-10",
+  "cach": [
+   "probe_fe.py https://moet-datalake.saas.vsystem.vn/ingestion/source-types --save (bundle FE)",
+   "probe_live.py cùng URL với QA_HOME_PREFIX=/ --sua (đăng nhập admin_csdl@moet.gov.vn, đọc DOM đã render + mở biểu mẫu Chỉnh sửa)",
+   "probe_routes.py cùng URL --sau -> 2 CHÍNH · 0 PHỤ · 0 CHƯA RÕ LỐI VÀO",
+   "đọc TRỌN chunk riêng của màn SourceTypesPage-BOUyZFF-.js + useSourceTypes-Cwa8yqlv.js + ingestion.service-CUKRKIEJ.js + component dùng chung (AH multiselect · Koe select · ose phân trang · PageHeader)",
+   "Tai-lieu/TKCT_Datalake_POC_280826.docx §13 Module Quản lý khai báo — UC-QLKB-01, GBR-QLKB-01..10, §13.12 §13.13 §13.14",
+   "sửa 2026-09-15: đường dẫn API khai thiếu tiền tố `/api/db-tool/v1` — quan sát được từ SỔ MẠNG của Chrome khi chạy live (sessions/live-lo-nho/evidence/mang.json): GET và POST thật đi tới /api/db-tool/v1/ingestion/source-types"
+  ],
+  "chunk_man": "SourceTypesPage-BOUyZFF-.js (14331 byte) — hook riêng useSourceTypes-Cwa8yqlv.js",
+  "api": [
+   "GET  /api/db-tool/v1/ingestion/source-types            (listSourceTypes)",
+   "POST /api/db-tool/v1/ingestion/source-types            (createSourceType)",
+   "PUT  /api/db-tool/v1/ingestion/source-types/{id}       (updateSourceType — CHỈ gửi {title,status}, không gửi code)",
+   "DEL  /api/db-tool/v1/ingestion/source-types/{id}       (deleteSourceType — xoá hàng loạt gọi LẶP từng dòng)",
+   "GET  /api/db-tool/v1/ingestion/source-types:export     (exportSourceTypes -> file danh_sach_loai_nguon.xlsx)"
+  ],
+  "thao_tac_duoc_noi": [
+   "list (đọc danh sách, lọc + tìm kiếm CLIENT-SIDE trên toàn bộ danh sách đã tải)",
+   "create (modal Thêm loại nguồn mới)",
+   "update (modal Chỉnh sửa: <tên hiển thị>)",
+   "delete đơn lẻ (AlertDialog) và delete hàng loạt (ConfirmDialog, gọi API lặp từng dòng)",
+   "reload (nút Làm mới dữ liệu)",
+   "export excel (nút Xuất Excel — tải file thật)"
+  ],
+  "khong_co": [
+   "Nhập excel — service KHÔNG có hàm import nào cho source-types (chỉ exportSourceTypes)",
+   "Xem chi tiết — không có modal/route chi tiết cho Loại nguồn (TKCT GBR-QLKB-09: chỉ Loại lưu trữ mới có nút Xem)",
+   "Khôi phục / Chuyển trạng thái riêng — trạng thái chỉ đổi được qua biểu mẫu Chỉnh sửa",
+   "Sắp xếp theo tiêu đề cột — dùng HeaderCell, KHÔNG dùng SortableHeader",
+   "Breadcrumb — PageHeader nhận prop `breadcrumbs` nhưng màn KHÔNG truyền; probe_live cũng không đọc được breadcrumb",
+   "Ô Nhập số trang — StandardTablePagination để `pageInput` mặc định false (probe_live: ô \"Nhập số trang\": không)",
+   "Nút Xóa lọc / panel Bộ lọc gộp — chỉ có 1 selectbox lọc, không có khối overflow",
+   "Điều hướng sang màn khác — TKCT GBR-QLKB-02: không có navigate/Link nào, mọi thao tác mở TẠI CHỖ bằng modal/dialog"
+  ],
+  "hang_so": {
+   "page_size_mac_dinh": 20,
+   "page_size_chon_nhanh": [
+    20,
+    50,
+    100,
+    200,
+    500
+   ],
+   "page_size_toi_da": 1000,
+   "tim_kiem_min_ky_tu": 3,
+   "tim_kiem_debounce_ms": 1500,
+   "tim_kiem_pham_vi": "client-side, khớp CHỨA (includes) trên code HOẶC tên hiển thị, đã lowercase",
+   "code_regex": "^[a-z0-9_]+$ — chỉ chữ thường, số và dấu _",
+   "code_max_validate": 32,
+   "code_max_dom": 250,
+   "title_max_validate": 100,
+   "title_max_dom": 250,
+   "trang_thai_gia_tri": [
+    "active",
+    "inactive",
+    "archived"
+   ],
+   "multiselect_max_visible_tags": 4
+  },
+  "verbatim": {
+   "tieu_de_man": "Loại nguồn",
+   "mo_ta_man": "Quản lý các loại kênh ingestion dữ liệu",
+   "the_so_lieu": [
+    "TỔNG NGUỒN",
+    "ĐANG HOẠT ĐỘNG",
+    "KHÔNG HOẠT ĐỘNG / LƯU TRỮ"
+   ],
+   "nut_dau_man": [
+    "Xuất Excel",
+    "+ Thêm loại nguồn"
+   ],
+   "nut_dang_xuat": "Đang xuất...",
+   "placeholder_tim": "Tìm kiếm theo mã, tên hiển thị...",
+   "placeholder_loc_trang_thai": "-- Chọn trạng thái --",
+   "tim_trong_selectbox": "Tìm kiếm...",
+   "selectbox_khong_thay": "Không tìm thấy",
+   "selectbox_form_rong": "Không có dữ liệu",
+   "multiselect_nut_ben": [
+    "Chọn tất cả",
+    "Bỏ chọn tất cả"
+   ],
+   "multiselect_tran_the": "... {N} lựa chọn",
+   "tooltip_lam_moi": "Làm mới dữ liệu",
+   "toast_lam_moi": "Đã làm mới",
+   "nhan_cap_nhat": "Cập nhật: {d/m/yyyy hh:mm}",
+   "thanh_hang_loat": [
+    "Đã chọn {N} mục",
+    "Xóa tất cả",
+    "Bỏ chọn"
+   ],
+   "cot_bang": [
+    "STT",
+    "Code",
+    "Tên hiển thị",
+    "Trạng thái",
+    "Ngày tạo",
+    "Hành động"
+   ],
+   "dinh_dang_ngay_tao": "dd/mm/yyyy — không có dữ liệu thì hiện dấu —",
+   "badge_trang_thai": [
+    "Đang hoạt động (xanh)",
+    "Không hoạt động (vàng)",
+    "Đã lưu trữ (xám)"
+   ],
+   "cham_mau_cot_code": "active #16a34a · inactive #ca8a04 · archived #64748b",
+   "icon_ban_ghi": [
+    "Chỉnh sửa",
+    "Xóa"
+   ],
+   "rong_khong_du_lieu": "Chưa có loại nguồn nào",
+   "rong_khong_du_lieu_nut": "+ Thêm loại nguồn",
+   "rong_co_loc": "Không có loại nguồn khớp bộ lọc",
+   "form_them": {
+    "tieu_de": "Thêm loại nguồn mới",
+    "nhan_o": [
+     "Code",
+     "Tên hiển thị",
+     "Trạng thái"
+    ],
+    "tuy_chon_trang_thai": [
+     "Đang hoạt động",
+     "Không hoạt động",
+     "Đã lưu trữ"
+    ],
+    "mac_dinh_trang_thai": "Đang hoạt động",
+    "nut": [
+     "Hủy",
+     "Tạo loại nguồn"
+    ],
+    "nut_dang_xu_ly": "Đang lưu...",
+    "toast_thanh_cong": "Thêm loại nguồn thành công"
+   },
+   "form_sua": {
+    "tieu_de": "Chỉnh sửa: {tên hiển thị}",
+    "o_code": "BỊ KHOÁ (disabled, nền xám) khi sửa — không sửa được và KHÔNG gửi lên máy chủ",
+    "nut": [
+     "Hủy",
+     "Lưu thay đổi"
+    ],
+    "nut_dang_xu_ly": "Đang lưu...",
+    "toast_thanh_cong": "Cập nhật loại nguồn thành công"
+   },
+   "loi_validate": {
+    "code_rong": "Vui lòng nhập mã",
+    "code_sai_dinh_dang": "Chỉ dùng chữ thường, số và dấu _",
+    "code_qua_dai": "Tối đa 32 ký tự",
+    "ten_rong": "Vui lòng nhập tên hiển thị",
+    "ten_qua_dai": "Tối đa 100 ký tự",
+    "vi_tri": "chữ đỏ NGAY DƯỚI ô (role=alert); lỗi từ máy chủ hiện thành dòng đỏ ngay dưới tiêu đề hộp thoại"
+   },
+   "xoa_don_le": {
+    "tieu_de": "Xóa loại nguồn?",
+    "mo_ta": "Bạn chắc chắn muốn xóa “{tên hiển thị}”? Hành động này không thể hoàn tác.",
+    "nut": [
+     "Hủy",
+     "Xóa"
+    ],
+    "nut_dang_xu_ly": "Đang xóa...",
+    "toast_thanh_cong": "Xóa loại nguồn thành công"
+   },
+   "xoa_hang_loat": {
+    "tieu_de": "Xóa {N} loại nguồn đã chọn?",
+    "mo_ta": "Hành động này không thể hoàn tác.",
+    "nut_xac_nhan": "Xóa",
+    "toast_thanh_cong": "Đã xóa {N} mục",
+    "toast_that_bai": "Xóa thất bại {d}/{N} mục",
+    "nut": [
+     "Huỷ",
+     "Xóa"
+    ]
+   },
+   "xuat_excel": {
+    "toast_thanh_cong": "Xuất Excel thành công",
+    "toast_that_bai": "Xuất Excel thất bại",
+    "ten_file_mac_dinh": "danh_sach_loai_nguon.xlsx"
+   },
+   "phan_trang": [
+    "Số bản ghi/trang:",
+    "Tổng số bản ghi:",
+    "Chọn nhanh số bản ghi",
+    "Trang đầu",
+    "Trang trước",
+    "Trang sau",
+    "Trang cuối"
+   ],
+   "loi_page_size": [
+    "Số bản ghi/trang phải lớn hơn 0",
+    "Số bản ghi/trang phải là số nguyên",
+    "Số bản ghi/trang tối đa 1000 bản ghi"
+   ],
+   "chua_dang_nhap": "Bạn cần đăng nhập để truy cập trang này. Vui lòng đăng nhập bằng tài khoản của bạn để tiếp tục.",
+   "khong_du_quyen": [
+    "Không đủ quyền truy cập",
+    "Bạn không có quyền truy cập trang này. Vui lòng liên hệ quản trị viên nếu bạn cho rằng đây là sự nhầm lẫn."
+   ],
+   "het_phien": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+  },
+  "rui_ro": [
+   "TKCT GBR-QLKB-03 + bundle FE: MỌI mục sidebar khai `permission: null` -> FE KHÔNG gác quyền màn nào; mọi tài khoản đăng nhập thao tác được như nhau. Phân quyền (nếu có) chỉ nằm ở server -> case ATTT gắn cờ [RỦI RO]/[CẦN VERIFY]",
+   "Ô Code: validate chặn ở 32 ký tự nhưng thuộc tính maxlength của DOM là 250 -> gõ tới 250 ký tự vẫn nhập được, chỉ báo lỗi khi bấm nút. Ô Tên hiển thị y hệt (validate 100 / maxlength 250)",
+   "Xoá hàng loạt gọi API LẶP từng dòng (Promise.all) chứ không phải một lệnh xoá lô -> xoá một phần thành công vẫn có thể xảy ra, thông báo là `Xóa thất bại {d}/{N} mục` mà KHÔNG nói dòng nào hỏng",
+   "Tìm kiếm + lọc + phân trang đều CLIENT-SIDE trên toàn bộ danh sách đã tải (API list không nhận tham số page/search) -> dữ liệu lớn sẽ tải hết về trình duyệt",
+   "TKCT GBR-QLKB-10: ở môi trường DEV, API trả rỗng thì màn tự hiện bộ dữ liệu mock cố định thay cho danh sách trống",
+   "TKCT UC-QLKB-01 E1: 'Tên/Code Loại nguồn đã tồn tại — chưa xác nhận rõ thông báo lỗi cụ thể' -> case dữ liệu đã tồn tại phải gắn [CẦN VERIFY] cho phần thông báo",
+   "Ô Code bị khoá khi sửa nhưng hàm validate cũng BỎ QUA toàn bộ luật của Code ở chế độ sửa -> nếu máy chủ chấp nhận code trong payload sửa thì không có lưới chắn nào ở FE",
+   "TKCT §13.14: CHƯA xác nhận được tên bảng/cột CSDL thật -> mọi case đối chiếu DB gắn [CẦN VERIFY] (hồ sơ dự án đã đặt verify_all=True)",
+   "Nút huỷ của hai hộp xác nhận xoá viết KHÁC nhau: xoá đơn lẻ là \"Hủy\" (AlertDialog của màn tự truyền), xoá hàng loạt là \"Huỷ\" (nhãn MẶC ĐỊNH của component ConfirmDialog — màn không truyền cancelLabel)"
+  ],
+  "gia_tri_tinh": {
+   "Trạng thái": [
+    "Đang hoạt động",
+    "Không hoạt động"
+   ],
+   "Số bản ghi trên trang": [
+    "20",
+    "50",
+    "100",
+    "200",
+    "500"
+   ]
+  },
+  "gia_tri_dong": []
+ },
+ "man_phu": [],
+ "loai_control": {
+  "Textbox Code": "Textbox mã (unique)",
+  "Textbox Tên hiển thị": "Textbox mã (unique)"
+ },
+ "cn": [
+  {
+   "ten": "DANH SÁCH LOẠI NGUỒN",
+   "controls": [
+    "Thẻ số liệu Tổng nguồn",
+    "Thẻ số liệu Đang hoạt động",
+    "Thẻ số liệu Không hoạt động / Lưu trữ",
+    "Button Làm mới dữ liệu",
+    "Button Bỏ chọn",
+    "Danh sách loại nguồn",
+    "Checkbox bản ghi",
+    "Icon",
+    "Textbox Số bản ghi trên trang",
+    "Selectbox Số bản ghi trên trang",
+    "Phân trang"
+   ],
+   "chuc_nang": [
+    "Chức năng Danh sách"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "TÌM KIẾM & LỌC LOẠI NGUỒN",
+   "controls": [
+    "Selectbox Trạng thái",
+    "Textbox Tìm kiếm theo mã, tên hiển thị"
+   ],
+   "chuc_nang": [
+    "Chức năng Tìm kiếm chung"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "THÊM MỚI LOẠI NGUỒN",
+   "buoc3": "Click + Thêm loại nguồn",
+   "controls": [
+    "Textbox Code",
+    "Textbox Tên hiển thị",
+    "Selectbox Trạng thái",
+    "Button Hủy",
+    "Button Tạo loại nguồn"
+   ],
+   "chuc_nang": [
+    "Chức năng Thêm mới"
+   ],
+   "attt": true,
+   "popup": "Thêm loại nguồn mới"
+  },
+  {
+   "ten": "CHỈNH SỬA LOẠI NGUỒN",
+   "buoc3": "Click icon Chỉnh sửa ở cột Hành động",
+   "controls": [
+    "Textbox Code",
+    "Textbox Tên hiển thị",
+    "Selectbox Trạng thái",
+    "Button Hủy",
+    "Button Lưu thay đổi"
+   ],
+   "chuc_nang": [
+    "Chức năng Chỉnh sửa"
+   ],
+   "attt": true,
+   "popup": "Chỉnh sửa: {tên hiển thị}"
+  },
+  {
+   "ten": "XÓA LOẠI NGUỒN",
+   "buoc3": "Click icon Xóa ở cột Hành động\nHoặc tích chọn bản ghi > Chọn button Xóa tất cả",
+   "controls": [
+    "Hộp xác nhận Xóa loại nguồn",
+    "Hộp xác nhận Xóa nhiều loại nguồn đã chọn",
+    "Button Xóa tất cả",
+    "Button Hủy"
+   ],
+   "chuc_nang": [
+    "Chức năng Xóa"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "XUẤT EXCEL LOẠI NGUỒN",
+   "controls": [],
+   "chuc_nang": [
+    "Chức năng Xuất excel"
+   ],
+   "attt": true
+  }
+ ]
+}

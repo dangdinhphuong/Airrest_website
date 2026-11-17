@@ -1,0 +1,687 @@
+{
+  "title": "Tầng dữ liệu danh mục",
+  "prefix": "TangDuLieuDanhMuc",
+  "sheet": "BP-TangDuLieuDanhMuc",
+  "url": [
+    "https://moet-datalake.saas.vsystem.vn/reference-data",
+    "https://moet-datalake.saas.vsystem.vn/reference-data/:code?tab=items",
+    "https://moet-datalake.saas.vsystem.vn/reference-data/:code?tab=history",
+    "https://moet-datalake.saas.vsystem.vn/reference-data/change-requests"
+  ],
+  "nav": [
+    "Dữ liệu",
+    "Tầng dữ liệu danh mục"
+  ],
+  "grounding": {
+    "ngay": "2026-09-12",
+    "cach": [
+      "MÃ NGUỒN FE ĐẦY ĐỦ (không phải bundle rút gọn): react/apps/integration-hub/src/pages/DanhMucRefDataPage.tsx (402 dòng) · DanhMucDetailPage.tsx (1431 dòng) · DanhMucChangeRequestsPage.tsx (665 dòng) · services/du-lieu-danh-muc.service.ts (514 dòng) — đúng các đường dẫn người đặt việc khai trong bảng SOURCE CODE",
+      "component dùng chung: components/shared/FilterBar.tsx · components/shared/BIPagination.tsx + StandardTablePagination.tsx · packages/shared TablePagination.tsx · packages/shared Select/Select.tsx · DateInput/DateInput.tsx · list-table/ListTable.tsx (FiltersBar) · list-table/NoData.tsx · row-actions/RowActions.tsx · hooks/useSearchQuery.ts · utils/constants.ts · utils/statusBadge.ts · utils/format.ts · hooks/useAutoBreadcrumbs.ts · components/layout/TopBar.tsx · config/navigation.ts",
+      "probe_routes.py https://moet-datalake.saas.vsystem.vn/reference-data --sau -> 1 CHÍNH · 3 PHỤ · 0 CHƯA RÕ LỐI VÀO",
+      "SOI MÀN THẬT 2026-09-12 (đăng nhập admin_csdl@moet.gov.vn, đọc DOM đã render bằng Chrome/CDP, chỉ ĐỌC): xác nhận nút đầu màn, thứ tự thanh lọc, nhãn cột bảng, icon trên bản ghi, phân trang của cả 4 màn (/reference-data · /reference-data/dm_bac_luong?tab=items · ?tab=history · /reference-data/change-requests)",
+      "ẢNH CHỤP MÀN THẬT do người đặt việc gửi 2026-09-12 16:06 (tài khoản Admin CSDL / Chuyên viên): màn Danh mục dùng chung (lưới thẻ 2 cột) và màn Phần tử của dm_bac_luong",
+      "BA/SRS: Tai-lieu/TKCT_Datalake_POC_280826.docx §15 Module Tầng dữ liệu danh mục (Reference Data) — §15.1..§15.15 + UC-DM-01..UC-DM-10 + GBR-DM-01..GBR-DM-11"
+    ],
+    "chunk_man": "mã nguồn gốc trong repo (không dùng bundle): DanhMucRefDataPage.tsx · DanhMucDetailPage.tsx · DanhMucChangeRequestsPage.tsx · du-lieu-danh-muc.service.ts",
+    "api": [
+      "GET  /api/moet-master-data/v1/du-lieu-danh-muc/bo-danh-muc?page=1&page_size=1000   (listAllBoDanhMuc — tải TOÀN BỘ 1 lần, tìm kiếm/phân trang/sắp xếp đều CLIENT-SIDE)",
+      "POST /api/moet-master-data/v1/du-lieu-danh-muc:export                              (startExportDanhMuc — body ma_danh_muc = danh sách mã ĐANG LỌC)",
+      "GET  /api/moet-master-data/v1/du-lieu-danh-muc/export-jobs                         (listExportDanhMucJobs — lịch sử xuất)",
+      "GET  /api/moet-master-data/v1/du-lieu-danh-muc/{ma}/detail                         (getBoDanhMuc — lỗi thì service NUỐT và trả null)",
+      "GET  /api/moet-master-data/v1/du-lieu-danh-muc/{ma}/danh-sach-phan-tu?tim_kiem=&trang_thai=&page=&page_size=  (listPhanTu — phân trang SERVER-SIDE)",
+      "POST /api/db-tool/v1/change-requests/phan-tu                                       (createPhanTu -> yêu cầu thay đổi PENDING)",
+      "PUT  /api/db-tool/v1/change-requests/phan-tu/{id}                                  (updatePhanTu -> yêu cầu thay đổi PENDING)",
+      "POST /api/db-tool/v1/change-requests/phan-tu/{id}/deprecate                        (deprecatePhanTu -> yêu cầu thay đổi PENDING)",
+      "GET  /api/db-tool/v1/change-requests?table=&status=&created_from=&created_to=&page=&page_size=  (listDmChangeRequests)",
+      "POST /api/db-tool/v1/change-requests/{id}/approve · /refuse · /apply               (approvePhanTu · refusePhanTu · applyPhanTu)",
+      "POST /api/system/v1/users:batch-get                                                (batchGetUserNames — lỗi thì trả rỗng, màn hiện 8 ký tự đầu của định danh)"
+    ],
+    "thao_tac_duoc_noi": [
+      "xem danh sách bộ danh mục dạng LƯỚI THẺ (2 cột), sắp xếp ngầm theo lần đồng bộ cuối mới nhất trước",
+      "tìm kiếm bộ danh mục (client-side, khớp CHỨA trên mã / tên / tên tiếng Anh / mô tả)",
+      "xuất Excel danh sách bộ danh mục (đồng bộ trả liên kết tải ngay, hoặc bất đồng bộ chạy nền)",
+      "xem lịch sử xuất Excel (danh sách thả xuống, tự tải lại mỗi 4 giây khi còn job chưa xong)",
+      "mở màn Yêu cầu thay đổi danh mục",
+      "mở màn Chi tiết bộ danh mục (bấm 1 thẻ)",
+      "xem / tìm kiếm / lọc trạng thái / phân trang danh sách phần tử của 1 bộ danh mục",
+      "thêm phần tử (gửi YÊU CẦU THAY ĐỔI, không ghi thẳng dữ liệu)",
+      "chỉnh sửa phần tử (gửi YÊU CẦU THAY ĐỔI)",
+      "ngừng dùng phần tử kèm ánh xạ sang phần tử khác (gửi YÊU CẦU THAY ĐỔI)",
+      "xem lịch sử thay đổi ĐÃ ÁP DỤNG của 1 bộ danh mục (thẻ riêng, đổi bằng tham số tab trên đường dẫn)",
+      "xem / tìm kiếm theo tên bảng / lọc trạng thái / lọc khoảng ngày tạo danh sách yêu cầu thay đổi",
+      "duyệt · từ chối (kèm lý do) · áp dụng yêu cầu thay đổi",
+      "mở bảng danh mục của yêu cầu đã áp dụng (Xem bảng)"
+    ],
+    "khong_co": [
+      "Nhập excel — không có hàm nhập nào trong du-lieu-danh-muc.service.ts, cả 3 màn đều không có nút nhập",
+      "Xóa phần tử danh mục — chỉ có Ngừng dùng (deprecate); không có hàm xoá phần tử nào",
+      "Checkbox chọn bản ghi và thanh thao tác hàng loạt — cả 3 bảng đều đặt selectable={false}",
+      "Tiêu đề cột sắp xếp — cả 3 bảng dùng ListTable.HeaderCell, không dùng cột sắp xếp được",
+      "Thẻ số liệu (KPI) ở đầu màn — không màn nào trong 3 màn có",
+      "Ô Nhập số trang — StandardTablePagination để pageInput mặc định false (đã soi màn thật: ô \"Nhập số trang\": không)",
+      "Nút Xóa lọc / panel Bộ lọc gộp — màn Yêu cầu thay đổi có đúng 3 bộ lọc, bằng maxVisibleFilters nên không sinh khối gộp; màn Chi tiết chỉ có 1 ô lọc",
+      "Nút ⋮ (Thêm hành động) ở cột Hành động màn Yêu cầu thay đổi — RowActions để maxInline mặc định 4, mỗi bản ghi chỉ hiện tối đa 2 hành động nên cả 2 nằm thẳng ngoài; BA §15.16.10 mô tả có nút ⋮ là LỆCH so với mã nguồn",
+      "Chỉ báo đang chờ nhập xong ở ô tìm kiếm màn Danh mục dùng chung — màn có truyền searchPending nhưng FilterBar KHÔNG dùng prop này ở phần vẽ",
+      "Dòng \"Tìm thấy N kết quả cho ...\" — màn không truyền resultCount/searchTerm cho FilterBar",
+      "Phím tắt Ctrl+F cho ô tìm kiếm màn Danh mục dùng chung — màn truyền enableKeyboardShortcuts={false}",
+      "Breadcrumb ở màn Danh mục dùng chung — đường dẫn này là mục sidebar nên breadcrumb chung của thanh trên bị ẩn (isSidebarDirectPath)",
+      "Giới hạn độ dài riêng cho ô Mã phần tử / Tên phần tử — hàm kiểm chỉ bắt RỖNG, không có luật độ dài; chỉ có maxLength 250 của trình duyệt"
+    ],
+    "hang_so": {
+      "tim_kiem_min_ky_tu": 3,
+      "tim_kiem_debounce_ms": 1500,
+      "tim_kiem_phim_enter": "Nhấn Enter áp ngay, bỏ qua CẢ thời gian chờ 1500 ms LẪN ngưỡng 3 ký tự",
+      "tim_kiem_duoi_nguong": "Dưới 3 ký tự thì hệ thống huỷ tìm NGAY (trả về danh sách đầy đủ) và KHÔNG hiện thông báo nào",
+      "tim_kiem_pham_vi_man_chinh": "client-side, khớp CHỨA (đã hạ chữ thường theo locale vi) trên mã HOẶC tên HOẶC tên tiếng Anh HOẶC mô tả",
+      "tim_kiem_pham_vi_man_chi_tiet": "gửi tham số tim_kiem lên máy chủ cùng trang 1 và trạng thái đang lọc",
+      "tim_kiem_pham_vi_man_yeu_cau": "gửi tham số table lên máy chủ (lọc theo TÊN BẢNG), về trang 1",
+      "page_size_mac_dinh_man_chinh": 10,
+      "page_size_mac_dinh_man_phu": 20,
+      "page_size_chon_nhanh": [
+        20,
+        50,
+        100,
+        200,
+        500
+      ],
+      "page_size_toi_da": 1000,
+      "tai_toan_bo_bo_danh_muc": 1000,
+      "export_jobs_poll_ms": 4000,
+      "maxlength_o_tim_man_chinh": 250,
+      "maxlength_o_tim_man_chi_tiet": 250,
+      "maxlength_ma_phan_tu": 250,
+      "maxlength_ten_phan_tu": 250,
+      "textarea_ly_do_ngung_dung_rows": 2,
+      "textarea_ly_do_tu_choi_rows": 3,
+      "phan_trang_an_khi_rong": "Thanh phân trang bị ẩn hoàn toàn khi tổng số bản ghi bằng 0",
+      "ma_phan_tu_tu_hoa": "Ô Mã phần tử tự chuyển chữ vừa gõ thành CHỮ HOA và hiển thị bằng phông chữ đều",
+      "ngay_ngung_hieu_luc": "Luôn bằng ngày hiện tại, hiện dạng yyyy-mm-dd trong ô xám không sửa được"
+    },
+    "verbatim": {
+      "tieu_de_man": "Danh mục dùng chung",
+      "mo_ta_man": "Danh mục dùng chung theo QĐ 4998/QĐ-BGDĐT ngày 31/12/2021. Đồng bộ từ nguồn chính thức — áp dụng thống nhất toàn hệ thống.",
+      "nut_dau_man": [
+        "Xuất Excel",
+        "Lịch sử xuất",
+        "Yêu cầu thay đổi"
+      ],
+      "nut_dang_xuat": "Đang xuất...",
+      "placeholder_tim_man_chinh": "Tìm theo mã…",
+      "tooltip_xoa_tu_khoa": "Xoá tìm kiếm",
+      "tooltip_lam_moi": "Làm mới dữ liệu",
+      "toast_lam_moi": "Đã làm mới danh sách",
+      "nhan_cap_nhat": "Cập nhật: {d/m/yyyy hh:mm}",
+      "the_bo_danh_muc": "Mỗi thẻ gồm: biểu tượng nhóm · mã bộ danh mục (phông chữ đều, nền xám) · tên bộ danh mục (1 dòng) · mô tả (tối đa 2 dòng, chỉ hiện khi có) · số phần tử · ngày đồng bộ cuối · mũi tên sang phải",
+      "the_nhan_tro_giup": "{tên bộ danh mục} — {N} phần tử",
+      "the_don_vi": "phần tử",
+      "the_dinh_dang_ngay": "dd/mm/yyyy",
+      "the_mo_bang_ban_phim": "Thẻ nhận tiêu điểm bằng Tab, nhấn Enter hoặc phím cách là mở như bấm chuột",
+      "rong_khong_du_lieu": "Không có dữ liệu",
+      "rong_co_tim_kiem": "Không tìm thấy kết quả tìm kiếm",
+      "dang_tai_man_chinh": "6 khối thẻ xám nhấp nháy thay cho lưới thẻ",
+      "lich_su_xuat": {
+        "nut": "Lịch sử xuất",
+        "rong": "Chưa có lần xuất gần đây",
+        "ten_file_mac_dinh": "Danh mục dùng chung",
+        "badge": [
+          "Chờ xử lý",
+          "Đang xuất...",
+          "Hoàn tất",
+          "Thất bại",
+          "Hết hạn"
+        ],
+        "het_han": "Mục đã hết hạn hiện mờ và gạch ngang tên tệp, bấm không tải được",
+        "dinh_dang_thoi_diem": "d/m/yyyy hh:mm"
+      },
+      "toast_xuat": {
+        "async": "Dữ liệu lớn đang được xuất nền. Theo dõi trong lịch sử xuất.",
+        "sync": "Đã tạo tệp Excel.",
+        "khong_co_lien_ket": "Không thể tạo liên kết tải tệp Excel.",
+        "rong": "Không có dữ liệu phù hợp để xuất.",
+        "that_bai": "Xuất Excel thất bại.",
+        "loi_lich_su": "Không thể tải lịch sử xuất Excel."
+      },
+      "toast_loi_man_chinh": "Không thể tải danh mục",
+      "man_chi_tiet": {
+        "breadcrumb_the_phan_tu": "Tầng dữ liệu danh mục > Phần tử",
+        "breadcrumb_the_lich_su": "Tầng dữ liệu danh mục > Lịch sử thay đổi",
+        "breadcrumb_nut_nha": "Tổng quan",
+        "nut_dau_man": [
+          "Lịch sử thay đổi",
+          "Thêm phần tử"
+        ],
+        "placeholder_tim": "Tìm mã hoặc tên…",
+        "nhan_dang_cho": "Đang chờ nhập xong",
+        "placeholder_loc_trang_thai": "Trạng thái",
+        "tuy_chon_loc_trang_thai": [
+          "Tất cả trạng thái",
+          "Hoạt động ({N})",
+          "Không hoạt động ({N})"
+        ],
+        "cot_bang": [
+          "STT",
+          "Mã",
+          "Tên",
+          "Thứ tự",
+          "Trạng thái",
+          "Hành động"
+        ],
+        "badge_trang_thai": [
+          "Hoạt động (xanh)",
+          "Không hoạt động (xám)"
+        ],
+        "o_rong_hien_gach": "Ô Tên và ô Thứ tự không có dữ liệu thì hiện dấu —",
+        "icon_ban_ghi": [
+          "Chỉnh sửa",
+          "Ngừng dùng"
+        ],
+        "icon_theo_trang_thai": "Bản ghi Hoạt động hiện cả 2 biểu tượng; bản ghi Không hoạt động chỉ hiện biểu tượng Chỉnh sửa",
+        "rong_bang_phan_tu": "Không có phần tử nào.",
+        "rong_lich_su": "Chưa có lịch sử thay đổi.",
+        "cot_bang_lich_su": [
+          "Hành động",
+          "Nội dung",
+          "Người yêu cầu",
+          "Người duyệt",
+          "Ngày áp dụng"
+        ],
+        "lich_su_noi_dung": "Mã: {mã phần tử} · Tên: {tên phần tử}",
+        "lich_su_nguoi": "Hiện 8 ký tự đầu của định danh người dùng; cột Người yêu cầu kèm chú thích đầy đủ khi rê chuột, cột Người duyệt thì không",
+        "lich_su_ngay": "dd/mm/yyyy",
+        "khong_tim_thay": "Không tìm thấy bộ danh mục {mã}.",
+        "nut_quay_lai": "Quay lại",
+        "toast_loi": [
+          "Mã danh mục không hợp lệ hoặc không tồn tại",
+          "Danh mục không tồn tại hoặc không hợp lệ",
+          "Không thể tải danh sách phần tử",
+          "Không thể tải dữ liệu danh mục",
+          "Không thể tải lịch sử thay đổi"
+        ]
+      },
+      "form_them": {
+        "tieu_de": "Thêm phần tử mới",
+        "nhan_o": [
+          "Mã phần tử*",
+          "Tên phần tử *",
+          "Trạng thái *",
+          "Thứ tự",
+          "Ngày bắt đầu *",
+          "Ngày kết thúc *",
+          "Năm học *"
+        ],
+        "o_bat_buoc": [
+          "Mã phần tử",
+          "Tên phần tử",
+          "Trạng thái"
+        ],
+        "o_chi_rieng_bang": "Ô Ngày bắt đầu và Ngày kết thúc chỉ hiện với bộ danh mục dm_nam_hoc và dm_hoc_ky; ô Năm học chỉ hiện với dm_hoc_ky",
+        "placeholder": [
+          "VD: VN_NEW",
+          "Tên đầy đủ",
+          "Chọn trạng thái…",
+          "0",
+          "Chọn năm học…"
+        ],
+        "tuy_chon_trang_thai": [
+          "Hoạt động",
+          "Không hoạt động"
+        ],
+        "mac_dinh_trang_thai": "Hoạt động",
+        "tuy_chon_nam_hoc": "{tên năm học} ({mã năm học})",
+        "nut": [
+          "Huỷ",
+          "Gửi yêu cầu"
+        ],
+        "toast_thanh_cong": "Đã ghi nhận yêu cầu thêm \"{tên phần tử}\". Đang chờ phê duyệt."
+      },
+      "form_sua": {
+        "tieu_de": "Chỉnh sửa phần tử",
+        "nhan_o": [
+          "Mã phần tử *",
+          "Tên phần tử *",
+          "Trạng thái *",
+          "Thứ tự"
+        ],
+        "nap_san": "Cả 4 ô nạp sẵn dữ liệu của phần tử đang chọn; ô Mã phần tử VẪN sửa được",
+        "nut": [
+          "Huỷ",
+          "Gửi yêu cầu"
+        ],
+        "toast_thanh_cong": "Đã ghi nhận yêu cầu chỉnh sửa \"{tên phần tử}\". Đang chờ phê duyệt.",
+        "toast_khong_doi": "Phải thay đổi thông tin phần tử trước khi gửi yêu cầu."
+      },
+      "loi_validate": {
+        "ma_rong": "Vui lòng nhập Mã phần tử.",
+        "ten_rong": "Vui lòng nhập Tên phần tử.",
+        "trang_thai_rong": "Vui lòng chọn Trạng thái.",
+        "ngay_rong": "Vui lòng nhập Ngày bắt đầu và Ngày kết thúc.",
+        "nam_hoc_rong": "Vui lòng chọn Năm học.",
+        "ly_do_ngung_dung_rong": "Vui lòng nhập lý do ngừng dùng.",
+        "ly_do_tu_choi_rong": "Vui lòng nhập lý do từ chối.",
+        "loi_chung_gui_yeu_cau": "Không thể gửi yêu cầu.",
+        "vi_tri": "Mọi lỗi của biểu mẫu hiện bằng THÔNG BÁO NỔI ở góc màn hình, KHÔNG có dòng chữ đỏ dưới ô và KHÔNG tô viền ô lỗi"
+      },
+      "ngung_dung": {
+        "tieu_de": "Ngừng dùng phần tử",
+        "dong_ban_ghi": "{mã phần tử} — {tên phần tử}",
+        "nhan_o": [
+          "Ánh xạ sang phần tử mới (nếu có)",
+          "Ngày ngừng hiệu lực",
+          "Lý do *"
+        ],
+        "placeholder": [
+          "Không ánh xạ",
+          "Mô tả lý do ngừng dùng…"
+        ],
+        "tuy_chon_anh_xa": "Không ánh xạ · {tên phần tử} ({mã phần tử}) — chỉ các phần tử đang hiện trên trang, đã loại chính phần tử đang ngừng dùng",
+        "nut": [
+          "Huỷ",
+          "Xác nhận ngừng dùng"
+        ],
+        "toast_thanh_cong": "Đã ghi nhận yêu cầu ngừng dùng \"{tên phần tử}\". Ánh xạ → {mã phần tử mới}. Đang chờ phê duyệt.",
+        "toast_that_bai": "Không thể gửi yêu cầu ngừng dùng."
+      },
+      "man_yeu_cau": {
+        "tieu_de": "Yêu cầu thay đổi danh mục",
+        "mo_ta": "Phê duyệt và áp dụng các yêu cầu thêm phần tử danh mục từ người dùng.",
+        "breadcrumb": "Tầng dữ liệu danh mục > Yêu cầu thay đổi",
+        "placeholder_tim": "Tìm theo tên bảng…",
+        "tooltip_xoa_tu_khoa": "Xóa",
+        "placeholder_loc_trang_thai": "Trạng thái",
+        "tuy_chon_loc_trang_thai": [
+          "Tất cả trạng thái",
+          "Chờ duyệt ({N})",
+          "Đã duyệt ({N})",
+          "Đã áp dụng ({N})",
+          "Từ chối ({N})"
+        ],
+        "placeholder_ngay": [
+          "Từ ngày",
+          "Đến ngày"
+        ],
+        "dinh_dang_o_ngay": "Chọn bằng hộp lịch, hiện dạng dd/mm/yyyy; không gõ được bằng bàn phím và không có nút xoá",
+        "tooltip_lam_moi": "Làm mới dữ liệu",
+        "nhan_cap_nhat": "Cập nhật: {d/m/yyyy hh:mm}",
+        "cot_bang": [
+          "STT",
+          "Bảng",
+          "Nội dung",
+          "Người tạo",
+          "Người duyệt",
+          "Ngày tạo",
+          "Trạng thái",
+          "Hành động"
+        ],
+        "cot_ngay_tao": "Hiện nguyên dạng yyyy-mm-dd (cắt 10 ký tự đầu của mốc thời gian), KHÁC cột Ngày áp dụng của màn Lịch sử thay đổi vốn hiện dd/mm/yyyy",
+        "noi_dung": "Mã: {mã phần tử} · Tên: {tên phần tử}; yêu cầu đổi cấu trúc bảng thì hiện Thêm cột: {tên cột} {kiểu dữ liệu}",
+        "badge_trang_thai": [
+          "Chờ xử lý",
+          "Đã duyệt",
+          "Đã áp dụng",
+          "Từ chối"
+        ],
+        "ly_do_tu_choi": "Bản ghi Từ chối hiện thêm dòng lý do chữ nhỏ dưới nhãn trạng thái, rê chuột thấy đầy đủ",
+        "icon_ban_ghi": [
+          "Duyệt",
+          "Từ chối",
+          "Áp dụng",
+          "Xem bảng"
+        ],
+        "icon_theo_trang_thai": "Chờ xử lý hiện Duyệt và Từ chối · Đã duyệt hiện Áp dụng · Đã áp dụng hiện Xem bảng · Từ chối không hiện hành động nào",
+        "rong": "Không có yêu cầu nào.",
+        "toast": [
+          "Đã phê duyệt. Có thể áp dụng ngay.",
+          "Không thể phê duyệt.",
+          "Đã áp dụng vào bảng danh mục thực.",
+          "Không thể áp dụng.",
+          "Đã từ chối yêu cầu.",
+          "Không thể từ chối.",
+          "Không thể tải danh sách."
+        ],
+        "tu_choi": {
+          "tieu_de": "Từ chối yêu cầu",
+          "khoi_thong_tin": "{tên bảng} và nội dung yêu cầu",
+          "nhan_o": "Lý do từ chối *",
+          "placeholder": "Mô tả lý do từ chối…",
+          "nut": [
+            "Huỷ",
+            "Từ chối"
+          ]
+        },
+        "xem_bang": "Yêu cầu đổi cấu trúc bảng thì mở màn Thiết kế lược đồ; các loại còn lại mở màn Chi tiết bộ danh mục theo tên bảng"
+      },
+      "phan_trang": [
+        "Số bản ghi/trang:",
+        "Tổng số bản ghi:",
+        "Chọn nhanh số bản ghi",
+        "Trang đầu",
+        "Trang trước",
+        "Trang sau",
+        "Trang cuối"
+      ],
+      "loi_page_size": [
+        "Số bản ghi/trang phải lớn hơn 0",
+        "Số bản ghi/trang phải là số nguyên",
+        "Số bản ghi/trang tối đa 1000 bản ghi"
+      ],
+      "chua_dang_nhap": "Bạn cần đăng nhập để truy cập trang này. Vui lòng đăng nhập bằng tài khoản của bạn để tiếp tục.",
+      "khong_du_quyen": [
+        "Không đủ quyền truy cập",
+        "Bạn không có quyền truy cập trang này. Vui lòng liên hệ quản trị viên nếu bạn cho rằng đây là sự nhầm lẫn."
+      ],
+      "het_phien": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      "man_ngoai_tuyen": [
+        "Bạn đang ngoại tuyến",
+        "Không thể kết nối đến máy chủ. Một số dữ liệu có thể không được cập nhật. Vui lòng kiểm tra kết nối internet và thử lại."
+      ]
+    },
+    "gia_tri_tinh": {
+      "Trạng thái": [
+        "Hoạt động",
+        "Không hoạt động"
+      ],
+      "TÌM KIẾM & LỌC PHẦN TỬ DANH MỤC|Trạng thái": [
+        "Tất cả trạng thái",
+        "Hoạt động",
+        "Không hoạt động"
+      ],
+      "TÌM KIẾM & LỌC YÊU CẦU THAY ĐỔI|Trạng thái": [
+        "Tất cả trạng thái",
+        "Chờ duyệt",
+        "Đã duyệt",
+        "Đã áp dụng",
+        "Từ chối"
+      ],
+      "Số bản ghi trên trang": [
+        "20",
+        "50",
+        "100",
+        "200",
+        "500"
+      ]
+    },
+    "gia_tri_dong": [
+      "Ánh xạ sang phần tử mới",
+      "Năm học"
+    ],
+    "rui_ro": [
+      "BA §15.4 + §15.13 + mã nguồn: cả 4 trang KHÔNG có bất kỳ phép kiểm vai trò nào ở giao diện, mục sidebar cũng khai quyền rỗng -> mọi tài khoản đã đăng nhập đều thấy đủ nút Thêm/Sửa/Ngừng dùng và Duyệt/Từ chối/Áp dụng. Phân quyền (nếu có) chỉ nằm ở máy chủ -> case an toàn thông tin gắn [RỦI RO]/[CẦN VERIFY]",
+      "BA §15.4 ghi thêm: màn chọn phân hệ chỉ cho vai trò Quản trị viên và Chuyên viên thấy thẻ Tầng dữ liệu danh mục, nhưng gõ thẳng đường dẫn vẫn vào được -> đây là ẨN LỐI VÀO, không phải chặn truy cập",
+      "LỆCH BA-vs-CODE: BA §15.16.10 mô tả các hành động Duyệt/Từ chối/Áp dụng/Xem bảng nằm trong menu nút ⋮; mã nguồn để maxInline mặc định 4 và mỗi bản ghi chỉ có tối đa 2 hành động nên CẢ HAI hiện thẳng dạng biểu tượng, KHÔNG có nút ⋮. Màn thật xác nhận",
+      "LỆCH BA-vs-CODE: BA GBR-DM-02 ghi nút Chỉnh sửa/Ngừng dùng chỉ hiện khi đang lọc trạng thái Hoạt động; mã nguồn cho biểu tượng Chỉnh sửa hiện ở MỌI bản ghi, chỉ biểu tượng Ngừng dùng mới phụ thuộc trạng thái Hoạt động của chính bản ghi. Màn thật xác nhận: bản ghi Không hoạt động vẫn sửa được",
+      "LỆCH BA-vs-CODE: BA GBR-DM-10 ghi bộ lọc trạng thái ở màn Yêu cầu thay đổi chạy phía trình duyệt trên trang đang xem; mã nguồn đưa trạng thái vào tham số gửi lên máy chủ cùng trang và cỡ trang. Cần QA/BA chốt lại",
+      "Ô Mã phần tử ở biểu mẫu CHỈNH SỬA KHÔNG bị khoá, sửa được và được gửi lên máy chủ -> đổi mã của phần tử đang dùng có thể làm hỏng liên kết dữ liệu của các phân hệ khác. Cần QA/BA + dev xác nhận đây là chủ đích",
+      "Dữ liệu thật của bộ dm_bac_luong đang có HAI phần tử cùng mã 01 (một Hoạt động, một Không hoạt động) -> hệ thống KHÔNG chặn trùng mã ở giao diện; case dữ liệu đã tồn tại gắn [CẦN VERIFY] cho cả hành vi lẫn thông báo",
+      "Thẻ bộ danh mục hiện số phần tử lấy từ trường soPhanTu của chính bộ, còn màn Chi tiết hiện Tổng số bản ghi do máy chủ đếm; hai con số có thể LỆCH nhau (dm_bac_luong: thẻ ghi 22, màn chi tiết đếm 26). Cần QA/BA chốt cách đếm",
+      "Hàm getBoDanhMuc NUỐT mọi lỗi và trả rỗng -> lỗi máy chủ khi tải chi tiết bộ danh mục bị hiểu nhầm thành không tìm thấy, màn hiện thông báo Danh mục không tồn tại hoặc không hợp lệ thay vì báo lỗi hệ thống",
+      "Mọi lỗi của biểu mẫu Thêm/Sửa/Ngừng dùng đều báo bằng thông báo nổi ở góc màn hình, không tô viền ô lỗi và không đặt con trỏ vào ô lỗi -> lệch khuôn thông thường của hệ thống; case vượt độ dài và case bắt buộc phải ghi đúng hành vi này",
+      "Ô Mã phần tử và Tên phần tử không có luật độ dài ở giao diện, chỉ bị trình duyệt chặn ở 250 ký tự -> giới hạn thật của cột dữ liệu chưa xác nhận, case vượt độ dài gắn [CẦN VERIFY]",
+      "Cặp Từ ngày / Đến ngày ở màn Yêu cầu thay đổi KHÔNG ràng buộc lẫn nhau (không truyền giới hạn cho hộp lịch) -> chọn Từ ngày muộn hơn Đến ngày vẫn gửi lên máy chủ, không có thông báo nào ở giao diện. Cần QA/BA chốt kỳ vọng",
+      "Xuất Excel lấy danh sách ĐANG LỌC nhưng KHÔNG theo trang -> tệp xuất ra chứa toàn bộ kết quả tìm kiếm, không phải các thẻ đang hiện trên trang. Cần QA/BA chốt đây là mong muốn",
+      "Cỡ trang mặc định của màn Danh mục dùng chung là 10, KHÔNG nằm trong danh sách chọn nhanh (20/50/100/200/500) -> mở màn ra ô Số bản ghi/trang hiện 10 mà bấm danh sách chọn nhanh không thấy mục nào đang được tô sáng",
+      "Cột Ngày tạo của màn Yêu cầu thay đổi hiện nguyên dạng yyyy-mm-dd, trong khi cột Ngày áp dụng của màn Lịch sử thay đổi hiện dd/mm/yyyy -> hai màn cùng module lệch định dạng ngày",
+      "Nhãn trạng thái PENDING lệch nhau trong cùng một màn: bộ lọc ghi Chờ duyệt, nhãn trên bản ghi ghi Chờ xử lý",
+      "Cột Người duyệt ở màn Lịch sử thay đổi cắt 8 ký tự đầu của định danh mà KHÔNG có dấu ba chấm và KHÔNG có chú thích khi rê chuột, khác cột Người yêu cầu ngay bên cạnh",
+      "Màn Chi tiết bộ danh mục giữ số trang RIÊNG cho từng chế độ lọc (Tất cả / Hoạt động / Không hoạt động) nhưng dùng CHUNG một biến cỡ trang -> đổi cỡ trang ở chế độ này là đổi cả ở chế độ kia",
+      "Thêm phần tử thành công KHÔNG tải lại danh sách (chỉ đóng biểu mẫu), còn Chỉnh sửa thành công thì có tải lại -> hành vi hai luồng không nhất quán",
+      "Chưa xác nhận được tên bảng và tên cột dữ liệu thật -> mọi case đối chiếu cơ sở dữ liệu gắn [CẦN VERIFY] (hồ sơ dự án đã đặt verify_all=True)",
+      "BA GBR-DM-11 + probe_routes: màn wizard /reference-data/:code/change là bản mô phỏng giao diện, KHÔNG gọi API ghi nào và KHÔNG có nút/liên kết nào trong ứng dụng dẫn tới -> hồ sơ màn khai bo_qua, chưa đưa vào bộ case",
+      "Ở môi trường phát triển, khi API trả rỗng hoặc lỗi thì cả 3 màn tự hiện bộ dữ liệu mẫu cố định thay cho dữ liệu thật; môi trường thật không có cơ chế này"
+    ],
+    "ghi_chu_gia_tri_tinh": "Ba nhóm control cùng tên `Selectbox Trạng thái` nhưng khác bộ giá trị: bộ lọc màn Chi tiết, bộ lọc màn Yêu cầu thay đổi, và ô chọn của biểu mẫu Thêm/Sửa phần tử. Khoá phẳng `Trạng thái` thắng cả ba nên `fix_kq_mau` ghi đè hai ô lọc bằng bộ giá trị của biểu mẫu — đo 2026-09-12. Đã vá `qalib.gia_tri_cua_o` nhận khoá `\"<TÊN CN>|<nhãn ô>\"` (cùng khuôn `loai_control` vá 2026-09-10) và khai lại ở đây. Hai mục lọc trạng thái trên màn còn kèm số đếm trong ngoặc; §8.2.2 cấm ghi số liệu sống nên danh sách ở đây chỉ giữ phần nhãn."
+  },
+  "man_phu": [
+    {
+      "route": "/reference-data/:code",
+      "ten": "Chi tiết bộ danh mục",
+      "vao_tu": "/reference-data · bấm 1 thẻ bộ danh mục trên lưới; hoặc từ hành động Xem bảng của yêu cầu đã áp dụng ở /reference-data/change-requests",
+      "noi_dat": "sheet_rieng",
+      "sheet": "BP-ChiTietDanhMuc",
+      "prefix": "ChiTietDanhMuc",
+      "ghi_chu": "Màn riêng: đường dẫn riêng, breadcrumb riêng, thanh công cụ riêng, bảng dữ liệu khác hẳn màn cha (màn cha là LƯỚI THẺ, màn này là BẢNG). Hai thẻ Phần tử / Lịch sử thay đổi dùng chung đường dẫn, đổi bằng tham số tab -> đặt CHUNG một sheet vì dùng chung thanh tiêu đề và cùng một bộ danh mục.",
+      "cn": [
+        {
+          "ten": "DANH SÁCH PHẦN TỬ DANH MỤC",
+          "buoc3": "Click vào 1 thẻ bộ danh mục trên lưới",
+          "controls": [
+            "Breadcrumb",
+            "Danh sách phần tử danh mục",
+            "Icon",
+            "Textbox Số bản ghi trên trang",
+            "Selectbox Số bản ghi trên trang",
+            "Phân trang"
+          ],
+          "chuc_nang": [
+            "Chức năng Danh sách phần tử danh mục"
+          ],
+          "attt": true
+        },
+        {
+          "ten": "TÌM KIẾM & LỌC PHẦN TỬ DANH MỤC",
+          "buoc3": "Click vào 1 thẻ bộ danh mục trên lưới > Xem phần tìm kiếm",
+          "controls": [
+            "Textbox Tìm mã hoặc tên",
+            "Selectbox Trạng thái"
+          ],
+          "chuc_nang": [
+            "Chức năng Tìm kiếm chung"
+          ],
+          "attt": true
+        },
+        {
+          "ten": "THÊM PHẦN TỬ DANH MỤC",
+          "buoc3": "Click vào 1 thẻ bộ danh mục trên lưới > Click button Thêm phần tử",
+          "popup": "Thêm phần tử mới",
+          "controls": [
+            "Textbox Mã phần tử",
+            "Textbox Tên phần tử",
+            "Selectbox Trạng thái",
+            "Textbox Thứ tự",
+            "Datepicker Ngày bắt đầu",
+            "Datepicker Ngày kết thúc",
+            "Selectbox Năm học",
+            "Button Huỷ",
+            "Button Gửi yêu cầu"
+          ],
+          "chuc_nang": [
+            "Chức năng Thêm mới phần tử danh mục",
+            "Chức năng Hủy bỏ"
+          ],
+          "attt": true
+        },
+        {
+          "ten": "CHỈNH SỬA PHẦN TỬ DANH MỤC",
+          "buoc3": "Click vào 1 thẻ bộ danh mục trên lưới > Click icon Chỉnh sửa ở cột Hành động",
+          "popup": "Chỉnh sửa phần tử",
+          "controls": [
+            "Textbox Mã phần tử",
+            "Textbox Tên phần tử",
+            "Selectbox Trạng thái",
+            "Textbox Thứ tự",
+            "Button Huỷ",
+            "Button Gửi yêu cầu"
+          ],
+          "chuc_nang": [
+            "Chức năng Cập nhật phần tử danh mục",
+            "Chức năng Hủy bỏ"
+          ],
+          "attt": true
+        },
+        {
+          "ten": "NGỪNG DÙNG PHẦN TỬ DANH MỤC",
+          "buoc3": "Click vào 1 thẻ bộ danh mục trên lưới > Click icon Ngừng dùng ở cột Hành động của bản ghi Hoạt động",
+          "popup": "Ngừng dùng phần tử",
+          "controls": [
+            "Hộp xác nhận Ngừng dùng phần tử",
+            "Selectbox Ánh xạ sang phần tử mới",
+            "Hiển thị chi tiết Ngày ngừng hiệu lực",
+            "Textarea Lý do",
+            "Button Huỷ",
+            "Button Xác nhận ngừng dùng"
+          ],
+          "chuc_nang": [
+            "Chức năng Chuyển trạng thái phần tử danh mục"
+          ],
+          "attt": true
+        },
+        {
+          "ten": "XEM LỊCH SỬ THAY ĐỔI CỦA BỘ DANH MỤC",
+          "buoc3": "Click vào 1 thẻ bộ danh mục trên lưới > Click button Lịch sử thay đổi",
+          "controls": [
+            "Button Lịch sử thay đổi",
+            "Danh sách lịch sử thay đổi",
+            "Textbox Số bản ghi trên trang",
+            "Selectbox Số bản ghi trên trang",
+            "Phân trang"
+          ],
+          "chuc_nang": [
+            "Chức năng Xem chi tiết lịch sử thay đổi"
+          ],
+          "attt": true
+        }
+      ]
+    },
+    {
+      "route": "/reference-data/change-requests",
+      "ten": "Yêu cầu thay đổi danh mục",
+      "vao_tu": "/reference-data · bấm button Yêu cầu thay đổi ở đầu màn; hoặc breadcrumb từ màn Chi tiết bộ danh mục",
+      "noi_dat": "sheet_rieng",
+      "sheet": "BP-YeuCauThayDoi",
+      "prefix": "YeuCauThayDoi",
+      "ghi_chu": "Màn riêng: đường dẫn tĩnh riêng, breadcrumb riêng, thanh lọc 4 tiêu chí và bảng 8 cột khác hẳn hai màn kia. Người đặt việc khai 5 chức năng riêng cho màn này trong bảng SOURCE CODE (Danh sách · Tìm kiếm · Kiểm duyệt · Từ chối · Áp dụng).",
+      "cn": [
+        {
+          "ten": "DANH SÁCH YÊU CẦU THAY ĐỔI",
+          "buoc3": "Click button Yêu cầu thay đổi ở đầu màn",
+          "controls": [
+            "Breadcrumb",
+            "Button Làm mới dữ liệu",
+            "Danh sách yêu cầu thay đổi",
+            "Icon",
+            "Textbox Số bản ghi trên trang",
+            "Selectbox Số bản ghi trên trang",
+            "Phân trang"
+          ],
+          "chuc_nang": [
+            "Chức năng Danh sách yêu cầu thay đổi"
+          ],
+          "attt": true
+        },
+        {
+          "ten": "TÌM KIẾM & LỌC YÊU CẦU THAY ĐỔI",
+          "buoc3": "Click button Yêu cầu thay đổi ở đầu màn > Xem phần tìm kiếm",
+          "controls": [
+            "Selectbox Trạng thái",
+            "Datepicker Từ ngày",
+            "Datepicker Đến ngày",
+            "Textbox Tìm theo tên bảng"
+          ],
+          "chuc_nang": [
+            "Chức năng Tìm kiếm chung"
+          ],
+          "attt": true
+        },
+        {
+          "ten": "KIỂM DUYỆT YÊU CẦU THAY ĐỔI",
+          "buoc3": "Click button Yêu cầu thay đổi ở đầu màn > Click icon Duyệt ở cột Hành động của bản ghi Chờ xử lý",
+          "controls": [
+            "Button Duyệt"
+          ],
+          "chuc_nang": [
+            "Chức năng Chuyển trạng thái yêu cầu thay đổi"
+          ],
+          "attt": true
+        },
+        {
+          "ten": "TỪ CHỐI YÊU CẦU THAY ĐỔI",
+          "buoc3": "Click button Yêu cầu thay đổi ở đầu màn > Click icon Từ chối ở cột Hành động của bản ghi Chờ xử lý",
+          "popup": "Từ chối yêu cầu",
+          "controls": [
+            "Hộp xác nhận Từ chối yêu cầu",
+            "Textarea Lý do từ chối",
+            "Button Huỷ",
+            "Button Từ chối"
+          ],
+          "chuc_nang": [
+            "Chức năng Chuyển trạng thái yêu cầu bị từ chối"
+          ],
+          "attt": true
+        },
+        {
+          "ten": "ÁP DỤNG YÊU CẦU THAY ĐỔI",
+          "buoc3": "Click button Yêu cầu thay đổi ở đầu màn > Click icon Áp dụng ở cột Hành động của bản ghi Đã duyệt",
+          "controls": [
+            "Button Áp dụng"
+          ],
+          "chuc_nang": [
+            "Chức năng Chuyển trạng thái yêu cầu đã duyệt"
+          ],
+          "attt": true
+        }
+      ]
+    },
+    {
+      "route": "/reference-data/:code/change",
+      "ten": "Tạo đề xuất thay đổi (wizard)",
+      "bo_qua": "BA GBR-DM-11 + §15.1 ghi rõ đây là bản MÔ PHỎNG giao diện: chỉ gọi 2 API đọc, toàn bộ luồng xử lý và hộp thoại Phê duyệt 2 mắt là hẹn giờ giả lập trên trình duyệt, KHÔNG gọi API ghi nào. probe_routes.py cũng không tìm thấy chuỗi điều hướng nào tới màn này — chỉ vào được bằng cách gõ thẳng đường dẫn. Bảng SOURCE CODE của người đặt việc cũng không khai màn này. Viết case cho một luồng giả lập là viết case CHẾT -> tạm bỏ, chờ dev/BA chốt."
+    }
+  ],
+  "loai_control": {
+    "Selectbox Trạng thái": "Selectbox không có ô tìm",
+    "Selectbox Năm học": "Selectbox không có ô tìm",
+    "Selectbox Ánh xạ sang phần tử mới": "Selectbox không có ô tìm",
+    "Textbox Thứ tự": "Textbox số",
+    "Datepicker Ngày bắt đầu": "Ô ngày trình duyệt",
+    "Datepicker Ngày kết thúc": "Ô ngày trình duyệt"
+  },
+  "cn": [
+    {
+      "ten": "DANH SÁCH BỘ DANH MỤC",
+      "controls": [
+        "Button Yêu cầu thay đổi",
+        "Button Làm mới dữ liệu",
+        "Lưới thẻ bộ danh mục",
+        "Textbox Số bản ghi trên trang",
+        "Selectbox Số bản ghi trên trang",
+        "Phân trang"
+      ],
+      "chuc_nang": [
+        "Chức năng Danh sách bộ danh mục"
+      ],
+      "attt": true
+    },
+    {
+      "ten": "TÌM KIẾM BỘ DANH MỤC",
+      "buoc3": "Xem phần tìm kiếm",
+      "controls": [
+        "Textbox Tìm theo mã"
+      ],
+      "chuc_nang": [
+        "Chức năng Tìm kiếm chung"
+      ],
+      "attt": true
+    },
+    {
+      "ten": "XUẤT EXCEL DANH SÁCH BỘ DANH MỤC",
+      "buoc3": "Click button Xuất Excel",
+      "controls": [],
+      "chuc_nang": [
+        "Chức năng Xuất excel"
+      ],
+      "attt": true
+    },
+    {
+      "ten": "XEM CHI TIẾT LỊCH SỬ TỆP EXCEL",
+      "buoc3": "Click button Lịch sử xuất",
+      "controls": [
+        "Button Lịch sử xuất",
+        "Danh sách lịch sử xuất"
+      ],
+      "chuc_nang": [
+        "Chức năng Xem chi tiết lịch sử xuất excel"
+      ],
+      "attt": true
+    }
+  ],
+  "ghi_chu_ten_cn": "Tên CN đặt là XEM CHI TIẾT LỊCH SỬ TỆP EXCEL chứ không phải nguyên văn nhãn nút \"Lịch sử xuất\": bộ tool phân loại CN theo TỪ KHOÁ trong tên CN — (a) qalib.is_export_cn() xếp mọi CN có chữ \"xuất\" thành CN Xuất Excel (bỏ khối Validate + An toàn thông tin, Giao diện chung rút còn 2 case nói về TỆP); (b) complete_attt.kind() và patch_form_huybo.cn_kind() xếp mọi CN có chữ \"tạo \" thành CN Thêm mới (bơm nhầm khối An toàn thông tin của luồng tạo + nhóm Chức năng Hủy bỏ). Đã đo cả hai lỗi ngày 2026-09-12 trên chính bộ case này. Đây đúng là bẫy §8.4 của PROMPT v3. Nhãn THẬT của nút giữ nguyên ở nhóm control `Button Lịch sử xuất` và ở khối bước của dòng CN."
+}

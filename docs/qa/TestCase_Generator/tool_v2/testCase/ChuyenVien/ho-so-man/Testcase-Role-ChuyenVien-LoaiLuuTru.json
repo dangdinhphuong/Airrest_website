@@ -1,0 +1,396 @@
+{
+  "title": "Loại lưu trữ",
+  "prefix": "LoaiLuuTru",
+  "url": [
+    "https://moet-datalake.saas.vsystem.vn/ingestion/database-types"
+  ],
+  "nav": [
+    "Dữ liệu",
+    "Quản lý khai báo",
+    "Loại lưu trữ"
+  ],
+  "grounding": {
+    "ngay": "2026-09-10",
+    "cach": [
+      "probe_fe.py https://moet-datalake.saas.vsystem.vn/ingestion/database-types --save (bundle FE)",
+      "probe_routes.py cùng URL --sau -> 2 CHÍNH · 0 PHỤ · 0 CHƯA RÕ LỐI VÀO",
+      "đọc TRỌN chunk riêng của màn DatabaseTypesPage-CwbyzQ3z.js (17926 byte) + hook useDatabaseTypes-DEzNoGNY.js + useSearchQuery-DQ_Zfifv.js + ingestion.service-CC-Q8y0o.js + component dùng chung trong index-zeOBzuws.js (AH selectbox lọc · Koe selectbox biểu mẫu · IH Switch · ose phân trang · ise cột hành động · fne ConfirmDialog · PageHeader)",
+      "ẢNH CHỤP MÀN THẬT do người đặt việc gửi 2026-09-10 12:47 (tài khoản Admin CSDL / Chuyên viên): xác nhận tiêu đề · mô tả · 3 thẻ số liệu · thanh lọc · nhãn cột bảng · 3 icon hành động trên dòng · sidebar Quản lý khai báo",
+      "Tai-lieu/TKCT_Datalake_POC_280826.docx §13 Module Quản lý khai báo — UC-QLKB-02, GBR-QLKB-01..10, §13.12 §13.13 §13.14 §13.16.2"
+    ],
+    "chunk_man": "DatabaseTypesPage-CwbyzQ3z.js (17926 byte) — hook riêng useDatabaseTypes-DEzNoGNY.js",
+    "api": [
+      "GET  /api/db-tool/v1/database-types            (listDatabaseTypes)",
+      "POST /api/db-tool/v1/database-types            (createDatabaseType)",
+      "PUT  /api/db-tool/v1/database-types/{id}       (updateDatabaseType — payload GỬI CẢ code dù ô đang bị khoá)",
+      "DEL  /api/db-tool/v1/database-types/{id}       (deleteDatabaseType — xoá hàng loạt gọi LẶP từng dòng)",
+      "GET  /api/db-tool/v1/database-types:export     (exportDatabaseTypes -> file danh_sach_loai_database.xlsx)"
+    ],
+    "thao_tac_duoc_noi": [
+      "list (đọc danh sách; lọc + tìm kiếm + phân trang đều CLIENT-SIDE trên toàn bộ danh sách đã tải)",
+      "create (modal Thêm loại database mới)",
+      "update (modal Sửa: <tên>)",
+      "view (modal Chi tiết: <tên> — chỉ đọc, độc lập với Chỉnh sửa; TKCT GBR-QLKB-09)",
+      "delete đơn lẻ (AlertDialog) và delete hàng loạt (ConfirmDialog, gọi API lặp từng dòng)",
+      "reload (nút Làm mới dữ liệu)",
+      "export excel (nút Xuất Excel — tải file thật)"
+    ],
+    "khong_co": [
+      "Nhập excel — service KHÔNG có hàm import nào cho database-types (chỉ exportDatabaseTypes)",
+      "Cột Ngày tạo — bảng chỉ có STT · ô chọn · Code · Tên · Engine Family · Trạng thái · Hành động (khác màn Loại nguồn)",
+      "Trạng thái Đã lưu trữ / archived — dữ liệu chỉ có isActive true/false, ô lọc chỉ 2 lựa chọn",
+      "Giới hạn độ dài ở FE cho ô Code và ô Tên hiển thị — hàm validate KHÔNG kiểm độ dài, chỉ có maxLength 250 của DOM",
+      "Khôi phục / Chuyển trạng thái riêng — trạng thái chỉ đổi được qua biểu mẫu Thêm mới / Sửa",
+      "Sắp xếp theo tiêu đề cột — dùng HeaderCell, KHÔNG dùng SortableHeader",
+      "Breadcrumb — PageHeader nhận prop breadcrumbs nhưng màn KHÔNG truyền; ảnh chụp màn thật cũng không có",
+      "Ô Nhập số trang — StandardTablePagination để pageInput mặc định false",
+      "Nút Chọn tất cả / Bỏ chọn tất cả / Chỉ xem đã chọn trong ô lọc Trạng thái — component AH chỉ vẽ cụm nút này khi mode=multi, màn truyền mode=single",
+      "Nút Xóa lọc / panel Bộ lọc gộp — chỉ có 1 selectbox lọc, không có khối overflow",
+      "Nút Thêm hành động (overflow) ở cột Hành động — 3 hành động < maxInline 4 nên hiện thẳng cả 3 icon",
+      "Các trường cấu hình kết nối ở popup (Phiên bản tối thiểu · Port mặc định · Database mặc định · Connection Template · Icon slug · Composite endpoints) — TKCT §13.16.2: đã chuyển sang từng Vị trí lưu trữ, không còn hiển thị ở popup này",
+      "Điều hướng sang màn khác — TKCT GBR-QLKB-02: không có navigate/Link nào, mọi thao tác mở TẠI CHỖ bằng modal/dialog"
+    ],
+    "hang_so": {
+      "page_size_mac_dinh": 20,
+      "page_size_chon_nhanh": [
+        20,
+        50,
+        100,
+        200,
+        500
+      ],
+      "page_size_toi_da": 1000,
+      "tim_kiem_min_ky_tu": 3,
+      "tim_kiem_debounce_ms": 1500,
+      "tim_kiem_pham_vi": "khớp CHỨA trên cột Code hoặc cột Tên, không phân biệt hoa thường",
+      "tim_kiem_phim_enter": "Nhấn Enter áp ngay, bỏ qua thời gian chờ 1500 ms",
+      "tim_kiem_duoi_nguong": "Dưới 3 ký tự thì hệ thống KHÔNG áp lọc",
+      "code_regex": "^[a-z0-9-]+$ — chỉ chữ thường, số và dấu gạch ngang (-)",
+      "code_max_dom": 250,
+      "ten_max_dom": 250,
+      "engine_family_gia_tri": [
+        "relational",
+        "document",
+        "wide_column",
+        "key_value",
+        "lakehouse",
+        "olap"
+      ],
+      "trang_thai_gia_tri": [
+        "active",
+        "inactive"
+      ],
+      "icon_toi_da_hien_thang": 4
+    },
+    "verbatim": {
+      "tieu_de_man": "Loại lưu trữ",
+      "mo_ta_man": "Quản lý các loại database được hỗ trợ",
+      "the_so_lieu": [
+        "TỔNG LOẠI DATABASE",
+        "ĐANG HOẠT ĐỘNG",
+        "KHÔNG HOẠT ĐỘNG"
+      ],
+      "nut_dau_man": [
+        "Xuất Excel",
+        "+ Thêm loại"
+      ],
+      "nut_dang_xuat": "Đang xuất...",
+      "placeholder_tim": "Tìm kiếm theo mã, tên...",
+      "placeholder_loc_trang_thai": "-- Chọn trạng thái --",
+      "tuy_chon_loc_trang_thai": [
+        "Đang hoạt động",
+        "Không hoạt động"
+      ],
+      "tim_trong_selectbox": "Tìm kiếm...",
+      "selectbox_khong_thay": "Không tìm thấy",
+      "tooltip_lam_moi": "Làm mới dữ liệu",
+      "toast_lam_moi": "Đã làm mới",
+      "nhan_cap_nhat": "Cập nhật: {d/m/yyyy hh:mm}",
+      "thanh_hang_loat": [
+        "Đã chọn {N} mục",
+        "Xóa tất cả",
+        "Bỏ chọn"
+      ],
+      "cot_bang": [
+        "STT",
+        "Code",
+        "Tên",
+        "Engine Family",
+        "Trạng thái",
+        "Hành động"
+      ],
+      "badge_trang_thai": [
+        "Đang hoạt động (xanh)",
+        "Không hoạt động (vàng)"
+      ],
+      "badge_engine_family": "relational (xanh dương) · document (cam) · wide_column (vàng) · key_value (tím) · lakehouse (tím đậm) · olap (đỏ); không có dữ liệu thì hiện dấu —",
+      "cham_mau_cot_code": "active #16a34a · inactive #ca8a04",
+      "icon_ban_ghi": [
+        "Xem",
+        "Chỉnh sửa",
+        "Xóa"
+      ],
+      "rong_khong_du_lieu": "Chưa có loại database nào",
+      "rong_khong_du_lieu_nut": "+ Thêm loại",
+      "rong_co_loc": "Không có loại database khớp bộ lọc",
+      "form_them": {
+        "tieu_de": "Thêm loại database mới",
+        "nhom_truong": "Thông tin cơ bản",
+        "nhan_o": [
+          "Code",
+          "Tên hiển thị",
+          "Engine Family",
+          "Đang hoạt động"
+        ],
+        "o_bat_buoc": [
+          "Code",
+          "Tên hiển thị"
+        ],
+        "placeholder_ten": "vd. PostgreSQL, Apache Cassandra",
+        "placeholder_engine_family": "(Không chọn)",
+        "tuy_chon_engine_family": [
+          "Relational (SQL)",
+          "Document (NoSQL)",
+          "Wide Column",
+          "Key-Value",
+          "Lakehouse",
+          "OLAP / Analytical"
+        ],
+        "mac_dinh_dang_hoat_dong": "Công tắc Đang hoạt động BẬT sẵn khi tạo mới",
+        "nut": [
+          "Hủy",
+          "Thêm mới"
+        ],
+        "nut_dang_xu_ly": "Đang lưu...",
+        "toast_thanh_cong": "Thêm loại database thành công"
+      },
+      "form_sua": {
+        "tieu_de": "Sửa: {tên}",
+        "o_code": "Ô Code BỊ KHOÁ (nền xám) khi sửa, không sửa được",
+        "chu_thich_code": "Không thể thay đổi mã sau khi tạo",
+        "nut": [
+          "Hủy",
+          "Cập nhật"
+        ],
+        "nut_dang_xu_ly": "Đang lưu...",
+        "toast_thanh_cong": "Cập nhật loại database thành công"
+      },
+      "form_xem": {
+        "tieu_de": "Chi tiết: {tên}",
+        "nhom_truong": "Thông tin cơ bản",
+        "dong": [
+          "Code",
+          "Tên",
+          "Engine Family",
+          "Trạng thái"
+        ],
+        "gia_tri_rong": "—",
+        "chi_doc": "Không có nút Lưu hay Sửa nào trong popup; đóng bằng dấu X, bấm ra ngoài hoặc phím Esc"
+      },
+      "loi_validate": {
+        "code_rong": "Vui lòng nhập mã",
+        "code_sai_dinh_dang": "Mã chỉ được dùng chữ thường, số và dấu gạch ngang (-)",
+        "ten_rong": "Vui lòng nhập tên hiển thị",
+        "vi_tri": "Lỗi của từng ô hiện thành chữ đỏ ngay dưới ô; lỗi từ máy chủ hiện thành dòng đỏ ngay dưới tiêu đề hộp thoại"
+      },
+      "xoa_don_le": {
+        "tieu_de": "Xóa loại database?",
+        "mo_ta": "Bạn sắp xóa {tên} ({code}). Hành động này không thể hoàn tác. Các target đang dùng loại này sẽ bị ảnh hưởng.",
+        "nut": [
+          "Hủy",
+          "Xóa"
+        ],
+        "nut_dang_xu_ly": "Đang xóa...",
+        "toast_thanh_cong": "Xóa loại database thành công"
+      },
+      "xoa_hang_loat": {
+        "tieu_de": "Xóa {N} loại lưu trữ đã chọn?",
+        "mo_ta": "Hành động này không thể hoàn tác.",
+        "nut": [
+          "Huỷ",
+          "Xóa"
+        ],
+        "toast_thanh_cong": "Đã xóa {N} mục",
+        "toast_that_bai": "Xóa thất bại {d}/{N} mục"
+      },
+      "xuat_excel": {
+        "toast_thanh_cong": "Xuất Excel thành công",
+        "toast_that_bai": "Xuất Excel thất bại",
+        "ten_file_mac_dinh": "danh_sach_loai_database.xlsx",
+        "vo_hieu": "Nút bị vô hiệu khi danh sách rỗng hoặc đang xuất"
+      },
+      "phan_trang": [
+        "Số bản ghi/trang:",
+        "Tổng số bản ghi:",
+        "Chọn nhanh số bản ghi",
+        "Trang đầu",
+        "Trang trước",
+        "Trang sau",
+        "Trang cuối"
+      ],
+      "loi_page_size": [
+        "Số bản ghi/trang phải lớn hơn 0",
+        "Số bản ghi/trang phải là số nguyên",
+        "Số bản ghi/trang tối đa 1000 bản ghi"
+      ],
+      "chua_dang_nhap": "Bạn cần đăng nhập để truy cập trang này. Vui lòng đăng nhập bằng tài khoản của bạn để tiếp tục.",
+      "khong_du_quyen": [
+        "Không đủ quyền truy cập",
+        "Bạn không có quyền truy cập trang này. Vui lòng liên hệ quản trị viên nếu bạn cho rằng đây là sự nhầm lẫn."
+      ],
+      "het_phien": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      "loi_tai_danh_sach": "dòng chữ đỏ ngay dưới ba thẻ số liệu, không phải thông báo nổi",
+      "man_ngoai_tuyen": [
+        "Bạn đang ngoại tuyến",
+        "Không thể kết nối đến máy chủ. Một số dữ liệu có thể không được cập nhật. Vui lòng kiểm tra kết nối internet và thử lại."
+      ]
+    },
+    "rui_ro": [
+      "KHOẢNG TRỐNG GROUNDING: probe_live.py CHƯA chạy được — phiên không có QA_USER/QA_PASS. Hai dữ kiện probe_live vốn dùng để chốt (nav · loại control + thứ tự trên màn) lấy từ ẢNH CHỤP MÀN THẬT + cây render JSX của chunk riêng; riêng bố cục 4 ô của BIỂU MẪU Thêm/Sửa và nội dung popup Chi tiết mới chỉ đọc từ code, chưa soi bằng mắt.",
+      "TKCT GBR-QLKB-03 + bundle FE: MỌI mục sidebar khai permission: null -> FE KHÔNG gác quyền màn nào; mọi tài khoản đăng nhập thao tác được như nhau. Phân quyền (nếu có) chỉ nằm ở server -> case ATTT gắn cờ [RỦI RO]/[CẦN VERIFY]",
+      "LỆCH BA-vs-CODE: TKCT §13.16.2 ghi phân trang *Mặc định 10 dòng/trang*, nhưng chunk FE khởi tạo itemsPerPage = 20 (useState(20)) -> mặc định thật là 20",
+      "LỆCH BA-vs-CODE: TKCT §13.6 ghi *phân trang server-side qua BIPagination*, nhưng API GET /database-types KHÔNG nhận tham số page/search — FE tải toàn bộ danh sách rồi tự cắt trang, tự lọc, tự tìm kiếm ở client",
+      "Ô Code và ô Tên hiển thị KHÔNG có luật độ dài ở FE (chỉ maxLength 250 của DOM) -> gõ tới 250 ký tự vẫn gửi lên máy chủ được. Khác hẳn màn Loại nguồn (chặn 32/100 ở FE). Giới hạn thật của cột CSDL chưa xác nhận",
+      "Chế độ Sửa: ô Code bị khoá (disabled) NHƯNG payload PUT vẫn GỬI trường code, và hàm validate BỎ QUA toàn bộ luật của Code khi sửa (error: c ? undefined : errors.code) -> không có lưới chắn nào ở FE nếu máy chủ chấp nhận code trong payload sửa",
+      "Xoá hàng loạt gọi API LẶP từng dòng (Promise.all) chứ không phải một lệnh xoá lô -> xoá một phần thành công vẫn có thể xảy ra, thông báo là *Xóa thất bại {d}/{N} mục* mà KHÔNG nói dòng nào hỏng",
+      "Checkbox ở tiêu đề bảng chỉ chọn/bỏ chọn các dòng CỦA TRANG ĐANG XEM, không phải toàn bộ kết quả lọc -> người dùng dễ tưởng đã chọn hết",
+      "Nút Xuất Excel bị VÔ HIỆU khi danh sách rỗng (disabled khi j.length === 0) -> không xuất được file rỗng",
+      "Nút huỷ của hai hộp xác nhận xoá viết KHÁC nhau: xoá đơn lẻ là \"Hủy\" (AlertDialog của màn tự truyền), xoá hàng loạt là \"Huỷ\" (nhãn MẶC ĐỊNH của component ConfirmDialog — màn không truyền cancelLabel)",
+      "Microcopy chưa đồng bộ: tên màn và tiêu đề hộp xoá hàng loạt đã là *Loại lưu trữ*, nhưng mô tả màn · thẻ số liệu · tiêu đề popup Thêm · cả 3 toast · 2 dòng trạng thái rỗng vẫn dùng *loại database*. TKCT §13.16.2 mục *Lưu ý đối chiếu code* đã ghi nhận là hiện trạng cần đồng bộ UI -> case giao diện ghi ĐÚNG chuỗi đang hiện, gắn [YÊU CẦU MONG ĐỢI] cho phần đề nghị đồng bộ",
+      "Tìm kiếm dưới 3 ký tự: hook KHÔNG áp lọc và màn KHÔNG hiện gợi ý nào (isBelowMinChars có trả về nhưng màn không dùng) -> danh sách giữ nguyên toàn bộ, KHÔNG có thông báo nào. Đây là hành vi thật, không được bịa thông báo",
+      "TKCT GBR-QLKB-10: ở môi trường DEV, API trả rỗng thì màn tự hiện bộ dữ liệu mock cố định thay cho danh sách trống",
+      "Ràng buộc TRÙNG của ô Code và ô Tên: FE không kiểm, TKCT §13.16.2 KHÔNG có luồng ngoại lệ nào cho *đã tồn tại* (khác UC-QLKB-01 của màn Loại nguồn) -> case dữ liệu đã tồn tại của ô Code gắn [CẦN VERIFY] cho cả hành vi lẫn thông báo; ô Tên hiển thị KHÔNG khai unique vì không có bằng chứng",
+      "TKCT §13.14: CHƯA xác nhận được tên bảng/cột CSDL thật -> mọi case đối chiếu DB gắn [CẦN VERIFY] (hồ sơ dự án đã đặt verify_all=True)"
+    ],
+    "gia_tri_tinh": {
+      "Trạng thái": [
+        "Đang hoạt động",
+        "Không hoạt động"
+      ],
+      "Engine Family": [
+        "Relational (SQL)",
+        "Document (NoSQL)",
+        "Wide Column",
+        "Key-Value",
+        "Lakehouse",
+        "OLAP / Analytical"
+      ],
+      "Số bản ghi trên trang": [
+        "20",
+        "50",
+        "100",
+        "200",
+        "500"
+      ]
+    },
+    "gia_tri_dong": [],
+    "ghi_chu_api": "Tiền tố REST của màn: /api/db-tool/v1 — đo từ sổ mạng lượt chạy live 2026-09-16 (sessions/live-LLT-0916c/evidence/mang.json). Bản trước khai đường dẫn TRỐNG tiền tố nên cửa sổ ghi của chay_live khai một endpoint không bao giờ khớp request thật ⇒ POST hợp lệ của chính tool bị sổ mạng tố là WRITE và cả lượt chạy dừng."
+  },
+  "man_phu": [],
+  "loai_control": {
+    "Textbox Code": "Textbox mã (unique)",
+    "Selectbox Engine Family": "Selectbox không có ô tìm",
+    "Switch Đang hoạt động": "Checkbox"
+  },
+  "cn": [
+    {
+      "ten": "DANH SÁCH LOẠI LƯU TRỮ",
+      "controls": [
+        "Thẻ số liệu Tổng loại database",
+        "Thẻ số liệu Đang hoạt động",
+        "Thẻ số liệu Không hoạt động",
+        "Button Làm mới dữ liệu",
+        "Button Bỏ chọn",
+        "Danh sách loại lưu trữ",
+        "Checkbox bản ghi",
+        "Icon",
+        "Textbox Số bản ghi trên trang",
+        "Selectbox Số bản ghi trên trang",
+        "Phân trang"
+      ],
+      "chuc_nang": [
+        "Chức năng Danh sách"
+      ],
+      "attt": true
+    },
+    {
+      "ten": "TÌM KIẾM & LỌC LOẠI LƯU TRỮ",
+      "controls": [
+        "Selectbox Trạng thái",
+        "Textbox Tìm kiếm theo mã, tên"
+      ],
+      "chuc_nang": [
+        "Chức năng Tìm kiếm chung"
+      ],
+      "attt": true
+    },
+    {
+      "ten": "THÊM MỚI LOẠI LƯU TRỮ",
+      "buoc3": "Click + Thêm loại",
+      "controls": [
+        "Textbox Code",
+        "Textbox Tên hiển thị",
+        "Selectbox Engine Family",
+        "Switch Đang hoạt động",
+        "Button Hủy",
+        "Button Thêm mới"
+      ],
+      "chuc_nang": [
+        "Chức năng Thêm mới"
+      ],
+      "attt": true,
+      "popup": "Thêm loại database mới"
+    },
+    {
+      "ten": "CHỈNH SỬA LOẠI LƯU TRỮ",
+      "buoc3": "Click icon Chỉnh sửa ở cột Hành động",
+      "controls": [
+        "Textbox Code",
+        "Textbox Tên hiển thị",
+        "Selectbox Engine Family",
+        "Switch Đang hoạt động",
+        "Button Hủy",
+        "Button Cập nhật"
+      ],
+      "chuc_nang": [
+        "Chức năng Chỉnh sửa"
+      ],
+      "attt": true,
+      "popup": "Sửa: {tên}"
+    },
+    {
+      "ten": "XEM CHI TIẾT LOẠI LƯU TRỮ",
+      "buoc3": "Click icon Xem ở cột Hành động",
+      "controls": [
+        "Hiển thị chi tiết loại lưu trữ"
+      ],
+      "chuc_nang": [
+        "Chức năng Xem chi tiết"
+      ],
+      "attt": true,
+      "popup": "Chi tiết: {tên}"
+    },
+    {
+      "ten": "XÓA LOẠI LƯU TRỮ",
+      "buoc3": "Click icon Xóa ở cột Hành động\nHoặc tích chọn bản ghi > Chọn button Xóa tất cả",
+      "controls": [
+        "Hộp xác nhận Xóa loại lưu trữ",
+        "Hộp xác nhận Xóa nhiều loại lưu trữ đã chọn",
+        "Button Xóa tất cả",
+        "Button Hủy"
+      ],
+      "chuc_nang": [
+        "Chức năng Xóa"
+      ],
+      "attt": true
+    },
+    {
+      "ten": "XUẤT EXCEL LOẠI LƯU TRỮ",
+      "controls": [],
+      "chuc_nang": [
+        "Chức năng Xuất excel"
+      ],
+      "attt": true
+    }
+  ]
+}

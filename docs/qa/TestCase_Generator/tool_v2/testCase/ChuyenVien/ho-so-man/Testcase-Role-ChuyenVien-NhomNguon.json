@@ -1,0 +1,365 @@
+{
+ "title": "Nhóm nguồn",
+ "prefix": "NhomNguon",
+ "url": [
+  "https://moet-datalake.saas.vsystem.vn/ingestion/source-groups"
+ ],
+ "nav": [
+  "Dữ liệu",
+  "Quản lý khai báo",
+  "Nhóm nguồn"
+ ],
+ "grounding": {
+  "ngay": "2026-09-10",
+  "cach": [
+   "probe_fe.py https://moet-datalake.saas.vsystem.vn/ingestion/source-groups --save (bundle FE, giữ 17 file .js)",
+   "probe_routes.py cùng URL --sau -> 2 CHÍNH · 0 PHỤ · 0 CHƯA RÕ LỐI VÀO",
+   "probe_live.py cùng URL với QA_HOME_PREFIX=/ (đăng nhập admin_csdl@moet.gov.vn, đọc DOM đã render): xác nhận thứ tự thanh lọc, nhãn cột bảng, icon trên dòng, nút đầu màn, 3 thẻ số liệu, phân trang (ô Nhập số trang: không)",
+   "đọc TRỌN chunk riêng của màn SourceGroupsPage-DBe9gFEb.js (14255 byte) + hook useSourceGroups-ftJSmgzW.js + useSearchQuery-DQ_Zfifv.js + ingestion.service-CC-Q8y0o.js + db-tool.client-CXgBtF_d.js + component dùng chung trong index-zeOBzuws.js (AH multiselect lọc · Koe selectbox biểu mẫu · ej FiltersBar · ose phân trang · ise cột hành động · fne ConfirmDialog · PageHeader)",
+   "ẢNH CHỤP MÀN THẬT do người đặt việc gửi 2026-09-10 14:16 (tài khoản Admin CSDL / Chuyên viên): xác nhận tiêu đề · mô tả · 3 thẻ số liệu · thanh lọc · nhãn cột bảng · 2 icon hành động trên dòng · sidebar Quản lý khai báo · Tổng số bản ghi 4",
+   "Tai-lieu/TKCT_Datalake_POC_280826.docx §13 Module Quản lý khai báo — UC-QLKB-03, GBR-QLKB-01..10, §13.11 §13.12 §13.13 §13.14 §13.16.3"
+  ],
+  "chunk_man": "SourceGroupsPage-DBe9gFEb.js (14255 byte) — hook riêng useSourceGroups-ftJSmgzW.js",
+  "api": [
+   "GET  /ingestion/source-groups            (listSourceGroups -> e.groups ?? [])",
+   "POST /ingestion/source-groups            (createSourceGroup)",
+   "PUT  /ingestion/source-groups/{id}       (updateSourceGroup — payload GỬI CẢ code dù ô đang bị khoá, lấy code CŨ của bản ghi)",
+   "DEL  /ingestion/source-groups/{id}       (deleteSourceGroup — xoá hàng loạt gọi LẶP từng dòng qua Promise.all)",
+   "GET  /ingestion/source-groups:export     (exportSourceGroups -> file danh_sach_nhom_nguon_du_lieu.xlsx; màn gọi KHÔNG kèm tham số status)",
+   "gốc REST: /api/db-tool/v1 — kèm header Authorization: Bearer <token>, credentials: include"
+  ],
+  "thao_tac_duoc_noi": [
+   "list (đọc danh sách; lọc + tìm kiếm + phân trang đều CLIENT-SIDE trên toàn bộ danh sách đã tải)",
+   "create (modal Thêm nhóm nguồn mới)",
+   "update (modal Chỉnh sửa: <tên hiển thị>)",
+   "delete đơn lẻ (AlertDialog) và delete hàng loạt (ConfirmDialog, gọi API lặp từng dòng)",
+   "reload (nút Làm mới dữ liệu)",
+   "export excel (nút Xuất Excel — tải file thật qua blob + thẻ <a download>)"
+  ],
+  "khong_co": [
+   "Nhập excel — service KHÔNG có hàm import nào cho source-groups (chỉ exportSourceGroups)",
+   "Xem chi tiết — màn chỉ khai 2 hành động trên dòng (edit · delete); TKCT GBR-QLKB-09 nói rõ CHỈ Loại lưu trữ mới có nút Xem",
+   "Cột Engine Family — bảng của màn này không có (khác màn Loại lưu trữ)",
+   "Giới hạn độ dài ở FE cho ô Code và ô Tên hiển thị — hàm validate KHÔNG kiểm độ dài, chỉ có maxLength 250 của DOM (khác màn Loại nguồn: chặn 32/100 ở FE)",
+   "Khôi phục / Chuyển trạng thái riêng — trạng thái chỉ đổi được qua biểu mẫu Thêm mới / Chỉnh sửa",
+   "Sắp xếp theo tiêu đề cột — dùng HeaderCell, KHÔNG dùng SortableHeader",
+   "Breadcrumb — PageHeader nhận prop breadcrumbs nhưng màn KHÔNG truyền; probe_live cũng không đọc được breadcrumb, ảnh chụp màn thật cũng không có",
+   "Ô Nhập số trang — StandardTablePagination để pageInput mặc định false (probe_live: ô \"Nhập số trang\": không)",
+   "Nút Xóa lọc / panel Bộ lọc gộp — chỉ có 1 selectbox lọc, không có khối overflow",
+   "Nút Thêm hành động (overflow) ở cột Hành động — 2 hành động < maxInline 4 nên hiện thẳng cả 2 icon",
+   "Điều hướng sang màn khác — TKCT GBR-QLKB-02 + §13.11: không có navigate/Link nào, mọi thao tác mở TẠI CHỖ bằng modal/dialog"
+  ],
+  "hang_so": {
+   "page_size_mac_dinh": 20,
+   "page_size_chon_nhanh": [
+    20,
+    50,
+    100,
+    200,
+    500
+   ],
+   "page_size_toi_da": 1000,
+   "tim_kiem_min_ky_tu": 3,
+   "tim_kiem_debounce_ms": 1500,
+   "tim_kiem_pham_vi": "client-side, khớp CHỨA (includes) trên cột Code HOẶC cột Tên hiển thị, đã lowercase",
+   "tim_kiem_phim_enter": "Nhấn Enter áp ngay, bỏ qua thời gian chờ 1500 ms (màn bắt onKeyDown theo đúng placeholder của ô)",
+   "tim_kiem_duoi_nguong": "Dưới 3 ký tự thì hệ thống KHÔNG áp lọc và KHÔNG hiện thông báo nào",
+   "tim_kiem_rời_ô": "Rời ô (blur) thì cắt khoảng trắng hai đầu rồi áp ngay",
+   "code_regex": "^[a-z0-9-]+$ — chỉ chữ thường, số và dấu gạch ngang (-)",
+   "code_max_dom": 250,
+   "ten_max_dom": 250,
+   "trang_thai_gia_tri": [
+    "active",
+    "inactive",
+    "archived"
+   ],
+   "loc_trang_thai_che_do": "MULTI-select (component AH, mode mặc định = multi) — chọn được nhiều trạng thái cùng lúc, giá trị nối bằng dấu phẩy",
+   "multiselect_max_visible_tags": 4,
+   "icon_toi_da_hien_thang": 4,
+   "checkbox_tieu_de_pham_vi": "chỉ chọn/bỏ chọn các dòng CỦA TRANG ĐANG XEM"
+  },
+  "verbatim": {
+   "tieu_de_man": "Nhóm nguồn",
+   "mo_ta_man": "Quản lý các nhóm phân loại nguồn dữ liệu",
+   "the_so_lieu": [
+    "TỔNG NHÓM NGUỒN",
+    "ĐANG HOẠT ĐỘNG",
+    "KHÔNG HOẠT ĐỘNG / LƯU TRỮ"
+   ],
+   "nut_dau_man": [
+    "Xuất Excel",
+    "+ Thêm nhóm"
+   ],
+   "nut_dang_xuat": "Đang xuất...",
+   "placeholder_tim": "Tìm kiếm theo mã, tên hiển thị...",
+   "tooltip_xoa_tu_khoa": "Xóa",
+   "placeholder_loc_trang_thai": "-- Chọn trạng thái --",
+   "tuy_chon_loc_trang_thai": [
+    "Đang hoạt động",
+    "Không hoạt động",
+    "Đã lưu trữ"
+   ],
+   "tim_trong_selectbox": "Tìm kiếm...",
+   "selectbox_khong_thay": "Không tìm thấy",
+   "selectbox_form_rong": "Không có dữ liệu",
+   "multiselect_nut_ben": [
+    "Chọn tất cả",
+    "Bỏ chọn tất cả",
+    "Chỉ xem đã chọn",
+    "Xem tất cả"
+   ],
+   "multiselect_tran_the": "... {N} lựa chọn",
+   "cho_nhap_xong": "Đang chờ nhập xong",
+   "tooltip_lam_moi": "Làm mới dữ liệu",
+   "toast_lam_moi": "Đã làm mới",
+   "nhan_cap_nhat": "Cập nhật: {d/m/yyyy hh:mm}",
+   "thanh_hang_loat": [
+    "Đã chọn {N} mục",
+    "Xóa tất cả",
+    "Bỏ chọn"
+   ],
+   "cot_bang": [
+    "STT",
+    "Code",
+    "Tên hiển thị",
+    "Trạng thái",
+    "Ngày tạo",
+    "Hành động"
+   ],
+   "dinh_dang_ngay_tao": "toLocaleDateString(\"vi-VN\") = d/m/yyyy — giá trị không đọc được thì hiện dấu —",
+   "badge_trang_thai": [
+    "Đang hoạt động (xanh)",
+    "Không hoạt động (vàng)",
+    "Đã lưu trữ (xám)"
+   ],
+   "cham_mau_cot_code": "active #16a34a · inactive #ca8a04 · archived #64748b — chấm vuông nhỏ đứng trước mã, chữ mã tô CÙNG màu",
+   "mo_cot_ten_hien_thi": "dòng có trạng thái khác active thì Tên hiển thị tô chữ mờ (text-muted-foreground)",
+   "icon_ban_ghi": [
+    "Chỉnh sửa",
+    "Xóa"
+   ],
+   "rong_khong_du_lieu": "Chưa có nhóm nguồn nào",
+   "rong_khong_du_lieu_nut": "+ Thêm nhóm",
+   "rong_co_loc": "Không có nhóm nguồn khớp bộ lọc",
+   "dang_tai": "3 vạch xám nhấp nháy (skeleton) thay cho các dòng dữ liệu",
+   "form_them": {
+    "tieu_de": "Thêm nhóm nguồn mới",
+    "nhan_o": [
+     "Code",
+     "Tên hiển thị",
+     "Trạng thái"
+    ],
+    "o_bat_buoc": [
+     "Code",
+     "Tên hiển thị"
+    ],
+    "tuy_chon_trang_thai": [
+     "Đang hoạt động",
+     "Không hoạt động",
+     "Đã lưu trữ"
+    ],
+    "mac_dinh_trang_thai": "Đang hoạt động",
+    "nut": [
+     "Hủy",
+     "Tạo nhóm"
+    ],
+    "nut_dang_xu_ly": "Đang lưu...",
+    "toast_thanh_cong": "Thêm nhóm nguồn thành công"
+   },
+   "form_sua": {
+    "tieu_de": "Chỉnh sửa: {tên hiển thị}",
+    "o_code": "Ô Code BỊ KHOÁ (disabled, nền xám) khi sửa, không sửa được",
+    "nut": [
+     "Hủy",
+     "Lưu thay đổi"
+    ],
+    "nut_dang_xu_ly": "Đang lưu...",
+    "toast_thanh_cong": "Cập nhật nhóm nguồn thành công"
+   },
+   "loi_validate": {
+    "code_rong": "Vui lòng nhập mã",
+    "code_sai_dinh_dang": "Chỉ dùng chữ thường, số, dấu -",
+    "ten_rong": "Vui lòng nhập tên hiển thị",
+    "vi_tri": "chữ đỏ NGAY DƯỚI ô (role=alert); lỗi từ máy chủ hiện thành dòng đỏ ngay dưới tiêu đề hộp thoại"
+   },
+   "xoa_don_le": {
+    "tieu_de": "Xóa nhóm nguồn?",
+    "mo_ta": "Bạn chắc chắn muốn xóa nhóm “{tên hiển thị}”? Hành động này không thể hoàn tác.",
+    "nut": [
+     "Hủy",
+     "Xóa"
+    ],
+    "nut_dang_xu_ly": "Đang xóa...",
+    "toast_thanh_cong": "Xóa nhóm nguồn thành công"
+   },
+   "xoa_hang_loat": {
+    "tieu_de": "Xóa {N} nhóm nguồn đã chọn?",
+    "mo_ta": "Hành động này không thể hoàn tác.",
+    "nut": [
+     "Huỷ",
+     "Xóa"
+    ],
+    "toast_thanh_cong": "Đã xóa {N} mục",
+    "toast_that_bai": "Xóa thất bại {d}/{N} mục"
+   },
+   "xuat_excel": {
+    "toast_thanh_cong": "Xuất Excel thành công",
+    "toast_that_bai": "Xuất Excel thất bại",
+    "ten_file_mac_dinh": "danh_sach_nhom_nguon_du_lieu.xlsx",
+    "vo_hieu": "Nút bị vô hiệu khi danh sách rỗng hoặc đang xuất"
+   },
+   "phan_trang": [
+    "Số bản ghi/trang:",
+    "Tổng số bản ghi:",
+    "Chọn nhanh số bản ghi",
+    "Trang đầu",
+    "Trang trước",
+    "Trang sau",
+    "Trang cuối"
+   ],
+   "loi_page_size": [
+    "Số bản ghi/trang phải lớn hơn 0",
+    "Số bản ghi/trang phải là số nguyên",
+    "Số bản ghi/trang tối đa 1000 bản ghi"
+   ],
+   "chua_dang_nhap": "Bạn cần đăng nhập để truy cập trang này. Vui lòng đăng nhập bằng tài khoản của bạn để tiếp tục.",
+   "khong_du_quyen": [
+    "Không đủ quyền truy cập",
+    "Bạn không có quyền truy cập trang này. Vui lòng liên hệ quản trị viên nếu bạn cho rằng đây là sự nhầm lẫn."
+   ],
+   "het_phien": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+   "loi_tai_danh_sach": "dòng chữ đỏ ngay dưới ba thẻ số liệu, không phải thông báo nổi; chỉ hiện khi không có hộp thoại nào đang mở",
+   "man_ngoai_tuyen": [
+    "Bạn đang ngoại tuyến",
+    "Không thể kết nối đến máy chủ. Một số dữ liệu có thể không được cập nhật. Vui lòng kiểm tra kết nối internet và thử lại."
+   ]
+  },
+  "rui_ro": [
+   "TKCT GBR-QLKB-03 + §13.13 + bundle FE: MỌI mục sidebar khai permission: null -> FE KHÔNG gác quyền màn nào; mọi tài khoản đăng nhập thao tác được như nhau. Phân quyền (nếu có) chỉ nằm ở server -> case ATTT gắn cờ [RỦI RO]/[CẦN VERIFY]",
+   "LỆCH BA-vs-CODE: TKCT §13.6 ghi *phân trang server-side qua BIPagination*, nhưng GET /ingestion/source-groups KHÔNG nhận tham số page/search — FE tải toàn bộ danh sách rồi tự cắt trang, tự lọc, tự tìm kiếm ở client (UC-QLKB-03 bước 2 cũng ghi client-side)",
+   "Ô Code và ô Tên hiển thị KHÔNG có luật độ dài ở FE (chỉ maxLength 250 của DOM) -> gõ tới 250 ký tự vẫn gửi lên máy chủ được. Khác hẳn màn Loại nguồn (chặn 32/100 ở FE). Giới hạn thật của cột CSDL chưa xác nhận -> case *vượt độ dài* gắn [CẦN VERIFY]",
+   "Chế độ Sửa: ô Code bị khoá (disabled) NHƯNG payload PUT VẪN GỬI trường code (lấy code cũ của bản ghi), và hàm validate BỎ QUA toàn bộ luật của Code khi sửa (!isEdit mới kiểm) -> không có lưới chắn nào ở FE nếu máy chủ chấp nhận code trong payload sửa. Khác màn Loại nguồn (chỉ gửi {title,status})",
+   "TKCT UC-QLKB-03 E1 ghi *Tên/Code Nhóm nguồn đã tồn tại — chưa xác nhận rõ thông báo lỗi cụ thể*: FE KHÔNG kiểm trùng, thông báo (nếu có) do máy chủ trả và hiện thành dòng đỏ dưới tiêu đề hộp thoại -> case *dữ liệu đã tồn tại* của CẢ ô Code lẫn ô Tên hiển thị gắn [CẦN VERIFY] cho cả hành vi lẫn thông báo",
+   "Xoá hàng loạt gọi API LẶP từng dòng (Promise.all) chứ không phải một lệnh xoá lô -> xoá một phần thành công vẫn có thể xảy ra, thông báo là *Xóa thất bại {d}/{N} mục* mà KHÔNG nói dòng nào hỏng",
+   "Checkbox ở tiêu đề bảng chỉ chọn/bỏ chọn các dòng CỦA TRANG ĐANG XEM, không phải toàn bộ kết quả lọc -> người dùng dễ tưởng đã chọn hết",
+   "Nút Xuất Excel bị VÔ HIỆU khi danh sách rỗng (disabled khi sourceGroups.length === 0) -> không xuất được file rỗng",
+   "Xuất Excel KHÔNG truyền bộ lọc: màn gọi exportSourceGroups() không tham số dù hàm service có nhận {status} -> file tải về là TOÀN BỘ danh sách, không phải kết quả đang lọc/tìm trên màn. Cần QA/BA chốt đây là mong muốn hay lỗi",
+   "Nút huỷ của hai hộp xác nhận xoá viết KHÁC nhau: xoá đơn lẻ là \"Hủy\" (AlertDialog của màn tự truyền), xoá hàng loạt là \"Huỷ\" (nhãn MẶC ĐỊNH của component ConfirmDialog — màn không truyền cancelLabel)",
+   "Ô chọn Trạng thái trong biểu mẫu Thêm/Sửa có nút X xoá lựa chọn: bấm X đưa giá trị về rỗng và biểu mẫu VẪN gửi được (validate không kiểm Trạng thái) -> có thể gửi status rỗng lên máy chủ. Gắn [CẦN VERIFY] cho hành vi máy chủ",
+   "Bộ lọc Trạng thái là ô chọn NHIỀU giá trị (component AH mode mặc định = multi) — khác màn Loại lưu trữ (mode=single). Cụm 3 nút bên phải danh sách (Chọn tất cả · Bỏ chọn tất cả · Chỉ xem đã chọn) CHỈ có ở chế độ multi nên màn này CÓ",
+   "Tìm kiếm dưới 3 ký tự: hook KHÔNG áp lọc và màn KHÔNG hiện gợi ý nào (isBelowMinChars có trả về nhưng màn không dùng) -> danh sách giữ nguyên toàn bộ, KHÔNG có thông báo nào. Đây là hành vi thật, không được bịa thông báo",
+   "TKCT GBR-QLKB-10: ở môi trường DEV, API trả rỗng thì màn tự hiện bộ dữ liệu mock cố định thay cho danh sách trống",
+   "TKCT §13.14: CHƯA xác nhận được tên bảng/cột CSDL thật -> mọi case đối chiếu DB gắn [CẦN VERIFY] (hồ sơ dự án đã đặt verify_all=True)",
+   "KHOẢNG TRỐNG GROUNDING: probe_live.py KHÔNG mở được biểu mẫu Thêm mới (không khớp nhãn nút \"+ Thêm nhóm\") -> bố cục 3 ô của biểu mẫu Thêm/Sửa và nội dung 2 hộp xác nhận xoá mới đọc từ code + đối chiếu màn Loại nguồn, chưa soi bằng mắt"
+  ],
+  "gia_tri_tinh": {
+   "Trạng thái": [
+    "Đang hoạt động",
+    "Không hoạt động"
+   ],
+   "Số bản ghi trên trang": [
+    "20",
+    "50",
+    "100",
+    "200",
+    "500"
+   ]
+  },
+  "gia_tri_dong": []
+ },
+ "man_phu": [],
+ "loai_control": {
+  "Textbox Code": "Textbox mã (unique)",
+  "Textbox Tên hiển thị": "Textbox mã (unique)",
+  "TÌM KIẾM & LỌC NHÓM NGUỒN|Selectbox Trạng thái": "Selectbox nhiều lựa chọn",
+  "THÊM MỚI NHÓM NGUỒN|Selectbox Trạng thái": "Selectbox không có ô tìm",
+  "CHỈNH SỬA NHÓM NGUỒN|Selectbox Trạng thái": "Selectbox không có ô tìm"
+ },
+ "cn": [
+  {
+   "ten": "DANH SÁCH NHÓM NGUỒN",
+   "controls": [
+    "Thẻ số liệu Tổng nhóm nguồn",
+    "Thẻ số liệu Đang hoạt động",
+    "Thẻ số liệu Không hoạt động / Lưu trữ",
+    "Button Làm mới dữ liệu",
+    "Button Bỏ chọn",
+    "Danh sách nhóm nguồn",
+    "Checkbox bản ghi",
+    "Icon",
+    "Textbox Số bản ghi trên trang",
+    "Selectbox Số bản ghi trên trang",
+    "Phân trang"
+   ],
+   "chuc_nang": [
+    "Chức năng Danh sách"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "TÌM KIẾM & LỌC NHÓM NGUỒN",
+   "controls": [
+    "Selectbox Trạng thái",
+    "Textbox Tìm kiếm theo mã, tên hiển thị"
+   ],
+   "chuc_nang": [
+    "Chức năng Tìm kiếm chung"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "THÊM MỚI NHÓM NGUỒN",
+   "buoc3": "Click + Thêm nhóm",
+   "controls": [
+    "Textbox Code",
+    "Textbox Tên hiển thị",
+    "Selectbox Trạng thái",
+    "Button Hủy",
+    "Button Tạo nhóm"
+   ],
+   "chuc_nang": [
+    "Chức năng Thêm mới"
+   ],
+   "attt": true,
+   "popup": "Thêm nhóm nguồn mới"
+  },
+  {
+   "ten": "CHỈNH SỬA NHÓM NGUỒN",
+   "buoc3": "Click icon Chỉnh sửa ở cột Hành động",
+   "controls": [
+    "Textbox Code",
+    "Textbox Tên hiển thị",
+    "Selectbox Trạng thái",
+    "Button Hủy",
+    "Button Lưu thay đổi"
+   ],
+   "chuc_nang": [
+    "Chức năng Chỉnh sửa"
+   ],
+   "attt": true,
+   "popup": "Chỉnh sửa: {tên hiển thị}"
+  },
+  {
+   "ten": "XÓA NHÓM NGUỒN",
+   "buoc3": "Click icon Xóa ở cột Hành động\nHoặc tích chọn bản ghi > Chọn button Xóa tất cả",
+   "controls": [
+    "Hộp xác nhận Xóa nhóm nguồn",
+    "Hộp xác nhận Xóa nhiều nhóm nguồn đã chọn",
+    "Button Xóa tất cả",
+    "Button Hủy"
+   ],
+   "chuc_nang": [
+    "Chức năng Xóa"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "XUẤT EXCEL NHÓM NGUỒN",
+   "controls": [],
+   "chuc_nang": [
+    "Chức năng Xuất excel"
+   ],
+   "attt": true
+  }
+ ]
+}

@@ -1,0 +1,398 @@
+{
+ "title": "Cảnh báo Mâu thuẫn (kèm màn Chi tiết mâu thuẫn)",
+ "prefix": "CanhBaoMauThuan",
+ "url": [
+  "https://moet-datalake.saas.vsystem.vn/conflict-alerts",
+  "https://moet-datalake.saas.vsystem.vn/conflict-alerts?table=<bảng đích>&batchId=<mã lô>"
+ ],
+ "nav": [
+  "Dữ liệu",
+  "Quản lý dữ liệu lỗi",
+  "Dữ liệu mâu thuẫn"
+ ],
+ "grounding": {
+  "ngay": "2026-09-09",
+  "cach": [
+   "probe_fe.py https://moet-datalake.saas.vsystem.vn/conflict-alerts --save (bundle FE)",
+   "probe_routes.py cùng URL --sau (bản đồ màn của nhánh /conflict-alerts)",
+   "probe_live.py cùng URL với QA_HOME_PREFIX=/ QA_LOGIN_PATH=/login — đăng nhập admin_csdl@moet.gov.vn, đọc DOM đã render (thứ tự thanh lọc, cột bảng, icon, phân trang)",
+   "đọc TRỌN chunk riêng của màn CanhBaoMauThuanPage-Dqf9tK-Q.js + conflict.service-BUNRMMJB.js, và các component dùng chung trong index-J9bnfEOB.js (FiltersBar · MultiSelect · StandardTablePagination · RowActions · PageHeader · EmptyState · useSearchQuery)"
+  ],
+  "chunk_man": "CanhBaoMauThuanPage-Dqf9tK-Q.js (8624 byte) — bảng route trong bundle khớp `path:\"conflict-alerts\"`; NHÃN MENU là `Dữ liệu mâu thuẫn` còn TIÊU ĐỀ MÀN (h1 + document.title) là `Cảnh báo Mâu thuẫn`",
+  "api": [
+   "GET /api/db-tool/v1/datalake/conflicts?page&page_size&from&to&search&sources&table&batch_ids&ids (danh sách)",
+   "GET /api/db-tool/v1/datalake/conflicts/stats?from&to&table&batch_id (số liệu đầu màn + nguồn dữ liệu cho 2 ô lọc)"
+  ],
+  "thao_tac_duoc_noi": [
+   "list (đọc danh sách bản ghi mâu thuẫn)",
+   "stats (đếm tổng + nạp danh sách bảng đích/đơn vị cho bộ lọc)",
+   "điều hướng sang màn chi tiết /conflict-alerts/:id"
+  ],
+  "khong_co": [
+   "Thêm mới / Chỉnh sửa / Xóa / Khôi phục / Chuyển trạng thái — chunk màn chỉ import 2 hàm service (`list` + `stats`), KHÔNG có thao tác ghi nào. ⚠️ probe_fe mục ② báo `CÓ: create · list · delete · update` KÈM cảnh báo `!!` không khoanh được khối service của riêng màn — đó là danh sách GỘP của chunk anh em, ĐỪNG tin (đúng lỗ 15 đã ghi trong biên bản tool)",
+   "Nhập excel / Xuất excel — không có nút nào ở đầu màn (probe_live: `nút đầu màn` rỗng); PageHeader gọi KHÔNG có prop `actions`",
+   "Breadcrumb — PageHeader của màn này gọi KHÔNG có prop `breadcrumbs` (probe_live: không đọc được breadcrumb). KHÁC màn Chi tiết lỗi",
+   "Checkbox chọn bản ghi — bảng khai `selectable: false`",
+   "Sắp xếp theo tiêu đề cột — dùng `Table.HeaderCell`, KHÔNG dùng `SortableHeader`",
+   "Nút Xóa lọc / panel `Bộ lọc` (overflow) — `maxVisibleFilters: 4` mà đúng 4 bộ lọc con nên khối overflow và hàm `overflowOnClearAll` KHÔNG bao giờ render",
+   "Ô Nhập số trang — `pageInput` để mặc định false (probe_live: ô \"Nhập số trang\": không)",
+   "Thẻ số liệu (KPI) đầu màn — tổng số chỉ là dòng mô tả của PageHeader, không phải thẻ bấm được",
+   "Nút Thêm hành động (overflow của cột Hành động) — chỉ 1 hành động `Xem chi tiết` mà `maxInline: 4`"
+  ],
+  "hang_so": {
+   "page_size_mac_dinh": 10,
+   "page_size_chon_nhanh": [
+    20,
+    50,
+    100,
+    200,
+    500
+   ],
+   "page_size_toi_da": 1000,
+   "khoang_ngay_mac_dinh": "30 ngày gần nhất (từ = hôm nay − 30, đến = hôm nay)",
+   "tim_kiem_min_ky_tu": 3,
+   "tim_kiem_debounce_ms": 1500,
+   "tim_kiem_debounce_thanh_loc_ms": 0,
+   "selectbox_max_the_hien": 4,
+   "so_dong_khung_xuong_khi_tai": 8,
+   "phien_idle_giay": 1800,
+   "phien_canh_bao_truoc_giay": 120
+  },
+  "verbatim": {
+   "tieu_de_man": "Cảnh báo Mâu thuẫn",
+   "tieu_de_tab": "Cảnh báo Mâu thuẫn — Trục Tích Hợp Dữ Liệu",
+   "nhan_menu": "Dữ liệu mâu thuẫn",
+   "mo_ta_man": "{N} bản ghi conflict",
+   "mo_ta_man_dang_tai": "Đang tải...",
+   "mo_ta_man_loi": "Không tải được số liệu",
+   "dong_cap_nhat": "Cập nhật: {d/m/yyyy HH:mm}",
+   "placeholder_tim": "Tìm theo tập dữ liệu...",
+   "placeholder_don_vi": "-- Chọn đơn vị --",
+   "placeholder_bang_dich": "-- Chọn bảng đích --",
+   "tim_trong_selectbox": [
+    "Tìm đơn vị",
+    "Tìm bảng đích"
+   ],
+   "selectbox_khong_thay": "Không tìm thấy",
+   "selectbox_nut_ben": [
+    "Chọn tất cả",
+    "Bỏ chọn tất cả",
+    "Chỉ xem đã chọn",
+    "Xem tất cả"
+   ],
+   "selectbox_tran_the": "... {N} lựa chọn",
+   "nhan_o_ngay": [
+    "Từ ngày",
+    "Đến ngày"
+   ],
+   "tooltip_lam_moi": "Làm mới dữ liệu",
+   "tooltip_xem_chi_tiet": "Xem chi tiết",
+   "chip_loc_theo_lo": [
+    "Đang lọc theo tập dữ liệu:",
+    "Bỏ lọc ✕"
+   ],
+   "cot_bang": [
+    "STT",
+    "Tập dữ liệu",
+    "Bảng dữ liệu",
+    "Đơn vị",
+    "Thời gian ghi lỗi",
+    "Hành động"
+   ],
+   "cot_an_theo_be_ngang": "Bảng dữ liệu + Đơn vị ẩn dưới 768px (md) · Thời gian ghi lỗi ẩn dưới 1024px (lg) · cột Hành động dính phải",
+   "gia_tri_cot_tap_du_lieu": [
+    "<tên tệp>",
+    "<tên tệp> (+{N})  — khi một bản ghi mâu thuẫn dính nhiều tệp",
+    "Lô <8 ký tự đầu mã lô>  — khi không có tên tệp nào",
+    "Tự mâu thuẫn  — khi không có cả tệp lẫn mã lô",
+    "Tự mâu thuẫn — không có lô nộp cụ thể  (tooltip title)"
+   ],
+   "gia_tri_cot_don_vi": [
+    "<đơn vị thắng> / vs <đơn vị thua> (+{N})",
+    "Cùng nguồn tự mâu thuẫn",
+    "Chưa cấu hình thứ tự ưu tiên nguồn",
+    "—  (khi không có nguồn nào)"
+   ],
+   "dinh_dang_thoi_gian": "d/m/yyyy HH:mm (ví dụ 9/9/2026 10:44)",
+   "rong": [
+    "Không có bản ghi nào",
+    "Thử thay đổi bộ lọc hoặc khoảng thời gian"
+   ],
+   "loi_tai_danh_sach": [
+    "Không tải được danh sách",
+    "Không tải được danh sách cảnh báo mâu thuẫn",
+    "Thử lại"
+   ],
+   "loi_qua_thoi_gian": "Truy vấn quá thời gian chờ. Thử thu hẹp khoảng thời gian hoặc bấm Làm mới.",
+   "phan_trang": [
+    "Số bản ghi/trang:",
+    "Tổng số bản ghi:",
+    "Chọn nhanh số bản ghi",
+    "Trang đầu",
+    "Trang trước",
+    "Trang sau",
+    "Trang cuối"
+   ],
+   "loi_page_size": [
+    "Số bản ghi/trang phải lớn hơn 0",
+    "Số bản ghi/trang phải là số nguyên",
+    "Số bản ghi/trang tối đa 1000 bản ghi"
+   ],
+   "chua_dang_nhap": "Bạn cần đăng nhập để truy cập trang này. Vui lòng đăng nhập bằng tài khoản của bạn để tiếp tục.",
+   "khong_du_quyen": [
+    "Không đủ quyền truy cập",
+    "Bạn không có quyền truy cập trang này. Vui lòng liên hệ quản trị viên nếu bạn cho rằng đây là sự nhầm lẫn."
+   ],
+   "het_phien": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+   "mat_ket_noi": [
+    "Bạn đang ngoại tuyến",
+    "Không thể kết nối đến máy chủ. Một số dữ liệu có thể không được cập nhật. Vui lòng kiểm tra kết nối internet và thử lại."
+   ],
+   "tim_kiem_duoi_nguong": "KHÔNG có thông báo nào — gõ 1–2 ký tự thì hệ thống im lặng, không gọi máy chủ"
+  },
+  "hanh_vi_dac_thu": [
+   "Ô tìm: thanh lọc để `searchDebounceMs: 0` nhưng hook `useSearchQuery` vẫn chốt **min 3 ký tự + debounce 1500ms** ⇒ gõ 1–2 ký tự KHÔNG gọi API; gõ đủ 3 ký tự phải chờ 1,5 giây. Ô còn tự bỏ khoảng trắng đầu, gộp khoảng trắng đôi, và KHÔNG bắn khi chuỗi đang kết thúc bằng khoảng trắng",
+   "Ô lọc Đơn vị là MULTI-select (giá trị nối bằng dấu phẩy, hiện tối đa 4 thẻ rồi rút thành `... N lựa chọn`); ô lọc Bảng đích là SINGLE-select và tự đóng sau khi chọn. Cả hai đều CÓ ô tìm bên trong, tìm KHÔNG phân biệt dấu và chữ hoa/thường",
+   "Bấm lại đúng lựa chọn đang chọn ở ô SINGLE = bỏ chọn",
+   "Danh sách lựa chọn của cả 2 ô lọc lấy từ API `stats` (phụ thuộc từ ngày/đến ngày/bảng đích) ⇒ đổi khoảng ngày là danh sách nguồn/bảng đổi theo; giá trị đang chọn mà không còn trong danh sách thì bị TỰ BỎ",
+   "Ô ngày là `<input type=\"date\">` NATIVE: `Từ ngày` đặt `max = Đến ngày`, `Đến ngày` đặt `min = Từ ngày` và `max = hôm nay` ⇒ trình duyệt tự chặn khoảng ngày ngược, KHÔNG có thông báo lỗi riêng. Xoá rỗng ô ngày thì giá trị cũ được GIỮ (onChange chỉ nhận khi có value)",
+   "Đổi bất kỳ bộ lọc nào (đơn vị · bảng đích · từ/đến ngày · từ khoá · lô) đều RESET về trang 1",
+   "Nút `Làm mới dữ liệu` gọi lại CẢ `stats` và danh sách, đồng thời cập nhật dòng `Cập nhật: …`; nó GIỮ nguyên bộ lọc và trang đang xem",
+   "Vào màn kèm `?batchId=<mã lô>` thì hiện dải chip `Đang lọc theo tập dữ liệu: <mã lô>` + nút `Bỏ lọc ✕`; bấm `Bỏ lọc ✕` chỉ bỏ điều kiện lô (các bộ lọc khác giữ nguyên). Vào màn kèm `?table=<bảng>` thì ô lọc Bảng đích được đặt sẵn",
+   "Click vào BẤT KỲ đâu trên một bản ghi cũng mở màn chi tiết (`onRowClick`), không chỉ riêng icon `Xem chi tiết`",
+   "Trong lúc tải: khung xương 8 dòng thay cho bảng",
+   "API `stats` và API danh sách gọi ĐỘC LẬP: `stats` lỗi thì dòng mô tả thành `Không tải được số liệu` và 2 ô lọc RỖNG lựa chọn, nhưng bảng vẫn hiện dữ liệu bình thường"
+  ],
+  "rui_ro": [
+   "MỌI mục sidebar khai `permission: null` -> FE KHÔNG gác quyền màn nào; phân quyền (nếu có) chỉ nằm ở server ⇒ case ATTT phân quyền phải gắn cờ [RỦI RO]/[CẦN VERIFY]",
+   "Số ở dòng mô tả đầu màn lấy `stats.total` (không chịu bộ lọc đơn vị/từ khoá) còn `Tổng số bản ghi` ở phân trang lấy `pagination.total` của truy vấn danh sách (chịu MỌI bộ lọc) ⇒ hai con số CHÊNH nhau là bình thường, đừng ghi case đòi chúng khớp",
+   "Số bản ghi/trang mặc định 10 KHÔNG nằm trong 5 mức chọn nhanh (20/50/100/200/500) nên lúc mới mở không mức nào được tô đậm — y hệt màn Chi tiết lỗi",
+   "Ô lọc Đơn vị gửi lên tham số `sources` còn ô Bảng đích gửi `table`; API còn nhận `ids` và `batch_ids` mà giao diện không có ô nào nhập",
+   "Ô ngày chặn bằng thuộc tính min/max của trình duyệt ⇒ dán chuỗi ngày ngoài khoảng bằng bàn phím trên một số trình duyệt vẫn có thể lọt xuống API",
+   "Danh sách lựa chọn 2 ô lọc phụ thuộc `stats`; `stats` hỏng thì bộ lọc rỗng TRONG IM LẶNG (chỉ dòng mô tả đổi chữ)",
+   "Không có thông báo cho trường hợp gõ 1–2 ký tự ở ô tìm: giao diện không nói `cần tối thiểu 3 ký tự`, người dùng tưởng hệ thống treo"
+  ],
+  "gia_tri_tinh": {
+   "Số bản ghi trên trang": [
+    "20",
+    "50",
+    "100",
+    "200",
+    "500"
+   ]
+  },
+  "gia_tri_dong": [
+   "Bảng đích",
+   "Đơn vị"
+  ]
+ },
+ "man_phu": [
+  {
+   "route": "/conflict-alerts/<mã bản ghi>",
+   "ten": "Chi tiết mâu thuẫn",
+   "vao_tu": "/conflict-alerts · click vào bản ghi hoặc icon Xem chi tiết ở cột Hành động",
+   "cn": "XEM CHI TIẾT MÂU THUẪN",
+   "noi_dat": "cung_sheet",
+   "do_bang": "probe_routes.py <url> --sau (2026-09-09): 1 CHÍNH · 1 PHỤ · 0 CHƯA RÕ LỐI VÀO; chunk ConflictDetailPage-DYevbt4u.js. probe_live.py <url> --sau (2026-09-10) đi vào /conflict-alerts/4a787cdc-… đọc DOM thật."
+  }
+ ],
+ "cn": [
+  {
+   "ten": "DANH SÁCH CẢNH BÁO MÂU THUẪN",
+   "controls": [
+    "Danh sách cảnh báo mâu thuẫn",
+    "Icon",
+    "Button Làm mới dữ liệu",
+    "Textbox Số bản ghi trên trang",
+    "Selectbox Số bản ghi trên trang",
+    "Phân trang"
+   ],
+   "chuc_nang": [
+    "Chức năng Danh sách"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "TÌM KIẾM & LỌC CẢNH BÁO MÂU THUẪN",
+   "controls": [
+    "Selectbox Đơn vị",
+    "Selectbox Bảng đích",
+    "Datepicker Từ ngày",
+    "Datepicker Đến ngày",
+    "Textbox Tìm theo tập dữ liệu",
+    "Button Bỏ lọc"
+   ],
+   "chuc_nang": [
+    "Chức năng Tìm kiếm chung"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "XEM CHI TIẾT MÂU THUẪN",
+   "buoc3": "Click vào bản ghi trên danh sách\nHoặc click biểu tượng Xem chi tiết ở cột Hành động",
+   "controls": [
+    "Breadcrumb",
+    "Button Quay lại danh sách cảnh báo mâu thuẫn",
+    "Hiển thị chi tiết bản ghi mâu thuẫn",
+    "Thẻ số liệu Tổng số bản ghi mâu thuẫn",
+    "Thẻ số liệu Bảng đích",
+    "Thẻ số liệu Số nguồn liên quan",
+    "Thẻ số liệu Thời gian phát hiện gần nhất",
+    "Hiển thị chi tiết Nguyên nhân tổng quan",
+    "Danh sách bản ghi mâu thuẫn",
+    "Icon",
+    "Textbox Số bản ghi trên trang",
+    "Selectbox Số bản ghi trên trang",
+    "Phân trang"
+   ],
+   "chuc_nang": [
+    "Chức năng Xem chi tiết"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "XEM MA TRẬN MÂU THUẪN",
+   "buoc3": "Trên màn Chi tiết mâu thuẫn: click vào một bản ghi\nHoặc click biểu tượng Xem ma trận mâu thuẫn ở cột Hành động",
+   "controls": [
+    "Hiển thị chi tiết ma trận giá trị mâu thuẫn",
+    "Danh sách giá trị theo nguồn",
+    "Phân trang"
+   ],
+   "chuc_nang": [
+    "Chức năng Xem chi tiết"
+   ],
+   "attt": true
+  }
+ ],
+ "ghi_chu_thu_tu_control": "Thứ tự `controls` của CN TÌM KIẾM & LỌC lấy đúng thứ tự TRÁI -> PHẢI trên thanh lọc thật (probe_live mục ②: Đơn vị · Bảng đích · Từ ngày · Đến ngày · ô tìm) — thứ tự này quyết định thứ tự nhóm con của khối `Chức năng Tìm kiếm đơn lẻ` (PROMPT v3 §6). `Button Bỏ lọc` đặt cuối vì nó chỉ render khi vào màn kèm `?batchId=`.",
+ "loai_control": {
+  "Datepicker Từ ngày": "Ô ngày trình duyệt",
+  "Datepicker Đến ngày": "Ô ngày trình duyệt",
+  "Selectbox Đơn vị": "Selectbox nhiều lựa chọn"
+ },
+ "grounding_man_chi_tiet": {
+  "ngay": "2026-09-10",
+  "cach": [
+   "probe_fe.py https://moet-datalake.saas.vsystem.vn/conflict-alerts/<mã> --save — bảng route khớp  -> ConflictDetailPage-DYevbt4u.js",
+   "probe_live.py https://moet-datalake.saas.vsystem.vn/conflict-alerts --sau (QA_HOME_PREFIX=/) — bấm icon Xem chi tiết, đọc DOM màn con rồi quay lại",
+   "đọc TRỌN ConflictDetailPage-DYevbt4u.js + conflict.service + ingest-batch.service + StatCard + Breadcrumbs"
+  ],
+  "api": [
+   "GET /api/db-tool/v1/datalake/conflicts?ids=<mã bản ghi>&page=1&page_size=1 (nạp chính bản ghi)",
+   "GET /api/db-tool/v1/datalake/conflicts?batch_ids=<mã lô>&page&page_size (danh sách bản ghi cùng lô)",
+   "GET /api/db-tool/v1/datalake/conflicts?batch_ids=<mã lô>&page=1&page_size=100 (số liệu 4 thẻ, lấy mẫu tối đa 100 bản ghi)",
+   "thông tin lô lấy từ ingest-batch service, hỏng thì `.catch` trả rỗng — màn vẫn hiện, chỉ mất dòng Đơn vị nộp"
+  ],
+  "thao_tac_duoc_noi": [
+   "đọc chi tiết một bản ghi mâu thuẫn",
+   "mở hộp thoại ma trận giá trị mâu thuẫn của một bản ghi",
+   "phân trang danh sách bản ghi cùng lô",
+   "quay lại danh sách",
+   "điều hướng sang Schema Designer để cấu hình thứ tự ưu tiên nguồn"
+  ],
+  "khong_co": [
+   "Không có bộ lọc / ô tìm kiếm nào trên màn -> KHÔNG khai CN Tìm kiếm & lọc",
+   "Không có Thêm/Sửa/Xoá/Khôi phục/Nhập/Xuất — chân trang ghi rõ \"Trang chỉ hiển thị, không chỉnh sửa dữ liệu trực tiếp tại đây\"",
+   "Không có nút Làm mới dữ liệu (khác màn danh sách)",
+   "Không có checkbox chọn bản ghi (bảng khai `selectable: false`), không sắp xếp theo tiêu đề cột",
+   "Ô Nhập số trang — `pageInput` để mặc định false (probe_live: ô \"Nhập số trang\": không)"
+  ],
+  "hang_so": {
+   "page_size_mac_dinh": 20,
+   "page_size_chon_nhanh": [
+    20,
+    50,
+    100,
+    200,
+    500
+   ],
+   "page_size_toi_da": 1000,
+   "so_ban_ghi_lay_mau_cho_the_so_lieu": 100,
+   "so_truong_moi_trang_trong_ma_tran": 10,
+   "rut_gon_gia_tri_dinh_danh": "khoá có đuôi _id/_bk/uuid/ma_ và dài quá 24 ký tự thì cắt còn 16 ký tự + dấu ba chấm"
+  },
+  "verbatim": {
+   "tieu_de_tab": "Chi tiết mâu thuẫn: <tiêu đề màn> — Trục Tích Hợp Dữ Liệu",
+   "tieu_de_man": "<tên tệp> · không có tệp thì \"Bảng <bảng đích>\" · không có cả hai thì \"Lô <8 ký tự đầu mã lô>\" · cuối cùng là \"Bản ghi <8 ký tự đầu mã bản ghi>\"",
+   "breadcrumb": "Quản lý dữ liệu > Dữ liệu mâu thuẫn > <tiêu đề màn>",
+   "nut_quay_lai": "title \"Quay lại danh sách cảnh báo mâu thuẫn\" · aria-label \"Quay lại danh sách\" -> điều hướng /conflict-alerts",
+   "tooltip_giai_thich": [
+    "Giải thích mâu thuẫn dữ liệu là gì",
+    "Mâu thuẫn xảy ra khi ≥2 nguồn khai giá trị khác nhau cho cùng 1 bản ghi. Hệ thống chọn giá trị ghi vào bảng đích theo thứ tự ưu tiên nguồn đã cấu hình cho bảng đó."
+   ],
+   "dong_ma": "Mã lô: <mã lô> (không có lô thì \"Mã bản ghi: <8 ký tự đầu>\") · Đơn vị nộp: <tên đơn vị>",
+   "the_so_lieu": [
+    "TỔNG SỐ BẢN GHI MÂU THUẪN — Bản ghi có ≥2 nguồn khai khác giá trị",
+    "BẢNG ĐÍCH — Bảng ghi vào Lakehouse (nhiều bảng thì hiện \"<N> bảng\", không có thì \"—\")",
+    "SỐ NGUỒN LIÊN QUAN — Đơn vị có bản ghi tham gia mâu thuẫn",
+    "THỜI GIAN PHÁT HIỆN GẦN NHẤT — Bản ghi mâu thuẫn mới nhất trong lô"
+   ],
+   "nguyen_nhan_tong_quan": {
+    "nhan": "NGUYÊN NHÂN TỔNG QUAN",
+    "tu_mau_thuan_1": "Phát hiện 1 bản ghi tự mâu thuẫn: nguồn <nguồn> tự gửi nhiều giá trị khác nhau cho cùng 1 bản ghi khi ghi vào <bảng đích>, không có nguồn nào được chọn ghi vào bảng đích.",
+    "khac_nguon_1": "Phát hiện 1 bản ghi có giá trị khác nhau giữa các nguồn <danh sách nguồn> khi ghi vào <bảng đích>; hệ thống đã chọn nguồn <nguồn thắng> theo thứ tự ưu tiên.",
+    "chua_uu_tien_1": "Phát hiện 1 bản ghi có giá trị khác nhau giữa các nguồn <danh sách nguồn> khi ghi vào <bảng đích> nhưng chưa xác định được nguồn nào để ghi vào bảng đích.",
+    "tu_mau_thuan_n": "Phát hiện <N> bản ghi tự mâu thuẫn trong cùng 1 nguồn khi ghi vào <bảng đích> — (các) nguồn tự gửi nhiều giá trị khác nhau cho cùng 1 bản ghi, không có nguồn nào được chọn.",
+    "khac_nguon_n": "Phát hiện <N> bản ghi có giá trị khác nhau giữa các nguồn khi ghi vào <bảng đích>; hệ thống đã chọn nguồn ưu tiên cao nhất để ghi vào bảng đích.",
+    "hon_hop_n": "Phát hiện <N> bản ghi mâu thuẫn khi ghi vào <bảng đích>, gồm cả mâu thuẫn giữa các nguồn khác nhau lẫn một số bản ghi tự mâu thuẫn trong cùng 1 nguồn."
+   },
+   "cot_bang": [
+    "STT",
+    "Định danh",
+    "Nguồn thắng",
+    "Nguồn xung đột",
+    "Số trường xung đột",
+    "Hành động"
+   ],
+   "tooltip_nguon_thang": "Giá trị được ghi vào bảng đích, chọn theo nguồn có thứ tự ưu tiên cao nhất (cấu hình tại Schema Designer → tab Cấu hình pipeline).",
+   "gia_tri_cot_nguon_thang": [
+    "<tên nguồn thắng>",
+    "Chưa xác định nguồn thắng (nhãn cảnh báo)",
+    "Cùng nguồn tự mâu thuẫn — gửi nhiều bản ghi khác nhau cho cùng đối tượng. Rà lại dữ liệu nguồn.",
+    "Chưa cấu hình thứ tự ưu tiên nguồn cho bảng này — bản ghi CHƯA được ghi vào bảng đích.",
+    "Cấu hình ngay →"
+   ],
+   "gia_tri_cot_nguon_xung_dot": [
+    "<nguồn 1>, <nguồn 2> (+N)",
+    "— (khi không có nguồn nào)"
+   ],
+   "tooltip_icon_dong": "Xem ma trận mâu thuẫn",
+   "chan_trang": "Trang chỉ hiển thị, không chỉnh sửa dữ liệu trực tiếp tại đây. Muốn đổi nguồn nào được ưu tiên khi có mâu thuẫn, vào Schema Designer → Cấu hình xử lý (<bảng đích>).",
+   "hop_thoai_ma_tran": [
+    "Phát hiện: <thời gian>",
+    "Định danh: <danh sách khoá: giá trị>",
+    "Giá trị mâu thuẫn:",
+    "Giá trị khác biệt giữa các nguồn ở trường đó",
+    "Không có dữ liệu mâu thuẫn."
+   ],
+   "cot_dau_ma_tran": "Nguồn (bản ghi tự mâu thuẫn thì đổi thành \"Tập dữ liệu\")",
+   "rong": [
+    "Không có bản ghi mâu thuẫn",
+    "Lô này hiện không còn bản ghi nào bị mâu thuẫn dữ liệu."
+   ],
+   "khong_tim_thay": [
+    "Không tìm thấy bản ghi mâu thuẫn",
+    "Bản ghi này không tồn tại, hoặc đã được xử lý xong nên không còn nằm trong danh sách mâu thuẫn.",
+    "Về danh sách"
+   ],
+   "dinh_dang_thoi_gian": "d/m/yyyy HH:mm (giống màn danh sách)"
+  },
+  "hanh_vi_dac_thu": [
+   "Vào màn bằng mã bản ghi, nhưng nội dung hiển thị là CẢ LÔ chứa bản ghi đó: 4 thẻ số liệu và bảng đều lọc theo mã lô. Bản ghi không thuộc lô nào thì màn chỉ hiện đúng 1 bản ghi.",
+   "Bốn thẻ số liệu tính trên tối đa 100 bản ghi đầu của lô, riêng \"Tổng số bản ghi mâu thuẫn\" lấy tổng thật của máy chủ ⇒ lô hơn 100 bản ghi thì 3 thẻ còn lại là số của mẫu, không phải của cả lô",
+   "Câu Nguyên nhân tổng quan đổi theo 6 nhánh (1 bản ghi / nhiều bản ghi × tự mâu thuẫn / khác nguồn / chưa cấu hình ưu tiên)",
+   "Click BẤT KỲ đâu trên một bản ghi cũng mở hộp thoại ma trận, không chỉ riêng icon",
+   "Hộp thoại ma trận: mỗi CỘT là một trường xung đột, mỗi DÒNG là một nguồn (hoặc một tập dữ liệu khi tự mâu thuẫn); ô được tô nền cảnh báo khi giá trị của nguồn đó KHÁC giá trị của nguồn khác ở cùng trường",
+   "Ma trận phân trang theo DÒNG (nguồn) 10 dòng mỗi trang, ẩn phần chọn số bản ghi/trang; đổi bản ghi thì ma trận về trang 1",
+   "Giá trị định danh dài quá 24 ký tự (khoá dạng mã) bị cắt còn 16 ký tự kèm dấu ba chấm, rê chuột xem đủ",
+   "Bản ghi chưa cấu hình ưu tiên nguồn có liên kết \"Cấu hình ngay →\" mở Schema Designer đúng bảng đích, tab Cấu hình pipeline — bấm liên kết KHÔNG mở hộp thoại ma trận"
+  ],
+  "rui_ro": [
+   "Ba trong bốn thẻ số liệu tính trên mẫu 100 bản ghi đầu nhưng nhãn không nói rõ là số của mẫu ⇒ lô lớn hơn 100 sẽ hiển thị số thấp hơn thực tế",
+   "Thông tin lô gọi kèm `.catch` nên hỏng cũng im lặng: mất dòng Đơn vị nộp mà không báo gì",
+   "Số bản ghi/trang mặc định 20 của màn này KHÁC màn danh sách (10)",
+   "MỌI mục sidebar khai `permission: null` -> FE không gác quyền; phân quyền (nếu có) chỉ ở máy chủ"
+  ]
+ },
+ "ghi_chu_gop": "Gộp 2026-09-10 theo chỉ thị người đặt việc (đã hỏi và chọn \"cùng file, CÙNG sheet\"): bộ case màn CHI TIẾT (/conflict-alerts/:id) nhập vào chính sheet BP-CanhBaoMauThuan, mã case chung một dãy. Hộp thoại ma trận tách CN riêng vì nó có bảng + phân trang riêng và mở bằng một thao tác khác."
+}

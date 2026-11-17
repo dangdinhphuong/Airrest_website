@@ -1,0 +1,499 @@
+{
+ "title": "Vị trí lưu trữ",
+ "prefix": "ViTriLuuTru",
+ "url": [
+  "https://moet-datalake.saas.vsystem.vn/ingestion/targets"
+ ],
+ "nav": [
+  "Dữ liệu",
+  "Quản lý khai báo",
+  "Vị trí lưu trữ"
+ ],
+ "grounding": {
+  "ngay": "2026-09-10",
+  "cach": [
+   "probe_fe.py https://moet-datalake.saas.vsystem.vn/ingestion/targets --save (bundle FE, giữ 24 file .js)",
+   "probe_routes.py cùng URL --sau -> 2 CHÍNH · 0 PHỤ · 0 CHƯA RÕ LỐI VÀO (mọi thao tác mở TẠI CHỖ bằng modal/sheet/dialog)",
+   "probe_live.py cùng URL (và --sua) với QA_HOME_PREFIX=/ (đăng nhập admin_csdl@moet.gov.vn, đọc DOM đã render): xác nhận thứ tự thanh lọc, 9 nhãn cột bảng, 4 icon trên dòng, nút đầu màn, 4 thẻ số liệu, phân trang (ô Nhập số trang: không) và TRỌN bố cục 8 ô của biểu mẫu Chỉnh sửa",
+   "đọc TRỌN chunk riêng của màn TargetsPage-DPZDuHeU.js (26226 byte) + ingestion.service-CC-Q8y0o.js + db-tool.client-CXgBtF_d.js + useSearchQuery-DQ_Zfifv.js + useDatabaseTypes-DEzNoGNY.js + component dùng chung trong index-zeOBzuws.js (AH multiselect lọc · Koe selectbox biểu mẫu · ej FiltersBar · ose phân trang · ise RowActions · fne ConfirmDialog · gt PageHeader · Sheet)",
+   "ẢNH CHỤP MÀN THẬT do người đặt việc gửi 2026-09-10 15:06 (tài khoản Admin CSDL / Chuyên viên): xác nhận tiêu đề · mô tả · 4 thẻ số liệu (15/12/2/1) · thanh lọc · 9 nhãn cột · icon theo trạng thái từng dòng · sidebar Quản lý khai báo",
+   "Tai-lieu/TKCT_Datalake_POC_280826.docx §13 Module Quản lý khai báo — UC-QLKB-04, GBR-QLKB-01..10, §13.11 §13.12 §13.13 §13.14 §13.16.4"
+  ],
+  "chunk_man": "TargetsPage-DPZDuHeU.js (26226 byte) — hook + biểu mẫu + 4 hộp thoại đều nằm TRONG chunk này, không có hook riêng",
+  "api": [
+   "GET  /targets?status=&search=&sort_dir=&database_type_ids=  (listTargets -> e.targets ?? []) — LỌC · TÌM KIẾM · SẮP XẾP đều SERVER-SIDE",
+   "GET  /targets/{id}                       (getTarget — chỉ gọi khi mở hộp thoại Chi tiết)",
+   "POST /targets                            (createTarget)",
+   "PUT  /targets/{id}                       (updateTarget)",
+   "DEL  /targets/{id}                       (deleteTarget — xoá hàng loạt gọi LẶP từng dòng qua Promise.all)",
+   "POST /targets/{id}/activate              (activateTarget)",
+   "POST /targets/{id}/deactivate            (deactivateTarget)",
+   "GET  /database-types                     (listDatabaseTypes — nạp ô lọc Loại DB và ô chọn Loại database trong biểu mẫu)",
+   "gốc REST: /api/db-tool/v1 — kèm header Authorization: Bearer <token>, credentials: include"
+  ],
+  "thao_tac_duoc_noi": [
+   "list (đọc danh sách; lọc + tìm kiếm + sắp xếp gửi lên MÁY CHỦ, chỉ PHÂN TRANG là client-side trên danh sách đã tải)",
+   "create (Sheet Thêm target mới)",
+   "update (Sheet Sửa: {tên hiển thị})",
+   "detail (Dialog Chi tiết target — gọi GET /targets/{id} riêng)",
+   "activate (không có hộp xác nhận, gọi API ngay rồi hiện thông báo nổi)",
+   "deactivate (không có hộp xác nhận, gọi API ngay rồi hiện thông báo nổi)",
+   "delete đơn lẻ (AlertDialog) và delete hàng loạt (ConfirmDialog, gọi API lặp từng dòng)",
+   "reload (nút Làm mới dữ liệu)"
+  ],
+  "khong_co": [
+   "Xuất Excel — TKCT GBR-QLKB-04 nói rõ *Trang Vị trí lưu trữ không có nút Xuất Excel*; chunk của màn KHÔNG gọi hàm download nào, service cũng không có exportTargets",
+   "Nhập excel — service KHÔNG có hàm import nào cho targets",
+   "Ngày tạo / Cập nhật lúc trên DANH SÁCH — hai trường này chỉ có trong hộp thoại Chi tiết",
+   "Sắp xếp theo tiêu đề cột — dùng HeaderCell, KHÔNG dùng SortableHeader; việc sắp xếp làm bằng ô chọn Sắp xếp trên thanh lọc",
+   "Breadcrumb — PageHeader nhận prop breadcrumbs nhưng màn KHÔNG truyền; probe_live cũng không đọc được breadcrumb",
+   "Ô Nhập số trang — StandardTablePagination để pageInput mặc định false (probe_live: ô \"Nhập số trang\": không)",
+   "Nút Xóa lọc / panel Bộ lọc gộp — chỉ có 2 ô lọc, dưới ngưỡng maxVisibleFilters = 3 nên không có khối overflow",
+   "Nút Thêm hành động (overflow) ở cột Hành động — theo GBR-QLKB-08 mỗi dòng hiện tối đa 4 icon, đúng bằng maxInline 4 nên luôn hiện thẳng, không bao giờ gộp",
+   "Hộp xác nhận cho Kích hoạt / Ngừng hoạt động — hai thao tác này gọi API NGAY khi bấm icon, không hỏi lại",
+   "Checkbox chọn dòng ở bản ghi Hoạt động — ô tích chỉ hiện với bản ghi KHÁC Hoạt động (status !== active)",
+   "Điều hướng sang màn khác — TKCT GBR-QLKB-02 + §13.11: không có navigate/Link nào, mọi thao tác mở TẠI CHỖ"
+  ],
+  "hang_so": {
+   "page_size_mac_dinh": 20,
+   "page_size_chon_nhanh": [
+    20,
+    50,
+    100,
+    200,
+    500
+   ],
+   "page_size_toi_da": 1000,
+   "tim_kiem_min_ky_tu": 3,
+   "tim_kiem_debounce_ms": 1500,
+   "tim_kiem_pham_vi": "gửi lên MÁY CHỦ qua tham số search của GET /targets (khác 3 màn danh mục anh em vốn lọc ở client)",
+   "tim_kiem_phim_enter": "Nhấn Enter áp ngay, bỏ qua thời gian chờ 1500 ms (màn bắt onKeyDown theo đúng placeholder của ô)",
+   "tim_kiem_duoi_nguong": "Dưới 3 ký tự thì hệ thống KHÔNG áp lọc và KHÔNG hiện thông báo nào",
+   "tim_kiem_roi_o": "Rời ô (blur) thì cắt khoảng trắng hai đầu rồi áp ngay",
+   "code_regex": "^[a-z0-9-_]+$ — chỉ chữ thường, số, dấu gạch ngang (-) và gạch dưới (_)",
+   "schema_regex": "^[a-z0-9_-]+$ — chỉ chữ thường, số, dấu gạch dưới (_) và gạch ngang (-)",
+   "code_max_dom": 250,
+   "ten_hien_thi_max_dom": 250,
+   "mo_ta_max_dom": 250,
+   "ten_schema_max_dom": 250,
+   "database_mac_dinh_max_dom": 250,
+   "chuoi_ket_noi_max_dom": "KHÔNG đặt maxLength — ô textarea nhập không giới hạn ở FE",
+   "port_min": 1,
+   "port_max": 65535,
+   "trang_thai_gia_tri": [
+    "pending",
+    "active",
+    "inactive"
+   ],
+   "loc_loai_db_che_do": "MULTI-select (component AH, mode mặc định = multi) — chọn được nhiều Loại DB cùng lúc, giá trị nối bằng dấu phẩy",
+   "loc_trang_thai_che_do": "SINGLE-select (mode=single) — vẫn CÓ ô tìm kiếm bên trong, đóng ngay sau khi chọn",
+   "sap_xep_che_do": "SINGLE-select (mode=single), mặc định Mới nhất trước",
+   "multiselect_max_visible_tags": 4,
+   "icon_toi_da_hien_thang": 4,
+   "checkbox_tieu_de_pham_vi": "chỉ chọn/bỏ chọn các bản ghi KHÁC Hoạt động của TRANG ĐANG XEM"
+  },
+  "verbatim": {
+   "tieu_de_man": "Vị trí lưu trữ",
+   "mo_ta_man": "Quản lý các database đích để ghi dữ liệu ingestion",
+   "the_so_lieu": [
+    "TỔNG VỊ TRÍ LƯU TRỮ",
+    "HOẠT ĐỘNG",
+    "CHỜ KẾT NỐI",
+    "NGỪNG HOẠT ĐỘNG"
+   ],
+   "nut_dau_man": [
+    "Thêm vị trí lưu trữ mới"
+   ],
+   "placeholder_tim": "Tìm kiếm name, tên hiển thị...",
+   "tooltip_xoa_tu_khoa": "Xóa",
+   "placeholder_loc_loai_db": "-- Chọn loại db --",
+   "placeholder_loc_trang_thai": "-- Chọn trạng thái --",
+   "tuy_chon_loc_trang_thai": [
+    "Chờ kết nối",
+    "Hoạt động",
+    "Ngừng hoạt động"
+   ],
+   "placeholder_sap_xep": "-- Chọn sắp xếp --",
+   "tuy_chon_sap_xep": [
+    "Mới nhất trước",
+    "Cũ nhất trước"
+   ],
+   "tim_trong_selectbox": "Tìm kiếm...",
+   "selectbox_khong_thay": "Không tìm thấy",
+   "selectbox_form_rong": "Không có dữ liệu",
+   "multiselect_nut_ben": [
+    "Chọn tất cả",
+    "Bỏ chọn tất cả",
+    "Chỉ xem đã chọn",
+    "Xem tất cả"
+   ],
+   "multiselect_tran_the": "... {N} lựa chọn",
+   "cho_nhap_xong": "Đang chờ nhập xong",
+   "tooltip_lam_moi": "Làm mới dữ liệu",
+   "toast_lam_moi": "Đã làm mới",
+   "nhan_cap_nhat": "Cập nhật: {d/m/yyyy hh:mm}",
+   "thanh_hang_loat": [
+    "Đã chọn {N} mục",
+    "Xóa tất cả",
+    "Bỏ chọn"
+   ],
+   "cot_bang": [
+    "STT",
+    "Code",
+    "Tên hiển thị",
+    "Loại DB",
+    "Phiên bản",
+    "Port",
+    "Trạng thái",
+    "Tags",
+    "Hành động"
+   ],
+   "badge_trang_thai": [
+    "Chờ kết nối (vàng)",
+    "Hoạt động (xanh)",
+    "Ngừng hoạt động (xám)"
+   ],
+   "o_trong_bang": "Phiên bản · Port · Tags không có giá trị thì hiện dấu —",
+   "icon_ban_ghi": [
+    "Xem chi tiết",
+    "Kích hoạt",
+    "Ngừng hoạt động",
+    "Chỉnh sửa",
+    "Xóa"
+   ],
+   "dieu_kien_hien_icon": "Xem chi tiết luôn hiện · Kích hoạt hiện khi trạng thái KHÁC Hoạt động · Ngừng hoạt động hiện khi trạng thái Hoạt động VÀ không được sử dụng · Chỉnh sửa và Xóa hiện khi trạng thái KHÁC Hoạt động",
+   "rong_khong_du_lieu": "Chưa có target nào",
+   "rong_khong_du_lieu_nut": "+ Thêm vị trí lưu trữ mới",
+   "dang_tai": "3 vạch xám nhấp nháy (skeleton) thay cho các bản ghi",
+   "form_them": {
+    "tieu_de": "Thêm target mới",
+    "nhom_o": [
+     "Thông tin cơ bản",
+     "Cấu hình kết nối"
+    ],
+    "nhan_o": [
+     "Code",
+     "Tên hiển thị",
+     "Mô tả",
+     "Loại database",
+     "Tên schema",
+     "Port mặc định",
+     "Database mặc định",
+     "Chuỗi kết nối"
+    ],
+    "o_bat_buoc": [
+     "Code",
+     "Tên hiển thị",
+     "Loại database",
+     "Chuỗi kết nối"
+    ],
+    "placeholder_mo_ta": "Mô tả ngắn về target này",
+    "placeholder_loai_database": "Chọn loại database",
+    "dang_tai_loai_database": "Đang tải...",
+    "chu_dan_ten_schema": "Tên Trino schema — chỉ chữ thường, số, _, -. Để trống nếu dùng schema mặc định của loại database.",
+    "chu_dan_ket_noi": "Chỉ ô Chuỗi kết nối bên dưới là bắt buộc và phải có đủ thông tin (host, port, tên database, tài khoản đăng nhập). 2 ô Port mặc định / Database mặc định là tùy chọn, không cần điền nếu chuỗi kết nối đã đầy đủ.",
+    "placeholder_database_mac_dinh": "vd. postgres, admin, master",
+    "nut": [
+     "Hủy",
+     "Thêm mới"
+    ],
+    "nut_dang_xu_ly": "Đang lưu...",
+    "toast_thanh_cong": "Thêm target thành công"
+   },
+   "form_sua": {
+    "tieu_de": "Sửa: {tên hiển thị}",
+    "o_code": "Ô Code BỊ KHOÁ (disabled, nền xám) khi sửa, kèm dòng chú thích Không thể thay đổi mã sau khi tạo",
+    "chu_dan_code_khoa": "Không thể thay đổi mã sau khi tạo",
+    "nut": [
+     "Hủy",
+     "Cập nhật"
+    ],
+    "nut_dang_xu_ly": "Đang lưu...",
+    "toast_thanh_cong": "Cập nhật target thành công"
+   },
+   "loi_validate": {
+    "code_rong": "Vui lòng không bỏ trống thông tin này",
+    "code_sai_dinh_dang": "Chỉ được dùng chữ thường, số, dấu gạch ngang (-) và gạch dưới (_)",
+    "ten_rong": "Vui lòng không bỏ trống thông tin này",
+    "loai_database_rong": "Vui lòng chọn loại database",
+    "chuoi_ket_noi_rong": "Vui lòng không bỏ trống thông tin này",
+    "schema_sai_dinh_dang": "schema_name chỉ được chứa chữ thường, số, dấu gạch dưới và gạch ngang (snake_case)",
+    "vi_tri": "chữ đỏ NGAY DƯỚI ô; lỗi từ máy chủ không khớp ô nào hiện thành khung đỏ ở cuối biểu mẫu"
+   },
+   "xem_chi_tiet": {
+    "tieu_de": "Chi tiết target",
+    "nhom": [
+     "Thông tin cơ bản",
+     "Kết nối & Vault"
+    ],
+    "nhan_truong": [
+     "Code",
+     "Tên hiển thị",
+     "Mô tả",
+     "Loại DB",
+     "Phiên bản",
+     "Port",
+     "Schema",
+     "Mặc định",
+     "Trạng thái",
+     "Đang sử dụng",
+     "Tags",
+     "Tạo bởi",
+     "Ngày tạo",
+     "Cập nhật lúc",
+     "Connection",
+     "Vault Path",
+     "Vault Keys"
+    ],
+    "gia_tri_rong": "—",
+    "badge_mac_dinh": [
+     "Mặc định",
+     "Không"
+    ],
+    "badge_dang_su_dung": [
+     "Đang dùng",
+     "Không"
+    ],
+    "dang_tai": "Đang tải...",
+    "dinh_dang_ngay": "d/m/yyyy hh:mm — giá trị không đọc được thì hiện dấu —"
+   },
+   "kich_hoat": {
+    "tooltip": "Kích hoạt",
+    "toast_thanh_cong": "Đã kích hoạt target",
+    "toast_mo_ta": "{tên hiển thị}",
+    "toast_that_bai": "Kích hoạt thất bại"
+   },
+   "ngung_hoat_dong": {
+    "tooltip": "Ngừng hoạt động",
+    "toast_thanh_cong": "Đã ngừng hoạt động target",
+    "toast_mo_ta": "{tên hiển thị}",
+    "toast_that_bai": "Ngừng hoạt động thất bại"
+   },
+   "xoa_don_le": {
+    "tieu_de": "Xóa target?",
+    "mo_ta": "Bạn sắp xóa {tên hiển thị} ({code}). Hành động này không thể hoàn tác. Các schema_designs đang dùng target này sẽ bị ảnh hưởng.",
+    "nut": [
+     "Hủy",
+     "Xóa"
+    ],
+    "nut_dang_xu_ly": "Đang xóa...",
+    "toast_thanh_cong": "Xóa target thành công"
+   },
+   "xoa_hang_loat": {
+    "tieu_de": "Xóa {N} vị trí lưu trữ đã chọn?",
+    "mo_ta": "Hành động này không thể hoàn tác.",
+    "nut": [
+     "Huỷ",
+     "Xóa"
+    ],
+    "toast_thanh_cong": "Đã xóa {N} mục",
+    "toast_that_bai": "Xóa thất bại {d}/{N} mục"
+   },
+   "phan_trang": [
+    "Số bản ghi/trang:",
+    "Tổng số bản ghi:",
+    "Chọn nhanh số bản ghi",
+    "Trang đầu",
+    "Trang trước",
+    "Trang sau",
+    "Trang cuối"
+   ],
+   "loi_page_size": [
+    "Số bản ghi/trang phải lớn hơn 0",
+    "Số bản ghi/trang phải là số nguyên",
+    "Số bản ghi/trang tối đa 1000 bản ghi"
+   ],
+   "chua_dang_nhap": "Bạn cần đăng nhập để truy cập trang này. Vui lòng đăng nhập bằng tài khoản của bạn để tiếp tục.",
+   "khong_du_quyen": [
+    "Không đủ quyền truy cập",
+    "Bạn không có quyền truy cập trang này. Vui lòng liên hệ quản trị viên nếu bạn cho rằng đây là sự nhầm lẫn."
+   ],
+   "het_phien": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+   "loi_tai_danh_sach": "dòng chữ đỏ hiện ngay dưới bốn thẻ số liệu, không phải thông báo nổi",
+   "man_ngoai_tuyen": [
+    "Bạn đang ngoại tuyến",
+    "Không thể kết nối đến máy chủ. Một số dữ liệu có thể không được cập nhật. Vui lòng kiểm tra kết nối internet và thử lại."
+   ]
+  },
+  "rui_ro": [
+   "TKCT GBR-QLKB-03 + §13.13 + bundle FE: MỌI mục sidebar khai permission: null -> FE KHÔNG gác quyền màn nào; mọi tài khoản đăng nhập thao tác được như nhau. Phân quyền (nếu có) chỉ nằm ở server -> case ATTT gắn cờ [RỦI RO]/[CẦN VERIFY]",
+   "LỆCH BA-vs-CODE — CỘT BẢNG: TKCT UC-QLKB-04 ghi danh sách chỉ còn *Chọn dòng; Name; Tên hiển thị; Loại DB; Port; Hành động* và *đã bỏ khỏi danh sách: Trạng thái; Tags; Phiên bản; Mặc định*. Màn THẬT (probe_live 10/09 + ảnh chụp) có ĐỦ 9 cột: STT · Code · Tên hiển thị · Loại DB · Phiên bản · Port · Trạng thái · Tags · Hành động. Case viết theo CODE",
+   "LỆCH BA-vs-CODE — XOÁ HÀNG LOẠT: TKCT GBR-QLKB-06 + UC-QLKB-04 bước 6 ghi *Vị trí lưu trữ chỉ có Bỏ chọn, không có xóa hàng loạt*. Chunk của màn CÓ đủ nút Xóa tất cả + hộp xác nhận Xóa {N} vị trí lưu trữ đã chọn? + hàm xoá lặp. Case viết theo CODE",
+   "LỆCH BA-vs-CODE — TÊN CỘT ĐẦU: TKCT gọi cột đầu là *Name*, màn thật ghi *Code*. Cả tài liệu lẫn code đều thừa nhận lệch (TKCT §13.16.4 mục *Lưu ý đối chiếu code*)",
+   "LỆCH BA-vs-CODE — NHÃN Ô: TKCT gọi ô bắt buộc cuối biểu mẫu là *Connection Template*, màn thật ghi *Chuỗi kết nối*; TKCT gọi ô chọn là *Loại lưu trữ*, màn thật ghi *Loại database*",
+   "TỪ NGỮ KHÔNG NHẤT QUÁN: tiêu đề màn, nút đầu màn và hộp xác nhận xoá hàng loạt dùng *vị trí lưu trữ*, nhưng tiêu đề 4 hộp thoại còn lại và TOÀN BỘ thông báo nổi vẫn dùng *target* (Thêm target mới · Sửa: · Chi tiết target · Xóa target? · Thêm target thành công · Đã kích hoạt target …). TKCT §13.16.4 đã ghi nhận. Cần QA/BA chốt bản chữ thống nhất",
+   "RỦI RO CAO — SỬA LÀM MẤT CẤU HÌNH KẾT NỐI: ở chế độ Sửa, ba ô Port mặc định / Database mặc định / Chuỗi kết nối khởi tạo RỖNG (không nạp lại giá trị đang lưu), trong khi Chuỗi kết nối là ô BẮT BUỘC và payload PUT luôn ghép lại trường connection từ ba ô đó. Người dùng chỉ sửa Tên hiển thị mà không gõ lại chuỗi kết nối thì hoặc bị chặn bởi lỗi bắt buộc, hoặc (nếu gõ khác) GHI ĐÈ cấu hình kết nối cũ. Cần QA/BA xác nhận đây là lỗi",
+   "Ở chế độ Sửa ô Code bị khoá (disabled) NHƯNG payload PUT VẪN GỬI trường name lấy từ giá trị cũ, và hàm validate VẪN kiểm luật của Code -> không có lưới chắn nào ở FE nếu máy chủ chấp nhận đổi name trong payload sửa",
+   "Ô Code · Tên hiển thị · Mô tả · Tên schema · Database mặc định KHÔNG có luật độ dài ở FE (chỉ maxLength 250 của DOM); ô Chuỗi kết nối KHÔNG có maxLength nào. Giới hạn thật của cột CSDL chưa xác nhận -> case *vượt độ dài* gắn [CẦN VERIFY]",
+   "FE KHÔNG kiểm trùng Code: thông báo (nếu có) do máy chủ trả, FE chỉ nhận diện bằng cách dò chuỗi *Tên target* hoặc *đã tồn tại* trong thông điệp rồi hiện dưới ô Code -> case *dữ liệu đã tồn tại* gắn [CẦN VERIFY] cho cả hành vi lẫn thông báo. Ô Tên hiển thị chưa có bằng chứng bị chặn trùng",
+   "Ô Tên schema kiểm hai lớp lệch nhau: thuộc tính pattern của DOM là ^[a-z0-9_-]*$ (cho phép rỗng) còn hàm validate dùng ^[a-z0-9_-]+$, và biểu mẫu khai noValidate nên pattern của DOM KHÔNG chặn gửi. Lỗi schema hiện ở khung riêng dưới ô, không cùng lớp với 4 lỗi bắt buộc",
+   "Ô Port mặc định là input type=number min=1 max=65535 nhưng biểu mẫu khai noValidate và hàm validate KHÔNG kiểm ô này -> gõ 0, số âm hoặc 70000 vẫn gửi lên máy chủ được (ghép thành port=... trong chuỗi kết nối). Gắn [CẦN VERIFY] cho hành vi máy chủ",
+   "Kích hoạt và Ngừng hoạt động KHÔNG có hộp xác nhận — bấm nhầm icon là đổi trạng thái ngay. Chỉ có lưới chắn duy nhất là icon bị khoá trong lúc đang gọi máy chủ",
+   "Xoá hàng loạt gọi API LẶP từng bản ghi (Promise.all) chứ không phải một lệnh xoá lô -> xoá một phần thành công vẫn có thể xảy ra, thông báo là Xóa thất bại {d}/{N} mục mà KHÔNG nói bản ghi nào hỏng",
+   "Ô tích chọn chỉ hiện ở bản ghi KHÁC Hoạt động, và ô tích ở hàng tiêu đề chỉ gom các bản ghi chọn được CỦA TRANG ĐANG XEM -> người dùng dễ tưởng đã chọn hết",
+   "Nút huỷ của hai hộp xác nhận xoá viết KHÁC nhau: xoá đơn lẻ là \"Hủy\" (màn tự truyền), xoá hàng loạt là \"Huỷ\" (nhãn MẶC ĐỊNH của component ConfirmDialog)",
+   "Hộp xác nhận xoá đơn lẻ hiện nguyên chuỗi kỹ thuật *schema_designs* trong câu mô tả cho người dùng cuối — cần QA/BA chốt lại bản chữ tiếng Việt",
+   "Ô chọn Loại database trong biểu mẫu chỉ liệt kê Loại lưu trữ đang Hoạt động (lọc isActive) -> bản ghi đang trỏ tới một Loại lưu trữ đã ngừng hoạt động thì khi mở Sửa ô này bị tự XOÁ TRẮNG (component tự gọi onChange rỗng khi giá trị không có trong danh sách) và người dùng buộc phải chọn lại loại khác",
+   "TKCT GBR-QLKB-10: ở môi trường DEV, API trả rỗng thì màn tự hiện bộ dữ liệu mock cố định thay cho danh sách trống",
+   "TKCT §13.14: CHƯA xác nhận được tên bảng/cột CSDL thật -> mọi case đối chiếu DB gắn [CẦN VERIFY] (hồ sơ dự án đã đặt verify_all=True)",
+   "KHOẢNG TRỐNG GROUNDING: probe_live.py KHÔNG mở được biểu mẫu Thêm mới (không khớp nhãn nút \"Thêm vị trí lưu trữ mới\") -> bố cục biểu mẫu Thêm mới, nội dung hộp thoại Chi tiết và hai hộp xác nhận xoá đọc từ code + suy ra từ biểu mẫu Sửa đã soi được bằng mắt, chưa soi trực tiếp"
+  ],
+  "gia_tri_tinh": {
+   "Trạng thái": [
+    "Chờ kết nối",
+    "Hoạt động",
+    "Ngừng hoạt động"
+   ],
+   "Sắp xếp": [
+    "Mới nhất trước",
+    "Cũ nhất trước"
+   ],
+   "Số bản ghi trên trang": [
+    "20",
+    "50",
+    "100",
+    "200",
+    "500"
+   ]
+  },
+  "gia_tri_dong": [
+   "Loại DB",
+   "Loại database"
+  ]
+ },
+ "man_phu": [],
+ "loai_control": {
+  "Textbox Code": "Textbox mã (unique)",
+  "Textbox Port mặc định": "Textbox số",
+  "Textarea Chuỗi kết nối": "Textarea",
+  "Selectbox Loại database": "Selectbox không có ô tìm",
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ|Selectbox Loại DB": "Selectbox nhiều lựa chọn",
+  "Hiển thị chi tiết vị trí lưu trữ": "Hiển thị chi tiết"
+ },
+ "cn": [
+  {
+   "ten": "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+   "controls": [
+    "Thẻ số liệu Tổng vị trí lưu trữ",
+    "Thẻ số liệu Hoạt động",
+    "Thẻ số liệu Chờ kết nối",
+    "Thẻ số liệu Ngừng hoạt động",
+    "Button Làm mới dữ liệu",
+    "Button Bỏ chọn",
+    "Danh sách vị trí lưu trữ",
+    "Checkbox bản ghi",
+    "Icon",
+    "Textbox Số bản ghi trên trang",
+    "Selectbox Số bản ghi trên trang",
+    "Phân trang",
+    "Selectbox Sắp xếp"
+   ],
+   "chuc_nang": [
+    "Chức năng Danh sách"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+   "controls": [
+    "Selectbox Loại DB",
+    "Selectbox Trạng thái",
+    "Textbox Tìm kiếm name, tên hiển thị"
+   ],
+   "chuc_nang": [
+    "Chức năng Tìm kiếm chung"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+   "buoc3": "Click Thêm vị trí lưu trữ mới",
+   "popup": "Thêm target mới",
+   "controls": [
+    "Textbox Code",
+    "Textbox Tên hiển thị",
+    "Textbox Mô tả",
+    "Selectbox Loại database",
+    "Textbox Tên schema",
+    "Textbox Port mặc định",
+    "Textbox Database mặc định",
+    "Textarea Chuỗi kết nối",
+    "Button Hủy",
+    "Button Thêm mới"
+   ],
+   "chuc_nang": [
+    "Chức năng Thêm mới"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+   "buoc3": "Click icon Chỉnh sửa ở cột Hành động",
+   "popup": "Sửa: {tên hiển thị}",
+   "controls": [
+    "Textbox Code",
+    "Textbox Tên hiển thị",
+    "Textbox Mô tả",
+    "Selectbox Loại database",
+    "Textbox Tên schema",
+    "Textbox Port mặc định",
+    "Textbox Database mặc định",
+    "Textarea Chuỗi kết nối",
+    "Button Hủy",
+    "Button Cập nhật"
+   ],
+   "chuc_nang": [
+    "Chức năng Chỉnh sửa"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "XEM CHI TIẾT VỊ TRÍ LƯU TRỮ",
+   "buoc3": "Click icon Xem chi tiết ở cột Hành động",
+   "popup": "Chi tiết target",
+   "controls": [
+    "Hiển thị chi tiết vị trí lưu trữ"
+   ],
+   "chuc_nang": [
+    "Chức năng Xem chi tiết"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "KÍCH HOẠT VỊ TRÍ LƯU TRỮ",
+   "buoc3": "Click icon Kích hoạt ở cột Hành động của bản ghi Chờ kết nối hoặc Ngừng hoạt động",
+   "controls": [
+    "Button Kích hoạt"
+   ],
+   "chuc_nang": [
+    "Chức năng Chuyển trạng thái"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "NGỪNG HOẠT ĐỘNG VỊ TRÍ LƯU TRỮ",
+   "buoc3": "Click icon Ngừng hoạt động ở cột Hành động của bản ghi Hoạt động và không được sử dụng",
+   "controls": [
+    "Button Ngừng hoạt động"
+   ],
+   "chuc_nang": [
+    "Chức năng Chuyển trạng thái"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "XÓA VỊ TRÍ LƯU TRỮ",
+   "buoc3": "Click icon Xóa ở cột Hành động\nHoặc tích chọn bản ghi > Chọn button Xóa tất cả",
+   "controls": [
+    "Hộp xác nhận Xóa vị trí lưu trữ",
+    "Hộp xác nhận Xóa nhiều vị trí lưu trữ đã chọn",
+    "Button Xóa tất cả",
+    "Button Hủy"
+   ],
+   "chuc_nang": [
+    "Chức năng Xóa"
+   ],
+   "attt": true
+  }
+ ]
+}

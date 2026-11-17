@@ -1,0 +1,1687 @@
+{
+ "103": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Phân trang",
+  "Kiểm tra icon Trang tiếp >"
+ ],
+ "104": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Phân trang",
+  "Kiểm tra icon Trang trước <"
+ ],
+ "112": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Chức năng Danh sách",
+  "Kiểm tra dữ liệu danh sách khớp DB"
+ ],
+ "114": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Truy cập màn khi chưa đăng nhập"
+ ],
+ "115": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Yêu cầu quyền xem màn"
+ ],
+ "116": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Truy cập màn bằng tài khoản khác vai trò"
+ ],
+ "120": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Thao tác khi hết phiên"
+ ],
+ "124": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Giao diện chung",
+  "Kiểm tra hiển thị đầy đủ các thông tin trong màn hình chức năng"
+ ],
+ "132": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra giá trị mặc định Loại DB"
+ ],
+ "133": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra các giá trị có trong Loại DB"
+ ],
+ "134": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra sắp xếp các giá trị trong Loại DB"
+ ],
+ "135": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra chọn NHIỀU giá trị trong Loại DB"
+ ],
+ "136": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra bỏ chọn từng giá trị trong Loại DB"
+ ],
+ "137": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra chọn tất cả / bỏ chọn tất cả ở Loại DB nếu có"
+ ],
+ "138": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra hiển thị Loại DB khi chọn nhiều hoặc giá trị quá dài"
+ ],
+ "139": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra căn lề các giá trị trong Loại DB"
+ ],
+ "140": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra cách tải dữ liệu khi danh sách Loại DB lớn"
+ ],
+ "141": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra tìm kiếm khớp 100% dữ liệu"
+ ],
+ "142": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra tìm kiếm khớp 1 phần dữ liệu"
+ ],
+ "143": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra tìm kiếm không phân biệt hoa thường"
+ ],
+ "144": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Kiểm tra tìm kiếm tiếng Việt có dấu, không dấu"
+ ],
+ "146": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra giá trị mặc định Trạng thái"
+ ],
+ "147": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra các giá trị có trong Trạng thái"
+ ],
+ "148": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra sắp xếp các giá trị trong Trạng thái"
+ ],
+ "149": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra chọn các giá trị khác nhau trong Trạng thái"
+ ],
+ "15": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Giao diện chung",
+  "Kiểm tra hiển thị đầy đủ các thông tin trong màn hình chức năng"
+ ],
+ "150": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra hiển thị Trạng thái khi giá trị quá dài"
+ ],
+ "151": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra căn lề các giá trị trong Trạng thái"
+ ],
+ "152": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra cách tải dữ liệu khi danh sách Trạng thái lớn"
+ ],
+ "153": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra tìm kiếm khớp 100% dữ liệu"
+ ],
+ "154": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra tìm kiếm khớp 1 phần dữ liệu"
+ ],
+ "155": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra tìm kiếm không phân biệt hoa thường"
+ ],
+ "156": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra tìm kiếm tiếng Việt có dấu, không dấu"
+ ],
+ "157": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra tìm kiếm từ khoá không tồn tại"
+ ],
+ "158": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Kiểm tra xóa từ khoá đã nhập trong ô tìm kiếm"
+ ],
+ "160": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Kiểm tra giá trị mặc định ô Tìm kiếm name, tên hiển thị"
+ ],
+ "161": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Kiểm tra ô Tìm kiếm name, tên hiển thị nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "162": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Kiểm tra ô Tìm kiếm name, tên hiển thị nhận số"
+ ],
+ "163": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Kiểm tra copy nội dung dữ liệu, dán vào ô Tìm kiếm name, tên hiển thị"
+ ],
+ "164": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Kiểm tra ô Tìm kiếm name, tên hiển thị tìm bằng tiếng Việt có dấu"
+ ],
+ "165": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Kiểm tra ô Tìm kiếm name, tên hiển thị tìm bằng tiếng Việt không dấu"
+ ],
+ "166": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Kiểm tra ô Tìm kiếm name, tên hiển thị cắt khoảng trắng hai đầu"
+ ],
+ "168": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra giá trị mặc định Sắp xếp"
+ ],
+ "169": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra các giá trị có trong Sắp xếp"
+ ],
+ "170": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra sắp xếp các giá trị trong Sắp xếp"
+ ],
+ "171": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra chọn các giá trị khác nhau trong Sắp xếp"
+ ],
+ "172": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra hiển thị Sắp xếp khi giá trị quá dài"
+ ],
+ "173": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra căn lề các giá trị trong Sắp xếp"
+ ],
+ "174": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra cách tải dữ liệu khi danh sách Sắp xếp lớn"
+ ],
+ "175": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra tìm kiếm khớp 100% dữ liệu"
+ ],
+ "176": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra tìm kiếm khớp 1 phần dữ liệu"
+ ],
+ "177": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra tìm kiếm không phân biệt hoa thường"
+ ],
+ "178": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra tìm kiếm tiếng Việt có dấu, không dấu"
+ ],
+ "179": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra tìm kiếm từ khoá không tồn tại"
+ ],
+ "180": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Kiểm tra xóa từ khoá đã nhập trong ô tìm kiếm"
+ ],
+ "183": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Chức năng Tìm kiếm chung",
+  "Tìm kiếm theo giá trị mặc định"
+ ],
+ "184": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Chức năng Tìm kiếm chung",
+  "Tìm kiếm không ra kết quả với từng điều kiện tìm kiếm hoặc tất cả các điều kiện"
+ ],
+ "185": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Chức năng Tìm kiếm chung",
+  "Tìm kiếm kết hợp tất cả các điều kiện tìm kiếm"
+ ],
+ "186": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Chức năng Tìm kiếm chung",
+  "Thực hiện tìm kiếm lần lượt 2 điều kiện khác nhau nhưng đều ra số bản ghi kết quả giống nhau"
+ ],
+ "189": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Tìm kiếm với:"
+ ],
+ "190": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại DB",
+  "Chọn 1 giá trị của Loại DB"
+ ],
+ "192": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Tìm kiếm với:"
+ ],
+ "193": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Trạng thái",
+  "Chọn 1 giá trị của Trạng thái"
+ ],
+ "195": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Tìm kiếm khi nhập:"
+ ],
+ "196": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Tìm kiếm khi nhập:"
+ ],
+ "197": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Tìm kiếm tương đối:"
+ ],
+ "198": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Tìm kiếm khi nhập:"
+ ],
+ "199": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Tìm kiếm khi nhập chữ tiếng việt có dấu"
+ ],
+ "200": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Textbox Tìm kiếm name, tên hiển thị",
+  "Tìm kiếm khi nhập dữ liệu không giới hạn"
+ ],
+ "202": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Tìm kiếm với:"
+ ],
+ "203": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "Selectbox Sắp xếp",
+  "Chọn 1 giá trị của Sắp xếp"
+ ],
+ "211": [
+  "TÌM KIẾM & LỌC VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Thao tác khi hết phiên"
+ ],
+ "220": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Giao diện chung",
+  "Kiểm tra hiển thị đầy đủ các thông tin trong màn hình chức năng"
+ ],
+ "228": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra giá trị mặc định Code"
+ ],
+ "229": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code là trường bắt buộc"
+ ],
+ "23": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Tổng vị trí lưu trữ",
+  "Kiểm tra giá trị mặc định của Thẻ số liệu Tổng vị trí lưu trữ"
+ ],
+ "230": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code nhập vượt độ dài cho phép"
+ ],
+ "231": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code nhập trong độ dài cho phép"
+ ],
+ "232": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "233": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code nhập số"
+ ],
+ "234": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code cắt khoảng trắng hai đầu"
+ ],
+ "235": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra copy dữ liệu dán vào ô Code"
+ ],
+ "236": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code nhập tiếng Việt có dấu"
+ ],
+ "237": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra dữ liệu đã tồn tại"
+ ],
+ "239": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra giá trị mặc định Tên hiển thị"
+ ],
+ "24": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Tổng vị trí lưu trữ",
+  "Kiểm tra Thẻ số liệu Tổng vị trí lưu trữ khớp dữ liệu trong hệ thống"
+ ],
+ "240": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị là trường bắt buộc"
+ ],
+ "241": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập vượt độ dài cho phép"
+ ],
+ "242": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập trong độ dài cho phép"
+ ],
+ "243": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "244": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập số"
+ ],
+ "245": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị cắt khoảng trắng hai đầu"
+ ],
+ "246": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra copy dữ liệu dán vào ô Tên hiển thị"
+ ],
+ "247": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập tiếng Việt có dấu"
+ ],
+ "249": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra giá trị mặc định Mô tả"
+ ],
+ "25": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Tổng vị trí lưu trữ",
+  "Kiểm tra Thẻ số liệu Tổng vị trí lưu trữ khi không có dữ liệu"
+ ],
+ "250": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả là trường bắt buộc"
+ ],
+ "251": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả nhập vượt độ dài cho phép"
+ ],
+ "252": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả nhập trong độ dài cho phép"
+ ],
+ "253": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "254": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả nhập số"
+ ],
+ "255": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả cắt khoảng trắng hai đầu"
+ ],
+ "256": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra copy dữ liệu dán vào ô Mô tả"
+ ],
+ "257": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả nhập tiếng Việt có dấu"
+ ],
+ "259": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại database",
+  "Kiểm tra giá trị mặc định Loại database"
+ ],
+ "26": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Tổng vị trí lưu trữ",
+  "Kiểm tra Thẻ số liệu Tổng vị trí lưu trữ khi giá trị lớn hoặc quá dài"
+ ],
+ "260": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại database",
+  "Kiểm tra các giá trị có trong Loại database"
+ ],
+ "261": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại database",
+  "Kiểm tra sắp xếp các giá trị trong Loại database"
+ ],
+ "262": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại database",
+  "Kiểm tra chọn các giá trị khác nhau trong Loại database"
+ ],
+ "263": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại database",
+  "Kiểm tra hiển thị Loại database khi giá trị quá dài"
+ ],
+ "264": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại database",
+  "Kiểm tra căn lề các giá trị trong Loại database"
+ ],
+ "266": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra giá trị mặc định Tên schema"
+ ],
+ "267": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema là trường bắt buộc"
+ ],
+ "268": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema nhập vượt độ dài cho phép"
+ ],
+ "269": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema nhập trong độ dài cho phép"
+ ],
+ "270": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "271": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema nhập số"
+ ],
+ "272": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema cắt khoảng trắng hai đầu"
+ ],
+ "273": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra copy dữ liệu dán vào ô Tên schema"
+ ],
+ "274": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema nhập tiếng Việt có dấu"
+ ],
+ "276": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra giá trị mặc định Port mặc định"
+ ],
+ "277": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định khi để trống"
+ ],
+ "278": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập giá trị = 0"
+ ],
+ "279": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập quá 18 chữ số"
+ ],
+ "28": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Hoạt động",
+  "Kiểm tra giá trị mặc định của Thẻ số liệu Hoạt động"
+ ],
+ "280": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập số âm"
+ ],
+ "281": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập số thập phân"
+ ],
+ "282": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập chữ và ký tự đặc biệt"
+ ],
+ "283": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra copy dữ liệu dán vào ô Port mặc định"
+ ],
+ "284": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra ô Port mặc định cắt khoảng trắng hai đầu"
+ ],
+ "285": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập tiếng Việt có dấu"
+ ],
+ "287": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra giá trị mặc định Database mặc định"
+ ],
+ "288": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định là trường bắt buộc"
+ ],
+ "289": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định nhập vượt độ dài cho phép"
+ ],
+ "29": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Hoạt động",
+  "Kiểm tra Thẻ số liệu Hoạt động khớp dữ liệu trong hệ thống"
+ ],
+ "290": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định nhập trong độ dài cho phép"
+ ],
+ "291": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "292": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định nhập số"
+ ],
+ "293": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định cắt khoảng trắng hai đầu"
+ ],
+ "294": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra copy dữ liệu dán vào ô Database mặc định"
+ ],
+ "295": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định nhập tiếng Việt có dấu"
+ ],
+ "297": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra giá trị mặc định Chuỗi kết nối"
+ ],
+ "298": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối là trường bắt buộc"
+ ],
+ "299": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập vượt độ dài cho phép"
+ ],
+ "30": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Hoạt động",
+  "Kiểm tra Thẻ số liệu Hoạt động khi không có dữ liệu"
+ ],
+ "300": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập trong độ dài cho phép"
+ ],
+ "301": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "302": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập số"
+ ],
+ "303": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập nhiều dòng"
+ ],
+ "304": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập nội dung rất dài"
+ ],
+ "305": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối cắt khoảng trắng hai đầu"
+ ],
+ "307": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Button Hủy",
+  "Kiểm tra căn lề, chính tả của button"
+ ],
+ "309": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Button Thêm mới",
+  "Kiểm tra căn lề, chính tả của button"
+ ],
+ "31": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Hoạt động",
+  "Kiểm tra Thẻ số liệu Hoạt động khi giá trị lớn hoặc quá dài"
+ ],
+ "312": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Chức năng Thêm mới",
+  "Kiểm tra lưu thành công khi nhập đầy đủ các trường (tối đa độ dài cho phép)"
+ ],
+ "313": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Chức năng Thêm mới",
+  "Kiểm tra lưu đúng vào database"
+ ],
+ "314": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Chức năng Thêm mới",
+  "Kiểm tra lưu thành công khi chỉ nhập các trường bắt buộc"
+ ],
+ "315": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Chức năng Thêm mới",
+  "Kiểm tra không nhập các trường bắt buộc"
+ ],
+ "316": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Chức năng Thêm mới",
+  "Kiểm tra click liên tục vào nút lưu"
+ ],
+ "317": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Chức năng Thêm mới",
+  "Kiểm tra thao tác bằng Tab + Enter"
+ ],
+ "318": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Chức năng Thêm mới",
+  "Kiểm tra nhập trùng cùng lúc từ 2 client"
+ ],
+ "320": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "Chức năng Hủy bỏ",
+  "Kiểm tra hủy bỏ thêm mới"
+ ],
+ "322": [
+  "THÊM MỚI VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Yêu cầu quyền thêm mới"
+ ],
+ "33": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Chờ kết nối",
+  "Kiểm tra giá trị mặc định của Thẻ số liệu Chờ kết nối"
+ ],
+ "34": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Chờ kết nối",
+  "Kiểm tra Thẻ số liệu Chờ kết nối khớp dữ liệu trong hệ thống"
+ ],
+ "35": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Chờ kết nối",
+  "Kiểm tra Thẻ số liệu Chờ kết nối khi không có dữ liệu"
+ ],
+ "36": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Chờ kết nối",
+  "Kiểm tra Thẻ số liệu Chờ kết nối khi giá trị lớn hoặc quá dài"
+ ],
+ "371": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Giao diện chung",
+  "Kiểm tra hiển thị đầy đủ các thông tin trong màn hình chức năng"
+ ],
+ "379": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra giá trị mặc định Code"
+ ],
+ "38": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Ngừng hoạt động",
+  "Kiểm tra giá trị mặc định của Thẻ số liệu Ngừng hoạt động"
+ ],
+ "380": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code là trường bắt buộc"
+ ],
+ "381": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code nhập vượt độ dài cho phép"
+ ],
+ "382": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code nhập trong độ dài cho phép"
+ ],
+ "383": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "384": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code nhập số"
+ ],
+ "385": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code cắt khoảng trắng hai đầu"
+ ],
+ "386": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra copy dữ liệu dán vào ô Code"
+ ],
+ "387": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra Code nhập tiếng Việt có dấu"
+ ],
+ "388": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Code",
+  "Kiểm tra dữ liệu đã tồn tại"
+ ],
+ "39": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Ngừng hoạt động",
+  "Kiểm tra Thẻ số liệu Ngừng hoạt động khớp dữ liệu trong hệ thống"
+ ],
+ "392": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị là trường bắt buộc"
+ ],
+ "393": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập vượt độ dài cho phép"
+ ],
+ "394": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập trong độ dài cho phép"
+ ],
+ "395": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "396": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập số"
+ ],
+ "397": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị cắt khoảng trắng hai đầu"
+ ],
+ "398": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra copy dữ liệu dán vào ô Tên hiển thị"
+ ],
+ "399": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập tiếng Việt có dấu"
+ ],
+ "40": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Ngừng hoạt động",
+  "Kiểm tra Thẻ số liệu Ngừng hoạt động khi không có dữ liệu"
+ ],
+ "402": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả là trường bắt buộc"
+ ],
+ "403": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả nhập vượt độ dài cho phép"
+ ],
+ "404": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả nhập trong độ dài cho phép"
+ ],
+ "405": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "406": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả nhập số"
+ ],
+ "407": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả cắt khoảng trắng hai đầu"
+ ],
+ "408": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra copy dữ liệu dán vào ô Mô tả"
+ ],
+ "409": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Mô tả",
+  "Kiểm tra Mô tả nhập tiếng Việt có dấu"
+ ],
+ "41": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Thẻ số liệu Ngừng hoạt động",
+  "Kiểm tra Thẻ số liệu Ngừng hoạt động khi giá trị lớn hoặc quá dài"
+ ],
+ "412": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại database",
+  "Kiểm tra các giá trị có trong Loại database"
+ ],
+ "413": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại database",
+  "Kiểm tra sắp xếp các giá trị trong Loại database"
+ ],
+ "414": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại database",
+  "Kiểm tra chọn các giá trị khác nhau trong Loại database"
+ ],
+ "415": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại database",
+  "Kiểm tra hiển thị Loại database khi giá trị quá dài"
+ ],
+ "416": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Selectbox Loại database",
+  "Kiểm tra căn lề các giá trị trong Loại database"
+ ],
+ "419": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema là trường bắt buộc"
+ ],
+ "420": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema nhập vượt độ dài cho phép"
+ ],
+ "421": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema nhập trong độ dài cho phép"
+ ],
+ "422": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "423": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema nhập số"
+ ],
+ "424": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema cắt khoảng trắng hai đầu"
+ ],
+ "425": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra copy dữ liệu dán vào ô Tên schema"
+ ],
+ "426": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Tên schema",
+  "Kiểm tra Tên schema nhập tiếng Việt có dấu"
+ ],
+ "429": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định khi để trống"
+ ],
+ "43": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra hiển thị nút \"Làm mới dữ liệu\""
+ ],
+ "430": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập giá trị = 0"
+ ],
+ "431": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập quá 18 chữ số"
+ ],
+ "432": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập số âm"
+ ],
+ "433": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập số thập phân"
+ ],
+ "434": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập chữ và ký tự đặc biệt"
+ ],
+ "435": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra copy dữ liệu dán vào ô Port mặc định"
+ ],
+ "436": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra ô Port mặc định cắt khoảng trắng hai đầu"
+ ],
+ "437": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Port mặc định",
+  "Kiểm tra Port mặc định nhập tiếng Việt có dấu"
+ ],
+ "44": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra tải lại dữ liệu khi không áp dụng bộ lọc"
+ ],
+ "440": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định là trường bắt buộc"
+ ],
+ "441": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định nhập vượt độ dài cho phép"
+ ],
+ "442": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định nhập trong độ dài cho phép"
+ ],
+ "443": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "444": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định nhập số"
+ ],
+ "445": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định cắt khoảng trắng hai đầu"
+ ],
+ "446": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra copy dữ liệu dán vào ô Database mặc định"
+ ],
+ "447": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textbox Database mặc định",
+  "Kiểm tra Database mặc định nhập tiếng Việt có dấu"
+ ],
+ "449": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra giá trị mặc định Chuỗi kết nối"
+ ],
+ "45": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra tải lại dữ liệu khi ĐANG có bộ lọc/tìm kiếm"
+ ],
+ "450": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối là trường bắt buộc"
+ ],
+ "451": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập vượt độ dài cho phép"
+ ],
+ "452": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập trong độ dài cho phép"
+ ],
+ "453": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "454": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập số"
+ ],
+ "455": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập nhiều dòng"
+ ],
+ "456": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối nhập nội dung rất dài"
+ ],
+ "457": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Textarea Chuỗi kết nối",
+  "Kiểm tra Chuỗi kết nối cắt khoảng trắng hai đầu"
+ ],
+ "459": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Button Hủy",
+  "Kiểm tra căn lề, chính tả của button"
+ ],
+ "46": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra tải lại khi đang ở trang phân trang khác (Trang 2, 3...)"
+ ],
+ "461": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Button Cập nhật",
+  "Kiểm tra căn lề, chính tả của button"
+ ],
+ "464": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra cập nhật thành công khi sửa hợp lệ (tối đa độ dài cho phép)"
+ ],
+ "465": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra lưu đúng vào database"
+ ],
+ "466": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra cập nhật thành công khi chỉ sửa các trường bắt buộc"
+ ],
+ "467": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra không nhập các trường bắt buộc"
+ ],
+ "468": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra click liên tục vào nút lưu thay đổi (chuột)"
+ ],
+ "469": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra thao tác Tab + Enter liên tục"
+ ],
+ "47": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra hiệu ứng Loading khi bấm \"Làm mới dữ liệu\""
+ ],
+ "470": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra sửa trùng cùng lúc từ 2 client"
+ ],
+ "472": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Hủy bỏ",
+  "Kiểm tra hủy bỏ chỉnh sửa"
+ ],
+ "474": [
+  "CHỈNH SỬA VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Yêu cầu quyền sửa"
+ ],
+ "48": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra khi mất kết nối mạng (Offline/Network Error)"
+ ],
+ "50": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Button Bỏ chọn",
+  "Kiểm tra căn lề, chính tả của button"
+ ],
+ "52": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Danh sách vị trí lưu trữ",
+  "Kiểm tra giá trị mặc định của vị trí lưu trữ"
+ ],
+ "522": [
+  "XEM CHI TIẾT VỊ TRÍ LƯU TRỮ",
+  "Giao diện chung",
+  "Kiểm tra hiển thị đầy đủ các thông tin trong màn hình chức năng"
+ ],
+ "53": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Danh sách vị trí lưu trữ",
+  "Kiểm tra tiêu đề cột của vị trí lưu trữ"
+ ],
+ "530": [
+  "XEM CHI TIẾT VỊ TRÍ LƯU TRỮ",
+  "Hiển thị chi tiết vị trí lưu trữ",
+  "Kiểm tra Hiển thị chi tiết vị trí lưu trữ khi có trường không có dữ liệu"
+ ],
+ "531": [
+  "XEM CHI TIẾT VỊ TRÍ LƯU TRỮ",
+  "Hiển thị chi tiết vị trí lưu trữ",
+  "Kiểm tra Hiển thị chi tiết vị trí lưu trữ khi tất cả các trường đều có dữ liệu"
+ ],
+ "532": [
+  "XEM CHI TIẾT VỊ TRÍ LƯU TRỮ",
+  "Hiển thị chi tiết vị trí lưu trữ",
+  "Kiểm tra Hiển thị chi tiết vị trí lưu trữ khi dữ liệu quá dài"
+ ],
+ "533": [
+  "XEM CHI TIẾT VỊ TRÍ LƯU TRỮ",
+  "Hiển thị chi tiết vị trí lưu trữ",
+  "Kiểm tra Hiển thị chi tiết vị trí lưu trữ khớp dữ liệu trong hệ thống"
+ ],
+ "536": [
+  "XEM CHI TIẾT VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xem chi tiết",
+  "Xem & đóng màn chi tiết"
+ ],
+ "537": [
+  "XEM CHI TIẾT VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xem chi tiết",
+  "Kiểm tra dữ liệu chi tiết khớp DB"
+ ],
+ "539": [
+  "XEM CHI TIẾT VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Yêu cầu đăng nhập khi xem chi tiết"
+ ],
+ "54": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Danh sách vị trí lưu trữ",
+  "Kiểm tra vị trí lưu trữ khi không có dữ liệu"
+ ],
+ "541": [
+  "XEM CHI TIẾT VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Chống XSS ở nội dung hiển thị"
+ ],
+ "545": [
+  "KÍCH HOẠT VỊ TRÍ LƯU TRỮ",
+  "Giao diện chung",
+  "Kiểm tra hiển thị đầy đủ các thông tin trong màn hình chức năng"
+ ],
+ "55": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Danh sách vị trí lưu trữ",
+  "Kiểm tra số lượng bản ghi trên vị trí lưu trữ"
+ ],
+ "553": [
+  "KÍCH HOẠT VỊ TRÍ LƯU TRỮ",
+  "Button Kích hoạt",
+  "Kiểm tra căn lề, chính tả của button"
+ ],
+ "556": [
+  "KÍCH HOẠT VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra việc hủy bỏ thao tác chuyển trạng thái"
+ ],
+ "557": [
+  "KÍCH HOẠT VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra click icon đóng trên hộp xác nhận chuyển trạng thái"
+ ],
+ "558": [
+  "KÍCH HOẠT VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra chuyển trạng thái thành công"
+ ],
+ "559": [
+  "KÍCH HOẠT VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra chuyển trạng thái trở lại Hoạt động"
+ ],
+ "56": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Danh sách vị trí lưu trữ",
+  "Kiểm tra dữ liệu vị trí lưu trữ hiển thị đúng cột"
+ ],
+ "560": [
+  "KÍCH HOẠT VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra click liên tục vào button Chuyển trạng thái"
+ ],
+ "561": [
+  "KÍCH HOẠT VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra Tab và Enter liên tục vào button Chuyển trạng thái"
+ ],
+ "562": [
+  "KÍCH HOẠT VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra chuyển trạng thái cùng một bản ghi cùng lúc từ 2 tab hoặc 2 client khác nhau"
+ ],
+ "564": [
+  "KÍCH HOẠT VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Yêu cầu quyền thực hiện thao tác"
+ ],
+ "57": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Danh sách vị trí lưu trữ",
+  "Kiểm tra độ rộng các cột của vị trí lưu trữ"
+ ],
+ "570": [
+  "NGỪNG HOẠT ĐỘNG VỊ TRÍ LƯU TRỮ",
+  "Giao diện chung",
+  "Kiểm tra hiển thị đầy đủ các thông tin trong màn hình chức năng"
+ ],
+ "578": [
+  "NGỪNG HOẠT ĐỘNG VỊ TRÍ LƯU TRỮ",
+  "Button Ngừng hoạt động",
+  "Kiểm tra căn lề, chính tả của button"
+ ],
+ "58": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Danh sách vị trí lưu trữ",
+  "Kiểm tra vị trí lưu trữ hiển thị dữ liệu dài"
+ ],
+ "581": [
+  "NGỪNG HOẠT ĐỘNG VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra việc hủy bỏ thao tác chuyển trạng thái"
+ ],
+ "582": [
+  "NGỪNG HOẠT ĐỘNG VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra click icon đóng trên hộp xác nhận chuyển trạng thái"
+ ],
+ "583": [
+  "NGỪNG HOẠT ĐỘNG VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra chuyển trạng thái thành công"
+ ],
+ "584": [
+  "NGỪNG HOẠT ĐỘNG VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra chuyển trạng thái trở lại Hoạt động"
+ ],
+ "585": [
+  "NGỪNG HOẠT ĐỘNG VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra click liên tục vào button Chuyển trạng thái"
+ ],
+ "586": [
+  "NGỪNG HOẠT ĐỘNG VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra Tab và Enter liên tục vào button Chuyển trạng thái"
+ ],
+ "587": [
+  "NGỪNG HOẠT ĐỘNG VỊ TRÍ LƯU TRỮ",
+  "Chức năng Chuyển trạng thái",
+  "Kiểm tra chuyển trạng thái cùng một bản ghi cùng lúc từ 2 tab hoặc 2 client khác nhau"
+ ],
+ "589": [
+  "NGỪNG HOẠT ĐỘNG VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Yêu cầu quyền thực hiện thao tác"
+ ],
+ "59": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Danh sách vị trí lưu trữ",
+  "Kiểm tra điều hướng đúng trang từ vị trí lưu trữ"
+ ],
+ "595": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Giao diện chung",
+  "Kiểm tra hiển thị đầy đủ các thông tin trong màn hình chức năng"
+ ],
+ "603": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Hộp xác nhận Xóa vị trí lưu trữ",
+  "Kiểm tra nội dung Hộp xác nhận Xóa vị trí lưu trữ"
+ ],
+ "604": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Hộp xác nhận Xóa vị trí lưu trữ",
+  "Kiểm tra dữ liệu bản ghi hiện trong Hộp xác nhận Xóa vị trí lưu trữ"
+ ],
+ "605": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Hộp xác nhận Xóa vị trí lưu trữ",
+  "Kiểm tra căn lề, chính tả trên Hộp xác nhận Xóa vị trí lưu trữ"
+ ],
+ "607": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Hộp xác nhận Xóa nhiều vị trí lưu trữ đã chọn",
+  "Kiểm tra nội dung Hộp xác nhận Xóa nhiều vị trí lưu trữ đã chọn"
+ ],
+ "608": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Hộp xác nhận Xóa nhiều vị trí lưu trữ đã chọn",
+  "Kiểm tra dữ liệu bản ghi hiện trong Hộp xác nhận Xóa nhiều vị trí lưu trữ đã chọn"
+ ],
+ "609": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Hộp xác nhận Xóa nhiều vị trí lưu trữ đã chọn",
+  "Kiểm tra căn lề, chính tả trên Hộp xác nhận Xóa nhiều vị trí lưu trữ đã chọn"
+ ],
+ "61": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Checkbox bản ghi",
+  "Kiểm tra giá trị mặc định của ô tích chọn trên danh sách"
+ ],
+ "611": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Button Xóa tất cả",
+  "Kiểm tra căn lề, chính tả của button"
+ ],
+ "613": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Button Hủy",
+  "Kiểm tra căn lề, chính tả của button"
+ ],
+ "616": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xóa",
+  "Chặn xóa khi bản ghi đang được sử dụng"
+ ],
+ "617": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xóa",
+  "Xóa thành công bản ghi chưa được sử dụng"
+ ],
+ "618": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xóa",
+  "Kiểm tra dữ liệu sau khi xóa khớp DB"
+ ],
+ "619": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xóa",
+  "Xóa bản ghi không tồn tại"
+ ],
+ "62": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Checkbox bản ghi",
+  "Kiểm tra tích chọn ô tích chọn của một bản ghi"
+ ],
+ "620": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xóa",
+  "Kiểm tra việc hủy bỏ thao tác xóa"
+ ],
+ "621": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xóa",
+  "Kiểm tra click icon đóng trên màn hình xóa"
+ ],
+ "622": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xóa",
+  "Kiểm tra chọn nhiều bản ghi để xóa"
+ ],
+ "623": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xóa",
+  "Kiểm tra click liên tục vào button Xóa"
+ ],
+ "624": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xóa",
+  "Kiểm tra Tab và Enter liên tục vào button Xóa"
+ ],
+ "625": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "Chức năng Xóa",
+  "Kiểm tra khi xóa trùng dữ liệu cùng lúc từ 2 tab hoặc 2 client khác nhau"
+ ],
+ "627": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Yêu cầu quyền xóa"
+ ],
+ "629": [
+  "XÓA VỊ TRÍ LƯU TRỮ",
+  "An toàn thông tin",
+  "Xóa khi hết phiên"
+ ],
+ "63": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Checkbox bản ghi",
+  "Kiểm tra bỏ tích ô tích chọn của một bản ghi"
+ ],
+ "64": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Checkbox bản ghi",
+  "Kiểm tra tích chọn ô tích chọn tất cả trên hàng tiêu đề"
+ ],
+ "65": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Checkbox bản ghi",
+  "Kiểm tra bỏ tích ô tích chọn tất cả trên hàng tiêu đề"
+ ],
+ "66": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Checkbox bản ghi",
+  "Kiểm tra ô tích chọn khi chuyển sang trang khác"
+ ],
+ "68": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Icon",
+  "Kiểm tra biểu tượng thao tác phù hợp với chức năng"
+ ],
+ "70": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Icon",
+  "Kiểm tra chú thích hiện khi rê chuột và ẩn khi bỏ chuột"
+ ],
+ "72": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Icon",
+  "Kiểm tra nội dung và chính tả của chú thích"
+ ],
+ "79": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra giá trị mặc định ô số bản ghi trên trang"
+ ],
+ "80": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập ký tự khác số vào ô số bản ghi trên trang"
+ ],
+ "81": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập số âm vào ô số bản ghi trên trang"
+ ],
+ "82": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập 0 vào ô số bản ghi trên trang"
+ ],
+ "83": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập lớn hơn 1000 vào ô số bản ghi trên trang"
+ ],
+ "84": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập giá trị trùng một mức có sẵn trong ô chọn nhanh"
+ ],
+ "85": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập giá trị không trùng mức nào trong ô chọn nhanh"
+ ],
+ "86": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập số bản ghi trên trang nhỏ hơn tổng số bản ghi"
+ ],
+ "87": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập số bản ghi trên trang lớn hơn tổng số bản ghi"
+ ],
+ "88": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập số bản ghi trên trang bằng đúng tổng số bản ghi"
+ ],
+ "90": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Selectbox Số bản ghi trên trang",
+  "Kiểm tra giá trị mặc định ô chọn số bản ghi mỗi trang"
+ ],
+ "91": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Selectbox Số bản ghi trên trang",
+  "Kiểm tra các giá trị trong ô chọn số bản ghi mỗi trang"
+ ],
+ "92": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Selectbox Số bản ghi trên trang",
+  "Kiểm tra chọn số bản ghi mỗi trang nhỏ hơn tổng số"
+ ],
+ "93": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Selectbox Số bản ghi trên trang",
+  "Kiểm tra chọn số bản ghi mỗi trang lớn hơn hoặc bằng tổng số"
+ ],
+ "94": [
+  "DANH SÁCH VỊ TRÍ LƯU TRỮ",
+  "Selectbox Số bản ghi trên trang",
+  "Kiểm tra chọn số bản ghi mỗi trang bằng đúng tổng số bản ghi hiện có"
+ ]
+}

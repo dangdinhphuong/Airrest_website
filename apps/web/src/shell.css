@@ -107,7 +107,7 @@
 .ui-filterbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin: 0 0 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); }
 .ui-filterbar-fields { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 320px; min-width: 0; }
 .ui-filterbar-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
-.ui-tabs { margin-bottom: 12px; } .ui-tab-count { margin-left: 6px; padding: 0 6px; border-radius: 99px; background: var(--muted-bg); font-size: 11px; font-weight: 700; }
+.ui-tabs { margin-bottom: 12px; } .ui-tab-count { margin-left: 6px; padding: 0 6px; border-radius: 99px; background: var(--muted-bg); color: var(--blue-800); font-size: 11px; font-weight: 700; }
 .ui-req { color: var(--red); }
 .ui-table-wrap { border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .ui-table { margin: 0; }

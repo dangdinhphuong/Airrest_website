@@ -1,0 +1,717 @@
+{
+ "107": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Chức năng Danh sách",
+  "Kiểm tra dữ liệu danh sách khớp DB"
+ ],
+ "127": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra giá trị mặc định Trạng thái"
+ ],
+ "128": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra các giá trị có trong Trạng thái"
+ ],
+ "129": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra sắp xếp các giá trị trong Trạng thái"
+ ],
+ "130": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra chọn NHIỀU giá trị trong Trạng thái"
+ ],
+ "131": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra bỏ chọn từng giá trị trong Trạng thái"
+ ],
+ "132": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra chọn tất cả / bỏ chọn tất cả ở Trạng thái nếu có"
+ ],
+ "133": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra hiển thị Trạng thái khi chọn nhiều hoặc giá trị quá dài"
+ ],
+ "134": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra căn lề các giá trị trong Trạng thái"
+ ],
+ "135": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra cách tải dữ liệu khi danh sách Trạng thái lớn"
+ ],
+ "136": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra tìm kiếm khớp 100% dữ liệu"
+ ],
+ "137": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra tìm kiếm khớp 1 phần dữ liệu"
+ ],
+ "138": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra tìm kiếm không phân biệt hoa thường"
+ ],
+ "139": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra tìm kiếm tiếng Việt có dấu, không dấu"
+ ],
+ "141": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Textbox Tìm kiếm theo mã, tên hiển thị",
+  "Kiểm tra giá trị mặc định ô Tìm kiếm theo mã, tên hiển thị"
+ ],
+ "142": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Textbox Tìm kiếm theo mã, tên hiển thị",
+  "Kiểm tra ô Tìm kiếm theo mã, tên hiển thị nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "144": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Textbox Tìm kiếm theo mã, tên hiển thị",
+  "Kiểm tra copy nội dung dữ liệu, dán vào ô Tìm kiếm theo mã, tên hiển thị"
+ ],
+ "147": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Textbox Tìm kiếm theo mã, tên hiển thị",
+  "Kiểm tra ô Tìm kiếm theo mã, tên hiển thị cắt khoảng trắng hai đầu"
+ ],
+ "150": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Chức năng Tìm kiếm chung",
+  "Tìm kiếm theo giá trị mặc định"
+ ],
+ "151": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Chức năng Tìm kiếm chung",
+  "Tìm kiếm không ra kết quả với từng điều kiện tìm kiếm hoặc tất cả các điều kiện"
+ ],
+ "152": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Chức năng Tìm kiếm chung",
+  "Tìm kiếm kết hợp tất cả các điều kiện tìm kiếm"
+ ],
+ "153": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Chức năng Tìm kiếm chung",
+  "Thực hiện tìm kiếm lần lượt 2 điều kiện khác nhau nhưng đều ra số bản ghi kết quả giống nhau"
+ ],
+ "156": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Tìm kiếm với:"
+ ],
+ "157": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Chọn 1 giá trị của Trạng thái"
+ ],
+ "159": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Textbox Tìm kiếm theo mã, tên hiển thị",
+  "Tìm kiếm khi nhập:"
+ ],
+ "160": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Textbox Tìm kiếm theo mã, tên hiển thị",
+  "Tìm kiếm khi nhập:"
+ ],
+ "161": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Textbox Tìm kiếm theo mã, tên hiển thị",
+  "Tìm kiếm tương đối:"
+ ],
+ "163": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Textbox Tìm kiếm theo mã, tên hiển thị",
+  "Tìm kiếm khi nhập chữ tiếng việt có dấu"
+ ],
+ "164": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Textbox Tìm kiếm theo mã, tên hiển thị",
+  "Tìm kiếm khi nhập dữ liệu không giới hạn"
+ ],
+ "166": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Chức năng Tìm kiếm kết hợp",
+  "Kiểm tra tìm kiếm kết hợp 2 tiêu chí"
+ ],
+ "167": [
+  "TÌM KIẾM & LỌC NHÓM NGUỒN",
+  "Chức năng Tìm kiếm kết hợp",
+  "Kiểm tra bỏ dần từng tiêu chí đang áp"
+ ],
+ "187": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra giá trị mặc định Code"
+ ],
+ "188": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code là trường bắt buộc"
+ ],
+ "189": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code nhập vượt độ dài cho phép"
+ ],
+ "190": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code nhập trong độ dài cho phép"
+ ],
+ "191": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "192": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code nhập số"
+ ],
+ "193": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code cắt khoảng trắng hai đầu"
+ ],
+ "194": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra copy dữ liệu dán vào ô Code"
+ ],
+ "195": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code nhập tiếng Việt có dấu"
+ ],
+ "196": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra dữ liệu đã tồn tại"
+ ],
+ "198": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra giá trị mặc định Tên hiển thị"
+ ],
+ "199": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị là trường bắt buộc"
+ ],
+ "200": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập vượt độ dài cho phép"
+ ],
+ "201": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập trong độ dài cho phép"
+ ],
+ "202": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "204": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị cắt khoảng trắng hai đầu"
+ ],
+ "207": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra dữ liệu đã tồn tại"
+ ],
+ "209": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra giá trị mặc định Trạng thái"
+ ],
+ "210": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra các giá trị có trong Trạng thái"
+ ],
+ "211": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra sắp xếp các giá trị trong Trạng thái"
+ ],
+ "212": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra chọn các giá trị khác nhau trong Trạng thái"
+ ],
+ "213": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra hiển thị Trạng thái khi giá trị quá dài"
+ ],
+ "221": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Chức năng Thêm mới",
+  "Kiểm tra lưu thành công khi nhập đầy đủ các trường (tối đa độ dài cho phép)"
+ ],
+ "223": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Chức năng Thêm mới",
+  "Kiểm tra lưu thành công khi chỉ nhập các trường bắt buộc"
+ ],
+ "224": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Chức năng Thêm mới",
+  "Kiểm tra không nhập các trường bắt buộc"
+ ],
+ "225": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Chức năng Thêm mới",
+  "Kiểm tra click liên tục vào nút lưu"
+ ],
+ "226": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Chức năng Thêm mới",
+  "Kiểm tra thao tác bằng Tab + Enter"
+ ],
+ "227": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Chức năng Thêm mới",
+  "Kiểm tra nhập trùng cùng lúc từ 2 client"
+ ],
+ "229": [
+  "THÊM MỚI NHÓM NGUỒN",
+  "Chức năng Hủy bỏ",
+  "Kiểm tra hủy bỏ thêm mới"
+ ],
+ "23": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Tổng nhóm nguồn",
+  "Kiểm tra giá trị mặc định của Thẻ số liệu Tổng nhóm nguồn"
+ ],
+ "24": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Tổng nhóm nguồn",
+  "Kiểm tra Thẻ số liệu Tổng nhóm nguồn khớp dữ liệu trong hệ thống"
+ ],
+ "25": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Tổng nhóm nguồn",
+  "Kiểm tra Thẻ số liệu Tổng nhóm nguồn khi không có dữ liệu"
+ ],
+ "258": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra giá trị mặc định Code"
+ ],
+ "259": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code là trường bắt buộc"
+ ],
+ "26": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Tổng nhóm nguồn",
+  "Kiểm tra Thẻ số liệu Tổng nhóm nguồn khi giá trị lớn hoặc quá dài"
+ ],
+ "260": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code nhập vượt độ dài cho phép"
+ ],
+ "261": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code nhập trong độ dài cho phép"
+ ],
+ "262": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "263": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code nhập số"
+ ],
+ "264": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code cắt khoảng trắng hai đầu"
+ ],
+ "265": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra copy dữ liệu dán vào ô Code"
+ ],
+ "266": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra Code nhập tiếng Việt có dấu"
+ ],
+ "267": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra dữ liệu đã tồn tại"
+ ],
+ "268": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Code",
+  "Kiểm tra giữ nguyên giá trị cũ của Code"
+ ],
+ "270": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra giá trị mặc định Tên hiển thị"
+ ],
+ "271": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị là trường bắt buộc"
+ ],
+ "272": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập vượt độ dài cho phép"
+ ],
+ "274": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị nhập ký tự đặc biệt, thẻ html, script"
+ ],
+ "276": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra Tên hiển thị cắt khoảng trắng hai đầu"
+ ],
+ "279": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra dữ liệu đã tồn tại"
+ ],
+ "28": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Đang hoạt động",
+  "Kiểm tra giá trị mặc định của Thẻ số liệu Đang hoạt động"
+ ],
+ "280": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Textbox Tên hiển thị",
+  "Kiểm tra giữ nguyên giá trị cũ của Tên hiển thị"
+ ],
+ "282": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra giá trị mặc định Trạng thái"
+ ],
+ "283": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra các giá trị có trong Trạng thái"
+ ],
+ "285": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Selectbox Trạng thái",
+  "Kiểm tra chọn các giá trị khác nhau trong Trạng thái"
+ ],
+ "29": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Đang hoạt động",
+  "Kiểm tra Thẻ số liệu Đang hoạt động khớp dữ liệu trong hệ thống"
+ ],
+ "294": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra cập nhật thành công khi sửa hợp lệ (tối đa độ dài cho phép)"
+ ],
+ "296": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra cập nhật thành công khi chỉ sửa các trường bắt buộc"
+ ],
+ "297": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra không nhập các trường bắt buộc"
+ ],
+ "298": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra click liên tục vào nút lưu thay đổi (chuột)"
+ ],
+ "299": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra thao tác Tab + Enter liên tục"
+ ],
+ "30": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Đang hoạt động",
+  "Kiểm tra Thẻ số liệu Đang hoạt động khi không có dữ liệu"
+ ],
+ "300": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Chức năng Chỉnh sửa",
+  "Kiểm tra sửa trùng cùng lúc từ 2 client"
+ ],
+ "302": [
+  "CHỈNH SỬA NHÓM NGUỒN",
+  "Chức năng Hủy bỏ",
+  "Kiểm tra hủy bỏ chỉnh sửa"
+ ],
+ "31": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Đang hoạt động",
+  "Kiểm tra Thẻ số liệu Đang hoạt động khi giá trị lớn hoặc quá dài"
+ ],
+ "33": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Không hoạt động / Lưu trữ",
+  "Kiểm tra giá trị mặc định của Thẻ số liệu Không hoạt động / Lưu trữ"
+ ],
+ "330": [
+  "XÓA NHÓM NGUỒN",
+  "Hộp xác nhận Xóa nhóm nguồn",
+  "Kiểm tra nội dung Hộp xác nhận Xóa nhóm nguồn"
+ ],
+ "331": [
+  "XÓA NHÓM NGUỒN",
+  "Hộp xác nhận Xóa nhóm nguồn",
+  "Kiểm tra dữ liệu bản ghi hiện trong Hộp xác nhận Xóa nhóm nguồn"
+ ],
+ "332": [
+  "XÓA NHÓM NGUỒN",
+  "Hộp xác nhận Xóa nhóm nguồn",
+  "Kiểm tra căn lề, chính tả trên Hộp xác nhận Xóa nhóm nguồn"
+ ],
+ "334": [
+  "XÓA NHÓM NGUỒN",
+  "Hộp xác nhận Xóa nhiều nhóm nguồn đã chọn",
+  "Kiểm tra nội dung Hộp xác nhận Xóa nhiều nhóm nguồn đã chọn"
+ ],
+ "335": [
+  "XÓA NHÓM NGUỒN",
+  "Hộp xác nhận Xóa nhiều nhóm nguồn đã chọn",
+  "Kiểm tra dữ liệu bản ghi hiện trong Hộp xác nhận Xóa nhiều nhóm nguồn đã chọn"
+ ],
+ "336": [
+  "XÓA NHÓM NGUỒN",
+  "Hộp xác nhận Xóa nhiều nhóm nguồn đã chọn",
+  "Kiểm tra căn lề, chính tả trên Hộp xác nhận Xóa nhiều nhóm nguồn đã chọn"
+ ],
+ "338": [
+  "XÓA NHÓM NGUỒN",
+  "Button Xóa tất cả",
+  "Kiểm tra căn lề, chính tả của button"
+ ],
+ "34": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Không hoạt động / Lưu trữ",
+  "Kiểm tra Thẻ số liệu Không hoạt động / Lưu trữ khớp dữ liệu trong hệ thống"
+ ],
+ "343": [
+  "XÓA NHÓM NGUỒN",
+  "Chức năng Xóa",
+  "Chặn xóa khi bản ghi đang được sử dụng"
+ ],
+ "344": [
+  "XÓA NHÓM NGUỒN",
+  "Chức năng Xóa",
+  "Xóa thành công bản ghi chưa được sử dụng"
+ ],
+ "346": [
+  "XÓA NHÓM NGUỒN",
+  "Chức năng Xóa",
+  "Xóa bản ghi không tồn tại"
+ ],
+ "347": [
+  "XÓA NHÓM NGUỒN",
+  "Chức năng Xóa",
+  "Kiểm tra việc hủy bỏ thao tác xóa"
+ ],
+ "348": [
+  "XÓA NHÓM NGUỒN",
+  "Chức năng Xóa",
+  "Kiểm tra click icon đóng trên màn hình xóa"
+ ],
+ "349": [
+  "XÓA NHÓM NGUỒN",
+  "Chức năng Xóa",
+  "Kiểm tra chọn nhiều bản ghi để xóa"
+ ],
+ "35": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Không hoạt động / Lưu trữ",
+  "Kiểm tra Thẻ số liệu Không hoạt động / Lưu trữ khi không có dữ liệu"
+ ],
+ "350": [
+  "XÓA NHÓM NGUỒN",
+  "Chức năng Xóa",
+  "Kiểm tra click liên tục vào button Xóa"
+ ],
+ "351": [
+  "XÓA NHÓM NGUỒN",
+  "Chức năng Xóa",
+  "Kiểm tra Tab và Enter liên tục vào button Xóa"
+ ],
+ "352": [
+  "XÓA NHÓM NGUỒN",
+  "Chức năng Xóa",
+  "Kiểm tra khi xóa trùng dữ liệu cùng lúc từ 2 tab hoặc 2 client khác nhau"
+ ],
+ "36": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Thẻ số liệu Không hoạt động / Lưu trữ",
+  "Kiểm tra Thẻ số liệu Không hoạt động / Lưu trữ khi giá trị lớn hoặc quá dài"
+ ],
+ "361": [
+  "XUẤT EXCEL NHÓM NGUỒN",
+  "Giao diện chung",
+  "Kiểm tra file excel xuất ra"
+ ],
+ "364": [
+  "XUẤT EXCEL NHÓM NGUỒN",
+  "Chức năng Xuất excel",
+  "Kiểm tra dữ liệu xuất ra khớp hệ thống"
+ ],
+ "366": [
+  "XUẤT EXCEL NHÓM NGUỒN",
+  "Chức năng Xuất excel",
+  "Kiểm tra xuất theo bộ lọc hiện tại"
+ ],
+ "367": [
+  "XUẤT EXCEL NHÓM NGUỒN",
+  "Chức năng Xuất excel",
+  "Kiểm tra bấm xuất khi danh sách rỗng"
+ ],
+ "369": [
+  "XUẤT EXCEL NHÓM NGUỒN",
+  "Chức năng Xuất excel",
+  "Kiểm tra bấm xuất Excel liên tiếp nhiều lượt"
+ ],
+ "370": [
+  "XUẤT EXCEL NHÓM NGUỒN",
+  "Chức năng Xuất excel",
+  "Kiểm tra click liên tục vào nút xuất"
+ ],
+ "38": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra hiển thị nút \"Làm mới dữ liệu\""
+ ],
+ "39": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra tải lại dữ liệu khi không áp dụng bộ lọc"
+ ],
+ "40": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra tải lại dữ liệu khi ĐANG có bộ lọc/tìm kiếm"
+ ],
+ "41": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra tải lại khi đang ở trang phân trang khác (Trang 2, 3...)"
+ ],
+ "42": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra hiệu ứng Loading khi bấm \"Làm mới dữ liệu\""
+ ],
+ "43": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Button Làm mới dữ liệu",
+  "Kiểm tra khi mất kết nối mạng (Offline/Network Error)"
+ ],
+ "45": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Button Bỏ chọn",
+  "Kiểm tra căn lề, chính tả của button"
+ ],
+ "48": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Danh sách nhóm nguồn",
+  "Kiểm tra tiêu đề cột của nhóm nguồn"
+ ],
+ "49": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Danh sách nhóm nguồn",
+  "Kiểm tra nhóm nguồn khi không có dữ liệu"
+ ],
+ "53": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Danh sách nhóm nguồn",
+  "Kiểm tra nhóm nguồn hiển thị dữ liệu dài"
+ ],
+ "54": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Danh sách nhóm nguồn",
+  "Kiểm tra điều hướng đúng trang từ nhóm nguồn"
+ ],
+ "59": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Checkbox bản ghi",
+  "Kiểm tra tích chọn ô tích chọn tất cả trên hàng tiêu đề"
+ ],
+ "61": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Checkbox bản ghi",
+  "Kiểm tra ô tích chọn khi chuyển sang trang khác"
+ ],
+ "64": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Icon",
+  "Kiểm tra màu icon xóa nếu có"
+ ],
+ "74": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra giá trị mặc định ô số bản ghi trên trang"
+ ],
+ "77": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập 0 vào ô số bản ghi trên trang"
+ ],
+ "78": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập lớn hơn 1000 vào ô số bản ghi trên trang"
+ ],
+ "79": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập giá trị trùng một mức có sẵn trong ô chọn nhanh"
+ ],
+ "80": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Textbox Số bản ghi trên trang",
+  "Kiểm tra nhập giá trị không trùng mức nào trong ô chọn nhanh"
+ ],
+ "85": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Selectbox Số bản ghi trên trang",
+  "Kiểm tra giá trị mặc định ô chọn số bản ghi mỗi trang"
+ ],
+ "86": [
+  "DANH SÁCH NHÓM NGUỒN",
+  "Selectbox Số bản ghi trên trang",
+  "Kiểm tra các giá trị trong ô chọn số bản ghi mỗi trang"
+ ]
+}

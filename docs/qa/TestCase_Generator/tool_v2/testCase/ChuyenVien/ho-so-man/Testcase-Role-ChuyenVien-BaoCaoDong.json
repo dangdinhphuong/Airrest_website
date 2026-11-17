@@ -1,0 +1,975 @@
+{
+ "title": "Báo cáo động",
+ "prefix": "BaoCaoDong",
+ "sheet": "BP-BaoCaoDong",
+ "url": [
+  "https://moet-datalake.saas.vsystem.vn/dynamic-reports",
+  "https://moet-datalake.saas.vsystem.vn/dynamic-reports/create",
+  "https://moet-datalake.saas.vsystem.vn/dynamic-reports/:id",
+  "https://moet-datalake.saas.vsystem.vn/dynamic-reports/:id/edit-chart"
+ ],
+ "nav": [
+  "Báo cáo",
+  "Báo cáo động"
+ ],
+ "grounding": {
+  "ngay": "2026-09-10",
+  "cach": [
+   "BA/SRS bắt buộc: Tai-lieu/Báo cáo động.docx — §3 Module Báo cáo động (Dynamic Reports): §3.3 phạm vi 24 chức năng, §3.9 GBR-01..GBR-10, §3.11 điều hướng, §3.12 danh sách 11 màn BCD-S01..S11, §3.13 phân quyền, §3.14 từ điển dữ liệu, §3.16.1..§3.16.24 đặc tả UC-BCD-01..UC-BCD-24",
+   "probe_fe.py https://moet-datalake.saas.vsystem.vn/dynamic-reports --save (bundle FE, giữ 26 file .js)",
+   "probe_routes.py cùng URL --sau -> 1 CHÍNH · 3 PHỤ · 0 CHƯA RÕ LỐI VÀO (/dynamic-reports/create · /dynamic-reports/:id · /dynamic-reports/:id/edit-chart)",
+   "probe_live.py cùng URL và --sau với QA_HOME_PREFIX=/ (đăng nhập admin_csdl@moet.gov.vn): xác nhận sidebar BÁO CÁO > Báo cáo động, thứ tự thanh lọc, 7 nhãn cột bảng thẻ Báo cáo, 3 bộ icon KHÁC NHAU theo trạng thái dòng, nút đầu màn Tạo báo cáo, phân trang (ô Nhập số trang: không), và thẻ Bộ dữ liệu (6 nhãn cột + nút Thêm bộ dữ liệu)",
+   "đọc TRỌN chunk riêng của màn: BIDynamicReportsPage-1869nl6V.js (19143 byte, thẻ Báo cáo) · BIDatasetTab-Bw7e7xaY.js (12882 byte, thẻ Bộ dữ liệu) · AddDatasetModal-BwkJYici.js (8163 byte) · BIDynamicReportsCreatePage-7xTF08L-.js (23505 byte, wizard + chế độ sửa) · ChartConfigPanel-D4bJtaSd.js (43143 byte) · BIDynamicReportsDetailPage-cNdoGRTO.js (13392 byte) · bi-dynamic-reports.service-Bgz7mDj7.js · trino-browse.service-CQsIONHY.js · BulkActionBar · BIPagination + StandardTablePagination · EmptyState · useSearchQuery + useDebounce · component dùng chung trong index-zeOBzuws.js (AH FilterSelect · ise RowActions · phân trang inline · AddDatasetModal combobox)",
+   "ẢNH CHỤP MÀN THẬT do người đặt việc gửi 2026-09-10 16:21 (tài khoản Admin CSDL / Chuyên viên): 2 ảnh — thẻ Báo cáo (3 bản ghi, 3 trạng thái) và thẻ Bộ dữ liệu (26 bản ghi GOLD); xác nhận tiêu đề, mô tả đầu màn, badge số lượng trên 2 thẻ, thanh lọc, nhãn cột, icon theo trạng thái dòng, nhãn phân trang"
+  ],
+  "chunk_man": "BIDynamicReportsPage-1869nl6V.js (19143 byte) — thẻ Báo cáo + vỏ màn; thẻ Bộ dữ liệu tách sang BIDatasetTab-Bw7e7xaY.js (lazy), modal Thêm bộ dữ liệu sang AddDatasetModal-BwkJYici.js, wizard sang BIDynamicReportsCreatePage-7xTF08L-.js (dùng chung cho cả /create lẫn /:id/edit-chart), màn Chi tiết sang BIDynamicReportsDetailPage-cNdoGRTO.js",
+  "api": [
+   "gốc REST: /api/db-tool/v1/bi — kèm header Authorization: Bearer <token>",
+   "listReports(search, statuses, page, pageSize) — danh sách báo cáo; TÌM KIẾM + LỌC + PHÂN TRANG đều SERVER-SIDE",
+   "publishReport(id) · downloadReport(id) · archiveReport(id) (xóa mềm) · restoreReport(id) · hardDeleteReport(id)",
+   "exportReportsExcel({statuses, search}) — xuất Excel danh sách báo cáo theo đúng bộ lọc đang áp dụng",
+   "createReport + AddReportChart / UpdateReportChart / RemoveReportChart — wizard Tạo báo cáo và Sửa biểu đồ",
+   "GetBIReport(id) — màn Chi tiết; kèm lấy guest token nhúng dashboard Superset qua @superset-ui/embedded-sdk",
+   "listDatasets(search, statuses, zones, page, pageSize) · createDataset · activateDataset · updateDataset({status}) · deleteDataset · getDatasetUsage(id) · refreshDatasetSchemas() · exportDatasetsExcel({search, statuses, zones})",
+   "/api/db-tool/v1/bi/trino — duyệt Catalog / Schema / Bảng-View cho modal Thêm bộ dữ liệu (3 lệnh gọi tầng bậc)"
+  ],
+  "thao_tac_duoc_noi": [
+   "list báo cáo (tìm kiếm + lọc trạng thái + phân trang gửi lên MÁY CHỦ)",
+   "reload báo cáo (nút Làm mới dữ liệu — CÓ thông báo nổi Đã làm mới)",
+   "export báo cáo ra Excel (theo đúng bộ lọc/từ khóa đang áp dụng)",
+   "publish 1 báo cáo (icon Xuất bản, KHÔNG có hộp xác nhận)",
+   "download 1 báo cáo (icon Tải về, KHÔNG có hộp xác nhận)",
+   "archive 1 báo cáo = xóa mềm (icon Xóa, CÓ hộp xác nhận riêng)",
+   "restore 1 báo cáo (icon Khôi phục, KHÔNG có hộp xác nhận)",
+   "hard-delete 1 báo cáo (icon Xóa vĩnh viễn, CÓ hộp xác nhận riêng)",
+   "bulk publish / archive / restore / hard-delete nhiều báo cáo (thanh nổi dưới bảng; chỉ hard-delete có hộp xác nhận)",
+   "create báo cáo qua wizard 3 bước ở /dynamic-reports/create (bấm Tạo báo cáo ở đầu màn)",
+   "detail báo cáo ở /dynamic-reports/:id (bấm 1 dòng trên bảng)",
+   "update biểu đồ ở /dynamic-reports/:id/edit-chart (icon Chỉnh sửa của dòng Bản nháp, hoặc nút Sửa biểu đồ ở màn Chi tiết)",
+   "list bộ dữ liệu (tìm kiếm + 2 ô lọc + phân trang gửi lên MÁY CHỦ)",
+   "reload bộ dữ liệu (nút Làm mới dữ liệu — KHÔNG có thông báo nổi, kèm làm mới cache schema Trino chạy nền)",
+   "export bộ dữ liệu ra Excel",
+   "create bộ dữ liệu qua modal Thêm bộ dữ liệu (Catalog -> Schema -> Bảng/View tầng bậc)",
+   "activate / deactivate 1 bộ dữ liệu (KHÔNG có hộp xác nhận)",
+   "delete 1 bộ dữ liệu (CÓ hộp xác nhận, kèm kiểm tra báo cáo đang dùng)",
+   "bulk activate / deactivate / delete nhiều bộ dữ liệu"
+  ],
+  "khong_co": [
+   "Nhập excel — service bi-dynamic-reports KHÔNG có hàm import nào, cả 2 thẻ đều không có nút Nhập",
+   "Thẻ Mẫu báo cáo — BA §3.1 ghi rõ thẻ thứ 3 này ĐÃ ĐƯỢC GỠ khỏi giao diện trước khi viết tài liệu, bundle FE cũng không còn",
+   "Biểu đồ pivot (pivot_table_v2) — BA §3.16.15 AF-05: có đủ logic xử lý nhưng KHÔNG có thẻ chọn trên giao diện (chỉ 4 thẻ Cột/Đường/Tròn/Bảng) nên không vào được từ wizard",
+   "Ô Nhập số trang — StandardTablePagination để pageInput mặc định false, probe_live đọc ô \"Nhập số trang\": không",
+   "Breadcrumb ở màn danh sách — PageHeader của /dynamic-reports KHÔNG truyền breadcrumbs; probe_live cũng không đọc được. Chỉ wizard (/create · /:id/edit-chart) mới có breadcrumb riêng",
+   "Sắp xếp theo tiêu đề cột — cả 2 thẻ dùng HeaderCell thường, KHÔNG dùng SortableHeader; màn cũng không có ô chọn Sắp xếp",
+   "Nút Xóa lọc / panel Bộ lọc gộp — thẻ Báo cáo có 2 ô lọc, thẻ Bộ dữ liệu có 3, đều dưới ngưỡng gộp; xoá lọc làm bằng dấu X trên từng ô hoặc dòng Tất cả",
+   "Nút Thêm hành động (overflow ⋮) ở thẻ Báo cáo — RowActions để maxInline = 4 mà mỗi dòng nhiều nhất chỉ hiện 4 icon nên không bao giờ gộp; riêng thẻ Bộ dữ liệu thì cột Hành động CHỈ có 1 nút ⋮ mở danh sách 2 mục",
+   "Hộp xác nhận cho Xuất bản / Tải về / Khôi phục (đơn lẻ) và Kích hoạt / Tắt bộ dữ liệu — 5 thao tác này gọi API NGAY khi bấm",
+   "Hộp xác nhận cho Xóa hàng loạt báo cáo (xóa mềm) — BA §3.16.6 AF-03: thực thi ngay, KHÁC xóa đơn lẻ",
+   "Luồng khôi phục bộ dữ liệu đã xóa — BA BR-BCD-24-3: không có; muốn dùng lại phải khai báo mới",
+   "Thanh phân trang khi danh sách rỗng — BIPagination trả null khi tổng số bản ghi = 0",
+   "Phân quyền theo vai trò ở tầng giao diện — BA §3.4 + §3.13 + GBR-10: router KHÔNG gắn RequireRole cho cả 4 route, code 3 trang không có điểm kiểm vai trò nào"
+  ],
+  "hang_so": {
+   "page_size_mac_dinh_bao_cao": 20,
+   "page_size_dang_dung_tren_man": 10,
+   "page_size_toi_da": 1000,
+   "tim_kiem_min_ky_tu": 3,
+   "tim_kiem_debounce_ms": 1500,
+   "tim_kiem_max_ky_tu": 250,
+   "tim_kiem_phim_enter": "Nhấn Enter áp ngay, bỏ qua thời gian chờ 1500 ms",
+   "tim_kiem_duoi_nguong": "Dưới 3 ký tự thì hệ thống KHÔNG áp lọc và KHÔNG hiện thông báo nào (query bị đặt lại rỗng)",
+   "tim_kiem_pham_vi_bao_cao": "gửi lên MÁY CHỦ qua tham số search của listReports — khớp kiểu chứa chuỗi con trên tên báo cáo và tên bộ dữ liệu",
+   "tim_kiem_pham_vi_bo_du_lieu": "gửi lên MÁY CHỦ qua tham số search của listDatasets — khớp trên trino_catalog.trino_schema.trino_table",
+   "doi_tu_khoa_reset_trang": "Đổi từ khóa hoặc đổi bộ lọc đều đặt lại trang về 1",
+   "ten_bao_cao_max_dom": 250,
+   "mo_ta_bao_cao_max_dom": "KHÔNG đặt maxLength — ô textarea nhập không giới hạn ở FE",
+   "so_bieu_do_toi_da": 6,
+   "so_bieu_do_toi_thieu": 1,
+   "trang_thai_bao_cao": [
+    "DRAFT",
+    "PUBLISHED",
+    "ARCHIVED"
+   ],
+   "trang_thai_bo_du_lieu": [
+    "ACTIVE",
+    "DISABLED",
+    "PROVISIONING"
+   ],
+   "vung_du_lieu": [
+    "GOLD",
+    "DIAMOND"
+   ],
+   "phan_loai_bo_du_lieu": [
+    "TABLE",
+    "VIEW",
+    "MART",
+    "STAR_SCHEMA"
+   ],
+   "loc_trang_thai_che_do": "SINGLE-select (component AH mode=single) — CÓ ô tìm kiếm bên trong, đóng ngay sau khi chọn, chọn lại chính dòng đang chọn thì bỏ chọn",
+   "loc_vung_che_do": "SINGLE-select giống ô Trạng thái",
+   "loc_tim_khong_dau": "Ô tìm bên trong ô chọn bỏ dấu và đổi đ->d trước khi so khớp",
+   "chon_dong_pham_vi": "Ô tích LUÔN hiện trên MỌI dòng của cả 2 thẻ, không phụ thuộc bộ lọc (BA BR-BCD-02-2 / BR-BCD-19-3); ô tích ở hàng tiêu đề gom các dòng CỦA TRANG ĐANG XEM và có trạng thái đã chọn một phần",
+   "doi_trang_giu_lua_chon_bao_cao": "Thẻ Báo cáo: đổi TRANG KHÔNG đặt lại ô tích, chỉ đổi số bản ghi/trang mới đặt lại (BA BR-BCD-03-2)",
+   "doi_trang_giu_lua_chon_bo_du_lieu": "Thẻ Bộ dữ liệu: đổi trang HOẶC đổi số bản ghi/trang đều đặt lại ô tích (BA BR-BCD-20-2)",
+   "icon_toi_da_hien_thang": 4,
+   "nut_hang_loat_theo_trang_thai_thuc": "Số N trên từng nút hàng loạt tính theo trạng thái THỰC của các dòng đã tích, ĐỘC LẬP với bộ lọc đang áp dụng; một báo cáo Bản nháp được tính vào CẢ nút Xuất bản lẫn nút Xóa"
+  },
+  "verbatim": {
+   "tieu_de_man": "Báo cáo động",
+   "mo_ta_man": "Tạo và quản lý báo cáo động trên dữ liệu Gold/Diamond.",
+   "nut_dau_man": [
+    "Tạo báo cáo",
+    "Thêm bộ dữ liệu"
+   ],
+   "the_phan_he": [
+    "Báo cáo",
+    "Bộ dữ liệu"
+   ],
+   "the_phan_he_badge": "số bản ghi khớp bộ lọc hiện tại, hiện ngay sau tên thẻ",
+   "placeholder_loc_trang_thai": "-- Chọn trạng thái --",
+   "tuy_chon_loc_trang_thai_bao_cao": [
+    "Tất cả trạng thái",
+    "Bản nháp",
+    "Đã xuất bản",
+    "Đã xóa"
+   ],
+   "placeholder_loc_vung": "-- Chọn vùng --",
+   "tuy_chon_loc_vung": [
+    "Tất cả vùng",
+    "GOLD",
+    "DIAMOND"
+   ],
+   "tuy_chon_loc_trang_thai_bo_du_lieu": [
+    "Tất cả trạng thái",
+    "Đang hoạt động",
+    "Đã tắt"
+   ],
+   "tim_trong_selectbox": "Tìm kiếm...",
+   "selectbox_khong_thay": "Không tìm thấy",
+   "placeholder_tim_bao_cao": "Tìm theo tên báo cáo, bộ dữ liệu",
+   "placeholder_tim_bo_du_lieu": "Tìm theo tên bảng dữ liệu",
+   "tooltip_xoa_tu_khoa": "Xóa tìm kiếm",
+   "nut_xuat_excel": "Xuất Excel",
+   "nut_xuat_excel_dang_xu_ly": "Đang xuất...",
+   "tooltip_lam_moi": "Làm mới dữ liệu",
+   "toast_lam_moi": "Đã làm mới",
+   "nhan_cap_nhat": "Cập nhật: {d/m/yyyy hh:mm}",
+   "cot_bang_bao_cao": [
+    "STT",
+    "Tên báo cáo",
+    "Bộ dữ liệu",
+    "Trạng thái",
+    "Cập nhật lúc",
+    "Hành động"
+   ],
+   "cot_bang_bo_du_lieu": [
+    "STT",
+    "Bảng",
+    "Vùng dữ liệu",
+    "Ngày tạo",
+    "Trạng thái",
+    "Hành động"
+   ],
+   "o_bo_du_lieu_tren_dong": "mỗi bộ dữ liệu hiện thành một thẻ chữ {trino_schema}.{trino_table}; không có bộ dữ liệu nào thì hiện dấu —",
+   "o_bang_tren_dong_bo_du_lieu": "{trino_catalog}.{trino_schema}.{trino_table}",
+   "badge_trang_thai_bao_cao": [
+    "Bản nháp",
+    "Đã xuất bản",
+    "Đã xóa (nền đỏ chữ trắng)"
+   ],
+   "badge_trang_thai_bo_du_lieu": [
+    "Đang hoạt động",
+    "Đã vô hiệu hóa",
+    "Đang cấp phát"
+   ],
+   "dinh_dang_ngay": "d/m/yyyy hh:mm — giá trị không đọc được thì hiện dấu —",
+   "icon_ban_ghi_bao_cao": [
+    "Xuất bản",
+    "Tải về",
+    "Khôi phục",
+    "Xóa vĩnh viễn",
+    "Chỉnh sửa",
+    "Xóa"
+   ],
+   "dieu_kien_hien_icon_bao_cao": "Xuất bản và Chỉnh sửa chỉ hiện khi Bản nháp · Tải về hiện khi trạng thái KHÁC Đã xóa VÀ đã có mã dashboard Superset > 0 · Khôi phục và Xóa vĩnh viễn chỉ hiện khi Đã xóa · Xóa hiện khi trạng thái KHÁC Đã xóa. Thực tế trên màn: dòng Bản nháp 4 icon (Xuất bản · Tải về · Chỉnh sửa · Xóa), dòng Đã xuất bản 2 icon (Tải về · Xóa), dòng Đã xóa 2 icon (Khôi phục · Xóa vĩnh viễn)",
+   "menu_ban_ghi_bo_du_lieu": [
+    "Kích hoạt",
+    "Tắt",
+    "Xóa"
+   ],
+   "dieu_kien_menu_bo_du_lieu": "Cột Hành động chỉ có 1 nút ⋮; mục đầu là Tắt khi đang hoạt động và Kích hoạt khi đã tắt; mục Xóa luôn có, chữ đỏ",
+   "click_dong": "Bấm vào 1 dòng của thẻ Báo cáo là điều hướng sang /dynamic-reports/{id}; bấm vào ô tích hoặc cột Hành động thì KHÔNG điều hướng",
+   "thanh_hang_loat": [
+    "{N} mục đã chọn",
+    "Bỏ chọn tất cả"
+   ],
+   "nut_hang_loat_bao_cao": [
+    "Xuất bản {N} mục",
+    "Xóa {N} mục",
+    "Khôi phục {N} mục",
+    "Xóa vĩnh viễn {N} mục"
+   ],
+   "nut_hang_loat_bo_du_lieu": [
+    "Tắt {N} mục",
+    "Kích hoạt {N} mục",
+    "Xóa {N} mục"
+   ],
+   "phan_trang": [
+    "Số bản ghi/trang:",
+    "Tổng số bản ghi:",
+    "Chọn nhanh số bản ghi",
+    "Trang đầu",
+    "Trang trước",
+    "Trang sau",
+    "Trang cuối"
+   ],
+   "loi_page_size": [
+    "Số bản ghi/trang phải lớn hơn 0",
+    "Số bản ghi/trang phải là số nguyên",
+    "Số bản ghi/trang tối đa 1000 bản ghi"
+   ],
+   "rong_khong_du_lieu_bao_cao": [
+    "Chưa có báo cáo nào",
+    "Báo cáo động được tạo theo 2 bước: khai báo bộ dữ liệu → tạo báo cáo.",
+    "1. Khai báo bộ dữ liệu",
+    "Chọn bảng ở tầng GOLD/DIAMOND được phép báo cáo",
+    "2. Tạo báo cáo",
+    "Chọn bộ dữ liệu rồi cấu hình tối đa 6 biểu đồ"
+   ],
+   "rong_theo_loc_bao_cao": [
+    "Chưa có báo cáo đã xuất bản",
+    "Chưa có báo cáo đã xóa",
+    "Không có báo cáo khớp bộ lọc",
+    "Các báo cáo sau khi hoàn tất cấu hình sẽ xuất hiện tại đây.",
+    "Thử điều chỉnh bộ lọc hoặc xóa bộ lọc để xem tất cả báo cáo.",
+    "Xem bản nháp"
+   ],
+   "loi_tai_danh_sach": [
+    "Không thể tải danh sách báo cáo",
+    "Không thể tải danh sách bộ dữ liệu",
+    "Thử lại"
+   ],
+   "xuat_ban": {
+    "tooltip": "Xuất bản",
+    "toast_thanh_cong": "Đã xuất bản \"{tên báo cáo}\"",
+    "toast_that_bai": "Xuất bản thất bại",
+    "toast_hang_loat": "Đã xuất bản {N} báo cáo",
+    "toast_hang_loat_that_bai": "Xuất bản thất bại {d}/{N} báo cáo",
+    "toast_khong_du_dieu_kien": "Không có báo cáo nào đủ điều kiện để xuất bản"
+   },
+   "tai_ve": {
+    "tooltip": "Tải về",
+    "toast_that_bai": "Tải về báo cáo thất bại",
+    "ghi_chu": "Không có chữ hay vòng xoay riêng lúc đang tải — chỉ toàn bộ nhóm icon của dòng bị khoá"
+   },
+   "xoa_mem": {
+    "tooltip": "Xóa",
+    "tieu_de": "Xác nhận xóa báo cáo?",
+    "mo_ta": "Bạn có chắc muốn chuyển báo cáo '{tên báo cáo}' vào mục Đã xóa không?",
+    "nut": [
+     "Hủy",
+     "Xác nhận"
+    ],
+    "toast_that_bai": "Xóa báo cáo thất bại",
+    "toast_thanh_cong": "Đã xóa \"{tên báo cáo}\""
+   },
+   "khoi_phuc": {
+    "tooltip": "Khôi phục",
+    "toast_thanh_cong": "Đã khôi phục \"{tên báo cáo}\" về Bản nháp",
+    "toast_doi_ten": "Đã khôi phục và tự động đổi tên báo cáo",
+    "toast_doi_ten_mo_ta": "Tên \"{tên cũ}\" đã tồn tại. Báo cáo được đổi thành \"{tên mới}\".",
+    "toast_that_bai": "Khôi phục báo cáo thất bại",
+    "toast_hang_loat": "Đã khôi phục {N} báo cáo về Bản nháp",
+    "toast_hang_loat_doi_ten": "Đã tự đổi tên {N} báo cáo khi khôi phục",
+    "toast_hang_loat_that_bai": "Khôi phục thất bại {d}/{N} báo cáo"
+   },
+   "xoa_vinh_vien": {
+    "tooltip": "Xóa vĩnh viễn",
+    "tieu_de": "Xóa vĩnh viễn báo cáo?",
+    "mo_ta": "Báo cáo '{tên báo cáo}' sẽ bị xóa khỏi hệ thống và không thể khôi phục.",
+    "nut": [
+     "Hủy",
+     "Xóa vĩnh viễn"
+    ],
+    "toast_thanh_cong": "Đã xóa vĩnh viễn \"{tên báo cáo}\"",
+    "toast_that_bai": "Xóa vĩnh viễn báo cáo thất bại",
+    "tieu_de_hang_loat": "Xóa vĩnh viễn các báo cáo đã chọn?",
+    "mo_ta_hang_loat": "{N} báo cáo sẽ bị xóa khỏi hệ thống và không thể khôi phục."
+   },
+   "wizard": {
+    "tieu_de_tao": "Tạo báo cáo",
+    "tieu_de_sua": "Chỉnh sửa báo cáo",
+    "breadcrumb": "biểu tượng Tổng quan > Báo cáo động > {Tạo báo cáo | Chỉnh sửa báo cáo} > Bước {N}: {tên bước}",
+    "thanh_buoc": [
+     "Thông tin báo cáo",
+     "Chọn bộ dữ liệu",
+     "Cấu hình biểu đồ"
+    ],
+    "nhan_o_buoc_1": [
+     "Tên báo cáo *",
+     "Mô tả"
+    ],
+    "placeholder_ten_bao_cao": "Ví dụ: Báo cáo tuyển sinh theo tỉnh",
+    "placeholder_mo_ta": "Ví dụ: Báo cáo tuyển sinh theo tỉnh",
+    "chu_dan_che_do_sua": "Tên báo cáo, mô tả và bộ dữ liệu hiện chưa hỗ trợ lưu khi chỉnh sửa (thiếu API) — thay đổi ở đây chỉ để xem trước giao diện, chưa được lưu lại.",
+    "the_buoc_2": [
+     "Bộ dữ liệu đã kích hoạt",
+     "Bộ dữ liệu bị khóa"
+    ],
+    "chu_dan_buoc_2": "Có thể chọn nhiều bộ dữ liệu — bộ dữ liệu chọn đầu tiên là bộ dữ liệu chính của báo cáo.",
+    "nut_buoc_2": [
+     "+ Tạo bộ dữ liệu mới",
+     "Kích hoạt ngay"
+    ],
+    "rong_buoc_2": [
+     "Chưa có bộ dữ liệu nào được kích hoạt.",
+     "Không có bộ dữ liệu bị khóa."
+    ],
+    "khoi_buoc_3": [
+     "Danh sách biểu đồ",
+     "A. Cấu hình dữ liệu",
+     "B. Kiểm tra hợp lệ",
+     "C. Màu sắc",
+     "D. Hiển thị",
+     "Xem trước"
+    ],
+    "the_loai_bieu_do": [
+     "Biểu đồ cột",
+     "Biểu đồ đường",
+     "Biểu đồ tròn",
+     "Bảng danh sách"
+    ],
+    "mo_ta_the_loai_bieu_do": [
+     "So sánh các giá trị bằng các cột",
+     "Xu hướng theo thời gian",
+     "Tỉ lệ phần trăm của tổng",
+     "Hiển thị dữ liệu dạng bảng"
+    ],
+    "che_do_bieu_do_cot": [
+     "Cột đơn",
+     "Cột nhóm"
+    ],
+    "nhan_o_buoc_3": [
+     "Tên biểu đồ",
+     "Trục X",
+     "Các giá trị nhóm",
+     "Khai báo các cột trên trục X",
+     "Nhóm theo *",
+     "Giá trị",
+     "Nhãn hiển thị",
+     "Số dòng / trang",
+     "Vị trí chú thích",
+     "Nội dung nhãn"
+    ],
+    "placeholder_buoc_3": [
+     "-- Chọn công thức --",
+     "-- Chọn cột nhóm --",
+     "-- Chọn cột (không có cột nào dùng được với {hàm tổng hợp}) --"
+    ],
+    "tuy_chon_ham_tong_hop": [
+     "SUM",
+     "AVG",
+     "COUNT",
+     "MIN",
+     "MAX",
+     "SELECT (không tổng hợp)"
+    ],
+    "checkbox_buoc_3": [
+     "Gộp nhóm còn lại thành 'Khác'"
+    ],
+    "muc_kiem_tra_hop_le": [
+     "Tên biểu đồ đã được nhập",
+     "Loại biểu đồ đã được chọn",
+     "Đã khai báo giá trị nhóm",
+     "Cần ít nhất 1 cột nhóm.",
+     "Chỉ số phải có hàm tổng hợp.",
+     "Cần ít nhất 1 hàng (rows)."
+    ],
+    "nut_buoc_3": [
+     "+ Thêm biểu đồ",
+     "+ Thêm cột",
+     "+ Thêm chỉ số",
+     "+ Thêm giá trị",
+     "+ Thêm màu",
+     "Chọn màu",
+     "Xóa màu"
+    ],
+    "placeholder_nhan_mau": "Nhãn giá trị (VD: Nam)",
+    "nut_chan_trang": [
+     "Quay lại",
+     "Tiếp theo",
+     "Tạo báo cáo",
+     "Lưu thay đổi"
+    ],
+    "nut_dang_xu_ly": [
+     "Đang tạo...",
+     "Đang lưu..."
+    ],
+    "dang_tai": [
+     "Đang tải báo cáo...",
+     "Đang tải cấu hình biểu đồ...",
+     "Đang tải danh sách cột..."
+    ],
+    "loi_validate": {
+     "ten_rong": "Vui lòng nhập tên báo cáo",
+     "ten_trung": "Tên báo cáo này đã tồn tại — vui lòng chọn tên khác.",
+     "chua_chon_bo_du_lieu": "Vui lòng chọn bộ dữ liệu",
+     "bieu_do_chua_du": "Vui lòng hoàn tất các mục còn thiếu bên dưới trước khi tạo báo cáo.",
+     "tooltip_bieu_do_loi": "Biểu đồ chưa cấu hình đầy đủ",
+     "vi_tri": "chữ đỏ nhỏ NGAY DƯỚI ô tương ứng; nút Tiếp theo/Tạo báo cáo KHÔNG bị khoá, chỉ chặn khi bấm"
+    },
+    "loi_api": [
+     "Tạo báo cáo thất bại",
+     "Lưu thay đổi thất bại",
+     "Chỉ báo cáo Nháp (DRAFT) mới có thể sửa.",
+     "Quay lại danh sách"
+    ],
+    "ten_bieu_do_mac_dinh": "Biểu đồ {N}"
+   },
+   "chi_tiet": {
+    "bo_cuc": "tiêu đề = tên báo cáo, dưới là mô tả, nút Quay lại danh sách; thẻ trạng thái gồm nhãn trạng thái, dòng Số biểu đồ: {N} và nhóm nút hành động; dưới cùng là khung nhúng dashboard Superset",
+    "nhan_truong": [
+     "Số biểu đồ"
+    ],
+    "nut": [
+     "Sửa biểu đồ",
+     "Đồng bộ",
+     "Xuất bản",
+     "Xuất Excel",
+     "Xóa",
+     "Quay lại danh sách"
+    ],
+    "dieu_kien_hien_nut": "Sửa biểu đồ hiện khi Bản nháp VÀ đã xác định được ít nhất 1 cấu hình biểu đồ · Đồng bộ hiện khi Bản nháp và chưa đồng bộ thành công · Xuất bản hiện khi Bản nháp · Xuất Excel và khung nhúng hiện khi đã có mã dashboard Superset > 0 · Xóa hiện khi trạng thái KHÁC Đã xóa",
+    "thong_bao": [
+     "Đã đồng bộ báo cáo từ Superset",
+     "Đã xuất bản báo cáo",
+     "Đang tải biểu đồ...",
+     "Lỗi khi tải biểu đồ"
+    ],
+    "banner_loi_provision": "Chưa tạo được biểu đồ trên hệ thống báo cáo. Lý do: {lý do lỗi}. Có thể thử bấm Đồng bộ; nếu vẫn lỗi, liên hệ quản trị hệ thống.",
+    "loi_superset": "Hệ thống báo cáo (Superset) đang tạm thời không phản hồi. Vui lòng thử lại sau ít phút.",
+    "vi_tri_thong_bao": "thông báo thành công/lỗi hiện thành dòng chữ NGAY TRONG thẻ trạng thái, KHÔNG dùng thông báo nổi"
+   },
+   "them_bo_du_lieu": {
+    "tieu_de": "Thêm bộ dữ liệu",
+    "nhan_o": [
+     "Danh mục (Catalog) *",
+     "Schema *",
+     "Bảng / View *",
+     "Vùng dữ liệu",
+     "Phân loại bộ dữ liệu"
+    ],
+    "o_bat_buoc": [
+     "Danh mục (Catalog)",
+     "Schema",
+     "Bảng / View"
+    ],
+    "placeholder": [
+     "Chọn catalog",
+     "Chọn schema",
+     "Chọn bảng"
+    ],
+    "placeholder_tim": [
+     "Tìm catalog...",
+     "Tìm schema...",
+     "Tìm tên bảng..."
+    ],
+    "khong_thay": [
+     "Không tìm thấy kết quả",
+     "Không tìm thấy bảng nào"
+    ],
+    "dang_tai": "Đang tải...",
+    "chu_dan_phan_loai": "Phát hiện từ Trino: {loại bảng}",
+    "loi_tai": [
+     "Không thể tải danh sách catalog",
+     "Không thể tải danh sách schema",
+     "Không thể tải danh sách bảng"
+    ],
+    "nut_thu_lai": "Thử lại",
+    "nut": [
+     "Hủy",
+     "Thêm bộ dữ liệu"
+    ],
+    "nut_dang_xu_ly": "Đang thêm...",
+    "toast_thanh_cong": "Thêm bộ dữ liệu thành công",
+    "loi_trung": "Bộ dữ liệu đã tồn tại: {catalog}.{schema}.{bảng}",
+    "loi_khac": "Thêm bộ dữ liệu thất bại",
+    "hanh_vi_tang_bac": "Đổi Catalog thì xoá trắng và nạp lại Schema + Bảng/View; đổi Schema thì xoá trắng và nạp lại Bảng/View; nút Thêm bộ dữ liệu chỉ bấm được khi đã chọn đủ Catalog + Schema + Bảng/View và không còn ô nào đang nạp"
+   },
+   "kich_hoat_bo_du_lieu": {
+    "nhan": "Kích hoạt",
+    "toast_thanh_cong": "Bộ dữ liệu đã được kích hoạt",
+    "toast_that_bai": "Kích hoạt thất bại",
+    "toast_hang_loat": "Đã kích hoạt {N} bộ dữ liệu",
+    "toast_hang_loat_that_bai": "Kích hoạt thất bại {d}/{N} bộ dữ liệu"
+   },
+   "tat_bo_du_lieu": {
+    "nhan": "Tắt",
+    "toast_thanh_cong": "Bộ dữ liệu đã tắt",
+    "toast_that_bai": "Thao tác thất bại",
+    "toast_hang_loat": "Đã tắt {N} bộ dữ liệu",
+    "toast_hang_loat_that_bai": "Tắt thất bại {d}/{N} bộ dữ liệu"
+   },
+   "xoa_bo_du_lieu": {
+    "nhan": "Xóa",
+    "tieu_de": "Xác nhận xóa bộ dữ liệu?",
+    "tieu_de_hang_loat": "Xác nhận xóa {N} bộ dữ liệu đã chọn?",
+    "mo_ta_da_cap_phat": "Bộ dữ liệu {schema}.{table} đã được cấp phát sang Superset. Xóa tại đây chỉ xóa khỏi danh sách quản lý của hệ thống, không xóa dữ liệu gốc trong database và không xóa dataset tương ứng trong Superset.",
+    "mo_ta_chua_cap_phat": "Bộ dữ liệu {schema}.{table} sẽ bị xóa khỏi danh sách quản lý. Thao tác này không xóa dữ liệu gốc trong database.",
+    "canh_bao_dang_dung": "Đang được sử dụng bởi {N} báo cáo đang hoạt động: {tên báo cáo...} — cảnh báo màu vàng, KHÔNG chặn xoá",
+    "dang_kiem_tra": "Đang kiểm tra báo cáo đang sử dụng...",
+    "nut": [
+     "Hủy",
+     "Xác nhận"
+    ],
+    "toast_thanh_cong": "Đã xóa bộ dữ liệu",
+    "toast_hang_loat": "Đã xóa {N} bộ dữ liệu",
+    "toast_hang_loat_that_bai": "Xóa thất bại {d}/{N} bộ dữ liệu",
+    "toast_that_bai": "Không thể xóa bộ dữ liệu này vì đang được sử dụng trong báo cáo."
+   },
+   "chua_dang_nhap": "Bạn cần đăng nhập để truy cập trang này. Vui lòng đăng nhập bằng tài khoản của bạn để tiếp tục.",
+   "khong_du_quyen": [
+    "Không đủ quyền truy cập",
+    "Bạn không có quyền truy cập trang này. Vui lòng liên hệ quản trị viên nếu bạn cho rằng đây là sự nhầm lẫn."
+   ],
+   "het_phien": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+   "man_ngoai_tuyen": [
+    "Bạn đang ngoại tuyến",
+    "Không thể kết nối đến máy chủ. Một số dữ liệu có thể không được cập nhật. Vui lòng kiểm tra kết nối internet và thử lại."
+   ],
+   "loi_may_chu": "Có lỗi không mong muốn xảy ra ở phía máy chủ. Đội kỹ thuật đã được thông báo và đang xử lý."
+  },
+  "rui_ro": [
+   "BA §3.4 + §3.13 + GBR-10 + bundle FE: router KHÔNG gắn RequireRole cho cả 4 route của module, ba trang BIDynamicReportsPage / BIDatasetTab / BIDynamicReportsCreatePage không có điểm kiểm vai trò nào -> MỌI tài khoản đã đăng nhập thao tác được toàn bộ 24 chức năng. Phân quyền (nếu có) chỉ nằm ở server -> case ATTT gắn cờ [RỦI RO]/[CẦN VERIFY]",
+   "BA §3.4 ghi nhận comment trong code BIDatasetTab nêu ý định thiết kế \"quản lý BI Dataset (admin only)\" nhưng KHÔNG có điểm kiểm nào ở FE -> cần QA/BA chốt thẻ Bộ dữ liệu có phải chỉ dành cho quản trị viên hay không",
+   "LỆCH BA-vs-CODE — BỘ LỌC TRẠNG THÁI: BA §3.16.2 Bảng thành phần còn ghi ô lọc là *Nút Trạng thái + Popover* kèm *Checkbox từng trạng thái · Nút Đặt lại · Nút Áp dụng · Ô tìm kiếm trong dropdown*, và GBR-09 nói bộ lọc multi-select chỉ áp giá trị đầu tiên. Màn THẬT + code là component FilterSelect mode=single: một ô chọn hiện *-- Chọn trạng thái --*, danh sách có dòng *Tất cả trạng thái*, chọn 1 dòng là áp NGAY và đóng, KHÔNG có nút Đặt lại/Áp dụng, KHÔNG có badge số lượng (chính Luồng nghiệp vụ chính và BR-BCD-02-1 của BA cũng mô tả như vậy — mâu thuẫn nội bộ trong tài liệu). Case viết theo CODE",
+   "LỆCH BA-vs-CODE — PHÂN TRANG: BA §3.16.3/§3.16.20 ghi *Dropdown Hiển thị N /trang (10/20/50)* và *Text N bản ghi*. Màn THẬT là Ô NHẬP SỐ (Số bản ghi/trang:) kèm nút Chọn nhanh số bản ghi, có 3 thông báo lỗi riêng (lớn hơn 0 · số nguyên · tối đa 1000) và nhãn tổng là *Tổng số bản ghi:*. Case viết theo CODE",
+   "LỆCH BA-vs-CODE — CỘT HÀNH ĐỘNG THẺ BÁO CÁO: BA §3.16.7..§3.16.11 ghi mọi hành động nằm trong dropdown mở từ *icon ⋮ (kebab)*. Màn THẬT hiện THẲNG tối đa 4 icon trên dòng (RowActions maxInline=4), không có nút ⋮ vì không dòng nào vượt 4 hành động. Riêng thẻ Bộ dữ liệu thì ĐÚNG là 1 nút ⋮ mở 2 mục. Case viết theo CODE",
+   "LỆCH BA-vs-CODE — BADGE SỐ LƯỢNG TRÊN Ô LỌC: BA nhắc *badge số lượng khi đã chọn > 0* trên nút lọc; code KHÔNG có badge, chỉ có dấu X để xoá lựa chọn và mũi tên xoay khi mở",
+   "LỆCH BA-vs-CODE — SỐ BẢN GHI/TRANG MẶC ĐỊNH: code khai pageSize mặc định 20; màn thật (ảnh chụp 16:21) đang hiện 10. Cần QA/BA xác nhận giá trị mặc định đúng",
+   "TỪ NGỮ KHÔNG NHẤT QUÁN — BA BR-BCD-23-4 và code đều xác nhận: nút hành động và ô lọc gọi trạng thái tắt là *Đã tắt*, còn badge cột Trạng thái trong bảng ghi *Đã vô hiệu hóa*. Cần QA/BA chốt một bản chữ",
+   "TỪ NGỮ KHÔNG NHẤT QUÁN — hai hộp xác nhận xoá báo cáo dùng nút *Hủy*, nhưng nút xác nhận khác nhau: xoá mềm là *Xác nhận*, xoá vĩnh viễn là *Xóa vĩnh viễn*",
+   "RỦI RO — CHỈNH SỬA KHÔNG LƯU ĐƯỢC BƯỚC 1/2: BA BR-BCD-16-2 + code: ở /:id/edit-chart chỉ Bước 3 (thêm/sửa/xoá biểu đồ) được lưu thật; tên báo cáo, mô tả và lựa chọn bộ dữ liệu sửa trên giao diện KHÔNG có API lưu, mất khi rời màn. Giao diện vẫn cho sửa và vẫn bắt buộc hợp lệ mới qua bước -> người dùng dễ tưởng đã lưu. Chỉ có một dòng chú thích chữ nhỏ cảnh báo",
+   "RỦI RO — LƯU BIỂU ĐỒ KHÔNG QUAY LẠI ĐƯỢC: BA §3.16.16 EF-04: lưu nhiều biểu đồ mà lỗi giữa chừng thì các lệnh gọi TRƯỚC lệnh lỗi đã ghi thật trên máy chủ, KHÔNG có hoàn tác",
+   "RỦI RO — XOÁ HÀNG LOẠT BÁO CÁO KHÔNG HỎI LẠI: BA BR-BCD-06-2 + code: nút *Xóa {N} mục* gọi API xoá mềm NGAY, khác hẳn xoá đơn lẻ vốn có hộp xác nhận",
+   "RỦI RO — XUẤT BẢN / KHÔI PHỤC / TẢI VỀ / KÍCH HOẠT / TẮT đều KHÔNG có hộp xác nhận; bấm nhầm icon là đổi trạng thái ngay. Lưới chắn duy nhất là nhóm icon của dòng bị khoá trong lúc gọi máy chủ",
+   "RỦI RO — KHÔI PHỤC TỰ ĐỔI TÊN: BA GBR-03 + BR-BCD-10-1: trùng tên thì máy chủ tự đổi tên báo cáo được khôi phục, chỉ báo lại bằng một thông báo nổi dạng cảnh báo. Khôi phục hàng loạt chỉ báo *Đã tự đổi tên {N} báo cáo khi khôi phục* mà không nói rõ từng bản ghi",
+   "RỦI RO — XOÁ BỘ DỮ LIỆU ĐANG DÙNG: BA GBR-06 + BR-BCD-24-2: cảnh báo usage màu vàng KHÔNG chặn xoá. BR-BCD-24-4: cảnh báo chỉ tính báo cáo Đã xuất bản, báo cáo Bản nháp dùng cùng bộ dữ liệu KHÔNG được tính -> xoá xong mới vỡ báo cáo nháp. Không có luồng khôi phục bộ dữ liệu",
+   "RỦI RO — THAO TÁC HÀNG LOẠT gọi API LẶP từng bản ghi (Promise.all / Promise.allSettled) chứ không phải một lệnh lô -> thành công một phần là chuyện thường; thông báo chỉ nói {d}/{N} mà KHÔNG nói bản ghi nào hỏng",
+   "BA BR-BCD-02-3 (chỉ có trong tài liệu, chưa dựng lại được trên màn vì ô lọc hiện là single-select): nếu bộ lọc Trạng thái đang chọn ĐỒNG THỜI ≥ 2 giá trị hoặc 0 giá trị thì thanh nút hàng loạt KHÔNG hiện nút nào. Cần QA/BA xác nhận quy tắc này còn hiệu lực",
+   "BA BR-BCD-21-2: lỗi của lệnh làm mới cache schema Trino bị nuốt âm thầm (.catch(() => undefined)) -> người dùng không biết cache có được làm mới hay không",
+   "BA BR-BCD-15-1: khối *B. Kiểm tra hợp lệ* là gợi ý trực quan, KHÔNG phản ánh đủ điều kiện chặn lưu thật — riêng chế độ Cột đơn vẫn bắt buộc chọn cột chỉ số dù checklist không có dòng riêng cho việc đó",
+   "Ô Tên báo cáo chỉ có maxLength 250 của DOM; ô Mô tả KHÔNG có maxLength nào. Giới hạn thật của cột CSDL chưa xác nhận -> case *vượt độ dài* gắn [CẦN VERIFY]",
+   "Ô tìm kiếm của cả 2 thẻ cắt cứng ở 250 ký tự (kể cả khi dán chuỗi dài hoặc nhấn Enter) mà KHÔNG hiện thông báo nào",
+   "CHƯA xác nhận được tên bảng/cột CSDL thật của module (hồ sơ dự án đặt verify_all=True) -> mọi case đối chiếu DB gắn [CẦN VERIFY]",
+   "KHOẢNG TRỐNG GROUNDING — probe_live.py KHÔNG đọc được biểu mẫu của wizard (/create không phải màn dạng bảng, script chỉ soi bảng + modal) -> bố cục 3 bước, modal Thêm bộ dữ liệu, màn Chi tiết và 2 hộp xác nhận xoá đọc từ CODE + BA, chưa soi trực tiếp bằng probe_live",
+   "KHOẢNG TRỐNG GROUNDING — màn hiện một lớp phủ *Hướng dẫn sử dụng* (Đóng · Bỏ qua · Tiếp tục) chặn cú bấm đầu tiên khi vào màn: probe_live bấm dòng đầu của bảng thì URL không đổi vì lớp phủ này ăn cú bấm. Đây là lớp onboarding chung của app, không thuộc module -> chưa khai thành CN; cần QA/BA xác nhận nó có xuất hiện với mọi tài khoản hay không"
+  ],
+  "gia_tri_tinh": {
+   "Trạng thái": [
+    "Bản nháp",
+    "Đã xuất bản",
+    "Đã xóa"
+   ],
+   "Vùng dữ liệu": [
+    "GOLD",
+    "DIAMOND"
+   ],
+   "Vùng": [
+    "GOLD",
+    "DIAMOND"
+   ],
+   "Phân loại bộ dữ liệu": [
+    "TABLE",
+    "VIEW",
+    "MART",
+    "STAR_SCHEMA"
+   ],
+   "Hàm tổng hợp": [
+    "SUM",
+    "COUNT",
+    "AVG",
+    "MIN",
+    "MAX",
+    "COUNT_DISTINCT"
+   ],
+   "Vị trí chú thích": [
+    "Mặc định",
+    "Trên",
+    "Dưới",
+    "Trái",
+    "Phải"
+   ],
+   "Số bản ghi trên trang": [
+    "20",
+    "50",
+    "100",
+    "200",
+    "500"
+   ]
+  },
+  "gia_tri_dong": [
+   "Trục X",
+   "Nhóm theo",
+   "Cột dữ liệu",
+   "Danh mục",
+   "Schema",
+   "Bảng View",
+   "Độ chi tiết thời gian"
+  ]
+ },
+ "man_phu": [
+  {
+   "route": "/dynamic-reports/create",
+   "ten": "Tạo báo cáo",
+   "vao_tu": "/dynamic-reports thẻ Báo cáo · bấm nút Tạo báo cáo ở đầu màn",
+   "cn": "TẠO BÁO CÁO",
+   "noi_dat": "cung_sheet"
+  },
+  {
+   "route": "/dynamic-reports/:id",
+   "ten": "Xem chi tiết báo cáo",
+   "vao_tu": "/dynamic-reports thẻ Báo cáo · bấm vào 1 dòng trên bảng; hoặc tự điều hướng sau khi tạo báo cáo thành công",
+   "cn": "XEM CHI TIẾT BÁO CÁO",
+   "noi_dat": "cung_sheet"
+  },
+  {
+   "route": "/dynamic-reports/:id/edit-chart",
+   "ten": "Chỉnh sửa biểu đồ báo cáo",
+   "vao_tu": "/dynamic-reports thẻ Báo cáo · icon Chỉnh sửa của dòng Bản nháp; hoặc nút Sửa biểu đồ ở màn Chi tiết",
+   "cn": "CHỈNH SỬA BIỂU ĐỒ BÁO CÁO",
+   "noi_dat": "cung_sheet"
+  },
+  {
+   "route": "/dynamic-reports (thẻ Bộ dữ liệu)",
+   "ten": "Báo cáo động - Thẻ Bộ dữ liệu",
+   "vao_tu": "/dynamic-reports · bấm thẻ Bộ dữ liệu cạnh thẻ Báo cáo",
+   "noi_dat": "sheet_rieng",
+   "sheet": "BP-BoDuLieu",
+   "prefix": "BoDuLieu",
+   "ghi_chu": "Cùng một route với thẻ Báo cáo nhưng là màn hình riêng trong BA (BCD-S02) với component riêng (BIDatasetTab, nạp lười), 7 chức năng riêng và bảng dữ liệu khác hẳn. Người đặt việc chốt 2026-09-10: mỗi thẻ MỘT SHEET, chức năng của thẻ nào đặt đúng sheet của thẻ đó.",
+   "cn": [
+    {
+     "ten": "DANH SÁCH BỘ DỮ LIỆU",
+     "buoc3": "Click thẻ Bộ dữ liệu",
+     "controls": [
+      "Button Làm mới dữ liệu",
+      "Danh sách bộ dữ liệu",
+      "Checkbox bản ghi",
+      "Icon",
+      "Textbox Số bản ghi/trang",
+      "Selectbox Số bản ghi trên trang",
+      "Phân trang"
+     ],
+     "chuc_nang": [
+      "Chức năng Danh sách bộ dữ liệu"
+     ],
+     "attt": true
+    },
+    {
+     "ten": "TÌM KIẾM & LỌC BỘ DỮ LIỆU",
+     "buoc3": "Click thẻ Bộ dữ liệu",
+     "controls": [
+      "Selectbox Trạng thái",
+      "Selectbox Vùng",
+      "Textbox Tìm theo tên bảng dữ liệu"
+     ],
+     "chuc_nang": [
+      "Chức năng Tìm kiếm chung"
+     ],
+     "attt": true
+    },
+    {
+     "ten": "XUẤT EXCEL DANH SÁCH BỘ DỮ LIỆU",
+     "buoc3": "Click thẻ Bộ dữ liệu > Click button Xuất Excel",
+     "controls": [],
+     "chuc_nang": [
+      "Chức năng Xuất excel"
+     ],
+     "attt": true
+    },
+    {
+     "ten": "THÊM BỘ DỮ LIỆU",
+     "buoc3": "Click thẻ Bộ dữ liệu > Click button Thêm bộ dữ liệu",
+     "popup": "Thêm bộ dữ liệu",
+     "controls": [
+      "Combobox Danh mục (Catalog)",
+      "Combobox Schema",
+      "Combobox Bảng View",
+      "Selectbox Vùng dữ liệu",
+      "Selectbox Phân loại bộ dữ liệu",
+      "Button Hủy",
+      "Button Thêm bộ dữ liệu"
+     ],
+     "chuc_nang": [
+      "Chức năng Thêm mới bộ dữ liệu",
+      "Chức năng Hủy bỏ"
+     ],
+     "attt": true
+    },
+    {
+     "ten": "KÍCH HOẠT BỘ DỮ LIỆU",
+     "buoc3": "Click thẻ Bộ dữ liệu > Click nút ⋮ ở cột Hành động của bản ghi Đã vô hiệu hóa > Chọn Kích hoạt",
+     "controls": [
+      "Button Kích hoạt"
+     ],
+     "chuc_nang": [
+      "Chức năng Chuyển trạng thái bộ dữ liệu"
+     ],
+     "attt": true
+    },
+    {
+     "ten": "TẮT BỘ DỮ LIỆU",
+     "buoc3": "Click thẻ Bộ dữ liệu > Click nút ⋮ ở cột Hành động của bản ghi Đang hoạt động > Chọn Tắt",
+     "controls": [
+      "Button Tắt"
+     ],
+     "chuc_nang": [
+      "Chức năng Chuyển trạng thái bộ dữ liệu"
+     ],
+     "attt": true
+    },
+    {
+     "ten": "XÓA BỘ DỮ LIỆU",
+     "buoc3": "Click thẻ Bộ dữ liệu > Click nút ⋮ ở cột Hành động > Chọn Xóa",
+     "controls": [
+      "Hộp xác nhận Xóa bộ dữ liệu",
+      "Button Hủy",
+      "Button Xác nhận"
+     ],
+     "chuc_nang": [
+      "Chức năng Xóa bộ dữ liệu"
+     ],
+     "attt": true
+    },
+    {
+     "ten": "THAO TÁC HÀNG LOẠT TRÊN BỘ DỮ LIỆU",
+     "buoc3": "Click thẻ Bộ dữ liệu > Tích chọn ít nhất 1 bản ghi",
+     "controls": [
+      "Hộp xác nhận Xóa nhiều bộ dữ liệu đã chọn",
+      "Button Tắt N mục",
+      "Button Kích hoạt N mục",
+      "Button Xóa N mục",
+      "Button Bỏ chọn tất cả"
+     ],
+     "chuc_nang": [
+      "Chức năng Chuyển trạng thái hàng loạt bộ dữ liệu"
+     ],
+     "attt": true
+    }
+   ]
+  }
+ ],
+ "loai_control": {
+  "Textbox Tên báo cáo": "Textbox mã (unique)",
+  "Selectbox Vùng dữ liệu": "Selectbox không có ô tìm",
+  "Selectbox Phân loại bộ dữ liệu": "Selectbox không có ô tìm",
+  "TẠO BÁO CÁO|Textbox Số dòng của bảng danh sách": "Textbox số",
+  "XEM CHI TIẾT BÁO CÁO|Hiển thị chi tiết báo cáo": "Hiển thị chi tiết",
+  "CHỈNH SỬA BIỂU ĐỒ BÁO CÁO|Textbox Số dòng của bảng danh sách": "Textbox số"
+ },
+ "cn": [
+  {
+   "ten": "DANH SÁCH BÁO CÁO",
+   "controls": [
+    "Nút chọn Thẻ Báo cáo và Bộ dữ liệu",
+    "Button Làm mới dữ liệu",
+    "Danh sách báo cáo",
+    "Checkbox bản ghi",
+    "Icon",
+    "Textbox Số bản ghi/trang",
+    "Selectbox Số bản ghi trên trang",
+    "Phân trang"
+   ],
+   "chuc_nang": [
+    "Chức năng Danh sách"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "TÌM KIẾM & LỌC BÁO CÁO",
+   "controls": [
+    "Selectbox Trạng thái",
+    "Textbox Tìm theo tên báo cáo, bộ dữ liệu"
+   ],
+   "chuc_nang": [
+    "Chức năng Tìm kiếm chung"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "XUẤT EXCEL DANH SÁCH BÁO CÁO",
+   "controls": [],
+   "chuc_nang": [
+    "Chức năng Xuất excel"
+   ],
+   "attt": true,
+   "buoc3": "Click button Xuất Excel"
+  },
+  {
+   "ten": "TẠO BÁO CÁO",
+   "buoc3": "Click button Tạo báo cáo ở đầu màn\nBước 1 Thông tin báo cáo > Click button Tiếp theo\nBước 2 Chọn bộ dữ liệu > Click button Tiếp theo\nBước 3 Cấu hình biểu đồ",
+   "controls": [
+    "Textbox Tên báo cáo",
+    "Textarea Mô tả",
+    "Nút chọn Thẻ Bộ dữ liệu đã kích hoạt và bị khóa",
+    "Button Tạo bộ dữ liệu mới",
+    "Checkbox bộ dữ liệu",
+    "Button Kích hoạt ngay",
+    "Danh sách biểu đồ",
+    "Button Thêm biểu đồ",
+    "Textbox Tên biểu đồ",
+    "Nút chọn Loại biểu đồ",
+    "Nút chọn Chế độ biểu đồ",
+    "Selectbox Trục X",
+    "Selectbox Nhóm theo",
+    "Selectbox Hàm tổng hợp",
+    "Selectbox Cột dữ liệu",
+    "Textbox Nhãn hiển thị",
+    "Checkbox Gộp nhóm còn lại thành Khác",
+    "Selectbox Độ chi tiết thời gian",
+    "Textbox Số dòng của bảng danh sách",
+    "Checkbox Màu sắc",
+    "Selectbox Vị trí chú thích",
+    "Button Quay lại",
+    "Button Tiếp theo",
+    "Button Tạo báo cáo"
+   ],
+   "chuc_nang": [
+    "Chức năng Thêm mới",
+    "Chức năng Hủy bỏ"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "XEM CHI TIẾT BÁO CÁO",
+   "buoc3": "Click vào 1 dòng trên bảng danh sách báo cáo",
+   "controls": [
+    "Hiển thị chi tiết báo cáo",
+    "Button Sửa biểu đồ",
+    "Button Đồng bộ",
+    "Button Xuất bản",
+    "Button Xuất Excel",
+    "Button Xóa",
+    "Button Quay lại danh sách"
+   ],
+   "chuc_nang": [
+    "Chức năng Xem chi tiết"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "CHỈNH SỬA BIỂU ĐỒ BÁO CÁO",
+   "buoc3": "Click icon Chỉnh sửa ở cột Hành động của bản ghi Bản nháp\nHoặc vào màn Chi tiết báo cáo > Click button Sửa biểu đồ",
+   "controls": [
+    "Textbox Tên báo cáo",
+    "Textarea Mô tả",
+    "Nút chọn Thẻ Bộ dữ liệu đã kích hoạt và bị khóa",
+    "Button Tạo bộ dữ liệu mới",
+    "Checkbox bộ dữ liệu",
+    "Button Kích hoạt ngay",
+    "Danh sách biểu đồ",
+    "Button Thêm biểu đồ",
+    "Textbox Tên biểu đồ",
+    "Nút chọn Loại biểu đồ",
+    "Nút chọn Chế độ biểu đồ",
+    "Selectbox Trục X",
+    "Selectbox Nhóm theo",
+    "Selectbox Hàm tổng hợp",
+    "Selectbox Cột dữ liệu",
+    "Textbox Nhãn hiển thị",
+    "Checkbox Gộp nhóm còn lại thành Khác",
+    "Selectbox Độ chi tiết thời gian",
+    "Textbox Số dòng của bảng danh sách",
+    "Checkbox Màu sắc",
+    "Selectbox Vị trí chú thích",
+    "Button Quay lại",
+    "Button Tiếp theo",
+    "Button Lưu thay đổi"
+   ],
+   "chuc_nang": [
+    "Chức năng Chỉnh sửa"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "XUẤT BẢN BÁO CÁO",
+   "buoc3": "Click icon Xuất bản ở cột Hành động của bản ghi Bản nháp",
+   "controls": [
+    "Button Xuất bản"
+   ],
+   "chuc_nang": [
+    "Chức năng Chuyển trạng thái"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "TẢI VỀ BÁO CÁO",
+   "buoc3": "Click icon Tải về ở cột Hành động của bản ghi đã có dashboard Superset",
+   "controls": [
+    "Button Tải về"
+   ],
+   "chuc_nang": [
+    "Chức năng Tải về"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "XÓA BÁO CÁO",
+   "buoc3": "Click icon Xóa ở cột Hành động của bản ghi Bản nháp hoặc Đã xuất bản",
+   "controls": [
+    "Hộp xác nhận Xóa báo cáo",
+    "Button Hủy",
+    "Button Xác nhận"
+   ],
+   "chuc_nang": [
+    "Chức năng Xóa"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "KHÔI PHỤC BÁO CÁO",
+   "buoc3": "Click icon Khôi phục ở cột Hành động của bản ghi Đã xóa",
+   "controls": [
+    "Button Khôi phục"
+   ],
+   "chuc_nang": [
+    "Chức năng Chuyển trạng thái"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "XÓA VĨNH VIỄN BÁO CÁO",
+   "buoc3": "Click icon Xóa vĩnh viễn ở cột Hành động của bản ghi Đã xóa",
+   "controls": [
+    "Hộp xác nhận Xóa vĩnh viễn báo cáo",
+    "Button Hủy",
+    "Button Xóa vĩnh viễn"
+   ],
+   "chuc_nang": [
+    "Chức năng Xóa"
+   ],
+   "attt": true
+  },
+  {
+   "ten": "THAO TÁC HÀNG LOẠT TRÊN BÁO CÁO",
+   "buoc3": "Tích chọn ít nhất 1 bản ghi trên bảng danh sách báo cáo",
+   "controls": [
+    "Hộp xác nhận Xóa vĩnh viễn các báo cáo đã chọn",
+    "Button Xuất bản N mục",
+    "Button Xóa N mục",
+    "Button Khôi phục N mục",
+    "Button Xóa vĩnh viễn N mục",
+    "Button Bỏ chọn tất cả"
+   ],
+   "chuc_nang": [
+    "Chức năng Chuyển trạng thái hàng loạt"
+   ],
+   "attt": true
+  }
+ ],
+ "giu_nut_tao": {
+  "CHỈNH SỬA BIỂU ĐỒ BÁO CÁO|Button Thêm biểu đồ": "Control THẬT của chính wizard Sửa, không phải nút mở biểu mẫu Thêm mới: BA §3.16.16 BR-BCD-16-5 (mỗi báo cáo tối thiểu 1 tối đa 6 biểu đồ) + AF-04 (bấm \"+ Thêm biểu đồ\" ở Bước 3 thêm 1 biểu đồ rỗng vào Danh sách biểu đồ, lúc bấm Lưu thay đổi mới gọi AddReportChart). Chunk FE BIDynamicReportsCreatePage-7xTF08L-.js có nút \"+ Thêm biểu đồ\" trong CẢ hai chế độ tạo và sửa (dùng chung 100% component — BR-BCD-16-1).",
+  "CHỈNH SỬA BIỂU ĐỒ BÁO CÁO|Button Tạo bộ dữ liệu mới": "Control THẬT của Bước 2 wizard Sửa: BA §3.16.16 Bảng thành phần mục 4 khai đủ \"nút + Tạo bộ dữ liệu mới\" cho chế độ sửa; chunk FE mở CHÍNH modal AddDatasetModal với autoActivate=true. Nó tạo BỘ DỮ LIỆU (thực thể của thẻ khác), không tạo báo cáo."
+ }
+}
