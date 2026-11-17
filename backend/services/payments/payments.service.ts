@@ -5,7 +5,7 @@ import { bookingFromRow } from '../../database/types';
 import { AppError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
 import { MOMO_PENDING_CODES, momoGateway, newGatewayOrder, newMomoOrder, verifyMomoIpn } from '../../lib/momo';
-import { sepayIpnAuthorized, sepayPayUrl, buildCheckoutFields, checkoutPage, newSepayOrder } from '../../lib/sepay';
+import { sepayApi, sepayIpnAuthorized, sepayPayUrl, buildCheckoutFields, checkoutPage, newSepayOrder } from '../../lib/sepay';
 import { newVnpOrder, verifyVnpay, vnpDate, vnpKeys, vnpayGateway } from '../../lib/vnpay';
 import { writeAudit } from '../audit';
 import { emitBookingChange } from '../events';
@@ -232,7 +232,11 @@ export async function handleMomoIpn(body: Record<string, unknown>, requestId?: s
  * để SePay không gọi lại vô ích. Chỉ ORDER_PAID + CAPTURED/APPROVED mới xác nhận thanh toán; số tiền phải khớp (BR-PAY-01).
  */
 export async function handleSepayIpn(secretHeader: string | undefined, body: Record<string, any>, requestId?: string): Promise<{ status: number; body: Record<string, unknown> }> {
-  if (!sepayIpnAuthorized(secretHeader)) return { status: 401, body: { error: 'Unauthorized' } };
+  if (!sepayIpnAuthorized(secretHeader)) {
+    logger.warn({ hasHeader: !!secretHeader }, 'IPN SePay bị từ chối: thiếu/sai X-Secret-Key (kiểm tra Auth Type = Secret Key và SEPAY_IPN_SECRET)');
+    return { status: 401, body: { error: 'Unauthorized' } };
+  }
+  logger.info({ type: body?.notification_type, invoice: body?.order?.order_invoice_number, orderStatus: body?.order?.order_status, txnStatus: body?.transaction?.transaction_status }, 'IPN SePay nhận');
   const ok = { status: 200, body: { success: true } };
   const invoice = String(body?.order?.order_invoice_number ?? '');
   // Khớp mã hiện tại (txn_ref) hoặc một mã cũ của cùng giao dịch (khách có thể thanh toán ở phiên mở trước).
@@ -248,12 +252,34 @@ export async function handleSepayIpn(secretHeader: string | undefined, body: Rec
     return ok;
   }
   const amount = Number(body.order?.order_amount);
-  const paid = body.order?.order_status === 'CAPTURED' && body.transaction?.transaction_status === 'APPROVED';
+  const paid = body.order?.order_status !== 'CANCELLED'; // đã là ORDER_PAID (IPN xác thực); chỉ loại trường hợp đơn bị hủy, không đòi khớp từng giá trị trạng thái (QR chuyển khoản có thể khác thẻ)
   if (!Number.isFinite(amount)) return ok;
   const sepayTxn = String(body.transaction?.transaction_id ?? body.transaction?.id ?? '');
   if (sepayTxn) await db.query("UPDATE payments SET gateway = gateway || $2::jsonb WHERE id = $1 AND status <> 'SUCCEEDED'", [payment.id, json({ sepayTransactionId: sepayTxn })]);
   await applyGatewayResult(payment, { amountVnd: Math.round(amount), success: paid, resultCode: paid ? 0 : -1, message: String(body.transaction?.transaction_status ?? ''), transId: 0 }, requestId);
   return ok;
+}
+
+/**
+ * Hỏi thẳng SePay (API tra cứu đơn) về các giao dịch đang chờ của đơn; có đơn CAPTURED thì xác nhận như IPN. Dùng khi khách mở lại đơn:
+ * IPN có thể không tới (chạy trên máy, URL IPN sai, Auth Type chưa đúng). Idempotent với IPN (settleSuccess chỉ chạy một lần). Trả true nếu đơn vừa được xác nhận.
+ */
+export async function syncSepayPayment(bookingId: string): Promise<boolean> {
+  const pays = (await db.query<PaymentDoc>("SELECT * FROM payments WHERE booking_id = $1 AND method = 'SEPAY' AND status IN ('INITIATED','PENDING') ORDER BY created_at DESC", [bookingId])).rows;
+  for (const p of pays) {
+    for (const invoice of new Set([...(p.gateway.invoices ?? []), p.gateway.orderId])) {
+      try {
+        const o = await sepayApi.orderDetail(invoice);
+        if (o?.status !== 'CAPTURED') continue;
+        if (o.transactionId) await db.query("UPDATE payments SET gateway = gateway || $2::jsonb WHERE id = $1 AND status <> 'SUCCEEDED'", [p.id, json({ sepayTransactionId: o.transactionId, orderId: invoice })]);
+        await applyGatewayResult(p, { amountVnd: o.amountVnd, success: true, resultCode: 0, message: 'CAPTURED', transId: 0 });
+        return true;
+      } catch (e) {
+        logger.warn({ err: e, invoice }, 'Tra cứu đơn SePay lỗi, bỏ qua');
+      }
+    }
+  }
+  return false;
 }
 
 /**
@@ -415,7 +441,13 @@ export async function retryRefund(refundId: string, actor: Actor, requestId?: st
 
 type QueryResult = { status: 'SUCCESS' | 'FAILED' | 'PENDING'; amount?: number; transId?: number; message?: string };
 async function queryPayment(p: PaymentDoc): Promise<QueryResult> {
-  if (p.method === 'SEPAY') return { status: 'PENDING', message: 'SePay: chưa có API truy vấn, chờ IPN' };
+  if (p.method === 'SEPAY') {
+    for (const invoice of new Set([...(p.gateway.invoices ?? []), p.gateway.orderId])) {
+      const o = await sepayApi.orderDetail(invoice);
+      if (o?.status === 'CAPTURED') return { status: 'SUCCESS', amount: o.amountVnd, transId: 0 };
+    }
+    return { status: 'PENDING', message: 'SePay: chưa thấy giao dịch đã thanh toán' };
+  }
   if (p.method !== 'MOMO') return vnpayGateway.query({ txnRef: p.gateway.orderId, requestId: newVnpOrder('Q').requestId, transactionDate: p.gateway.createDate! });
   const q = await momoGateway.query({ orderId: p.gateway.orderId, requestId: newMomoOrder('Q').requestId });
   const status = q.resultCode === 0 ? 'SUCCESS' : MOMO_PENDING_CODES.includes(q.resultCode) ? 'PENDING' : 'FAILED';

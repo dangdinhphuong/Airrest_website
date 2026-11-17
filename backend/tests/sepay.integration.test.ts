@@ -1,7 +1,7 @@
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../api/app';
-import { buildSepayIpn } from '../lib/sepay';
+import { buildSepayIpn, sepayApi } from '../lib/sepay';
 import { closeDb, count, freshDb, mkHotel, mkRoomType, one } from './support/db';
 
 const run = process.env.RUN_DB_TESTS ? describe : describe.skip;
@@ -40,6 +40,7 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
     roomTypeId = await mkRoomType(hotelId, 1, 800_000);
   });
   afterAll(async () => closeDb());
+  afterEach(() => vi.restoreAllMocks());
 
   it('đặt SePay: PENDING_PAYMENT, payments method SEPAY, có link; /methods có SEPAY', async () => {
     const res = await book();
@@ -104,5 +105,33 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
     expect((await ipn({ notification_type: 'ORDER_PAID', order: { order_invoice_number: p.gateway.orderId } })).status).toBe(200);
     expect(await status(b.id)).toBe('PENDING_PAYMENT');
     expect((await ipn({})).status).toBe(200);
+  });
+
+  it('IPN không tới: mở lại đơn (lookup) -> hỏi SePay, đơn CAPTURED thì thành CONFIRMED; sau đó IPN muộn không ghi trùng', async () => {
+    const { b, p } = await payOf((await book()).body.booking.code);
+    const spy = vi.spyOn(sepayApi, 'orderDetail').mockResolvedValue({ status: 'CAPTURED', amountVnd: p.amountVnd, transactionId: 'tx-pull' });
+    const r = await request(app).post('/v1/bookings/lookup').send({ code: b.code, phone: '0912345678' });
+    expect(r.status).toBe(200);
+    expect(r.body.booking.status).toBe('CONFIRMED');
+    expect(spy).toHaveBeenCalled();
+    expect((await payOf(b.code)).p.gateway.sepayTransactionId).toBe('tx-pull');
+    expect((await ipn(buildSepayIpn({ invoice: p.gateway.orderId, amount: p.amountVnd, success: true, transactionId: 'tx-late' }))).status).toBe(200);
+    expect(await count('ledger_entries', 'booking_id = $1', [b.id])).toBe(3);
+    expect(await count('payments', "booking_id = $1 AND status = 'SUCCEEDED'", [b.id])).toBe(1);
+  });
+
+  it('hỏi SePay: đơn chưa trả (AUTHENTICATION_NOT_NEEDED) / chưa có (null) / lỗi mạng -> giữ PENDING_PAYMENT; lệch tiền -> không xác nhận', async () => {
+    const { b, p } = await payOf((await book()).body.booking.code);
+    const lookup = () => request(app).post('/v1/bookings/lookup').send({ code: b.code, phone: '0912345678' });
+    for (const mock of [() => vi.spyOn(sepayApi, 'orderDetail').mockResolvedValue({ status: 'AUTHENTICATION_NOT_NEEDED', amountVnd: p.amountVnd }), () => vi.spyOn(sepayApi, 'orderDetail').mockResolvedValue(null), () => vi.spyOn(sepayApi, 'orderDetail').mockRejectedValue(new Error('mạng'))]) {
+      vi.restoreAllMocks(); mock();
+      const r = await lookup();
+      expect(r.status).toBe(200);
+      expect(r.body.booking.status).toBe('PENDING_PAYMENT');
+    }
+    vi.restoreAllMocks();
+    vi.spyOn(sepayApi, 'orderDetail').mockResolvedValue({ status: 'CAPTURED', amountVnd: p.amountVnd - 1000 });
+    expect((await lookup()).body.booking.status).toBe('PENDING_PAYMENT');
+    expect((await payOf(b.code)).p.anomaly?.kind).toBe('AMOUNT_MISMATCH');
   });
 });

@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { env } from '../config/env';
+import { AppError } from './errors';
 
 // Cổng SePay (https://developer.sepay.vn/vi/cong-thanh-toan). Khách thanh toán trên trang của SePay:
 //  1) Airrest dựng form POST tới SEPAY_CHECKOUT_URL kèm chữ ký; trình duyệt khách gửi form (trang /v1/payments/sepay/checkout/:id tự submit).
@@ -78,3 +79,23 @@ export function buildSepayIpn(o: { invoice: string; amount: number; success: boo
     customer: {},
   };
 }
+
+// ---- API tra cứu đơn (nguồn sự thật dự phòng khi IPN không tới được, ví dụ chạy trên máy/localhost) ----
+// Sandbox/production suy ra từ SEPAY_CHECKOUT_URL; xác thực Basic merchant_id:secret_key (docs: developer.sepay.vn/vi/cong-thanh-toan/API/don-hang/chi-tiet-don-hang).
+const apiBase = () => (new URL(env.SEPAY_CHECKOUT_URL).host.includes('sandbox') ? 'https://pgapi-sandbox.sepay.vn' : 'https://pgapi.sepay.vn');
+export interface SepayOrder { status: string; amountVnd: number; transactionId?: string }
+
+// Đối tượng (không phải hàm rời) để test thay thế được bằng vi.spyOn. Trả null khi chưa có đơn (404) hoặc chế độ mock (không gọi mạng).
+export const sepayApi = {
+  async orderDetail(invoice: string): Promise<SepayOrder | null> {
+    if (!live) return null;
+    const auth = Buffer.from(`${env.SEPAY_MERCHANT_ID}:${env.SEPAY_SECRET_KEY}`).toString('base64');
+    const res = await fetch(`${apiBase()}/v1/order/detail/${encodeURIComponent(invoice)}`, { headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new AppError(502, 'SEPAY_BAD_RESPONSE', `SePay trả HTTP ${res.status}`);
+    const body = (await res.json()) as { data?: { order_status?: string; order_amount?: string | number; transactions?: Array<{ id?: string; transaction_status?: string }> } };
+    const d = body.data;
+    if (!d?.order_status) return null;
+    return { status: d.order_status, amountVnd: Math.round(Number(d.order_amount)), transactionId: d.transactions?.find((t) => t.transaction_status === 'APPROVED')?.id ?? d.transactions?.[0]?.id };
+  },
+};

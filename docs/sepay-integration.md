@@ -22,6 +22,6 @@ Tài liệu SePay: https://developer.sepay.vn/vi/cong-thanh-toan (form checkout:
 
 ## Giới hạn đã biết
 - **Hoàn tiền:** SePay chưa có API hoàn trong tích hợp này → lệnh hoàn của đơn SePay chuyển thẳng `MANUAL_REQUIRED` cho kế toán hoàn tay.
-- **Đối soát:** không có API truy vấn giao dịch → giao dịch treo chờ IPN; quá hạn giữ chỗ mà tiền về muộn thì hệ thống tạo lệnh hoàn 100% (như MoMo/VNPay).
+- **Đối soát:** ngoài IPN, backend còn **hỏi SePay** (API `GET /v1/order/detail/{invoice}`, Basic auth merchant:secret; sandbox/production suy ra từ `SEPAY_CHECKOUT_URL`) mỗi khi khách mở lại đơn (tra cứu, trang kết quả thanh toán, danh sách đơn của tôi) và khi đối soát tay. Đơn `CAPTURED` thì xác nhận như IPN, idempotent. Nhờ đó chạy trên máy (IPN không tới được localhost) vẫn xác nhận được. Hết hạn giữ chỗ mà tiền về muộn thì hệ thống tạo lệnh hoàn 100%.
 - `TRANSACTION_VOID`: chỉ ghi vết, không tự đảo đơn; kế toán đối soát tay.
 - SePay không nêu cơ chế gọi lại IPN trong tài liệu; backend luôn trả 200 khi đã tiếp nhận (kể cả mã đơn lạ), 401 khi sai khóa.

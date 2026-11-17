@@ -28,6 +28,7 @@ import { listBookingEvents } from '../../../services/bookings/bookingEvents';
 import { startBookingPayment } from '../../../services/payments/payments.service';
 import { hotelScope } from '../../../services/scope';
 import { confirmBooking, rejectBooking } from '../../../services/bookings/decisions';
+import { syncSepayPayment } from '../../../services/payments/payments.service';
 import { checkIn, checkOut, createBooking, quoteBooking, getBookingDetail, getDecision, listHotelBookings, lookupBooking, markNoShow, toGuestView } from '../../../services/bookings/bookings.service';
 
 // ---- Công khai (khách vãng lai, không cần tài khoản) ----
@@ -53,7 +54,9 @@ bookingsRouter.post('/quote', validate({ body: bookingQuoteBody }), async (req, 
 // FR-BKG-08: tra cứu bằng Booking Code + SĐT. Trả thêm guestToken ngắn hạn để vào phòng Socket.io `booking:{code}`.
 bookingsRouter.post('/lookup', strictRateLimit, validate({ body: lookupByCodeBody }), async (req, res) => {
   const { code, phone } = req.valid.body as LookupByCodeBody;
-  const booking = await lookupBooking(code, phone);
+  let booking = await lookupBooking(code, phone);
+  // Đơn SePay còn chờ thanh toán: hỏi SePay (IPN có thể chưa/không tới); đã trả thì đọc lại đơn.
+  if (booking.status === 'PENDING_PAYMENT' && booking.payment.method === 'SEPAY' && (await syncSepayPayment(booking.id))) booking = await lookupBooking(code, phone);
   const decision = await getDecision(booking.id);
   if (!phone) { res.json({ booking: toGuestView(booking, decision) }); return; } // chỉ mã: xem thông tin đơn, không lộ xe/tài xế/guestToken
   const state = await guestShuttleState(booking);

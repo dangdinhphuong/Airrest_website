@@ -7,6 +7,7 @@ import { AppError, isDuplicateKey } from '../../lib/errors';
 import { signAccountToken } from '../../lib/jwt';
 import { hashPassword, verifyPassword } from '../../lib/password';
 import { toGuestView } from '../bookings/bookings.service';
+import { syncSepayPayment } from '../payments/payments.service';
 import { writeAudit } from '../audit';
 
 // Luật tên đăng nhập khớp mock FE (apps/web/src/mock/users.js): tối đa 50 ký tự, không giống email/SĐT (BR-002: không chứa "@" hoặc dãy ≥ 6 chữ số).
@@ -118,6 +119,9 @@ export async function changePassengerPassword(accountId: string, input: z.infer<
 
 // Đơn của chính người gọi (account_id = sub). Keyset theo seq giảm dần, nextCursor = seq cuối của trang. Chỉ trả trường khách được phép thấy.
 export async function listPassengerBookings(accountId: string, q: z.infer<typeof meBookingsQuery>) {
+  // Đơn SePay còn chờ thanh toán của tôi: hỏi SePay trước khi liệt kê để trạng thái đúng ngay cả khi IPN chưa tới.
+  const waiting = (await db.query<{ id: string }>("SELECT id FROM bookings WHERE account_id = $1 AND status = 'PENDING_PAYMENT' AND payment_method = 'SEPAY' ORDER BY seq DESC LIMIT 3", [accountId])).rows;
+  for (const w of waiting) await syncSepayPayment(w.id);
   const params: unknown[] = [accountId];
   const where = ['account_id = $1'];
   if (q.status) where.push(`status = $${params.push(q.status as BookingStatus)}`);
