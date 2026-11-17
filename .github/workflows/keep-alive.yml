@@ -1,0 +1,11 @@
+name: keep-alive
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # mỗi 10 phút (dưới 15 phút để Render không ngủ)
+  workflow_dispatch: {}       # cho phép bấm chạy tay để thử
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API
+        run: curl -fsS --max-time 60 https://airrest-api.onrender.com/ready
