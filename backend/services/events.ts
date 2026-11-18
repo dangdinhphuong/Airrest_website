@@ -8,6 +8,7 @@ export interface BookingChange {
   hotelId: string;
   updatedAt: Date;
   isNew: boolean;
+  kind?: 'PAID'; // thanh toán vừa thành công
 }
 
 export const bookingEvents = new EventEmitter();

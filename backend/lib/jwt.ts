@@ -10,6 +10,7 @@ export interface AuthContext {
   payerId?: string; // chỉ accountType = PAYER
   payerStationId?: string; // chỉ PAYER; vắng = cấp đơn vị (mọi trạm)
   permissions: string[];
+  roleIds?: string[]; // vai trò hiệu lực ở khách sạn đang làm việc (dùng cho thông báo)
   bookingCode?: string; // chỉ với kind = GUEST
 }
 

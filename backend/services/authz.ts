@@ -44,7 +44,7 @@ async function load(sub: string, claimedHotel?: string) {
     }
   }
   const roles = (await db.query<RoleDoc>('SELECT permissions FROM roles WHERE id = ANY($1::uuid[])', [roleIds])).rows;
-  return { accountType: a.type, hotelId, businessId: a.businessId, payerId: a.payerId, payerStationId: a.payerStationId, permissions: [...new Set(roles.flatMap((r) => r.permissions))] };
+  return { accountType: a.type, hotelId, businessId: a.businessId, payerId: a.payerId, payerStationId: a.payerStationId, roleIds, permissions: [...new Set(roles.flatMap((r) => r.permissions))] };
 }
 
 // Token khách vãng lai không có quyền. Token tài khoản: tài khoản phải còn ACTIVE.

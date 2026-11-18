@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { ConfirmDialog, DataTable, FilterBar, FormField, Modal, PageHeader, StatusBadge, Tag } from '../ui';
+import { ConfirmDialog, DataTable, FilterBar, FormField, Modal, MultiSelect, PageHeader, StatusBadge, Tag } from '../ui';
 import { Notice } from '../Common';
 import Select from '../Select';
 import { useApp } from '../../state/store';
@@ -41,7 +41,6 @@ function StaffForm({ staff, roles, onClose, onSaved }) {
     listRoles(hid).then((r) => setRolesOf((x) => ({ ...x, [hid]: r.items.filter((i) => i.assignable) }))).catch(() => setRolesOf((x) => ({ ...x, [hid]: [] })));
   };
   useEffect(() => { picked.forEach(loadRolesOf); }, [picked]); // eslint-disable-line react-hooks/exhaustive-deps
-  const toggle = (id) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n.size ? n : p; });
   const roleFor = (hid) => (hid === cur ? f.roleId : roleBy[hid] ?? (rolesOf[hid]?.some((r) => r.id === f.roleId) ? f.roleId : rolesOf[hid]?.[0]?.id));
   const phoneErr = f.phone.trim() && !PHONE_RE.test(f.phone.trim()) ? 'Số điện thoại không hợp lệ.' : '';
   const submit = async (e) => {
@@ -85,15 +84,16 @@ function StaffForm({ staff, roles, onClose, onSaved }) {
         </div>
         {choices.length > 0 && (
           <FormField id="sf-hotels" label="Khách sạn làm việc" hint="Chọn một hoặc nhiều khách sạn; mỗi khách sạn có thể có vai trò riêng. Vai trò ở khách sạn đang làm việc chọn ở ô Vai trò phía trên.">
-            <span style={{ display: 'grid', gap: 6 }} data-testid="sf-hotels">
-              {choices.map((hc) => (
+            <span style={{ display: 'grid', gap: 8 }}>
+              <MultiSelect id="sf-hotels" testid="sf-hotels" placeholder="Chọn khách sạn" searchPlaceholder="Tìm khách sạn…" clearLabel="Bỏ chọn"
+                options={choices.map((hc) => ({ id: hc.id, label: hc.name, hint: hc.id === cur ? '(đang làm việc)' : '' }))}
+                value={[...picked]} onChange={(ids) => { if (ids.length) setPicked(new Set(ids)); }} />
+              {choices.filter((hc) => picked.has(hc.id) && hc.id !== cur).map((hc) => (
                 <span key={hc.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <label><input type="checkbox" checked={picked.has(hc.id)} onChange={() => toggle(hc.id)} data-testid={`sf-hotel-${hc.id}`} /> {hc.name}{hc.id === cur ? ' (đang làm việc)' : ''}</label>
-                  {picked.has(hc.id) && hc.id !== cur && (
-                    <Select aria-label={`Vai trò tại ${hc.name}`} value={roleFor(hc.id) || ''} onChange={(e) => setRoleBy({ ...roleBy, [hc.id]: e.target.value })} data-testid={`sf-role-${hc.id}`}>
-                      {(rolesOf[hc.id] || []).map((r) => <option key={r.id} value={r.id}>{r.name}{r.system ? ' (mẫu)' : ''}</option>)}
-                    </Select>
-                  )}
+                  <span>Vai trò tại <strong>{hc.name}</strong></span>
+                  <Select aria-label={`Vai trò tại ${hc.name}`} value={roleFor(hc.id) || ''} onChange={(e) => setRoleBy({ ...roleBy, [hc.id]: e.target.value })} data-testid={`sf-role-${hc.id}`}>
+                    {(rolesOf[hc.id] || []).map((r) => <option key={r.id} value={r.id}>{r.name}{r.system ? ' (mẫu)' : ''}</option>)}
+                  </Select>
                 </span>
               ))}
             </span>

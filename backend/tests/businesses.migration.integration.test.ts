@@ -57,7 +57,7 @@ run('migration 030: businesses (từ DB rỗng và lên trên dữ liệu cũ)',
     const staff = await mkAccount({ type: 'HOTEL', email: 'nv@old.vn', roleIds: [], hotelId: hA });
     const pwBefore = (await one<{ passwordHash: string }>('SELECT password_hash FROM accounts WHERE id = $1', [ownerA]))!.passwordHash;
 
-    expect(await runMigrations()).toEqual(['030_businesses.sql', '031_account_extras.sql', '032_sepay.sql', '033_account_hotels.sql', '034_pause_sales.sql']); // 030 + các migration thêm sau
+    expect(await runMigrations()).toEqual(['030_businesses.sql', '031_account_extras.sql', '032_sepay.sql', '033_account_hotels.sql', '034_pause_sales.sql', '035_notifications.sql']); // 030 + các migration thêm sau
 
     const b = async (id: string) => one('SELECT * FROM businesses WHERE id = $1', [id]);
     expect(await b(ownerA)).toMatchObject({ name: 'KS Cũ A', email: 'chua@old.vn', status: 'ACTIVE', phone: '0243111111' });

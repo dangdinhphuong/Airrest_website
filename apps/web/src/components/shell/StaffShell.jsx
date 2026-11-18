@@ -16,7 +16,7 @@ import { HotelPicker, QuickSearch, ShortcutHelp, UserMenu } from './ShellOverlay
 //   session, user, other {label,onClick} (chuyển cổng), onLogin, onLogout, onHome
 //   hotelPicker {hotels,currentId,onSwitch(id)} chủ doanh nghiệp: chọn khách sạn đang làm việc (header + menu người dùng)
 //   children nội dung trang (thông báo + màn tab); mỗi màn tự vẽ PageHeader (components/ui)
-export function StaffShell({ portal, items, cur, onPick, entries, onRoute, session, user, other, onLogin, onLogout, onHome, hotelPicker, children }) {
+export function StaffShell({ portal, items, cur, onPick, entries, onRoute, session, user, other, onLogin, onLogout, onHome, hotelPicker, headerExtra, children }) {
   const prefs = useShellPrefs();
   const wide = useMediaQuery('(min-width: 1024px)');
   const drawer = !wide;
@@ -70,6 +70,7 @@ export function StaffShell({ portal, items, cur, onPick, entries, onRoute, sessi
             </button>
           )}
           <button type="button" className="sx-icon-btn hide-sm" onClick={() => setHelpOpen(true)} aria-label="Phím tắt (?)" title="Phím tắt (?)"><HelpCircle size={20} aria-hidden="true" /></button>
+          {headerExtra}
           {hotelPicker && <HotelPicker {...hotelPicker} />}
           <UserMenu hotelPicker={hotelPicker} name={session?.name || user?.name} sub={session ? `Cổng ${portal.label}` : 'Tài khoản người dùng'} onLogin={onLogin} extra={other} onSettings={session && hasNav ? () => onRoute(portal.key, 'settings') : undefined} onShortcuts={() => setHelpOpen(true)} onLogout={onLogout} />
         </div>

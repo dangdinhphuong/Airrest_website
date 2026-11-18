@@ -7,7 +7,8 @@ import { ApiError } from '@airrest/api-client';
 import { describeError } from '../../lib/api';
 import { ConfirmAction, DataTable, ErrorState, FilterBar, Loading, Modal, PageHeader, STATUS, StatusBadge } from '../ui';
 import * as H from '../../data/hotel';
-import { EventLog } from './fleetKit';
+import { EventLog, LiveBadge } from './fleetKit';
+import { useLiveData } from '../../lib/useRealtime';
 import { fmtDT, useAction, useLoad, usePaged } from './kit';
 import Select from '../Select';
 import { lineLabel, stayLabel, stayShort } from '../../lib/bookingText';
@@ -16,6 +17,26 @@ const PAY_METHOD = { SEPAY: 'SePay', VNPAY: 'VNPay (cũ)', MOMO: 'MoMo (cũ)', A
 const PAY_STATUS = { NONE: 'Chưa phát sinh', UNPAID: 'Chưa thanh toán', PENDING: 'Chờ thanh toán', PAID: 'Đã thanh toán', PARTIALLY_REFUNDED: 'Đã hoàn một phần', REFUNDED: 'Đã hoàn tiền', FAILED: 'Thanh toán lỗi', EXPIRED: 'Hết hạn thanh toán', CANCELLED: 'Đã hủy' };
 export const pay = (p) => `${PAY_METHOD[p.method] || p.method || PAY_METHOD.AT_HOTEL} · ${PAY_STATUS[p.status] || p.status}`;
 const DECISION = { CONFIRMED: 'Đã xác nhận', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối' };
+// Thanh quy trình của đơn: bước hiện tại + nhãn việc đang chờ. Đơn kết thúc bất thường (hủy/từ chối/hết hạn/không đến) chỉ hiện huy hiệu trạng thái.
+const STEPS = ['Đặt phòng', 'Thanh toán', 'Duyệt', 'Nhận phòng', 'Trả phòng'];
+const FLOW = {
+  PENDING_PAYMENT: [1, 'Chờ khách thanh toán'], PENDING: [2, 'Chờ khách sạn duyệt'], CONFIRMED: [3, 'Chờ khách nhận phòng'],
+  CHECKED_IN: [4, 'Khách đang ở, chờ trả phòng'], CHECKED_OUT: [5, 'Hoàn tất'],
+};
+export function ProcessSteps({ status }) {
+  const f = FLOW[status];
+  if (!f) return <StatusBadge status={status} />;
+  const [cur, label] = f;
+  return (
+    <div data-testid="bk-steps" title={label}>
+      <div style={{ display: 'flex', gap: 3, margin: '2px 0 4px' }} aria-hidden="true">
+        {STEPS.map((n, i) => <span key={n} title={n} style={{ width: 22, height: 5, borderRadius: 3, background: i < cur ? '#16a34a' : i === cur ? '#f59e0b' : '#e2e8f0' }} />)}
+      </div>
+      <StatusBadge status={status} />
+      <small className="muted" style={{ display: 'block' }} data-testid="bk-step-label">Bước {Math.min(cur + 1, STEPS.length)}/{STEPS.length}: {label}</small>
+    </div>
+  );
+}
 const ERR_VI = { NO_SHOW_NOT_DUE: 'Chưa tới ngày nhận phòng nên chưa thể đánh dấu "Không đến". Hãy thử lại từ ngày nhận phòng (giờ Việt Nam).', INVALID_STATE: 'Trạng thái đơn đã thay đổi, danh sách đã được làm mới. Vui lòng kiểm tra lại.' };
 
 function Detail({ id }) {
@@ -51,6 +72,8 @@ export default function Bookings() {
     status: applied.status, code: applied.code, cursor,
     from: vnDayStart(applied.from), to: vnDayEnd(applied.to),
   }), [applied]);
+  // Realtime: đơn mới/đổi trạng thái -> tự tải lại danh sách (socket; mất kết nối thì useLiveData tự thăm dò).
+  const live = useLiveData(() => Promise.resolve(null), [], state.session?.id, { onEvent: (n) => { if (n === 'order:new' || n === 'order:updated') list.reload(); } });
   const go = async (fn, ok) => {
     if (await act.run(async () => { try { await fn(); } catch (e) { if (ERR_VI[e?.code]) { if (e.code === 'INVALID_STATE') list.reload(); throw new ApiError(e.status, e.code, ERR_VI[e.code]); } throw e; } }, ok)) list.reload();
   };
@@ -63,7 +86,7 @@ export default function Bookings() {
     { key: 'lines', header: 'Phòng', render: (b) => b.lines.map((l) => `${l.roomTypeName} x${l.qty}${l.kind === 'HOURLY' ? ` (${l.hours} giờ)` : ''}`).join(', ') },
     { key: 'total', header: 'Tổng', render: (b) => money(b.pricing.totalVnd) },
     { key: 'pay', header: 'Thanh toán', render: (b) => pay(b.payment) },
-    { key: 'status', header: 'Trạng thái', render: (b) => <StatusBadge status={b.status} /> },
+    { key: 'status', header: 'Quy trình', render: (b) => <ProcessSteps status={b.status} /> },
     { key: 'act', header: '', render: (b) => (
       <div className="row-actions" style={{ marginTop: 0 }}>
         <button type="button" className="btn btn-sm" onClick={() => setOpen(b)} data-testid="bk-detail">Chi tiết</button>
@@ -79,7 +102,7 @@ export default function Bookings() {
   ];
   return (
     <>
-      <PageHeader title="Đặt phòng" description="Đơn của khách sạn, mới nhất trước. Ngày lọc theo ngày nhận phòng." />
+      <PageHeader title="Đặt phòng" description="Đơn của khách sạn, mới nhất trước. Ngày lọc theo ngày nhận phòng. Danh sách tự cập nhật khi có đơn mới." actions={<LiveBadge conn={live.conn} />} />
       <FilterBar onApply={() => setApplied(f)} onReset={reset}>
         <Select aria-label="Trạng thái" value={f.status} onChange={set('status')} data-testid="bk-status">
           <option value="">Mọi trạng thái</option>

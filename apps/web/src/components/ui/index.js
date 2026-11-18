@@ -8,3 +8,4 @@ export { EmptyState, ErrorState, Loading } from './states';
 export { Toolbar } from './Toolbar';
 export { FormField } from './FormField';
 export { ConfirmAction } from './ConfirmAction';
+export { default as MultiSelect } from './MultiSelect';

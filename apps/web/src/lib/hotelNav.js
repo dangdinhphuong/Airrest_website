@@ -1,4 +1,4 @@
-import { Banknote, BarChart3, Settings, ShieldCheck, UserCog, Hotel, BedDouble, BellRing, Building2, CalendarCheck2, Car, ClipboardList, Navigation, RefreshCw, Truck, Wallet } from 'lucide-react';
+import { Banknote, BarChart3, Settings, ShieldCheck, UserCog, Hotel, BedDouble, BellRing, Bell, Building2, CalendarCheck2, Car, ClipboardList, Navigation, RefreshCw, Truck, Wallet } from 'lucide-react';
 import { PERM } from './perms';
 
 // Menu cổng khách sạn. `need`: cần đủ các quyền (khớp requirePermission của backend); `any`: ít nhất một quyền; `group`: nhóm hiển thị trong sidebar cây.
@@ -17,6 +17,7 @@ export const hotelTabs = [
   { id: 'revenue', label: 'Báo cáo doanh thu', short: 'Doanh thu', group: 'Tài chính', icon: BarChart3, need: [PERM.BOOKING_READ] },
   { id: 'staff', label: 'Nhân viên', short: 'Nhân viên', group: 'Nhân sự', icon: UserCog, need: [PERM.HOTEL_STAFF_MANAGE] },
   { id: 'roles', label: 'Vai trò và phân quyền', short: 'Vai trò', group: 'Nhân sự', icon: ShieldCheck, need: [PERM.HOTEL_ROLE_MANAGE] },
+  { id: 'notifySettings', label: 'Cấu hình thông báo', short: 'Thông báo', group: 'Nhân sự', icon: Bell, need: [PERM.HOTEL_ROLE_MANAGE] },
   { id: 'trips', label: 'Chuyến của tôi', short: 'Chuyến', group: 'Vận chuyển', icon: Navigation, need: [PERM.TRIP_DRIVE] },
   // Cài đặt cá nhân: ai cũng thấy (không cần quyền), không tính khi xét khu vực được vào (access.areasOf).
   { id: 'settings', label: 'Cài đặt cá nhân', short: 'Cài đặt', group: 'Cài đặt', icon: Settings, need: [], common: true, noHotel: true },

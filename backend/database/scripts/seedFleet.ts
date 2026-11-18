@@ -20,7 +20,8 @@ export async function seedFleet(password: string): Promise<{ hotels: number; veh
   let vehicles = 0, p = 0;
   // Mọi khách sạn đã có tiện ích đưa đón (SHUTTLE*) mà chưa nêu ở FLEET cũng có 2 xe mẫu (4 và 7 chỗ) để hệ thống tự điều xe được; NO_FLEET vẫn không có.
   const withShuttle = (await db.query<{ code: string }>("SELECT code FROM hotels WHERE amenities && ARRAY['SHUTTLE','SHUTTLE_FREE','SHUTTLE_PAID'] AND code <> $1 ORDER BY code", [NO_FLEET])).rows.map((r) => r.code);
-  const all: Record<string, number[]> = { ...Object.fromEntries(withShuttle.map((c) => [c, [4, 7]])), ...FLEET };
+  // FLEET đứng trước và cố định thứ tự để biển số/tài xế không xê dịch khi chạy lại (seed này tự gắn thêm tag SHUTTLE_PAID cho khách sạn FLEET).
+  const all: Record<string, number[]> = { ...FLEET, ...Object.fromEntries(withShuttle.filter((c) => !(c in FLEET)).map((c) => [c, [4, 7]])) };
   for (const [code, seats] of Object.entries(all)) {
     const hotelId = (await db.query<{ id: string }>('SELECT id FROM hotels WHERE code = $1', [code])).rows[0]?.id;
     if (!hotelId) throw new Error(`Thiếu khách sạn ${code}: chạy npm run db:seed trước`);

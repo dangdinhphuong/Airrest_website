@@ -71,6 +71,7 @@ run('tích hợp: GET /v1/hotels kèm giá, số phòng còn, cờ tính năng',
     await db.query("UPDATE hotels SET amenities = ARRAY['SHUTTLE_FREE','HOURLY'] WHERE id = $1", [hotel]);
     await mkRoomType(hotel, 5, 900_000, { name: 'Đắt' });
     cheap = await mkRoomType(hotel, 2, 400_000, { name: 'Rẻ' });
+    await db.query("UPDATE room_types SET pricing = pricing || '{\"hourly\":{\"enabled\":true,\"firstHourVnd\":100000,\"nextHourVnd\":50000,\"minHours\":2,\"maxHours\":6}}'::jsonb WHERE id = $1", [cheap]);
   });
   afterAll(async () => closeDb());
 

@@ -101,7 +101,7 @@ export function searchHotels<T extends SearchHotel>(hotels: T[], iata: string, f
       && (f.maxPrice === undefined || room.baseNightVnd <= f.maxPrice)
       && (f.minReviews === undefined || (h.rating?.count ?? 0) >= f.minReviews)
       && (f.minRating === undefined || (score(h) ?? -1) >= f.minRating)
-      && flag(f.shuttle, ft.shuttle !== 'none') && flag(f.freeCancel, ft.freeCancel) && flag(f.hourly, ft.hourly) && flag(f.family, ft.family) && flag(f.reception24, ft.reception24);
+      && flag(f.shuttle, ft.shuttle !== 'none') && flag(f.freeCancel, ft.freeCancel) && flag(f.hourly, ft.hourly && h.rooms.some((r) => r.hourly && r.roomsLeft >= f.rooms && r.capacity * f.rooms >= (f.guests ?? 0))) && flag(f.family, ft.family) && flag(f.reception24, ft.reception24);
   });
   const byDist = (a: T, b: T) => (km(a)?.km ?? 0) - (km(b)?.km ?? 0) || (km(a)?.minutes ?? 0) - (km(b)?.minutes ?? 0);
   const cmp = {

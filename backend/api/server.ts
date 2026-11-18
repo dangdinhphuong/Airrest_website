@@ -6,6 +6,7 @@ import { logger } from '../lib/logger';
 import { expireOverdueBookings } from '../services/bookings/decisions';
 import { getConfig } from '../services/systemConfig';
 import { startEmailWorker } from '../services/email/outbox';
+import { sweepCheckinSoon } from '../services/notifications';
 import { sweepExpiredOffers } from '../services/delay/offers';
 import { sweepPendingAttachments } from '../services/support/support.service';
 import { dispatchDueRequests } from '../services/shuttle/dispatch';
@@ -33,6 +34,10 @@ async function main() {
   const dispatchSweep = env.SHUTTLE_DISPATCH_SWEEP_SEC > 0 ? setInterval(() => { void dispatchDueRequests().catch((err) => logger.error({ err }, 'Quét điều phối xe lỗi')); void closeStaleTrips().catch((err) => logger.error({ err }, 'Quét đóng chuyến quá hạn lỗi')); }, env.SHUTTLE_DISPATCH_SWEEP_SEC * 1000) : undefined;
   dispatchSweep?.unref();
 
+  // Nhắc đơn sắp tới giờ nhận phòng (mỗi phút).
+  const checkinSweep = setInterval(() => void sweepCheckinSoon().catch((err) => logger.error({ err }, 'Quét nhắc nhận phòng lỗi')), 60_000);
+  checkinSweep.unref();
+
   // Quét offer delay quá hạn (job riêng, job 60s ở trên bỏ qua đơn PAYER). Chu kỳ lấy từ delay.sweepSec lúc khởi động. Nhiều bản API cùng quét vẫn an toàn (UPDATE có điều kiện status='PENDING').
   const delaySec = (await getConfig('delay.sweepSec')).value.seconds;
   const delaySweep = setInterval(() => void sweepExpiredOffers().catch((err) => logger.error({ err }, 'Quét offer delay hết hạn lỗi')), delaySec * 1000);
@@ -57,6 +62,7 @@ async function main() {
     if (sweep) clearInterval(sweep);
     if (dispatchSweep) clearInterval(dispatchSweep);
     clearInterval(delaySweep);
+    clearInterval(checkinSweep);
     clearInterval(attachSweep);
     stopEmail();
     stopDelayStream();

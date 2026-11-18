@@ -30,7 +30,7 @@ const insertLedger = async (
   }
 };
 
-const notify = (b: { code: string; status: string; hotelId: string }) => emitBookingChange({ code: b.code, status: b.status, hotelId: b.hotelId, updatedAt: new Date(), isNew: false });
+const notify = (b: { code: string; status: string; hotelId: string }, kind?: 'PAID') => emitBookingChange({ code: b.code, status: b.status, hotelId: b.hotelId, updatedAt: new Date(), isNew: false, kind });
 
 // ---------- Tạo / lấy link thanh toán ----------
 
@@ -264,7 +264,7 @@ async function settleSuccess(paymentId: string, transId: number, cb: { at: Date;
     return { refundId: refund.id, booking: { code: b.code, status, hotelId: b.hotelId }, confirmedId: null };
   });
   if (!out) return;
-  notify(out.booking);
+  notify(out.booking, out.refundId ? undefined : 'PAID');
   if (out.confirmedId) await dispatchDueForBooking(out.confirmedId); // đơn vừa xác nhận do thanh toán: điều xe cho yêu cầu đã tới hạn (không ném lỗi)
   if (out.refundId) await processRefund(out.refundId, requestId); // gọi VNPay ngoài transaction
 }

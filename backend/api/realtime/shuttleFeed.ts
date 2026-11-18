@@ -1,6 +1,9 @@
 import { db } from '../../database/pg';
 import { shuttleBus, type ShuttleEvent } from '../../services/shuttle/events';
+import { notify } from '../../services/notifications';
 import { emitToRoom, rooms } from './socket';
+
+const SHUTTLE_NOTE: Record<string, string> = { TRIP_REJECTED: 'Tài xế từ chối chuyến', TRIP_CANCELLED: 'Chuyến xe bị hủy', TRIP_REASSIGNED: 'Chuyến xe được gán lại' };
 
 // Sự kiện chuyến xe (đã SAU commit) -> Socket.IO `shuttle:update`. Payload chỉ id + trạng thái: không PII, không xe/ảnh/SĐT (client gọi REST lấy chi tiết).
 const codes = new Map<string, string>(); // bookingId -> code (bất biến)
@@ -28,6 +31,8 @@ export function startShuttleStream(): () => void {
       if (!bookingCode) return;
       const status = typeof e.payload.status === 'string' ? e.payload.status : undefined;
       const msg = { type: e.type, bookingCode, tripId: e.tripId, requestId: e.requestId, status, at: new Date().toISOString() };
+      if (e.type === 'EXTERNAL_NEEDED') await notify(e.hotelId, 'SHUTTLE_EXTERNAL', { title: `Hết xe, cần gọi xe ngoài cho đơn ${bookingCode}`, refCode: bookingCode, dedupeKey: `SHUTTLE_EXTERNAL:${e.tripId ?? bookingCode}` });
+      else if (SHUTTLE_NOTE[e.type]) await notify(e.hotelId, 'SHUTTLE_UPDATE', { title: `${SHUTTLE_NOTE[e.type]} (đơn ${bookingCode})`, refCode: bookingCode, dedupeKey: `SHUTTLE_UPDATE:${e.type}:${e.tripId ?? bookingCode}:${Date.now()}` });
       for (const r of roomsOfEvent(e, bookingCode)) emitToRoom(r, 'shuttle:update', msg);
     })().catch(() => undefined);
   };

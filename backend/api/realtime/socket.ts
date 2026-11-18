@@ -11,6 +11,7 @@ import { logger } from '../../lib/logger';
 export const rooms = {
   booking: (code: string) => `booking:${code}`,
   hotelOrders: (hotelId: string) => `hotel:${hotelId}:orders`,
+  hotelNotify: (hotelId: string) => `hotel:${hotelId}:notify`, // chuông thông báo của khách sạn
   adminAlerts: () => 'admin:alerts',
   hotelShuttle: (hotelId: string) => `hotel:${hotelId}:shuttle`, // nhân sự điều phối xe của khách sạn
   adminShuttle: () => 'admin:shuttle', // tài khoản hotel:scope:all (không gắn khách sạn): nhận xe của mọi khách sạn
@@ -24,6 +25,7 @@ export function roomsFor(auth: AuthContext): string[] {
   if (auth.kind === 'GUEST') return auth.bookingCode ? [rooms.booking(auth.bookingCode)] : [];
   const list: string[] = [];
   if (auth.hotelId && auth.permissions.includes(PERM.BOOKING_READ)) list.push(rooms.hotelOrders(auth.hotelId));
+  if (auth.hotelId && auth.accountType === 'HOTEL' && auth.roleIds?.length) list.push(rooms.hotelNotify(auth.hotelId)); // chuông thông báo: chỉ là tín hiệu, nội dung lấy qua REST theo vai trò
   if (auth.permissions.includes(PERM.ADMIN_ALERTS)) list.push(rooms.adminAlerts());
   if ([PERM.FLEET_MANAGE, PERM.SHUTTLE_HANDLE].some((p) => auth.permissions.includes(p))) {
     if (auth.hotelId) list.push(rooms.hotelShuttle(auth.hotelId));

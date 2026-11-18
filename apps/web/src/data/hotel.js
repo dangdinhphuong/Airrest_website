@@ -81,3 +81,10 @@ export const rejectDelayOffer = (id, reason) => post(`/delay-offers/${encodeURIC
 // Yêu cầu gia hạn lưu trú cho khách delay (quyền booking:decide).
 export const acceptExtension = (id) => post(`/delay-offers/${encodeURIComponent(id)}/extension/accept`);
 export const rejectExtension = (id, reason) => post(`/delay-offers/${encodeURIComponent(id)}/extension/reject`, reason ? { reason } : {});
+
+// Thông báo + cấu hình vai trò × loại (khách sạn lấy từ token).
+export const listNotifications = (q) => api.get(`${H}/notifications`, { query: q });
+export const markNotificationRead = (id) => post(`/notifications/${id}/read`);
+export const markAllNotificationsRead = () => post('/notifications/read-all');
+export const getNotificationSettings = () => api.get(`${H}/notification-settings`);
+export const saveNotificationSettings = (cells) => api.put(`${H}/notification-settings`, { cells });

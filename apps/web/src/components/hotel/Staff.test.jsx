@@ -84,7 +84,8 @@ describe('Nhân viên (cổng khách sạn)', () => {
     fireEvent.click(screen.getByTestId('staff-new'));
     fireEvent.change(screen.getByTestId('sf-email'), { target: { value: 'moi@x.vn' } });
     fireEvent.change(screen.getByTestId('sf-name'), { target: { value: 'Mới' } });
-    fireEvent.click(screen.getByTestId('sf-hotel-h2'));
+    fireEvent.click(screen.getByTestId('sf-hotels-trigger')); // chọn nhiều có tìm kiếm: mở danh sách rồi chọn KS Hai
+    fireEvent.click(screen.getByTestId('sf-hotels-opt-h2'));
     await waitFor(() => expect(S.listRoles).toHaveBeenCalledWith('h2')); // tải vai trò của khách sạn được chọn
     const sel = await screen.findByTestId('sf-role-h2'); // Select tùy biến: mở danh sách rồi chọn vai trò riêng cho KS Hai
     fireEvent.click(sel);

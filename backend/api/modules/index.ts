@@ -23,6 +23,7 @@ import { payerStatementsRouter } from './adminSettlements/payerStatements.router
 import { hotelExtensionsRouter, payerExtensionsRouter } from './delayTimeChange/delayTimeChange.router';
 import { businessAuthRouter, businessHotelsRouter, businessReportsRouter } from './business/business.router';
 import { hotelPermissionsRouter, hotelRolesRouter, hotelStaffRouter } from './hotelStaff/hotelStaff.router';
+import { hotelNotificationSettingsRouter, hotelNotificationsRouter } from './notifications/notifications.router';
 import { floorsRouter, roomBlocksRouter, roomsRouter, roomTypesRouter } from './rooms/rooms.router';
 
 // Gắn mọi module vào /v1. Thêm module mới: tạo thư mục modules/<ten>/ rồi thêm 1 dòng ở đây.
@@ -44,6 +45,8 @@ v1Router.use('/hotel/rooms', roomsRouter);
 v1Router.use('/hotel/permissions', hotelPermissionsRouter);
 v1Router.use('/hotel/roles', hotelRolesRouter);
 v1Router.use('/hotel/staff', hotelStaffRouter);
+v1Router.use('/hotel/notifications', hotelNotificationsRouter);
+v1Router.use('/hotel/notification-settings', hotelNotificationSettingsRouter);
 v1Router.use('/hotel/hotels', businessHotelsRouter);
 v1Router.use('/hotel/reports', businessReportsRouter);
 v1Router.use('/hotel/profile', hotelProfileRouter);

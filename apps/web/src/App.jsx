@@ -5,6 +5,7 @@ import { hotelTabs } from './lib/hotelNav';
 import { areasOf, resolveTab, visibleTabs } from './lib/access';
 import { MODULES, moduleOf } from './lib/shellNav';
 import { StaffShell } from './components/shell/StaffShell';
+import NotificationBell from './components/hotel/NotificationBell';
 import { Notice } from './components/Common';
 import Login from './screens/Login';
 import Hotel from './screens/Hotel';
@@ -58,6 +59,7 @@ function Shell() {
     <StaffShell portal={MODULES[activeModule]} items={items} cur={cur} entries={entries}
       onPick={(i) => dispatch({ type: 'partnerTab', id: i.id })} onRoute={(area, id) => dispatch({ type: 'route', screen: area, partnerTab: id })}
       hotelPicker={allowed && screen === 'hotel' && (sess.business || sess.hotels?.length > 1) ? { hotels: sess.hotels || [], currentId: sess.hotelId, onSwitch: onSwitchHotel } : null}
+      headerExtra={allowed && screen === 'hotel' && sess?.hotelId ? <NotificationBell onOpenBooking={() => dispatch({ type: 'partnerTab', id: 'bookings' })} /> : null}
       session={sess} user={state.user} onHome={() => dispatch({ type: 'reset' })} onLogout={() => dispatch({ type: 'logout' })}
       onLogin={() => onGo('login')}
       other={allowed && other ? { label: `Chuyển sang cổng ${MODULES[other].label}`, onClick: () => onGo(other), testid: 'switch-area' } : null}>
