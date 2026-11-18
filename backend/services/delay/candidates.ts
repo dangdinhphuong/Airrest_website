@@ -1,4 +1,5 @@
 import { maxConcurrent } from '@airrest/business-logic';
+import { openHotel } from '../hotels/open';
 import type { BedType } from '@airrest/shared-types';
 import { db } from '../../database/pg';
 import { intervalsForCheck, loadActiveIntervals } from '../rooms/availability';
@@ -40,7 +41,7 @@ export async function loadPlanHotelsWithMinutes(q: PlanHotelsQuery): Promise<Pla
            AND (valid_to IS NULL OR valid_to >= ($4::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
          ORDER BY valid_from DESC LIMIT 1
        ) r ON true
-       WHERE h.status = 'ACTIVE' AND upper(a->>'iata') = upper($2) AND NOT (h.id = ANY($5::uuid[]))
+       WHERE ${openHotel('h')} AND upper(a->>'iata') = upper($2) AND NOT (h.id = ANY($5::uuid[]))
        ORDER BY (a->>'km')::numeric, h.id, t.id`,
       [q.payerId, q.airportIata, q.from, q.to, q.excludedHotelIds ?? []],
     )

@@ -1,5 +1,6 @@
 import { canBook, dayWindow, hourlyOf, hourlyPrice, hourlyViolation, hourlyWindow, remainingRooms, vnClock, type HourlyConfig } from '@airrest/business-logic';
 import { AppError } from '../../lib/errors';
+import { openHotel } from './open';
 import { db } from '../../database/pg';
 import type { HotelDoc, RoomTypeDoc } from '../../database/types';
 import { intervalsForCheck, loadActiveIntervals, loadActiveIntervalsMany } from '../rooms/availability';
@@ -46,7 +47,7 @@ const SLOT_MS = 30 * 60_000;
  * Còn phòng = canBook trên khoảng [giờ vào, giờ ra + dọn phòng) như lúc đặt thật; chỉ đọc, không giữ chỗ.
  */
 export async function hourlySlots(hotelId: string, q: { roomTypeId: string; date: string; hours: number; qty: number }, now = new Date()) {
-  const rt = (await db.query<RoomTypeDoc>("SELECT rt.* FROM room_types rt JOIN hotels h ON h.id = rt.hotel_id AND h.status = 'ACTIVE' WHERE rt.id = $1 AND rt.hotel_id = $2 AND rt.active", [q.roomTypeId, hotelId])).rows[0];
+  const rt = (await db.query<RoomTypeDoc>(`SELECT rt.* FROM room_types rt JOIN hotels h ON h.id = rt.hotel_id AND ${openHotel('h')} WHERE rt.id = $1 AND rt.hotel_id = $2 AND rt.active`, [q.roomTypeId, hotelId])).rows[0];
   if (!rt) throw new AppError(404, 'ROOM_TYPE_NOT_FOUND', 'Không tìm thấy loại phòng');
   const cfg = hourlyOf(rt.pricing);
   if (!cfg) throw new AppError(422, 'HOURLY_NOT_ENABLED', `${rt.name} không bán theo giờ`, { roomTypeId: rt.id });

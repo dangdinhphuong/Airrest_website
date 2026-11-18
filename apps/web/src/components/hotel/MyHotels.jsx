@@ -3,7 +3,7 @@ import { DataTable, EmptyState, FormField as Field, Modal, PageHeader, StatusBad
 import { Tag } from '../ui/StatusBadge';
 import { describeError } from '../../lib/api';
 import { useApp } from '../../state/store';
-import { createMyHotel, listMyHotels, submitMyHotel, switchWorkingHotel } from '../../data/business';
+import { createMyHotel, listMyHotels, pauseChain, pauseHotel, resumeChain, resumeHotel, submitMyHotel, switchWorkingHotel } from '../../data/business';
 import { geocodeAddress } from '../../lib/geocode';
 import { hotelCodeFrom } from '../../lib/hotelCode';
 import { useRoute } from '../../lib/route';
@@ -83,6 +83,8 @@ export default function MyHotels() {
   const [creating, setCreating] = useState(false);
   const { run, note } = useAction();
   const items = list.data?.items ?? [];
+  const chainPaused = !!list.data?.chain?.pausedAt;
+  const done = (fn) => async (...a) => { await fn(...a); list.reload(); };
   const sync = (rows) => dispatch({ type: 'hotels', hotels: rows.map(({ id, code, name, status }) => ({ id, code, name, status })) });
   useEffect(() => { if (list.data) sync(list.data.items); }, [list.data]); // eslint-disable-line react-hooks/exhaustive-deps
   const doSwitch = (id) => run(async () => { const r = await switchWorkingHotel(id); dispatch({ type: 'switchHotel', hotelId: r.hotel.id, hotels: r.hotels }); }, 'Đã chuyển khách sạn đang làm việc.');
@@ -94,11 +96,14 @@ export default function MyHotels() {
   const columns = [
     { key: 'code', header: 'Mã', render: (h) => <strong>{h.code}</strong> },
     { key: 'name', header: 'Tên', render: (h) => <>{h.name}{h.id === cur && <> <Tag tone="info">Đang làm việc</Tag></>}</> },
-    { key: 'status', header: 'Trạng thái', render: (h) => <StatusBadge status={h.status} map={HOTEL_ST} /> },
+    { key: 'status', header: 'Trạng thái', render: (h) => <><StatusBadge status={h.status} map={HOTEL_ST} />{h.pausedAt && <> <Tag tone="warn">Tạm dừng nhận đặt</Tag></>}{!h.pausedAt && chainPaused && h.status === 'ACTIVE' && <> <Tag tone="warn">Chuỗi đang dừng</Tag></>}</> },
     { key: 'addr', header: 'Địa chỉ', render: (h) => [h.address?.line, h.address?.city].filter(Boolean).join(', ') },
     { key: 'act', header: 'Thao tác', render: (h) => (
       <div className="row-actions" style={{ margin: 0 }}>
         {h.id !== cur && <button type="button" className="btn btn-sm" onClick={() => doSwitch(h.id)} data-testid="mh-switch">Chuyển sang làm việc</button>}
+        {h.status === 'ACTIVE' && !h.pausedAt && <ConfirmAction label="Tạm dừng nhận đặt" title="Tạm dừng nhận đặt mới" ask="Khách sạn sẽ ẩn khỏi tìm kiếm và không nhận đặt mới. Đơn đã đặt và khách đang lưu trú vẫn tiếp tục." confirmLabel="Tạm dừng" reason={{ label: 'Lý do', minLength: 3 }} testid="mh-pause"
+          onConfirm={done((r) => pauseHotel(h.id, r))} />}
+        {h.pausedAt && <ConfirmAction label="Mở lại nhận đặt" ask="Khách sạn sẽ hiện lại và nhận đặt mới." confirmLabel="Mở lại" testid="mh-resume" onConfirm={done(() => resumeHotel(h.id))} />}
         {h.status === 'DRAFT' && <ConfirmAction label="Gửi hồ sơ" ask="Gửi hồ sơ khách sạn này cho quản trị viên duyệt?" confirmLabel="Gửi hồ sơ" testid="mh-submit-hotel"
           onConfirm={async () => { await submitMyHotel(h.id); list.reload(); }} />}
       </div>) },
@@ -106,7 +111,13 @@ export default function MyHotels() {
   return (
     <>
       <PageHeader title="Khách sạn của tôi" description="Các khách sạn thuộc doanh nghiệp của bạn. Tạo khách sạn ở dạng nháp, gửi hồ sơ để Airrest duyệt, rồi khai báo phòng và giá ở các tab khác."
-        actions={<button type="button" className="btn btn-primary" onClick={() => setCreating(true)} data-testid="mh-new">Tạo khách sạn</button>} />
+        actions={<div className="row-actions" style={{ margin: 0 }}>
+          {chainPaused
+            ? <ConfirmAction label="Mở lại cả chuỗi" ask="Mọi khách sạn đang hoạt động của chuỗi sẽ nhận đặt mới trở lại (trừ khách sạn bạn đã dừng riêng)." confirmLabel="Mở lại" testid="mh-chain-resume" onConfirm={done(() => resumeChain())} />
+            : <ConfirmAction label="Dừng cả chuỗi" title="Tạm dừng nhận đặt cả chuỗi" ask="Mọi khách sạn của doanh nghiệp sẽ ẩn khỏi tìm kiếm và không nhận đặt mới. Đơn đã đặt và khách đang lưu trú vẫn tiếp tục." confirmLabel="Dừng cả chuỗi" tone="danger" reason={{ label: 'Lý do', minLength: 3 }} testid="mh-chain-pause" onConfirm={done((r) => pauseChain(r))} />}
+          <button type="button" className="btn btn-primary" onClick={() => setCreating(true)} data-testid="mh-new">Tạo khách sạn</button>
+        </div>} />
+      {chainPaused && <p className="field-error" role="status" data-testid="mh-chain-banner">Cả chuỗi đang tạm dừng nhận đặt mới{list.data.chain.pauseReason ? `: ${list.data.chain.pauseReason}` : ''}.</p>}
       {note}
       {!list.loading && !list.err && !items.length
         ? <EmptyState title="Chưa có khách sạn nào" testid="mh-empty" actions={<button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>Tạo khách sạn đầu tiên</button>}>

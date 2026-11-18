@@ -40,6 +40,10 @@ export async function switchWorkingHotel(hotelId) {
 }
 export const listMyHotels = () => api.get('/v1/hotel/hotels');
 export const createMyHotel = (body) => api.post('/v1/hotel/hotels', body);
+export const pauseHotel = (id, reason) => api.post(`/v1/hotel/hotels/${id}/pause`, { reason });
+export const resumeHotel = (id) => api.post(`/v1/hotel/hotels/${id}/resume`);
+export const pauseChain = (reason) => api.post('/v1/hotel/hotels/chain/pause', { reason });
+export const resumeChain = () => api.post('/v1/hotel/hotels/chain/resume');
 export const submitMyHotel = (id) => api.post(`/v1/hotel/hotels/${id}/submit`);
 export const getHotelRevenue = (q) => api.get('/v1/hotel/reports/revenue', { query: q });
 export const getBusinessRevenue = (q) => api.get('/v1/hotel/reports/revenue/summary', { query: q });

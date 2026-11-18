@@ -9,6 +9,7 @@ import { hotelShuttleQuoteBody, type HotelShuttleQuoteBody } from '@airrest/vali
 import { quoteHotelShuttle } from '../../../services/shuttle/shuttle.service';
 import { hotelFeatures, hourlySlots, publicRooms, searchHotels } from '../../../services/hotels/catalog';
 import { imageViews } from '../../../services/hotels/profile';
+import { openHotel } from '../../../services/hotels/open';
 import { createReview, listReviews } from '../../../services/hotels/reviews';
 import { strictRateLimit } from '../../middleware/rateLimit';
 import { lookupBody } from '@airrest/validation';
@@ -67,7 +68,7 @@ hotelsRouter.get('/', validate({ query: listQuery }), async (req, res) => {
   const window = windowOf({ from, to });
   if (!airport || SEARCH_KEYS.some((k) => q[k] !== undefined)) { // chế độ tìm kiếm: lọc + sắp xếp + cắt top `limit` ở backend
     // shortcut: không có airport thì pool là SEARCH_POOL khách sạn đầu theo seq, nâng lên lọc/sắp ở SQL khi hệ thống vượt SEARCH_POOL khách sạn.
-    const pool = (await db.query<HotelDoc>(`SELECT ${PUBLIC_COLS} FROM hotels WHERE status = 'ACTIVE' AND ($1::jsonb IS NULL OR airports @> $1::jsonb) ORDER BY seq LIMIT ${SEARCH_POOL}`, [airport ? JSON.stringify([{ iata: airport }]) : null])).rows;
+    const pool = (await db.query<HotelDoc>(`SELECT ${PUBLIC_COLS} FROM hotels WHERE ${openHotel()} AND ($1::jsonb IS NULL OR airports @> $1::jsonb) ORDER BY seq LIMIT ${SEARCH_POOL}`, [airport ? JSON.stringify([{ iata: airport }]) : null])).rows;
     const rooms = await publicRooms(pool.map((h) => h.id), window);
     const withRooms = pool.map((h) => ({ ...h, rooms: rooms.get(h.id) ?? [] }));
     const { items: found, total, priceRange } = searchHotels(withRooms, airport ?? '', { ...q, sort: q.sort ?? (airport ? 'distance' : 'rating'), rooms: q.rooms ?? 1, limit });
@@ -76,7 +77,7 @@ hotelsRouter.get('/', validate({ query: listQuery }), async (req, res) => {
   }
   const items = (
     await db.query<HotelDoc>(
-      `SELECT ${PUBLIC_COLS} FROM hotels WHERE status = 'ACTIVE' AND airports @> $1::jsonb AND seq > $2 ORDER BY seq LIMIT ${limit + 1}`,
+      `SELECT ${PUBLIC_COLS} FROM hotels WHERE ${openHotel()} AND airports @> $1::jsonb AND seq > $2 ORDER BY seq LIMIT ${limit + 1}`,
       [JSON.stringify([{ iata: airport }]), cursor ?? 0],
     )
   ).rows;
@@ -89,7 +90,7 @@ hotelsRouter.get('/', validate({ query: listQuery }), async (req, res) => {
 hotelsRouter.get('/:id', validate({ params: idParams, query: idQuery }), async (req, res) => {
   const { id } = req.valid.params as z.infer<typeof idParams>;
   const window = windowOf(req.valid.query as z.infer<typeof idQuery>);
-  const hotel = (await db.query<HotelDoc>(`SELECT ${PUBLIC_COLS} FROM hotels WHERE id = $1 AND status = 'ACTIVE'`, [id])).rows[0];
+  const hotel = (await db.query<HotelDoc>(`SELECT ${PUBLIC_COLS} FROM hotels WHERE id = $1 AND ${openHotel()}`, [id])).rows[0];
   if (!hotel) throw new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');
   const roomTypes = (await db.query<RoomTypeDoc>('SELECT * FROM room_types WHERE hotel_id = $1 AND active', [hotel.id])).rows;
   const detail = new Map(roomTypes.map((rt) => [rt.id, rt]));

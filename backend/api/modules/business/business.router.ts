@@ -42,9 +42,33 @@ const createBody = z.object({
 
 businessHotelsRouter.get('/', async (req, res) => {
   const businessId = needBusiness(req);
-  const items = (await db.query('SELECT id, code, name, status, address, contact, created_at, approved_at FROM hotels WHERE business_id = $1 ORDER BY seq', [businessId])).rows;
-  res.json({ items, currentHotelId: req.auth!.hotelId ?? null });
+  const items = (await db.query('SELECT id, code, name, status, address, contact, created_at, approved_at, paused_at, pause_reason FROM hotels WHERE business_id = $1 ORDER BY seq', [businessId])).rows;
+  const chain = (await db.query<{ pausedAt?: string; pauseReason?: string }>('SELECT paused_at, pause_reason FROM businesses WHERE id = $1', [businessId])).rows[0];
+  res.json({ items, currentHotelId: req.auth!.hotelId ?? null, chain: { pausedAt: chain?.pausedAt ?? null, pauseReason: chain?.pauseReason ?? null } });
 });
+
+// Tạm dừng nhận đặt mới (cả chuỗi hoặc từng khách sạn). Đơn đã đặt/đang lưu trú KHÔNG bị ảnh hưởng.
+const pauseBody = z.object({ reason: z.string().trim().min(3).max(300) });
+const setPause = (table: 'hotels' | 'businesses', pause: boolean) => async (req: import('express').Request, res: import('express').Response) => {
+  const businessId = needBusiness(req);
+  const id = table === 'hotels' ? (req.valid.params as z.infer<typeof idParams>).id : businessId;
+  const reason = pause ? (req.valid.body as z.infer<typeof pauseBody>).reason : null;
+  const scope = table === 'hotels' ? 'id = $1 AND business_id = $2' : 'id = $2 AND $1::uuid IS NOT NULL';
+  await withTransaction(async (tx) => {
+    const cur = (await tx.query<{ status?: string; pausedAt?: string }>(`SELECT ${table === 'hotels' ? 'status, ' : ''}paused_at FROM ${table} WHERE ${scope} FOR UPDATE`, [id, businessId])).rows[0];
+    if (!cur) throw new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');
+    if (pause && table === 'hotels' && cur.status !== 'ACTIVE') throw new AppError(409, 'INVALID_STATE', 'Chỉ tạm dừng được khách sạn đang hoạt động');
+    if (!!cur.pausedAt === pause) throw new AppError(409, 'INVALID_STATE', pause ? 'Đã đang tạm dừng' : 'Không ở trạng thái tạm dừng');
+    await tx.query(`UPDATE ${table} SET paused_at = ${pause ? 'now()' : 'NULL'}, pause_reason = $3, updated_at = now() WHERE ${scope}`, [id, businessId, reason]);
+    await writeAudit({ actor: actorOf(req.auth), action: pause ? 'HOTEL.PAUSE' : 'HOTEL.RESUME', entity: { type: table === 'hotels' ? 'hotel' : 'business', id }, ...(table === 'hotels' && { hotelId: id }), after: { paused: pause, reason }, requestId: String(req.id) }, tx);
+  });
+  res.json({ ok: true, paused: pause });
+};
+// 'chain' đứng trước '/:id' để không bị hiểu là mã khách sạn.
+businessHotelsRouter.post('/chain/pause', validate({ body: pauseBody }), setPause('businesses', true));
+businessHotelsRouter.post('/chain/resume', setPause('businesses', false));
+businessHotelsRouter.post('/:id/pause', validate({ params: idParams, body: pauseBody }), setPause('hotels', true));
+businessHotelsRouter.post('/:id/resume', validate({ params: idParams }), setPause('hotels', false));
 
 // Tạo ở DRAFT; chủ gửi hồ sơ (submit) để admin duyệt bằng luồng duyệt khách sạn hiện có.
 businessHotelsRouter.post('/', validate({ body: createBody }), async (req, res) => {

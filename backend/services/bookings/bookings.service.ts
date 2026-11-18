@@ -10,6 +10,7 @@ import { AppError, isDuplicateKey } from '../../lib/errors';
 import type { AuthContext } from '../../lib/jwt';
 import { escapeLike } from '../../lib/zod';
 import { intervalsForCheck, loadActiveIntervals } from '../rooms/availability';
+import { openHotel } from '../hotels/open';
 import { newSepayOrder } from '../../lib/sepay';
 import { stayNights } from '../../lib/nights';
 import { actorOf, writeAudit } from '../audit';
@@ -73,7 +74,7 @@ async function loadRooms(hotelId: string, rooms: RoomsInput) {
   const rts = (await db.query<RoomTypeDoc>('SELECT * FROM room_types WHERE id = ANY($1::uuid[]) AND hotel_id = $2 AND active', [ids, hotelId])).rows;
   const byId = new Map(rts.map((r) => [r.id, r]));
   const missing = ids.filter((id) => !byId.has(id));
-  const hotel = !missing.length ? (await db.query<HotelDoc>("SELECT * FROM hotels WHERE id = $1 AND status = 'ACTIVE'", [hotelId])).rows[0] : undefined;
+  const hotel = !missing.length ? (await db.query<HotelDoc>(`SELECT * FROM hotels WHERE id = $1 AND ${openHotel()}`, [hotelId])).rows[0] : undefined;
   if (missing.length || !hotel) throw new AppError(404, 'ROOM_TYPE_NOT_FOUND', 'Không tìm thấy loại phòng', missing.length ? { roomTypeIds: missing } : undefined);
   return { hotel, rows: rooms.map((r) => ({ roomType: byId.get(r.roomTypeId)!, qty: r.qty, kind: r.kind, startsAt: r.startsAt, hours: r.hours, ratePlan: r.ratePlan ?? 'STANDARD' })) };
 }

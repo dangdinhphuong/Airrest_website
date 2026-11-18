@@ -1,4 +1,5 @@
 import { canBook } from '@airrest/business-logic';
+import { openHotel } from '../hotels/open';
 import type { Db } from '../../database/pg';
 import type { Alternative } from '../../database/types';
 import { intervalsForCheck, loadActiveIntervals } from '../rooms/availability';
@@ -27,7 +28,7 @@ export async function suggestAlternatives(tx: Db, input: { hotelId: string; from
     await tx.query<Row>(
       `SELECT h.id AS hotel_id, h.name AS hotel_name, h.policy, h.airports, rt.id AS room_type_id, rt.name AS room_type_name, rt.total_rooms, rt.pricing
        FROM hotels h JOIN room_types rt ON rt.hotel_id = h.id AND rt.active AND rt.retired_at IS NULL
-       WHERE h.status = 'ACTIVE' AND h.id <> $1
+       WHERE ${openHotel('h')} AND h.id <> $1
          AND EXISTS (SELECT 1 FROM jsonb_array_elements(h.airports) a WHERE a->>'iata' = ANY($2::text[]))`,
       [input.hotelId, iatas],
     )
