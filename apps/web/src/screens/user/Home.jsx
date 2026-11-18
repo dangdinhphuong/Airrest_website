@@ -6,7 +6,7 @@ import {
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useApp } from '../../state/store';
-import { airportCity, bestRoom, describeApiError, listAirports, listHotels, listTopRated, lookupFlight, peekHotels } from '../../data/user';
+import { airportCity, bestRoom, describeApiError, listAirports, listHotels, lookupFlight, peekHotels } from '../../data/user';
 import { fmtDuration, isoDate, money } from '../../lib/time';
 import { peekStaysIntent, clearStaysIntent, partyFromPrefs, scrollToId, setStaysIntent } from './data';
 import ScanTicket from './ScanTicket';
@@ -18,7 +18,7 @@ gsap.registerPlugin(useGSAP);
 const today = isoDate(0);
 const LABEL = 'tw:text-[11px] tw:font-extrabold tw:uppercase tw:tracking-[.16em] tw:text-blue-600';
 const POPULAR = ['HAN', 'SGN', 'DAD']; // sân bay hiện thành tab; còn lại nằm trong ô 'Sân bay khác'
-const TOP_N = 4;
+const TOP_N = 8;
 const CHIP_ON = 'tw:border-blue-600 tw:bg-blue-600 tw:text-white';
 const CHIP_OFF = 'tw:border-slate-200 tw:bg-white tw:text-slate-600';
 
@@ -79,19 +79,6 @@ export default function Home() {
   const available = hotels.map((h) => { const room = bestRoom(h, people, party.rooms); return room && { ...h, room }; }).filter(Boolean);
   const shown = available; // thứ tự theo đánh giá do backend sắp; danh sách đầy đủ ở trang 'stays'
 
-  // 'Được khách đánh giá cao': toàn hệ thống, không phụ thuộc tab sân bay.
-  const [top, setTop] = useState([]);
-  const [tState, setTState] = useState('loading'); // loading | ok | error
-  const [tError, setTError] = useState('');
-  useEffect(() => {
-    const ctl = new AbortController();
-    setTState('loading');
-    listTopRated(ctl.signal, { guests: people, rooms: party.rooms }).then((h) => { setTop(h); setTState('ok'); }).catch((e) => { if (!ctl.signal.aborted) { setTError(describeApiError(e)); setTState('error'); } });
-    return () => ctl.abort();
-  }, [tick, people, party.rooms]);
-  const topShown = top.map((h) => { const room = bestRoom(h, people, party.rooms); return room && { ...h, room }; }).filter(Boolean);
-  const toTopStays = (hotelId) => { setStaysIntent({ airport: hotelId ? top.find((h) => h.id === hotelId)?.airportCode : undefined, hotelId, sort: 'rating', party }); dispatch({ type: 'go', screen: 'stays' }); window.scrollTo({ top: 0 }); };
-
   const hotelCard = (hotel, onChoose) => (
                 <article data-card key={hotel.id} className="tw:overflow-hidden tw:rounded-2xl tw:border tw:border-slate-200 tw:bg-white tw:shadow-sm tw:transition tw:hover:-translate-y-1 tw:hover:shadow-xl">
                   <div className="tw:relative tw:h-52 tw:overflow-hidden"><Photo src={hotel.image} alt={`Không gian tại ${hotel.name}`} size={40} /><button type="button" onClick={() => setLiked(liked.includes(hotel.id) ? liked.filter((id) => id !== hotel.id) : [...liked, hotel.id])} aria-label="Lưu khách sạn" aria-pressed={liked.includes(hotel.id)} className="tw:absolute tw:right-3 tw:top-3 tw:grid tw:size-11 tw:place-items-center tw:rounded-full tw:bg-white/95 tw:text-slate-600"><Heart size={18} className={liked.includes(hotel.id) ? 'fill-rose-500 text-rose-500' : ''} /></button></div>
@@ -114,7 +101,7 @@ export default function Home() {
   useEffect(() => { if (result.s === 'found' || result.s === 'notfound' || result.s === 'error') scrollToId('flight-status', 'center'); }, [result.s]);
 
   // 'Chọn phòng': sang trang danh sách, mở sẵn khách sạn đó để thêm phòng vào giỏ và đặt ngay ở đó.
-  const openBooking = (hotel) => { setStaysIntent({ airport, hotelId: hotel.id, party }); dispatch({ type: 'go', screen: 'stays' }); window.scrollTo({ top: 0 }); };
+  const openHotel = (hotel) => { dispatch({ type: 'openProperty', id: hotel.id }); window.scrollTo({ top: 0 }); };
 
   // Hiệu ứng: hero vào trang, thẻ nơi nghỉ khi đổi sân bay/bộ lọc, kết quả chuyến bay, modal. Chỉ opacity/transform.
   useGSAP(() => {
@@ -221,8 +208,8 @@ export default function Home() {
           <div className="tw:flex tw:flex-col tw:justify-between tw:gap-5 tw:sm:flex-row tw:sm:items-end"><div><span className={LABEL}>Nơi nghỉ gần sân bay</span><h2 className="tw:mt-2 tw:text-3xl tw:font-bold tw:tracking-tight">Phòng đang mở nhận yêu cầu</h2></div></div>
           <div className="tw:mt-7 tw:flex tw:items-center tw:justify-between tw:gap-4 tw:border-b tw:border-slate-200">
             <div role="tablist" aria-label="Sân bay" className="tw:flex tw:items-center tw:gap-1 tw:overflow-x-auto">
-              {tabAirports.map((a) => <button type="button" role="tab" aria-selected={airport === a.iata} key={a.iata} onClick={() => setAirport(a.iata)} className={`tw:shrink-0 tw:border-b-2 tw:px-4 tw:py-3 tw:text-sm tw:font-bold ${airport === a.iata ? 'tw:border-blue-600 tw:text-blue-600' : 'tw:border-transparent tw:text-slate-600'}`}>{a.name} ({a.iata})</button>)}
-              <Select aria-label="Sân bay khác" value={tabAirports.some((a) => a.iata === airport) ? '' : airport} onChange={(e) => e.target.value && setAirport(e.target.value)} className={`tw:ml-2 tw:h-10 tw:shrink-0 tw:rounded-lg tw:border tw:px-3 tw:text-xs tw:font-bold ${tabAirports.some((a) => a.iata === airport) ? CHIP_OFF : CHIP_ON}`}><option value="">Sân bay khác</option>{airports.filter((a) => !POPULAR.includes(a.iata)).map((a) => <option key={a.iata} value={a.iata}>{a.name} ({a.iata})</option>)}</Select>
+              {tabAirports.map((a) => <button type="button" role="tab" aria-selected={airport === a.iata} key={a.iata} onClick={() => { setAirport(a.iata); dispatch({ type: 'setBrowseAirport', airport: a.iata }); }} className={`tw:shrink-0 tw:border-b-2 tw:px-4 tw:py-3 tw:text-sm tw:font-bold ${airport === a.iata ? 'tw:border-blue-600 tw:text-blue-600' : 'tw:border-transparent tw:text-slate-600'}`}>{a.name} ({a.iata})</button>)}
+              <Select aria-label="Sân bay khác" value={tabAirports.some((a) => a.iata === airport) ? '' : airport} onChange={(e) => { if (e.target.value) { setAirport(e.target.value); dispatch({ type: 'setBrowseAirport', airport: e.target.value }); } }} className={`tw:ml-2 tw:h-10 tw:shrink-0 tw:rounded-lg tw:border tw:px-3 tw:text-xs tw:font-bold ${tabAirports.some((a) => a.iata === airport) ? CHIP_OFF : CHIP_ON}`}><option value="">Sân bay khác</option>{airports.filter((a) => !POPULAR.includes(a.iata)).map((a) => <option key={a.iata} value={a.iata}>{a.name} ({a.iata})</option>)}</Select>
             </div>
             <button type="button" onClick={() => { setStaysIntent({ airport }); dispatch({ type: 'go', screen: 'stays' }); window.scrollTo({ top: 0 }); }} className="tw:hidden tw:shrink-0 tw:items-center tw:gap-1 tw:py-3 tw:text-sm tw:font-bold tw:text-blue-600 tw:sm:flex">Xem thêm các chỗ nghỉ ({airport}) <ChevronRight size={16} /></button>
           </div>
@@ -232,7 +219,7 @@ export default function Home() {
             <div role="alert" className="tw:mt-6 tw:rounded-2xl tw:border tw:border-rose-200 tw:bg-rose-50 tw:p-8 tw:text-center"><h3 className="tw:font-bold">Không tải được danh sách nơi nghỉ</h3><p className="tw:mt-2 tw:text-xs tw:text-slate-600">{hError}</p><button type="button" onClick={() => setTick((t) => t + 1)} className="tw:mt-4 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Thử lại</button></div>
           ) : shown.length ? (
             <div className="tw:mt-5 tw:grid tw:gap-5 tw:md:grid-cols-2 tw:xl:grid-cols-4">
-              {shown.map((hotel) => hotelCard(hotel, openBooking))}
+              {shown.map((hotel) => hotelCard(hotel, openHotel))}
             </div>
           ) : (
             <div className="tw:mt-6 tw:rounded-2xl tw:border tw:border-dashed tw:border-slate-300 tw:bg-white tw:p-10 tw:text-center"><BedDouble className="tw:mx-auto tw:text-slate-400" /><h3 className="tw:mt-4 tw:font-bold">Chưa có phòng phù hợp</h3><p className="tw:mt-2 tw:text-xs tw:text-slate-500">Hãy đổi sân bay.</p></div>
@@ -241,23 +228,6 @@ export default function Home() {
         </div>
       </section>
 
-      {tState !== 'ok' || topShown.length > 0 ? (
-        <section id="top-rated" className="tw:bg-white tw:py-12">
-          <div className="tw:mx-auto tw:max-w-[1480px] tw:px-5">
-            <div className="tw:flex tw:items-end tw:justify-between tw:gap-5"><div><span className={LABEL}>Gợi ý nổi bật</span><h2 className="tw:mt-2 tw:text-3xl tw:font-bold tw:tracking-tight">Được khách đánh giá cao</h2></div>
-              <button type="button" onClick={() => toTopStays()} className="tw:hidden tw:shrink-0 tw:items-center tw:gap-1 tw:py-3 tw:text-sm tw:font-bold tw:text-blue-600 tw:sm:flex">Xem tất cả <ChevronRight size={16} /></button>
-            </div>
-            {tState === 'loading' ? (
-              <p className="tw:mt-6 tw:rounded-2xl tw:border tw:border-slate-200 tw:bg-white tw:p-10 tw:text-center tw:text-sm tw:text-slate-500" aria-live="polite">Đang tải nơi nghỉ…</p>
-            ) : tState === 'error' ? (
-              <div role="alert" className="tw:mt-6 tw:rounded-2xl tw:border tw:border-rose-200 tw:bg-rose-50 tw:p-8 tw:text-center"><h3 className="tw:font-bold">Không tải được danh sách nơi nghỉ</h3><p className="tw:mt-2 tw:text-xs tw:text-slate-600">{tError}</p><button type="button" onClick={() => setTick((t) => t + 1)} className="tw:mt-4 tw:rounded-xl tw:bg-blue-600 tw:px-5 tw:py-3 tw:text-xs tw:font-bold tw:text-white">Thử lại</button></div>
-            ) : (
-              <div className="tw:mt-5 tw:grid tw:gap-5 tw:md:grid-cols-2 tw:xl:grid-cols-4">{topShown.map((hotel) => hotelCard(hotel, (h) => toTopStays(h.id)))}</div>
-            )}
-            <button type="button" onClick={() => toTopStays()} className="tw:mt-5 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:gap-1 tw:rounded-xl tw:border tw:border-blue-600 tw:text-sm tw:font-bold tw:text-blue-600 tw:sm:hidden">Xem tất cả <ChevronRight size={16} /></button>
-          </div>
-        </section>
-      ) : null}
 
       <section className="tw:bg-[#1262e8] tw:text-white">
         <div className="tw:mx-auto tw:flex tw:max-w-[1180px] tw:flex-col tw:justify-between tw:gap-6 tw:px-5 tw:py-9 tw:sm:flex-row tw:sm:items-center"><div className="tw:flex tw:items-start tw:gap-4"><span className="tw:grid tw:size-12 tw:shrink-0 tw:place-items-center tw:rounded-xl tw:bg-white/15"><CircleHelp /></span><div><h2 className="tw:text-lg tw:font-bold">Bạn cần hỗ trợ thêm?</h2><p className="tw:mt-1 tw:text-xs tw:text-blue-100">Gửi ticket hoặc tra cứu booking bằng thông tin xác minh.</p></div></div><div className="tw:flex tw:gap-3"><button type="button" onClick={() => dispatch({ type: 'go', screen: 'support' })} className="tw:rounded-xl tw:border tw:border-white/50 tw:px-4 tw:py-3 tw:text-xs tw:font-bold">Gửi yêu cầu</button><button type="button" onClick={() => dispatch({ type: 'go', screen: 'track' })} className="tw:rounded-xl tw:bg-white tw:px-4 tw:py-3 tw:text-xs tw:font-bold tw:text-blue-700">Theo dõi booking</button></div></div>

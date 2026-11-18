@@ -46,7 +46,7 @@ function reducer(s, a) {
 const Ctx = createContext(null);
 export const useApp = () => useContext(Ctx);
 
-const routeNow = () => parsePath(window.location.pathname, window.location.hash);
+const routeNow = () => parsePath(window.location.pathname, window.location.hash, window.location.search);
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initial, (init) => {
@@ -64,11 +64,11 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (state.screen === 'payment') { synced.current = true; return; }
     const want = pathOf(state);
-    if (window.location.pathname !== want || window.location.hash) {
+    if (window.location.pathname + window.location.search !== want || window.location.hash) {
       window.history[synced.current ? 'pushState' : 'replaceState'](null, '', want);
     }
     synced.current = true;
-  }, [state.screen, state.propertyId, state.partnerTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state.screen, state.propertyId, state.partnerTab, state.screen === 'stays' && state.browseAirport]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const onPop = () => dispatch({ type: 'route', ...(routeNow() ?? { screen: 'home' }) });
     window.addEventListener('popstate', onPop);

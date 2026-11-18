@@ -197,8 +197,8 @@ export default function Fleet() {
   const err = veh.err || drv.err;
   return (
     <>
-      <PageHeader title="Đội xe" description="Xe và tài xế của khách sạn. Tài xế đăng nhập bằng email và mật khẩu ban đầu bạn đặt." />
-      <Tabs label="Đội xe" value={tab} onChange={setTab} tabs={[{ id: 'vehicles', label: 'Xe' }, { id: 'drivers', label: 'Tài xế' }]} />
+      <PageHeader title="Đăng ký xe và tài xế" description="Đăng ký xe và tài xế của khách sạn, hệ thống sẽ tự điều xe cho khách từ danh sách này. Tài xế đăng nhập bằng email và mật khẩu ban đầu bạn đặt." />
+      <Tabs label="Xe và tài xế" value={tab} onChange={setTab} tabs={[{ id: 'vehicles', label: 'Xe' }, { id: 'drivers', label: 'Tài xế' }]} />
       {(veh.loading || drv.loading) && !veh.data && <Loading />}
       {err && <ErrorState onRetry={reload}>{describeError(err)}</ErrorState>}
       {veh.data && drv.data && (tab === 'vehicles'

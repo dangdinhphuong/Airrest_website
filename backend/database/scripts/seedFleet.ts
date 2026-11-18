@@ -18,7 +18,10 @@ export async function seedFleet(password: string): Promise<{ hotels: number; veh
   const role = (await db.query<{ id: string }>("SELECT id FROM roles WHERE key = 'hotel_driver' AND hotel_id IS NULL")).rows[0]!.id;
   const pw = await hashPassword(password);
   let vehicles = 0, p = 0;
-  for (const [code, seats] of Object.entries(FLEET)) {
+  // Mọi khách sạn đã có tiện ích đưa đón (SHUTTLE*) mà chưa nêu ở FLEET cũng có 2 xe mẫu (4 và 7 chỗ) để hệ thống tự điều xe được; NO_FLEET vẫn không có.
+  const withShuttle = (await db.query<{ code: string }>("SELECT code FROM hotels WHERE amenities && ARRAY['SHUTTLE','SHUTTLE_FREE','SHUTTLE_PAID'] AND code <> $1 ORDER BY code", [NO_FLEET])).rows.map((r) => r.code);
+  const all: Record<string, number[]> = { ...Object.fromEntries(withShuttle.map((c) => [c, [4, 7]])), ...FLEET };
+  for (const [code, seats] of Object.entries(all)) {
     const hotelId = (await db.query<{ id: string }>('SELECT id FROM hotels WHERE code = $1', [code])).rows[0]?.id;
     if (!hotelId) throw new Error(`Thiếu khách sạn ${code}: chạy npm run db:seed trước`);
     // Có xe thì phải có tiện ích đưa đón (hotelFeatures đọc tag trong amenities); giữ tag sẵn có nếu đã có.
@@ -44,7 +47,7 @@ export async function seedFleet(password: string): Promise<{ hotels: number; veh
   const noFleetId = (await db.query<{ id: string }>('SELECT id FROM hotels WHERE code = $1', [NO_FLEET])).rows[0]!.id;
   const ownerRole = (await db.query<{ id: string }>("SELECT id FROM roles WHERE key = 'hotel_owner' AND hotel_id IS NULL")).rows[0]!.id;
   await db.query(`INSERT INTO accounts (type, email, password_hash, full_name, status, hotel_id, role_ids, is_owner) VALUES ('HOTEL', 'ql.han03@khachsan.mo', $1, 'Quản lý HAN-03 (không xe)', 'ACTIVE', $2, $3::uuid[], true) ON CONFLICT (email) DO NOTHING`, [pw, noFleetId, [ownerRole]]);
-  return { hotels: Object.keys(FLEET).length, vehicles };
+  return { hotels: Object.keys(all).length, vehicles };
 }
 
 if (process.argv[1]?.endsWith('seedFleet.ts')) {

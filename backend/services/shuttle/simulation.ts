@@ -83,6 +83,11 @@ export async function simTick(nowMs = Date.now()): Promise<void> {
   ).rows;
   const since = (d?: Date) => (d ? ((nowMs - new Date(d).getTime()) / 1000) * scale : 0);
   if (auto) await simExternal(nowMs).catch((err) => logger.error({ err }, 'Mô phỏng xe ngoài lỗi'));
+  // Tài xế mô phỏng nhận chuyến đã được hệ thống gán (OFFERED) sau SHUTTLE_SIM_ACCEPT_DELAY_S giây; tài xế thật nhận trước thì 409, bỏ qua.
+  if (auto && env.SHUTTLE_SIM_ACCEPT_DELAY_S > 0) {
+    const offered = (await db.query<{ id: string }>(`SELECT t.id FROM shuttle_trips t WHERE t.kind = 'OWN' AND t.status = 'OFFERED' AND t.offered_at <= $1::timestamptz - make_interval(secs => $2) AND t.offered_at > $1::timestamptz - make_interval(hours => $3)`, [new Date(nowMs), env.SHUTTLE_SIM_ACCEPT_DELAY_S, AUTO_MAX_AGE_H])).rows;
+    for (const o of offered) await systemStep(o.id, 'accept').catch((err) => { if (err?.code !== 'INVALID_TRANSITION' && err?.status !== 409) logger.error({ err, tripId: o.id }, 'Mô phỏng nhận chuyến lỗi'); });
+  }
   for (const r of rows) {
     try {
       if (!r.route && ['ACCEPTED', 'EN_ROUTE', 'ONBOARD'].includes(r.status)) r.route = (await ensureRoute(r.id)) as Route | null;

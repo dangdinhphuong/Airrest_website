@@ -29,6 +29,7 @@ const schema = z.object({
   SHUTTLE_SIM_AUTO: z.enum(['true', 'false']).optional().transform((v) => (v === undefined ? undefined : v === 'true')),
   SHUTTLE_SIM_SPEED_KMH: z.coerce.number().min(1).max(300).default(40),
   SHUTTLE_SIM_TIME_SCALE: z.coerce.number().min(0.1).max(100000).default(1), // tua nhanh: thời gian mô phỏng = thời gian thật x hệ số
+  SHUTTLE_SIM_ACCEPT_DELAY_S: z.coerce.number().int().min(0).default(15), // SIM_AUTO: tài xế mô phỏng tự nhận chuyến OFFERED sau số giây này (0 = tắt, để tự thử bằng app tài xế)
   SHUTTLE_SIM_TICK_MS: z.coerce.number().int().min(200).default(2000),
   // Nút "Tạo chuyến bay delay" (mô phỏng, đi qua cổng kết nối): mặc định bật ngoài production, tắt ở production.
   DELAY_SIM_ENABLED: z.enum(['true', 'false']).optional().transform((v) => (v === undefined ? undefined : v === 'true')),

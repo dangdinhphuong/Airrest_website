@@ -159,6 +159,28 @@ run('tích hợp: mô phỏng vị trí xe, realtime, theo dõi của khách', (
     expect((await one<any>('SELECT status FROM shuttle_requests WHERE id = $1', [requestId]))!.status).toBe('DONE');
   });
 
+  it('SIM_AUTO: chuyến OFFERED quá SHUTTLE_SIM_ACCEPT_DELAY_S được tài xế mô phỏng nhận (SYSTEM); chưa tới hạn hoặc SIM_AUTO=false thì không', async () => {
+    const c = await setup();
+    const { tripId } = await offered(c);
+    const saveDelay = env.SHUTTLE_SIM_ACCEPT_DELAY_S;
+    try {
+      env.SHUTTLE_SIM_AUTO = true; env.SHUTTLE_SIM_ACCEPT_DELAY_S = 15; env.SHUTTLE_SIM_TIME_SCALE = 1;
+      await simTick();
+      expect((await tripRow(tripId)).status).toBe('OFFERED'); // mới gán, chưa tới 15 giây
+      await db.query("UPDATE shuttle_trips SET offered_at = now() - interval '30 seconds' WHERE id = $1", [tripId]);
+      env.SHUTTLE_SIM_AUTO = false;
+      await simTick();
+      expect((await tripRow(tripId)).status).toBe('OFFERED'); // không bật mô phỏng
+      env.SHUTTLE_SIM_AUTO = true; env.SHUTTLE_SIM_ACCEPT_DELAY_S = 0;
+      await simTick();
+      expect((await tripRow(tripId)).status).toBe('OFFERED'); // 0 = tắt
+      env.SHUTTLE_SIM_ACCEPT_DELAY_S = 15;
+      await simTick();
+      expect((await tripRow(tripId)).status).toBe('ACCEPTED');
+      expect(await one("SELECT 1 AS x FROM booking_events WHERE type = 'TRIP_ACCEPTED' AND actor_type = 'SYSTEM' AND data->>'tripId' = $1", [tripId])).toBeTruthy();
+    } finally { env.SHUTTLE_SIM_ACCEPT_DELAY_S = saveDelay; }
+  });
+
   it('bấm tay thắng tự động; SIM_AUTO=false không tự chuyển; systemStep sau bấm tay -> 409 và simTick không lỗi', async () => {
     env.SHUTTLE_SIM_AUTO = false; env.SHUTTLE_SIM_TIME_SCALE = 100_000;
     const c = await setup();

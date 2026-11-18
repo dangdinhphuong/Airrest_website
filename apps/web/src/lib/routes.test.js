@@ -28,6 +28,10 @@ describe('routes', () => {
     expect(parsePath('/tai-khoan')).toEqual({ screen: 'account', partnerTab: null });
   });
   it('bỏ dấu / cuối, giữ /payment/result, nhận link hash cũ, đường lạ -> null', () => {
+    expect(pathOf({ screen: 'stays', browseAirport: 'SGN' })).toBe('/noi-nghi?airport=SGN');
+    expect(pathOf({ screen: 'stays', browseAirport: 'x<' })).toBe('/noi-nghi'); // giá trị lạ bị bỏ
+    expect(parsePath('/noi-nghi', '', '?airport=dad')).toEqual({ screen: 'stays', browseAirport: 'DAD' });
+    expect(parsePath('/noi-nghi', '', '?airport=zzzz')).toEqual({ screen: 'stays' });
     expect(parsePath('/noi-nghi/')).toEqual({ screen: 'stays' });
     expect(parsePath('/payment/result')).toEqual({ screen: 'payment' });
     expect(parsePath('/', '#/stays')).toEqual({ screen: 'stays' });

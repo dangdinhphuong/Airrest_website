@@ -128,7 +128,7 @@ export default function Stays() {
     <div className="tw:min-h-screen tw:bg-white">
       <div className="tw:bg-[#062253] tw:py-4">
         <div className="tw:mx-auto tw:grid tw:max-w-[1180px] tw:gap-3 tw:px-5 tw:sm:grid-cols-2 tw:lg:grid-cols-4">
-          <label className={BAR_LABEL}><span className={BAR_TEXT}>Sân bay</span><Select aria-label="Sân bay" value={airport} onChange={(e) => { setAirport(e.target.value); setPrice(null); setBounds(null); setOpenId(undefined); }}>{options}</Select></label>
+          <label className={BAR_LABEL}><span className={BAR_TEXT}>Sân bay</span><Select aria-label="Sân bay" value={airport} onChange={(e) => { setAirport(e.target.value); dispatch({ type: 'setBrowseAirport', airport: e.target.value }); setPrice(null); setBounds(null); setOpenId(undefined); }}>{options}</Select></label>
           <div className={BAR_LABEL}><span className={BAR_TEXT}>Số khách</span><GuestsPicker hideRooms label="Số khách" value={{ ...party, rooms: 1 }} onChange={(v) => setParty({ adults: v.adults, children: v.children })} /></div>
           <label className={BAR_LABEL}><span className={BAR_TEXT}>Nhận phòng</span><input className={DATE_INPUT} type="date" aria-label="Ngày nhận phòng" min={isoDate(0)} value={dates.checkIn} onChange={(e) => { const v = e.target.value; if (v) setDates((d) => ({ checkIn: v, checkOut: d.checkOut <= v ? nextDay(v) : d.checkOut })); }} /></label>
           <label className={BAR_LABEL}><span className={BAR_TEXT}>Trả phòng</span><input className={DATE_INPUT} type="date" aria-label="Ngày trả phòng" min={nextDay(dates.checkIn)} value={dates.checkOut} onChange={(e) => e.target.value && setDates((d) => ({ ...d, checkOut: e.target.value }))} /></label>

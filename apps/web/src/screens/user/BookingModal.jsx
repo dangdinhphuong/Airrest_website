@@ -8,8 +8,8 @@ import { useApp } from '../../state/store';
 import { AT_HOTEL_ONLY, CHECKIN_HHMM, CHECKOUT_HHMM, PAY_LABEL, bookingFieldError, buildShuttle, createBooking, describeApiError, getHotel, getPaymentLink, listPaymentMethods, quoteBooking, saveLastBooking, weekdayLabel } from '../../data/user';
 import { isoDate, money } from '../../lib/time';
 import { copyText, setTrackPrefill, statusCopy } from './data';
-import { NR, cartPlan, cartTotal, defaultGuests, planOf, dropSoldOut, hasNight, hourlySpan, isHourly, lineTotal, maxQty, perNight, qtyOf, setQty, suggestExtraRoom, toApiRooms, totalCapacity, totalRooms, roomsText, loadGuest, saveGuest, loadPay, savePay } from './cart';
-import { vnDay } from './HourlyPicker';
+import { NR, endsAtOf, cartPlan, cartTotal, defaultGuests, planOf, dropSoldOut, hasNight, hourlySpan, isHourly, lineTotal, maxQty, perNight, qtyOf, setQty, suggestExtraRoom, toApiRooms, totalCapacity, totalRooms, roomsText, loadGuest, saveGuest, loadPay, savePay } from './cart';
+import { endLabel, hhmm, vnDay } from './HourlyPicker';
 import GuestsPicker from './GuestsPicker';
 import ShuttleOptions, { LEG_LABEL, emptyShuttle } from './ShuttleOptions';
 
@@ -17,6 +17,8 @@ gsap.registerPlugin(useGSAP);
 
 const LABEL = 'tw:text-[11px] tw:font-extrabold tw:uppercase tw:tracking-[.16em] tw:text-blue-600';
 const STEP_BTN = 'tw:grid tw:size-11 tw:place-items-center tw:rounded-full tw:border tw:border-slate-300 tw:bg-white tw:text-slate-700 tw:disabled:opacity-35';
+// 'HH:MM – HH:MM' của dòng theo giờ (kèm '(hôm sau)' nếu giờ ra qua nửa đêm).
+const hourlyRange = (startsAt, hours) => `${hhmm(startsAt)} – ${endLabel(startsAt, endsAtOf(startsAt, hours))}`;
 const dmy = (iso) => iso.split('-').reverse().join('/');
 const nextDay = (iso) => new Date(Date.parse(`${iso}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
 const vnLocal = (ms) => new Date(ms + 7 * 3600_000).toISOString().slice(0, 16);

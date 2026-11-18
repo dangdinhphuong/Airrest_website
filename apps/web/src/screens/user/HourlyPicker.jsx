@@ -69,6 +69,12 @@ export default function HourlyPicker({ hotelId, room, date, line, onPick, prefer
       <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2" role="group" aria-label={`Số giờ ${room.name}`}>
         <span className="tw:text-xs tw:font-semibold tw:text-slate-600">Số giờ</span>
         {hourChoices(cfg).map((h) => <button key={h} type="button" aria-pressed={h === hours} onClick={() => pick(sel ? startsAt : '', h)} className={`${CHIP} ${h === hours ? ON : OFF}`}>{h}h</button>)}
+        {cfg.maxHours > cfg.minHours && <span className="tw:inline-flex tw:items-center tw:gap-1" data-testid="hours-stepper">
+          <button type="button" aria-label="Giảm 1 giờ" disabled={hours <= cfg.minHours} onClick={() => pick(sel ? startsAt : '', hours - 1)} className={`${CHIP} ${OFF}`}>−</button>
+          <input type="number" aria-label="Số giờ tuỳ chọn" min={cfg.minHours} max={cfg.maxHours} value={hours} onChange={(e) => { const n = Math.round(Number(e.target.value)); if (n >= cfg.minHours && n <= cfg.maxHours) pick(sel ? startsAt : '', n); }} className="tw:h-9 tw:w-14 tw:rounded-full tw:border tw:border-slate-300 tw:text-center tw:text-sm tw:font-bold" />
+          <button type="button" aria-label="Tăng 1 giờ" disabled={hours >= cfg.maxHours} onClick={() => pick(sel ? startsAt : '', hours + 1)} className={`${CHIP} ${OFF}`}>+</button>
+          <span className="tw:text-[11px] tw:text-slate-500">({cfg.minHours}–{cfg.maxHours} giờ)</span>
+        </span>}
       </div>
       {data.s === 'error' && <p role="alert" className="tw:text-xs tw:font-semibold tw:text-rose-700">{data.error}</p>}
       {data.s === 'ok' && !anyFree && <p data-testid="hourly-none" className="tw:text-xs tw:font-semibold tw:text-rose-700">Không còn khung giờ trống trong ngày này, hãy chọn ngày khác hoặc bớt số giờ.</p>}

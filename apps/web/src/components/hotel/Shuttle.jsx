@@ -1,19 +1,16 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
-import { ConfirmAction, DataTable, EmptyState, ErrorState, FilterBar, FormField, Loading, PageHeader, StatusBadge, Tag } from '../ui';
+import { ConfirmAction, DataTable, EmptyState, ErrorState, FormField, Loading, PageHeader, StatusBadge, Tag } from '../ui';
 import { useApp } from '../../state/store';
-import { hasPerm } from '../../lib/access';
-import { PERM } from '../../lib/perms';
-import { money } from '../../lib/time';
 import { describeError } from '../../lib/api';
 import { useLiveData } from '../../lib/useRealtime';
 import * as H from '../../data/hotel';
-import { fmtDT, useAction, usePaged } from './kit';
+import { fmtDT, useAction } from './kit';
 import { DIRECTION, LiveBadge, PROVIDER, TripPill, VEHICLE_STATE, vi } from './fleetKit';
 import Select from '../Select';
 
 const TripMap = lazy(() => import('./TripMap'));
-const DIR = { TO_HOTEL: 'Sân bay → KS', TO_AIRPORT: 'KS → sân bay' };
-const CANCELLABLE = ['OFFERED', 'ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'NEEDS_EXTERNAL'];
+const MOVING = ['EN_ROUTE', 'ARRIVED', 'ONBOARD'];
+const WAITING = ['OFFERED', 'ACCEPTED'];
 const NEXT_EXT = { ACCEPTED: ['arrived', 'Xe ngoài đã tới', 'Xe ngoài đã tới điểm đón?'], EN_ROUTE: ['arrived', 'Xe ngoài đã tới', 'Xe ngoài đã tới điểm đón?'], ARRIVED: ['onboard', 'Khách đã lên xe', 'Khách đã lên xe?'], ONBOARD: ['dropped-off', 'Đã trả khách', 'Đã trả khách tới nơi?'] };
 const mmss = (ms) => { const s = Math.abs(Math.floor(ms / 1000)); const h = Math.floor(s / 3600); return `${h ? `${h} giờ ` : ''}${String(Math.floor((s % 3600) / 60)).padStart(2, '0')} phút ${String(s % 60).padStart(2, '0')} giây`; };
 
@@ -78,144 +75,113 @@ function ExternalCard({ r, t, cfg, act, go }) {
   );
 }
 
-function TripLine({ t, vehicles, act, go, positions }) {
-  const [form, setForm] = useState(null); // 'ext' | 'reassign' | null
-  const [map, setMap] = useState(false);
-  const [veh, setVeh] = useState('');
-  const free = vehicles.filter((v) => v.state === 'FREE' && v.seats >= t.seats && v.id !== t.vehicle?.id);
-  const own = t.kind === 'OWN';
-  const pos = positions[t.id] || t.position;
-  const next = !own && NEXT_EXT[t.status];
+// Chuyến xe NGOÀI (Grab/Xanh SM): không có app tài xế nên nhân viên cập nhật tiến trình; chuyến xe của khách sạn chỉ để xem.
+function ExternalTrip({ t, act, go }) {
+  const [form, setForm] = useState(false);
+  const next = NEXT_EXT[t.status];
   return (
     <div className="trip-line" data-testid="trip-line">
       <div className="trip-head">
         <TripPill s={t.status} /> <span>{t.seats} chỗ</span>
-        {own && t.vehicle && <span><strong>{t.vehicle.plate}</strong>{t.driver ? ` · ${t.driver.name} · ${t.driver.phone}` : ''}</span>}
-        {!own && t.external && <span>{PROVIDER[t.external.provider] || 'Xe ngoài'}{t.external.simulated && ' (mô phỏng)'}{[t.external.driverName, t.external.plate, t.external.phone].filter(Boolean).map((x) => ` · ${x}`).join('')}{t.external.shareUrl && <> · <a href={t.external.shareUrl} target="_blank" rel="noopener noreferrer">Xem hành trình</a></>}</span>}
-        {t.status === 'REJECTED' && t.rejectReason && <small>Lý do: {t.rejectReason}</small>}
+        <span>{PROVIDER[t.external?.provider] || 'Xe ngoài'}{t.external?.simulated && ' (mô phỏng)'}{[t.external?.driverName, t.external?.plate, t.external?.phone].filter(Boolean).map((x) => ` · ${x}`).join('')}</span>
       </div>
       <div className="row-actions" style={{ marginTop: 6 }}>
         {next && <ConfirmAction label={next[1]} ask={next[2]} disabled={act.busy} testid={`ext-${next[0]}`} onConfirm={() => go(vi(() => H.staffStep(t.id, next[0])), 'Đã cập nhật chuyến.')} />}
-        {!own && t.status === 'ACCEPTED' && <button type="button" className="btn btn-sm" onClick={() => setForm(form === 'ext' ? null : 'ext')} data-testid="ext-change">Đổi xe ngoài</button>}
-        {['OFFERED', 'ACCEPTED', 'NEEDS_EXTERNAL'].includes(t.status) && <button type="button" className="btn btn-sm" onClick={() => setForm(form === 'reassign' ? null : 'reassign')} data-testid="reassign-open">Gán lại xe</button>}
-        {own && pos && ['ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'ONBOARD'].includes(t.status) && <button type="button" className="btn btn-sm" onClick={() => setMap(!map)} data-testid="map-toggle">{map ? 'Ẩn bản đồ' : 'Bản đồ'}</button>}
-        {own && !pos && t.route && <button type="button" className="btn btn-sm" onClick={() => setMap(!map)} data-testid="map-toggle">{map ? 'Ẩn bản đồ' : 'Bản đồ'}</button>}
-        {CANCELLABLE.includes(t.status) && <ConfirmAction label="Hủy chuyến" tone="danger" ask="Hủy chuyến này?" reason={{ label: 'Ghi chú hủy (tối thiểu 3 ký tự)' }} testid="trip-cancel" onConfirm={(n) => go(vi(() => H.cancelTrip(t.id, n)), 'Đã hủy chuyến.')} />}
+        {t.status === 'ACCEPTED' && <button type="button" className="btn btn-sm" onClick={() => setForm(!form)} data-testid="ext-change">Đổi xe ngoài</button>}
       </div>
-      {form === 'ext' && <ExternalForm trip={t} busy={act.busy} onCancel={() => setForm(null)} onSubmit={(b) => go(vi(() => H.setExternal(t.id, b)), 'Đã đổi thông tin xe ngoài.')} />}
-      {form === 'reassign' && (
-        <div className="inline-form" style={{ marginTop: 8 }}>
-          <Select aria-label="Chọn xe rảnh" value={veh} onChange={(e) => setVeh(e.target.value)} data-testid="reassign-select">
-            <option value="">{free.length ? 'Chọn xe rảnh đủ chỗ' : 'Không có xe rảnh đủ chỗ'}</option>
-            {free.map((v) => <option key={v.id} value={v.id}>{v.plate} · {v.seats} chỗ{v.driver ? ` · ${v.driver.name}` : ''}</option>)}
-          </Select>
-          <button type="button" className="btn btn-sm btn-primary" disabled={!veh || act.busy} onClick={async () => { if (await go(vi(() => H.reassignTrip(t.id, veh)), 'Đã gán lại xe, tài xế mới cần nhận chuyến.')) setForm(null); }} data-testid="reassign-ok">Gán xe</button>
-          <button type="button" className="link-btn" onClick={() => setForm(null)}>Huỷ</button>
-        </div>
-      )}
-      {map && <Suspense fallback={<Loading />}><TripMap route={t.route} position={pos} /></Suspense>}
+      {form && <ExternalForm trip={t} busy={act.busy} onCancel={() => setForm(false)} onSubmit={(b) => go(vi(() => H.setExternal(t.id, b)), 'Đã đổi thông tin xe ngoài.')} />}
     </div>
   );
 }
 
+// Trạng thái của xe suy ra từ các chuyến đang có trên bảng: đang chở / có đơn chờ / rảnh.
+function vehicleStatus(v, trips) {
+  if (v.state === 'INACTIVE' || v.state === 'NO_DRIVER') return { ...(VEHICLE_STATE[v.state] ? { label: VEHICLE_STATE[v.state][0], tone: VEHICLE_STATE[v.state][1] } : { label: v.state, tone: 'neutral' }) };
+  if (trips.some((x) => MOVING.includes(x.t.status))) return { label: 'Đang chở đơn', tone: 'warn' };
+  if (trips.some((x) => WAITING.includes(x.t.status))) return { label: 'Có đơn chờ đón', tone: 'info' };
+  return { label: 'Rảnh, chưa có đơn', tone: 'ok' };
+}
+
+function VehicleCard({ v, trips, positions }) {
+  const [map, setMap] = useState(null);
+  const st = vehicleStatus(v, trips);
+  return (
+    <article className="card veh-card" data-testid="veh-card" style={{ padding: 14 }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
+        <div><strong>{v.plate}</strong> · {v.seats} chỗ{v.model ? ` · ${v.model}` : ''}
+          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{v.driver ? `Tài xế: ${v.driver.name} · ${v.driver.phone}` : 'Chưa gán tài xế'}</div></div>
+        <Tag tone={st.tone} data-testid="veh-state">{st.label}</Tag>
+      </header>
+      {trips.length === 0
+        ? <p className="muted" style={{ margin: '10px 0 0', fontSize: 13 }} data-testid="veh-empty">Chưa có đơn nào.</p>
+        : <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 8 }}>{trips.map(({ t, r }) => {
+            const pos = positions[t.id] || t.position;
+            return (
+              <li key={t.id} data-testid="veh-trip" style={{ borderTop: '1px solid var(--line, #e2e8f0)', paddingTop: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                  <strong>{r.bookingCode}</strong><TripPill s={t.status} />
+                  <span className="muted" style={{ fontSize: 12 }}>{DIRECTION[r.direction] || r.direction} · {fmtDT(r.pickupAt)} · {t.passengers ?? r.passengers} khách ({r.guest.fullName})</span>
+                </div>
+                {(pos || t.route) && <button type="button" className="btn btn-sm" style={{ marginTop: 6 }} onClick={() => setMap(map === t.id ? null : t.id)} data-testid="map-toggle">{map === t.id ? 'Ẩn bản đồ' : 'Xem trên bản đồ'}</button>}
+                {map === t.id && <Suspense fallback={<Loading />}><TripMap route={t.route} position={pos} /></Suspense>}
+              </li>
+            );
+          })}</ul>}
+    </article>
+  );
+}
+
+// Theo dõi xe: hệ thống TỰ điều xe (còn <= dispatchLeadMin phút tới giờ đón); màn này chỉ xem xe nào đang chở đơn nào, xe nào rảnh, đơn nào chưa có xe.
 function Board({ live }) {
   const act = useAction();
   const go = async (fn, ok) => { const r = await act.run(fn, ok); live.refresh(); return r; };
   if (live.loading && !live.data) return <Loading />;
   if (live.err && !live.data) return <ErrorState onRetry={live.reload}>{describeError(live.err)}</ErrorState>;
   const { requests, vehicles, config } = live.data;
+  const own = requests.flatMap((r) => r.trips.filter((t) => t.kind !== 'EXTERNAL' && t.vehicle && !['REJECTED', 'CANCELLED', 'DROPPED_OFF'].includes(t.status)).map((t) => ({ r, t })));
+  const external = requests.flatMap((r) => r.trips.filter((t) => t.kind === 'EXTERNAL' && t.status !== 'NEEDS_EXTERNAL' && !['REJECTED', 'CANCELLED', 'DROPPED_OFF'].includes(t.status)).map((t) => ({ r, t })));
   const alerts = requests.flatMap((r) => r.trips.filter((t) => t.status === 'NEEDS_EXTERNAL').map((t) => ({ r, t })));
+  const waiting = requests.filter((r) => !r.trips.some((t) => !['REJECTED', 'CANCELLED'].includes(t.status)));
   return (
     <>
       {act.note}
       {alerts.length > 0 && (
         <section className="ext-alerts" aria-label="Cần gọi xe ngoài" data-testid="ext-alerts">
-          <h3>Cần gọi xe ngoài ({alerts.length})</h3>
+          <h3>Hết xe của khách sạn, cần gọi xe ngoài ({alerts.length})</h3>
           {alerts.map(({ r, t }) => <ExternalCard key={t.id} r={r} t={t} cfg={config} act={act} go={go} />)}
         </section>
       )}
-      <h3>Yêu cầu xe đang xử lý</h3>
-      <DataTable rows={requests} rowTestid="board-row" emptyTitle="Chưa có yêu cầu" empty="Chưa có yêu cầu xe nào cần xử lý." columns={[
+      <h3>Xe của khách sạn</h3>
+      {!vehicles.length ? <EmptyState title="Chưa có xe">Khách sạn chưa đăng ký xe. Vào Vận chuyển → Xe và tài xế để đăng ký xe và tài xế, hệ thống sẽ tự điều xe cho khách.</EmptyState> : (
+        <div data-testid="veh-list" style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+          {vehicles.map((v) => <VehicleCard key={v.id} v={v} trips={own.filter((x) => x.t.vehicle.id === v.id)} positions={live.positions} />)}
+        </div>
+      )}
+      {external.length > 0 && <>
+        <h3>Chuyến xe ngoài đang chạy</h3>
+        {external.map(({ r, t }) => <div key={t.id} className="card" style={{ padding: 12, marginBottom: 8 }}><strong>{r.bookingCode}</strong> · {DIRECTION[r.direction]} · {fmtDT(r.pickupAt)}<ExternalTrip t={t} act={act} go={go} /></div>)}
+      </>}
+      <h3>Yêu cầu chờ xe</h3>
+      <DataTable rows={waiting} rowTestid="board-row" emptyTitle="Không có yêu cầu chờ" empty="Mọi yêu cầu xe đều đã có xe." columns={[
         { key: 'code', header: 'Đơn', render: (r) => <strong>{r.bookingCode}</strong> },
-        { key: 'guest', header: 'Khách', render: (r) => <>{r.guest.fullName}<br /><a href={`tel:${r.guest.phone}`}>{r.guest.phone}</a></> },
+        { key: 'guest', header: 'Khách', render: (r) => r.guest.fullName },
         { key: 'dir', header: 'Chiều', render: (r) => `${DIRECTION[r.direction] || r.direction} (${r.airport})` },
         { key: 'at', header: 'Giờ đón', render: (r) => fmtDT(r.pickupAt) },
         { key: 'pax', header: 'Khách đi xe', render: (r) => r.passengers },
-        { key: 'trips', header: 'Chuyến, xe và tài xế', render: (r) => (r.trips.length ? r.trips.map((t) => <TripLine key={t.id} t={t} vehicles={vehicles} act={act} go={go} positions={live.positions} />) : <span className="muted">Chưa có chuyến (chờ điều phối)</span>) },
-        { key: 'status', header: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
+        { key: 'status', header: 'Trạng thái', render: () => <span className="muted">Hệ thống tự điều xe khi còn {config.dispatchLeadMin ?? 30} phút tới giờ đón</span> },
       ]} />
-      <h3>Xe của khách sạn</h3>
-      {!vehicles.length ? <EmptyState title="Chưa có xe">Khách sạn chưa khai báo xe.</EmptyState> : (
-        <ul className="veh-list" data-testid="veh-list">{vehicles.map((v) => { const [t, tone] = VEHICLE_STATE[v.state] || [v.state, 'neutral']; return <li key={v.id} data-testid="veh-item"><strong>{v.plate}</strong> · {v.seats} chỗ{v.model ? ` · ${v.model}` : ''} · {v.driver ? v.driver.name : 'Chưa có tài xế'} <Tag tone={tone}>{t}</Tag></li>; })}</ul>
-      )}
     </>
   );
 }
 
-function AssignForm({ s, onSubmit, busy }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState(s.driver?.name || '');
-  const [phone, setPhone] = useState(s.driver?.phone || '');
-  if (!open) return <button type="button" className="btn btn-sm" onClick={() => setOpen(true)} data-testid="sh-assign-open">{s.status === 'ASSIGNED' ? 'Đổi tài xế' : 'Phân xe'}</button>;
-  return (
-    <form className="inline-form" onSubmit={async (e) => { e.preventDefault(); if (await onSubmit(name, phone)) setOpen(false); }}>
-      <input aria-label="Tên tài xế" placeholder="Tên tài xế" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} data-testid="sh-driver" />
-      <input aria-label="SĐT tài xế" placeholder="SĐT tài xế" value={phone} onChange={(e) => setPhone(e.target.value)} required data-testid="sh-phone" />
-      <button type="submit" className="btn btn-sm btn-primary" disabled={busy} data-testid="sh-assign-ok">Lưu</button>
-      <button type="button" className="link-btn" onClick={() => setOpen(false)}>Huỷ</button>
-    </form>
-  );
-}
-
-// Danh sách yêu cầu theo kiểu cũ (shuttle:handle): phân xe tay chỉ còn cho yêu cầu CHƯA có chuyến.
-function Legacy({ noTrips }) {
-  const [status, setStatus] = useState('');
-  const act = useAction();
-  const list = usePaged((cursor) => H.listShuttles({ status, cursor }), [status]);
-  const go = async (fn, ok) => { const r = await act.run(vi(fn), ok); if (r) list.reload(); return r; };
-  const columns = [
-    { key: 'code', header: 'Đơn', render: (s) => <strong>{s.bookingCode}</strong> },
-    { key: 'guest', header: 'Khách', render: (s) => s.guestName },
-    { key: 'dir', header: 'Chiều', render: (s) => `${DIR[s.direction]} (${s.airportIata}, ${s.distanceKm} km)` },
-    { key: 'at', header: 'Giờ đón', render: (s) => fmtDT(s.pickupAt) },
-    { key: 'loc', header: 'Địa điểm / ghi chú', render: (s) => [s.location, s.note, s.cancelNote && `Lý do hủy: ${s.cancelNote}`].filter(Boolean).join(' · ') },
-    { key: 'price', header: 'Giá', render: (s) => money(s.priceVnd) },
-    { key: 'driver', header: 'Tài xế', render: (s) => (s.driver ? `${s.driver.name} · ${s.driver.phone}` : '') },
-    { key: 'status', header: 'Trạng thái', render: (s) => <StatusBadge status={s.status} /> },
-    { key: 'act', header: '', render: (s) => ['REQUESTED', 'ASSIGNED'].includes(s.status) && noTrips.has(s.id) && (
-      <div className="row-actions" style={{ marginTop: 0 }}>
-        <AssignForm s={s} busy={act.busy} onSubmit={(n, p) => go(() => H.assignShuttle(s.id, n, p), 'Đã phân xe.')} />
-        {s.status === 'ASSIGNED' && <ConfirmAction label="Hoàn tất" ask="Xe đã đón xong?" disabled={act.busy} testid="sh-complete" onConfirm={() => go(() => H.completeShuttle(s.id), 'Đã hoàn tất chuyến đưa đón.')} />}
-        <ConfirmAction label="Hủy xe" title="Hủy yêu cầu xe" confirmLabel="Hủy chuyến" tone="danger" ask={`Hủy yêu cầu xe của đơn ${s.bookingCode}?`} reason={{ label: 'Ghi chú hủy (bắt buộc)' }} testid="sh-cancel" onConfirm={(n) => go(() => H.cancelShuttle(s.id, n), 'Đã hủy yêu cầu xe.')} />
-      </div>
-    ) },
-  ];
-  return (
-    <>
-      <h3>Tất cả yêu cầu xe</h3>
-      <FilterBar testid="sh-filters">
-        <Select aria-label="Trạng thái" value={status} onChange={(e) => setStatus(e.target.value)} data-testid="sh-status">
-          <option value="">Mọi trạng thái</option><option value="REQUESTED">Chờ phân xe</option><option value="ASSIGNED">Đã phân xe</option><option value="DONE">Hoàn tất</option><option value="CANCELLED">Đã hủy</option>
-        </Select>
-      </FilterBar>
-      {act.note}
-      <DataTable columns={columns} rows={list.items} rowTestid="sh-row" loading={list.loading} error={list.err && describeError(list.err)} onRetry={list.reload}
-        empty="Chưa có yêu cầu xe nào." hasMore={list.next != null} onLoadMore={list.loadMore} loadingMore={list.more} />
-    </>
-  );
-}
-
-// Điều phối xe: bảng /v1/hotel/shuttle/board (tự cập nhật qua socket, dự phòng polling) + danh sách yêu cầu cũ.
+// Màn chỉ xem: dữ liệu từ /v1/hotel/shuttle/board (tự cập nhật qua socket, dự phòng polling).
 export default function Shuttle() {
   const { state } = useApp();
-  const legacy = hasPerm(state.session, PERM.SHUTTLE_HANDLE);
   const live = useLiveData(() => H.getBoard(), [], state.session?.id);
-  const noTrips = new Set((live.data?.requests || []).filter((r) => !r.trips.length).map((r) => r.id)); // yêu cầu chưa có chuyến mới được phân xe tay
   return (
     <>
-      <PageHeader title="Điều phối xe" description="Yêu cầu xe của khách, chuyến, tài xế và cảnh báo hết xe." actions={<LiveBadge conn={live.conn} />} />
+      <PageHeader title="Theo dõi xe" description="Hệ thống tự điều xe cho khách. Màn này cho biết xe nào đang chở đơn nào, xe nào rảnh và đơn nào chưa có xe." actions={<LiveBadge conn={live.conn} />} />
       <Board live={live} />
-      {legacy && <Legacy noTrips={noTrips} />}
     </>
   );
 }

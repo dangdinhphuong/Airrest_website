@@ -151,7 +151,7 @@ async function step(auth: AuthContext | undefined, who: 'driver' | 'staff' | 'sy
 
 export const driverStep = (auth: AuthContext, tripId: string, s: Step, o: { reason?: string; requestId?: string } = {}) => step(auth, 'driver', tripId, s, o);
 /** Mô phỏng tự chuyển trạng thái (SHUTTLE_SIM_AUTO; chuyến OWN hoặc chuyến EXTERNAL có cờ simulated): CÙNG đường đi với tài xế (transaction, booking_events actor SYSTEM, publish). Bấm tay thắng: trạng thái đã đổi -> 409 INVALID_TRANSITION. */
-export const systemStep = (tripId: string, s: Extract<Step, 'start' | 'arrived' | 'onboard' | 'dropped-off'>) => step(undefined, 'system', tripId, s);
+export const systemStep = (tripId: string, s: Extract<Step, 'accept' | 'start' | 'arrived' | 'onboard' | 'dropped-off'>) => step(undefined, 'system', tripId, s);
 export const staffStep = (auth: AuthContext, tripId: string, s: Extract<Step, 'arrived' | 'onboard' | 'dropped-off'>, requestId?: string) => step(auth, 'staff', tripId, s, { requestId });
 
 // ---------- Đóng chuyến không thành (không đổi billing/hoàn tiền) ----------
@@ -358,5 +358,5 @@ export async function shuttleBoard(auth: AuthContext, q: BoardQuery) {
         state: !v.active ? 'INACTIVE' : !v.driverAccountId || !v.driverActive ? 'NO_DRIVER' : v.busy ? 'BUSY' : 'FREE',
       }))
     : [];
-  return { requests, alerts, vehicles, config: { overdueMin: env.SHUTTLE_EXTERNAL_OVERDUE_MIN, vehicleWindowMin: env.SHUTTLE_VEHICLE_WINDOW_MIN } };
+  return { requests, alerts, vehicles, config: { overdueMin: env.SHUTTLE_EXTERNAL_OVERDUE_MIN, vehicleWindowMin: env.SHUTTLE_VEHICLE_WINDOW_MIN, dispatchLeadMin: env.SHUTTLE_DISPATCH_LEAD_MIN } };
 }

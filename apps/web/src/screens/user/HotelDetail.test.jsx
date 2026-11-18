@@ -39,20 +39,22 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
+window.matchMedia ??= () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }); // BookingModal (gsap) cần matchMedia
 const open = async () => { render(<AppProvider><HotelDetail /></AppProvider>); await screen.findByRole('heading', { level: 1, name: 'Ngọc Lan Inn' }); };
 
 describe('HotelDetail', () => {
   it('đọc id từ đường dẫn, gọi API đúng khách sạn và hiện các mục chính', async () => {
     await open();
     expect(api.getHotel.mock.calls[0][0]).toBe(ID);
-    for (const name of ['Tổng quan', 'Phòng', 'Tiện ích', 'Vị trí', 'Chính sách', 'Đánh giá']) expect(screen.getAllByRole('button', { name }).length).toBeGreaterThan(0);
+    for (const name of ['Tổng quan', 'Phòng & giá', 'Tiện ích', 'Vị trí', 'Chính sách', 'Đánh giá']) expect(screen.getAllByRole('button', { name }).length).toBeGreaterThan(0);
     expect(screen.getByText('9.3/10 · 21 đánh giá')).toBeTruthy();
     expect(screen.getByTestId('hotel-map-stub').textContent).toBe('Ngọc Lan Inn');
     const rooms = screen.getAllByTestId('detail-room');
     expect(rooms).toHaveLength(2);
     expect(within(rooms[0]).getByText('740.000đ')).toBeTruthy();
     expect(within(rooms[0]).getByText('Hướng Thung lũng')).toBeTruthy();
-    expect(within(rooms[1]).getByRole('button', { name: 'Chọn phòng' }).disabled).toBe(true); // hết phòng
+    expect(within(rooms[1]).getByTestId('room-qty').disabled).toBe(true); // hết phòng
+    expect(screen.getByRole('button', { name: 'Đặt phòng' }).disabled).toBe(true); // chưa chọn phòng nào
   });
 
   it('chính sách: có dữ liệu thì hiện; thiếu thì "Liên hệ khách sạn"', async () => {
@@ -66,22 +68,30 @@ describe('HotelDetail', () => {
     expect(screen.getAllByText('Liên hệ khách sạn').length).toBe(4);
   });
 
-  it('Chọn phòng: ghi giỏ vào localStorage và chuyển sang /noi-nghi', async () => {
+  const qtyOf = (room, i = 0) => within(room).getAllByTestId('room-qty')[i];
+  const book = () => fireEvent.click(screen.getByRole('button', { name: 'Đặt phòng' }));
+
+  it('Đặt phòng: chọn số phòng ở dòng, khung tổng cộng tiền, một nút đặt ghi giỏ và mở form đặt ngay tại trang (không chuyển trang)', async () => {
     await open();
-    fireEvent.click(within(screen.getAllByTestId('detail-room')[0]).getByRole('button', { name: 'Chọn phòng' }));
-    await waitFor(() => expect(window.location.pathname).toBe('/noi-nghi'));
-    const cart = JSON.parse(window.localStorage.getItem('airrest.cart'));
-    expect(cart).toMatchObject({ hotelId: ID, lines: [{ roomTypeId: 'r1', qty: 1, price: 740000 }] });
+    const room = screen.getAllByTestId('detail-room')[0];
+    fireEvent.change(qtyOf(room), { target: { value: '2' } });
+    expect(within(screen.getByTestId('room-summary')).getByText(/2 phòng/)).toBeTruthy();
+    book();
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy());
+    expect(window.location.pathname).not.toBe('/noi-nghi');
+    expect(JSON.parse(window.localStorage.getItem('airrest.cart'))).toMatchObject({ hotelId: ID, lines: [{ roomTypeId: 'r1', qty: 2, price: 740000 }] });
   });
 
-  it('mức Không hoàn hủy: hiện giá rẻ hơn, chọn thì giỏ ghi ratePlan và giá đã giảm', async () => {
+  it('mức Không hoàn hủy là một dòng riêng: chọn thì giỏ ghi ratePlan và giá đã giảm; chọn mức khác thì bỏ dòng mức cũ', async () => {
     await open();
-    const rooms = screen.getAllByTestId('detail-room');
-    expect(within(rooms[1]).queryByTestId('pick-nr')).toBeNull(); // loại phòng không có mức này
-    const nr = within(rooms[0]).getByTestId('pick-nr');
-    expect(nr.textContent).toBe('Không hoàn hủy · 666.000đ');
-    fireEvent.click(nr);
-    await waitFor(() => expect(window.location.pathname).toBe('/noi-nghi'));
+    const room = screen.getAllByTestId('detail-room')[0];
+    expect(within(screen.getAllByTestId('detail-room')[1]).getAllByTestId('rate-row')).toHaveLength(1); // loại phòng không có mức này
+    expect(within(room).getAllByTestId('rate-row')[1].textContent).toContain('666.000đ');
+    fireEvent.change(qtyOf(room, 0), { target: { value: '1' } });
+    fireEvent.change(qtyOf(room, 1), { target: { value: '1' } });
+    expect(qtyOf(room, 0).value).toBe('0'); // một đơn một mức hủy
+    book();
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy());
     expect(JSON.parse(window.localStorage.getItem('airrest.cart')).lines[0]).toMatchObject({ roomTypeId: 'r1', price: 666000, ratePlan: 'NON_REFUNDABLE' });
   });
 
