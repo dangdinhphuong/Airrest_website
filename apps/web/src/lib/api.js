@@ -1,9 +1,13 @@
 // Điểm duy nhất đọc cấu hình backend: VITE_API_BASE_URL (apps/web/.env). Không có giá trị mặc định trong mã.
 import { createClient, describeError } from '@airrest/api-client';
 
-function parseBase(u) {
+// "/" hoặc "same-origin": gọi API cùng địa chỉ với web (máy chủ web chuyển tiếp /v1 và /socket.io sang API, xem vite.config.js): một cổng, một tên miền, không CORS.
+// Bỏ trống thì VẪN là lỗi cấu hình (không tự đoán).
+export function parseBase(u) {
+  const v = String(u || '').trim();
+  if (v === '/' || v === 'same-origin') return typeof window === 'undefined' ? null : window.location.origin;
   try {
-    const x = new URL(String(u || '').trim());
+    const x = new URL(v);
     return /^https?:$/.test(x.protocol) ? `${x.origin}${x.pathname}`.replace(/\/+$/, '') : null;
   } catch { return null; }
 }

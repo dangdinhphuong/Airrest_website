@@ -56,7 +56,7 @@ services:
       PORT: "3000"
       JWT_SECRET: dev-only-change-me-please-0123456789
       DATA_ENC_KEY: dev-only-data-key-change-me-0123456789
-      CORS_ORIGINS: http://localhost:5174
+      CORS_ORIGINS: http://localhost:5174,https://airrest.dpdns.org # thêm tên miền công khai (Cloudflare Tunnel), phân cách bằng dấu phẩy
       SEED_PASSWORD: ChangeMe123!
       OLLAMA_URL: http://ollama:11434 # AI local chạy trong compose (service ollama), không cần Ollama trên máy host
     depends_on:
@@ -72,6 +72,8 @@ services:
     image: node:22-alpine
     working_dir: /app
     command: sh -c "npm install && npm run dev -w @airrest/web -- --host 0.0.0.0 --port 5173"
+    environment:
+      VITE_PROXY_TARGET: http://api:3000 # web chuyển tiếp /v1 và /socket.io sang API (dùng khi VITE_API_BASE_URL=/)
     ports: ["5174:5173"]
     volumes:
       - .:/app

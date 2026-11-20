@@ -77,3 +77,12 @@ Hai biến độc lập:
 - `VITE_CHATBOT_ENABLED` trong `apps/web/.env` (mặc định `true`): `false` thì **không hiện bong bóng robot và khung chat** trên web (không mount `ChatBot`, nên không gọi API chat nào). Chỉ `false/0/off/no/disabled` mới tắt; giá trị gõ sai vẫn bật. Biến `VITE_*` do Vite đọc lúc khởi động: đổi xong chạy `docker compose restart web`; build production thì phải build lại. Đọc ở `apps/web/src/lib/features.js`.
 - `AI_CHAT_ENABLED` trong `backend/.env` (mặc định `false`): chỉ bật/tắt phần AI (hiểu ý, viết câu, dịch). Tắt thì chatbot vẫn chạy bản từ khóa. Đổi xong phải tạo lại container api (`docker compose up -d api`).
 Bảng: `VITE_CHATBOT_ENABLED=true` + `AI_CHAT_ENABLED=true` = chatbot có AI; `true` + `false` = chatbot từ khóa; `false` + bất kỳ = không có chatbot.
+
+## Cloudflare Tunnel: một tên miền, một cổng
+Web chạy bằng Vite dev server và **chuyển tiếp `/v1` và `/socket.io` sang API** (`apps/web/vite.config.js`, đích lấy từ `VITE_PROXY_TARGET`, Docker đặt `http://api:3000`). Nhờ đó chỉ cần **một route** trong tunnel và không có CORS:
+- Cloudflare: Hostname `airrest.dpdns.org` (để trống Subdomain) → Service `http://localhost:5174` (nếu `cloudflared` chạy trên máy host; chạy trong Docker thì `http://web:5173`). **Không cần route `api.`**, **không bao giờ mở cổng Ollama**.
+- `apps/web/.env`: `VITE_API_BASE_URL=/` (hoặc `same-origin`) rồi `docker compose restart web`. Web gọi API cùng địa chỉ với chính nó; bản chạy ở `localhost:5174` cũng dùng được. Bỏ trống vẫn là lỗi cấu hình, địa chỉ đầy đủ (`http://localhost:3000`) vẫn dùng như cũ.
+- `backend/.env`: `PUBLIC_WEB_URL=https://airrest.dpdns.org`; SePay live: `SEPAY_RETURN_URL=https://airrest.dpdns.org/payment/result`, `SEPAY_IPN_URL=https://airrest.dpdns.org/v1/payments/sepay/ipn` (khai cùng địa chỉ IPN trong trang cấu hình SePay), rồi `docker compose up -d api`.
+- `server.allowedHosts` trong `vite.config.js` phải có tên miền (host lạ nhận 403 "Blocked request"). Đổi tên miền thì sửa chỗ này.
+- **Không bật `xfwd` ở proxy Vite:** backend dùng `trust proxy 1` và lấy IP khách từ `X-Forwarded-For` do Cloudflare đặt; `xfwd` nối thêm IP của proxy làm mọi khách dùng chung một IP (giới hạn tần suất sai).
+- Cách khác không đụng mã: hai route trên Cloudflare cùng tên miền, một có Path `^/(v1|socket\.io)` → `http://localhost:3000` đặt TRƯỚC route còn lại → `http://localhost:5174`, và `VITE_API_BASE_URL=https://airrest.dpdns.org`.
