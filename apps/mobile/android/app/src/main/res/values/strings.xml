@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AIRREST</string>
+    <string name="title_activity_main">AIRREST</string>
+    <string name="package_name">vn.airrest.app</string>
+    <string name="custom_url_scheme">vn.airrest.app</string>
+</resources>

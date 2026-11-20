@@ -37,7 +37,7 @@ function ScannedInfo({ q }) {
     <div className="tw:mt-1">
       <p className="tw:text-sm tw:font-bold tw:text-slate-800">{q.code} · {q.day.split('-').reverse().join('/')}</p>
       {extra && <p className="tw:text-sm tw:text-slate-700">{extra}</p>}
-      {q.source === 'ocr' && <p className="tw:mt-1 tw:text-xs tw:text-amber-800">Thông tin đọc từ chữ in trên ảnh nên có thể sai (nhất là ngày). Hãy kiểm tra lại với thẻ lên tàu.</p>}
+      {(q.source === 'ocr' || q.source === 'ai') && <p className="tw:mt-1 tw:text-xs tw:text-amber-800">{q.source === 'ai' ? 'AI đọc từ chữ in trên ảnh' : 'Thông tin đọc từ chữ in trên ảnh'} nên có thể sai (nhất là ngày). Hãy kiểm tra lại với thẻ lên tàu.</p>}
     </div>
   );
 }

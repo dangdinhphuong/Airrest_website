@@ -36,3 +36,19 @@ backend/.data/
 .e2e/logs/
 .e2e/videos/
 ai-local/models
+
+# Build APK Android (Capacitor): công cụ build cài trong thư mục dự án, rất nặng, không commit
+.jdk/
+.android-sdk/
+.gradle-home/
+.android-user/
+.android-env.sh
+dist-android/
+apps/mobile/www/
+apps/mobile/android/build/
+apps/mobile/android/app/build/
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/android/app/src/main/assets/public/
+apps/mobile/android/app/src/main/assets/capacitor.config.json
+apps/mobile/android/app/src/main/assets/capacitor.plugins.json

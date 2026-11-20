@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Camera, ImageUp, X } from 'lucide-react';
 import { parseBcbp } from '../../lib/bcbp';
 import { ocrImage, terminateOcr } from '../../lib/ocr';
-import { parseTicketText } from '../../lib/ticketText';
+import { parseTicketText, redactTicketText } from '../../lib/ticketText';
+import { extractTicket } from '../../data/user';
 
 // Bộ giải mã (~1,4 MB wasm) chỉ tải khi người dùng mở cửa sổ quét; wasm phục vụ cùng origin, không qua CDN.
 let readerPromise;
@@ -102,21 +103,41 @@ export default function ScanTicket({ onResult, onClose }) {
     return () => { alive = false; window.removeEventListener('keydown', onKey); stop(); terminateOcr(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fromFile = async (e) => {
-    const file = e.target.files?.[0]; e.target.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { setMsg('Vui lòng chọn tệp ảnh (JPG, PNG, WebP).'); return; }
+  // Ảnh tải lên hoặc ảnh vừa chụp: mã vạch -> OCR + bộ regex -> nhờ AI đọc giúp (chỉ gửi chữ đã bỏ tên/mã đặt chỗ, không gửi ảnh).
+  const processImage = async (file) => {
     setState('busy'); setMsg(''); setBusyMsg('Đang đọc mã vạch…');
     try {
       const readBarcodes = await loadReader();
       const text = await decodeFile(file, readBarcodes);
       if (text && done(text)) return;
       setBusyMsg('Không thấy mã vạch, đang đọc chữ in trên ảnh (vài giây)…');
-      const parsed = parseTicketText(await ocrImage(file));
+      const ocrText = await ocrImage(file);
+      const parsed = parseTicketText(ocrText);
       if (parsed) { stop(); onResult({ ...parsed, source: 'ocr' }); return; }
+      setBusyMsg('Đang nhờ AI đọc giúp chữ trên ảnh…');
+      const ai = await extractTicket(redactTicketText(ocrText));
+      if (ai) { stop(); onResult({ ...ai, source: 'ai' }); return; }
       setMsg(NOT_FOUND);
     } catch { setMsg('Không xử lý được ảnh này. Hãy thử ảnh khác.'); }
     setState(stream.current ? 'scanning' : 'nocam');
+  };
+
+  const fromFile = async (e) => {
+    const file = e.target.files?.[0]; e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setMsg('Vui lòng chọn tệp ảnh (JPG, PNG, WebP).'); return; }
+    await processImage(file);
+  };
+
+  // Chụp một khung hình đang xem trên camera rồi xử lý như ảnh tải lên.
+  const capture = async () => {
+    const v = video.current;
+    if (!v?.videoWidth) { setMsg('Camera chưa sẵn sàng, hãy thử lại sau giây lát.'); return; }
+    const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.92));
+    if (!blob) { setMsg('Không chụp được ảnh, hãy thử lại.'); return; }
+    await processImage(new File([blob], 'ticket.jpg', { type: 'image/jpeg' }));
   };
 
   return (
@@ -135,9 +156,10 @@ export default function ScanTicket({ onResult, onClose }) {
               {state === 'busy' && <p className="tw:absolute tw:inset-0 tw:grid tw:place-items-center tw:bg-slate-900/60 tw:px-6 tw:text-center tw:text-sm tw:font-semibold tw:text-white">{busyMsg}</p>}
             </div>
           )}
+          {state === 'scanning' && <button type="button" onClick={capture} data-testid="scan-capture" className="tw:mt-3 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-blue-600 tw:px-4 tw:text-sm tw:font-bold tw:text-white tw:hover:bg-blue-700"><Camera size={17} /> Chụp và đọc thẻ</button>}
           <p className="tw:mt-3 tw:text-xs tw:leading-5 tw:text-slate-500">
             {state === 'nocam' ? <Camera size={14} className="tw:mr-1 tw:inline" /> : null}
-            {msg || 'Đưa mã vạch/QR trên thẻ lên tàu vào khung. Chỉ số hiệu chuyến bay và ngày bay được dùng, tên và mã đặt chỗ không được lưu hay gửi đi.'}
+            {msg || 'Đưa mã vạch/QR trên thẻ lên tàu vào khung, hoặc bấm Chụp để đọc chữ in trên thẻ. Chỉ số hiệu chuyến bay, ngày bay, sân bay và giờ được dùng. Tên và mã đặt chỗ được loại bỏ ngay trên máy bạn, không lưu; nếu cần, chữ còn lại được gửi tới AI chạy trong hệ thống AIRREST để đọc giúp, ảnh không bao giờ rời khỏi máy.'}
           </p>
           {msg && state !== 'nocam' && <p role="alert" className="tw:sr-only">{msg}</p>}
           <label className="tw:mt-4 tw:flex tw:min-h-11 tw:cursor-pointer tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:border tw:border-slate-300 tw:px-4 tw:text-sm tw:font-bold tw:text-slate-700 tw:hover:bg-slate-50">

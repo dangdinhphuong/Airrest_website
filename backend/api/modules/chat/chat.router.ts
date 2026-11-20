@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { normalize, normalizeBodySchema } from '../../../services/chat/normalize';
 import { compose, directiveSchema, historySchema } from '../../../services/chat/reply';
+import { extractTicket, ticketBodySchema } from '../../../services/chat/ticket';
 import { understand } from '../../../services/chat/understand';
 import { chatAiRateLimit } from '../../middleware/rateLimit';
 import { validate } from '../../middleware/validate';
@@ -24,4 +25,10 @@ chatRouter.post('/reply', chatAiRateLimit, validate({ body: z.object({ directive
 chatRouter.post('/normalize', chatAiRateLimit, validate({ body: normalizeBodySchema }), async (req, res) => {
   const { text } = req.valid.body as z.infer<typeof normalizeBodySchema>;
   res.json(await normalize(text));
+});
+
+// Đọc giúp chữ OCR của thẻ lên tàu (trình duyệt đã bỏ tên/mã đặt chỗ). ticket = null: không đọc được hoặc AI tắt/lỗi (frontend mời nhập tay).
+chatRouter.post('/ticket', chatAiRateLimit, validate({ body: ticketBodySchema }), async (req, res) => {
+  const { text } = req.valid.body as z.infer<typeof ticketBodySchema>;
+  res.json({ ticket: await extractTicket(text) });
 });

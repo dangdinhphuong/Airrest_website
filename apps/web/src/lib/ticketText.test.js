@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTicketText } from './ticketText';
+import { parseTicketText, redactTicketText } from './ticketText';
 
 const now = new Date(2026, 10, 12);
 
@@ -26,5 +26,21 @@ describe('parseTicketText', () => {
   });
   it('trả null nếu thiếu số hiệu hoặc ngày, hoặc ngày không tồn tại', () => {
     for (const bad of ['', 'hello world', 'VN 218', '31 FEB 2026 VN 218', null]) expect(parseTicketText(bad, now)).toBeNull();
+  });
+});
+
+describe('redactTicketText', () => {
+  it('bỏ họ tên nhưng giữ số hiệu, ngày, sân bay, giờ để vẫn đọc được thẻ', () => {
+    const out = redactTicketText(REAL);
+    expect(out).not.toMatch(/HA QUANG|DUNG/);
+    expect(parseTicketText(out, now)).toEqual(parseTicketText(REAL, now));
+  });
+  it('bỏ mã đặt chỗ, số vé, SĐT, email; giữ số hiệu chuyến và ngày dạng 16AUG15', () => {
+    const out = redactTicketText('Name: NGUYEN VAN A  Booking ref X7K9QP  E-ticket 7382918374651  0912 345 678  a@b.vn  VN 7132  16AUG15  Dep 20:05  SGN DAD');
+    for (const bad of ['NGUYEN', 'X7K9QP', '7382918374651', '0912', 'a@b.vn']) expect(out).not.toContain(bad);
+    for (const good of ['VN 7132', '16AUG15', '20:05', 'SGN', 'DAD']) expect(out).toContain(good);
+  });
+  it('chuỗi rỗng/không phải chuỗi thì trả rỗng', () => {
+    expect(redactTicketText(undefined)).toBe('');
   });
 });

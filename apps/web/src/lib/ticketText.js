@@ -80,3 +80,23 @@ export function parseTicketText(text, now = new Date()) {
   if (time) out.time = time;
   return out;
 }
+
+// Bỏ họ tên, mã đặt chỗ/số vé, số điện thoại, email khỏi chữ OCR TRƯỚC khi gửi cho AI của hệ thống (giữ nguyên lời hứa "tên và mã đặt chỗ không được gửi đi").
+// Giữ lại số hiệu chuyến (2 ký tự + 1-4 số), ngày (16AUG15), giờ, mã sân bay. Tên đứng sau danh xưng (MR/MRS/MS...) hoặc nhãn Name/Passenger, dừng ở nhãn khác;
+// mọi từ của tên đó (từ 3 chữ trở lên) bị xóa cả những chỗ khác vì thẻ thường in tên hai lần.
+const STOP = 'mr|mrs|ms|miss|mstr|mx|from|to|date|gate|flight|seat|boarding|departure|dep|class|economy|business|vietnam|airlines|name|passenger|pax';
+const NAME_WORD = `(?!(?:${STOP})\\b)[A-Za-zÀ-ỹ'-]+`;
+const NAME = new RegExp(`\\b(?:MR|MRS|MS|MISS|MSTR|MX|name|passenger|pax|tên|hành khách)\\b\\.?\\s*[:.]?\\s*((?:${NAME_WORD}\\s*){1,4})`, 'gi');
+export function redactTicketText(text) {
+  let t = String(text ?? '');
+  const names = new Set();
+  t = t.replace(NAME, (_, w) => { w.trim().split(/\s+/).forEach((x) => x.length >= 3 && names.add(x.toLowerCase())); return ' '; });
+  if (names.size) t = t.replace(new RegExp(`\\b(?:${[...names].join('|')})\\b`, 'gi'), ' ');
+  return t
+    .replace(/\b(?:booking|ref(?:erence)?|pnr|record locator|mã đặt chỗ|mã đặt|e-?ticket|ticket|fqtv)\b[\s:.#-]*[A-Z0-9-]{4,}/gi, ' ')
+    .replace(/\b[A-Z0-9]{5,8}\b/g, (w) => (/\d/.test(w) && /[A-Z]/.test(w) && !/^[A-Z0-9]{2}\d{1,4}$/.test(w) && !/^\d{1,2}[A-Z]{3}\d{0,4}$/.test(w) ? ' ' : w))
+    .replace(/\d{8,}/g, ' ')
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, ' ')
+    .replace(/(?:\+?84|0)(?:[\s.-]?\d){9,10}/g, ' ')
+    .replace(/[ \t]+/g, ' ').trim();
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@airrest/mobile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Vỏ Capacitor đóng gói apps/web thành APK Android (debug)",
+  "scripts": {
+    "build:apk": "sh ./build-apk.sh"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2"
+  }
+}

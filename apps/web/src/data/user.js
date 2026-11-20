@@ -215,6 +215,11 @@ export async function composeReply(directive, history) {
   try { return (await api.post('/api/v1/chat/reply', { directive, history }, { auth: false }))?.reply ?? null; } catch { return null; }
 }
 
+// Nhờ AI đọc chữ OCR của thẻ lên tàu (đã bỏ tên/mã đặt chỗ): { flight, date, from?, to?, time? } hoặc null (AI tắt/lỗi/không đọc được).
+export async function extractTicket(text) {
+  try { return (await api.post('/api/v1/chat/ticket', { text }, { auth: false }))?.ticket ?? null; } catch { return null; }
+}
+
 export async function understandText(text) {
   try { return await api.post('/api/v1/chat/understand', { text }, { auth: false }); } catch { return null; }
 }

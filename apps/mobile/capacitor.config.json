@@ -1,0 +1,10 @@
+{
+  "appId": "vn.airrest.app",
+  "appName": "AIRREST",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": ["airrest.dpdns.org", "*.sepay.vn", "sepay.vn", "qr.sepay.vn", "pay.sepay.vn"]
+  },
+  "android": { "allowMixedContent": false }
+}
