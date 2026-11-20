@@ -1,0 +1,13 @@
+import tailwindcss from '@tailwindcss/vite';
+
+export default {
+  cacheDir: '/tmp/airrest_web_vite_cache',
+  plugins: [tailwindcss()],
+  // Tên miền công khai qua Cloudflare Tunnel: máy chủ phát triển (npm run dev) từ chối host lạ nếu không khai ở đây (403 "Blocked request").
+  server: {
+    allowedHosts: ['airrest.dpdns.org'],
+  },
+  preview: {
+    allowedHosts: ['airrest-website.onrender.com', 'airrest.dpdns.org'],
+  },
+};
