@@ -6,6 +6,7 @@ import { useApp } from '../../state/store';
 import { areasOf } from '../../lib/access';
 import { scrollToId } from './data';
 import ChatBot from './ChatBot';
+import { CHATBOT_ENABLED } from '../../lib/features';
 import AccountMenu from './AccountMenu';
 
 gsap.registerPlugin(useGSAP);
@@ -89,7 +90,7 @@ export default function UserSite({ page, children }) {
         <button type="button" onClick={() => go('track')} aria-current={page === 'track' ? 'page' : undefined} className={`${BOTTOM} ${page === 'track' ? 'tw:text-blue-600' : 'tw:text-slate-500'}`}><Search size={18} />Booking</button>
         <button type="button" onClick={() => go('support')} aria-current={page === 'support' ? 'page' : undefined} className={`${BOTTOM} ${page === 'support' ? 'tw:text-blue-600' : 'tw:text-slate-500'}`}><Headphones size={18} />Trợ giúp</button>
       </div>
-      <ChatBot />
+      {CHATBOT_ENABLED && <ChatBot />}
     </div>
   );
 }

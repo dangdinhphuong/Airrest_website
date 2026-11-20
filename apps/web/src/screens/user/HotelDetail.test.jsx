@@ -5,7 +5,7 @@ import { ApiError } from '@airrest/api-client';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 const ID = '35269bbc-665c-456d-b3e8-e0e1308a1e34';
-const api = vi.hoisted(() => ({ getHotel: vi.fn(), getReviews: vi.fn(), postReview: vi.fn(), listHotels: vi.fn(), listAirports: vi.fn() }));
+const api = vi.hoisted(() => ({ getHotel: vi.fn(), getReviews: vi.fn(), postReview: vi.fn(), listHotels: vi.fn(), listAirports: vi.fn(), listPaymentMethods: vi.fn() }));
 vi.mock('../../data/user', async (orig) => ({ ...(await orig()), ...api }));
 vi.mock('./HotelMap', () => ({ default: ({ name }) => <div data-testid="hotel-map-stub">{name}</div> }));
 
@@ -36,6 +36,7 @@ beforeEach(() => {
   api.listHotels.mockResolvedValue(Object.assign([], { total: 0 }));
   api.getHotel.mockImplementation(async () => apiHotel());
   api.getReviews.mockResolvedValue(emptyReviews);
+  api.listPaymentMethods.mockResolvedValue([{ id: 'AT_HOTEL', label: 'Thanh toán tại khách sạn' }]); // BookingModal gọi khi mở
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 

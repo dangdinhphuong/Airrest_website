@@ -12,6 +12,7 @@ import { sweepPendingAttachments } from '../services/support/support.service';
 import { dispatchDueRequests } from '../services/shuttle/dispatch';
 import { closeStaleTrips } from '../services/shuttle/trips';
 import { startSimulation } from '../services/shuttle/simulation';
+import { warmUpChat } from '../services/chat/warmup';
 import { startBookingsStream } from './realtime/bookingFeed';
 import { startDelayStream } from './realtime/delayFeed';
 import { startShuttleStream } from './realtime/shuttleFeed';
@@ -49,7 +50,8 @@ async function main() {
 
   const stopEmail = startEmailWorker();
 
-  httpServer.listen(env.PORT, () => logger.info({ port: env.PORT, corsOrigins }, 'Airrest API đang chạy')); // corsOrigins: kiểm tra CORS_ORIGINS đang dùng trong log
+  httpServer.listen(env.PORT, () => logger.info({ port: env.PORT, corsOrigins }, 'Airrest API đang chạy'));
+  void warmUpChat(); // nền: làm nóng AI chat (không chặn, không làm API lỗi) // corsOrigins: kiểm tra CORS_ORIGINS đang dùng trong log
 
   // Tắt êm: ngừng nhận request mới, đóng socket, rồi đóng DB.
   let shuttingDown = false;

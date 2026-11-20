@@ -68,3 +68,12 @@ export const staffPasswordRateLimit = rateLimit({
   legacyHeaders: false,
   message: tooMany,
 });
+
+// Trợ lý chat AI: mỗi câu lạ gọi model trên CPU nên chặt theo IP; bộ đếm tách riêng để không khóa chéo tra cứu đơn/đăng nhập.
+export const chatAiRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: isDev ? 100 : 40, // mỗi lượt chat có thể gọi 2 lần (hiểu ý + viết câu)
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: tooMany,
+});

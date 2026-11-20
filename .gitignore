@@ -35,3 +35,11 @@ backend/.data/
 .e2e/summary.md
 .e2e/logs/
 .e2e/videos/
+
+# AI local (Ollama): model ~2 GB tải lại được, bản sao lưu cục bộ, tệp tải về
+ai-local/models/*
+!ai-local/models/.gitkeep
+ai-local/backup-*/
+ai-local/dl/
+ai-local/ollama/
+ai-local/*.log

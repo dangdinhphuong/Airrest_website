@@ -44,6 +44,12 @@ const schema = z.object({
   EMAIL_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),
   PUBLIC_WEB_URL: z.string().url().default('http://localhost:5173'), // base dựng link tra cứu trong email, không có dấu / cuối
 
+  // --- Trợ lý chat dùng AI local (Ollama). Tắt (mặc định) hoặc lỗi/quá hạn thì /v1/chat/understand trả intent "other" và chatbot chạy bản từ khóa.
+  AI_CHAT_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  OLLAMA_URL: z.string().url().default('http://127.0.0.1:11434'), // Ollama chỉ nghe localhost; KHÔNG đưa cổng này qua tunnel
+  OLLAMA_MODEL: z.string().default('qwen2.5:3b-instruct'),
+  AI_CHAT_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(15000),
+
   // --- Cloudflare R2 (lưu media, tương thích S3). Thiếu thì API media trả 503, phần còn lại vẫn chạy.
   R2_ACCOUNT_ID: z.string().optional(),
   R2_ACCESS_KEY_ID: z.string().optional(),

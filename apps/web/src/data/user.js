@@ -204,6 +204,21 @@ export const clearLastBooking = () => { try { sessionStorage.removeItem(LAST); }
 
 export const simulateSepayPayment = (orderId, success) => api.post('/v1/payments/sepay/dev-simulate', { orderId, resultCode: success ? 0 : 1 }, { auth: false });
 
+// Trợ lý chat AI local: { intent, params } hoặc null khi lỗi mạng/API (chatbot khi đó chạy bản từ khóa).
+// Dịch lời khách (en/zh/ko) sang tiếng Việt chuẩn để chạy qua bộ phân tích tiếng Việt: { vi, blocked } hoặc null khi lỗi mạng/API (khi đó dùng nguyên văn).
+export async function normalizeText(text, lang) {
+  try { return await api.post('/v1/chat/normalize', { text, lang }, { auth: false }); } catch { return null; }
+}
+
+// Nhờ AI diễn đạt câu trả lời tự nhiên: trả chuỗi hoặc null (AI tắt/lỗi/không an toàn: chatbot giữ câu mẫu).
+export async function composeReply(directive, history) {
+  try { return (await api.post('/v1/chat/reply', { directive, history }, { auth: false }))?.reply ?? null; } catch { return null; }
+}
+
+export async function understandText(text) {
+  try { return await api.post('/v1/chat/understand', { text }, { auth: false }); } catch { return null; }
+}
+
 export async function createTicket({ bookingCode, phone, fullName, email, subject, message }) {
   const { ticket } = await api.post('/v1/support', { bookingCode: bookingCode || undefined, phone, fullName: fullName || undefined, email: email || undefined, subject, message }, { auth: asGuest(), idempotencyKey: newIdempotencyKey() }); // khách đã đăng nhập: gửi Bearer để ticket gắn vào tài khoản
   return ticket;

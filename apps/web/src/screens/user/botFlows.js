@@ -5,12 +5,15 @@
 import { ATTACH, airportName, bestRoom, createChangeRequest, createShuttle, createTicket, describeApiError, getAirports, listHotels, lookupBookingFull, lookupTicket, quoteCancel, quoteShuttle } from '../../data/user';
 import { isoDate, money } from '../../lib/time';
 import { detectAirport, norm, parseQuery } from './botEngine';
+import { bookFlow, BOOK_FREE } from './botBook';
+import { hourlyPriceOf } from './cart';
+import { C, FLAG_L, L, isForeign, plainName } from './botI18n';
 import { CHIPS, parseTrack, statusCopy } from './data';
 
 const pad2 = (n) => String(n).padStart(2, '0');
 export const addDays = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 const dmy = (iso) => iso.split('-').reverse().join('/');
-const SKIP = /\b(bo qua|khong can|khong|sao cung duoc|tuy)\b|^ko$/;
+const SKIP = /\b(bo qua|khong can|khong co|ko can|sao cung duoc)\b|^\s*(khong|ko|tuy)\s*[.!]*\s*$/; // "không" trơn chỉ là bỏ qua khi cả tin chỉ có từ đó (không thì "...được không?" bị hiểu là bỏ qua bước)
 const YES = /\b(xac nhan|dong y|gui|ok|co|yes|duoc)\b/;
 const NO = /\b(khong|thoi|huy bo|no|dung)\b/;
 const bare = (n) => n.trim().match(/^(\d+(?:[.,]\d+)?)$/)?.[1];
@@ -25,13 +28,24 @@ const dm = (d, m, today) => {
   if (iso >= today) return iso;
   return validDate(y + 1, m, d) ? `${y + 1}-${pad2(m)}-${pad2(d)}` : null;
 };
-// "20/11 - 22/11", "ngày mai 2 đêm", "hôm nay", "20/11" -> { checkIn, checkOut } (câu đã bỏ dấu); không đọc được thì null.
+// "ngày 24" / "mùng 5" (chỉ ngày trong tháng): tháng này nếu chưa qua, không thì tháng sau; ngày không có thật (31 tháng 2, ngày 31 của tháng 30 ngày) thì thử tiếp, hết cách thì null.
+const dayOfMonth = (d, today) => {
+  let y = Number(today.slice(0, 4)); let m = Number(today.slice(5, 7));
+  for (let i = 0; i < 2; i += 1) {
+    if (validDate(y, m, d)) { const iso = `${y}-${pad2(m)}-${pad2(d)}`; if (iso >= today) return iso; }
+    m += 1; if (m > 12) { m = 1; y += 1; }
+  }
+  return null;
+};
+// "20/11 - 22/11", "ngày mai 2 đêm", "hôm nay", "20/11", "ngày 24", "24 tháng 11" -> { checkIn, checkOut } (câu đã bỏ dấu); không đọc được thì null.
 export function parseDates(n, today) {
   const nights = Number(n.match(/(\d+)\s*dem/)?.[1] ?? 0) || null;
   const r = n.match(/(\d{1,2})\/(\d{1,2})\s*(?:-|den|toi|->)\s*(\d{1,2})\/(\d{1,2})/);
   if (r) { const a = dm(+r[1], +r[2], today); const b = a && dm(+r[3], +r[4], a); return a && b && b > a ? { checkIn: a, checkOut: b } : null; }
   const s = n.match(/(\d{1,2})\/(\d{1,2})/);
-  let inn = s ? dm(+s[1], +s[2], today) : /\bhom nay\b/.test(n) ? today : /\bngay kia\b/.test(n) ? addDays(today, 2) : /\b(ngay mai|mai)\b/.test(n) ? addDays(today, 1) : null;
+  const tm = n.match(/\b(\d{1,2})\s*thang\s*(\d{1,2})\b/); // "24 tháng 11", "ngày 24 tháng 11"
+  const dd = n.match(/\b(?:ngay|mung|mong)\s*(\d{1,2})\b(?!\s*(?:\/|thang|dem))/); // "ngày 24"
+  let inn = s ? dm(+s[1], +s[2], today) : tm ? dm(+tm[1], +tm[2], today) : dd ? dayOfMonth(+dd[1], today) : /\bhom nay\b/.test(n) ? today : /\bngay kia\b/.test(n) ? addDays(today, 2) : /\b(ngay mai|mai)\b/.test(n) ? addDays(today, 1) : null;
   if (!inn && nights) inn = today;
   return inn ? { checkIn: inn, checkOut: addDays(inn, nights ?? 1) } : null;
 }
@@ -56,7 +70,7 @@ export function parseTime(n) {
 
 // Câu mở đầu nói rõ muốn làm gì thì mới ngắt luồng đang chạy (chip trả lời như "Xe đưa đón" không được kích hoạt).
 const STRONG = { cancel: /muon huy|huy (phong|dat|booking|don)|doi ngay|doi lich/, complaint: /khieu nai|phan nan/, shuttle: /dat xe|goi xe/ };
-const FREE = new Set(['complaint.desc', 'cancel.note']); // bước nhập văn bản tự do: không ngắt
+const FREE = new Set(['complaint.desc', 'cancel.note', ...BOOK_FREE]); // bước nhập văn bản tự do: không ngắt
 export const startOf = (n) => Object.entries(STRONG).find(([, re]) => re.test(n))?.[0] ?? null;
 
 // ---- Tra booking dùng chung (cache) ----
@@ -87,17 +101,22 @@ async function authStep(text, mem) {
 }
 
 // ---- Luồng tìm / đặt phòng ----
-const STEPS = ['airport', 'dates', 'party', 'budget', 'km', 'extras'];
-const isDone = (s) => ({ airport: !!s.airport, dates: !!s.dates, party: !!s.party, budget: s.maxPrice != null || !!s.skip.budget, km: s.maxKm != null || !!s.skip.km, extras: !!s.skip.extras });
+const STEPS = ['airport', 'dates', 'party', 'prefs']; // prefs (ngân sách/khoảng cách/tiện ích) là MỘT câu hỏi tùy chọn, không còn ba câu riêng
+const isDone = (s) => ({ airport: !!s.airport, dates: !!s.dates, party: !!s.party, prefs: s.maxPrice != null || s.maxKm != null || s.flags.length > 0 || !!s.skip.prefs });
 export const nextStep = (s) => STEPS.find((k) => !isDone(s)[k]) ?? null;
-const airportChips = () => ['HAN', 'SGN', 'DAD', 'CXR', 'PQC'].filter((c) => !getAirports().length || getAirports().some((a) => a.iata === c)).map((c) => `${airportName(c)} (${c})`);
+const apName = (mem, code) => (isForeign(mem) ? plainName(airportName(code)) : airportName(code)); // khách nước ngoài: "Noi Bai" thay vì "Nội Bài"
+const airportChips = (mem) => ['HAN', 'SGN', 'DAD', 'CXR', 'PQC'].filter((c) => !getAirports().length || getAirports().some((a) => a.iata === c)).map((c) => (isForeign(mem) ? { label: `${apName(mem, c)} (${c})`, text: `${airportName(c)} (${c})` } : `${airportName(c)} (${c})`));
 const ASK = {
-  airport: () => ({ text: 'Bạn cần nơi nghỉ gần sân bay nào?', chips: airportChips() }),
-  dates: () => ({ text: 'Bạn nhận phòng và trả phòng ngày nào? (ví dụ: "20/11 - 22/11" hoặc "ngày mai 2 đêm")', chips: ['Hôm nay, 1 đêm', 'Ngày mai, 1 đêm', 'Bỏ qua'] }),
-  party: () => ({ text: 'Đi mấy người, mấy phòng? (ví dụ: "2 người lớn 1 trẻ em 1 phòng")', chips: ['1 người', '2 người', '3 người', '4 người, 2 phòng', 'Bỏ qua'] }),
-  budget: () => ({ text: 'Ngân sách mỗi đêm khoảng bao nhiêu?', chips: ['Dưới 500k', 'Dưới 1 triệu', 'Dưới 2 triệu', 'Bỏ qua'] }),
-  km: () => ({ text: 'Muốn nơi nghỉ cách sân bay tối đa bao nhiêu km?', chips: ['3 km', '5 km', '10 km', 'Bỏ qua'] }),
-  extras: () => ({ text: 'Bạn cần thêm gì không? (chọn nhiều cũng được, xong bấm "Tìm ngay")', chips: ['Xe đưa đón', 'Hủy miễn phí', 'Lễ tân 24/24', 'Phòng gia đình', 'Thuê theo giờ', 'Tìm ngay'] }),
+  airport: (mem) => ({ say: 'ask', slot: 'airport', text: L(mem, 'Bạn cần nơi nghỉ gần sân bay nào?', 'Which airport do you need a place to stay near?', '您需要靠近哪个机场的住宿？', '어느 공항 근처 숙소가 필요하세요?'), chips: airportChips(mem) }),
+  dates: (mem) => (mem?.s?.flags?.includes('hourly')
+    ? { say: 'ask', slot: 'dates', text: L(mem, 'Bạn cần phòng theo giờ vào ngày nào? (ví dụ: "hôm nay", "ngày mai" hoặc "25/11"; giờ vào và số giờ mình hỏi sau khi bạn chọn nơi nghỉ)', 'Which day do you need the hourly room? (e.g. "today", "tomorrow" or "25/11"; I will ask for the start time and number of hours after you pick a place)', '您需要哪一天的钟点房？（例如：“今天”、“明天”或“25/11”；选好住宿后我再询问入住时间和时长）', '시간제 객실이 필요한 날짜가 언제인가요? (예: "오늘", "내일" 또는 "25/11". 숙소를 고르신 뒤 시작 시간과 이용 시간을 여쭤볼게요)'),
+      chips: [{ label: L(mem, 'Hôm nay', 'Today', '今天', '오늘'), text: 'Hôm nay, 1 đêm' }, { label: L(mem, 'Ngày mai', 'Tomorrow', '明天', '내일'), text: 'Ngày mai, 1 đêm' }, C(mem, 'Bỏ qua', 'Skip', '跳过', '건너뛰기')] }
+    : { say: 'ask', slot: 'dates', text: L(mem, 'Bạn nhận phòng và trả phòng ngày nào? (ví dụ: "20/11 - 22/11" hoặc "ngày mai 2 đêm")', 'What are your check-in and check-out dates? (e.g. "20/11 - 22/11" or "tomorrow, 2 nights")', '请问入住和退房日期是哪天？（例如：“20/11 - 22/11”或“明天住2晚”）', '체크인과 체크아웃 날짜가 어떻게 되나요? (예: "20/11 - 22/11" 또는 "내일 2박")'),
+      chips: [C(mem, 'Hôm nay, 1 đêm', 'Tonight, 1 night', '今晚，1晚', '오늘, 1박'), C(mem, 'Ngày mai, 1 đêm', 'Tomorrow, 1 night', '明天，1晚', '내일, 1박'), C(mem, 'Bỏ qua', 'Skip', '跳过', '건너뛰기')] }),
+  party: (mem) => ({ say: 'ask', slot: 'party', text: L(mem, 'Đi mấy người, mấy phòng? (ví dụ: "2 người lớn 1 trẻ em 1 phòng")', 'How many guests and how many rooms? (e.g. "2 adults, 1 child, 1 room")', '几位客人、需要几间房？（例如：“2位成人1位儿童，1间房”）', '몇 분이시고 객실은 몇 개 필요하세요? (예: "성인 2명, 어린이 1명, 객실 1개")'),
+    chips: [C(mem, '1 người', '1 guest', '1人', '1명'), C(mem, '2 người', '2 guests', '2人', '2명'), C(mem, '3 người', '3 guests', '3人', '3명'), C(mem, '4 người, 2 phòng', '4 guests, 2 rooms', '4人，2间房', '4명, 객실 2개'), C(mem, 'Bỏ qua', 'Skip', '跳过', '건너뛰기')] }),
+  prefs: (mem) => ({ say: 'ask', slot: 'prefs', text: L(mem, 'Bạn có yêu cầu gì thêm không, như ngân sách, khoảng cách tới sân bay, xe đưa đón hay hủy miễn phí? Nếu không thì mình tìm luôn nhé.', 'Any other requirements, such as budget, distance to the airport, airport shuttle or free cancellation? If not, I will search right away.', '还有其他要求吗，比如预算、离机场的距离、机场接送或免费取消？如果没有，我就直接为您搜索。', '예산, 공항까지 거리, 공항 셔틀, 무료 취소 같은 다른 요청이 있으신가요? 없으면 바로 검색해 드릴게요.'),
+    chips: [C(mem, 'Dưới 700k', 'Under 700k', '700k以内', '70만 동 이하'), C(mem, 'Trong 3 km', 'Within 3 km', '3公里以内', '3km 이내'), C(mem, 'Xe đưa đón', 'Airport shuttle', '机场接送', '공항 셔틀'), C(mem, 'Hủy miễn phí', 'Free cancellation', '免费取消', '무료 취소'), C(mem, 'Tìm luôn', 'Search now', '直接搜索', '바로 검색')] }),
 };
 const newSearch = (seed = {}) => ({ flags: [], skip: {}, ...seed });
 
@@ -109,26 +128,45 @@ function absorb(s, text, n, step, airports) {
   const p = parseParty(n); if (p) s.party = p;
   if (q.maxPrice != null) s.maxPrice = q.maxPrice;
   if (q.maxKm != null) s.maxKm = q.maxKm;
-  q.flags.forEach((f) => { if (!s.flags.includes(f)) s.flags.push(f); });
+  const asking = /(\?|\bkhong|\bko)\s*$/.test(n.trim()); // "có xe đưa đón không?" giữa chừng là câu hỏi, không phải yêu cầu lọc (ở bước prefs thì vẫn là yêu cầu)
+  if (!(asking && ['airport', 'dates', 'party'].includes(step))) q.flags.forEach((f) => { if (!s.flags.includes(f)) s.flags.push(f); });
   const skip = SKIP.test(n);
   const b = bare(n);
+  if (step === 'dates' && !s.dates && b && +b >= 1 && +b <= 31) { const d = dayOfMonth(+b, isoDate(0)); if (d) s.dates = { checkIn: d, checkOut: addDays(d, 1) }; } // gõ trần "24" khi đang hỏi ngày
   if (step === 'dates' && !s.dates && skip) s.dates = { checkIn: isoDate(0), checkOut: isoDate(1) };
   if (step === 'party' && !s.party) { if (b) s.party = { adults: Math.min(30, Math.max(1, Math.floor(Number(b.replace(',', '.'))))), children: 0, rooms: 1 }; else if (skip) s.party = { adults: 2, children: 0, rooms: 1 }; }
-  if (step === 'budget' && s.maxPrice == null) { const m = /\d/.test(n) ? parseQuery(`duoi ${text}`, null, airports).maxPrice : null; if (m != null) s.maxPrice = m; else if (skip) s.skip.budget = true; }
-  if (step === 'km' && s.maxKm == null) { if (b) s.maxKm = Number(b.replace(',', '.')); else if (skip) s.skip.km = true; }
-  if (step === 'extras' && (skip || /tim ngay|xong|het/.test(n))) s.skip.extras = true;
+  if (step === 'prefs' && (skip || /tim luon|tim ngay|xong|het|khong can|khong co/.test(n))) s.skip.prefs = true;
+  if (step === 'prefs' && s.maxPrice == null && /\d/.test(n) && !/km/.test(n)) { const m = parseQuery(`duoi ${text}`, null, airports).maxPrice; if (m != null) s.maxPrice = m; } // "700k" trần ở bước này = ngân sách
 }
 
-const criteria = (s) => {
+// Danh sách điều đã biết (chuỗi do code dựng, đúng ngôn ngữ khách) để AI xác nhận lại với khách; so sánh trước/sau một lượt cho ra điều khách vừa nói.
+const flagText = (mem, id) => { const f = FLAG_L[id]; return f ? L(mem, ...f) : CHIPS.find((c) => c.id === id)?.label.toLowerCase(); };
+export const describeSlots = (s, mem) => {
+  if (!s || !Array.isArray(s.flags)) return []; // mem.s của luồng khác (hủy, xe, khiếu nại) có cấu trúc khác
+  const out = [];
+  if (s.airport) out.push(L(mem, `sân bay ${airportName(s.airport)}`, `${apName(mem, s.airport)} airport`, `${apName(mem, s.airport)}机场`, `${apName(mem, s.airport)} 공항`));
+  if (s.dates && s.flags.includes('hourly')) out.push(L(mem, `ngày ${dmy(s.dates.checkIn)}`, `on ${dmy(s.dates.checkIn)}`, `${dmy(s.dates.checkIn)} 当天`, `${dmy(s.dates.checkIn)}`));
+  else if (s.dates) out.push(L(mem, `nhận phòng ${dmy(s.dates.checkIn)}, trả phòng ${dmy(s.dates.checkOut)}`, `check-in ${dmy(s.dates.checkIn)}, check-out ${dmy(s.dates.checkOut)}`, `入住 ${dmy(s.dates.checkIn)}，退房 ${dmy(s.dates.checkOut)}`, `체크인 ${dmy(s.dates.checkIn)}, 체크아웃 ${dmy(s.dates.checkOut)}`));
+  if (s.party) { const g = s.party.adults + s.party.children; out.push(L(mem, `${g} khách, ${s.party.rooms} phòng`, `${g} guest(s), ${s.party.rooms} room(s)`, `${g}位客人，${s.party.rooms}间房`, `${g}명, 객실 ${s.party.rooms}개`)); }
+  if (s.maxPrice != null) out.push(L(mem, `giá dưới ${money(s.maxPrice)}`, `under ${money(s.maxPrice)}`, `价格不超过${money(s.maxPrice)}`, `${money(s.maxPrice)} 이하`));
+  if (s.maxKm != null) out.push(L(mem, `trong ${s.maxKm} km`, `within ${s.maxKm} km`, `${s.maxKm}公里以内`, `${s.maxKm}km 이내`));
+  s.flags.forEach((id) => { const l = flagText(mem, id); if (l) out.push(l); });
+  return out;
+};
+
+const criteria = (s, mem) => {
   const parts = [];
-  if (s.dates) parts.push(`${dmy(s.dates.checkIn)} → ${dmy(s.dates.checkOut)}`);
-  if (s.party) parts.push(`${s.party.adults + s.party.children} khách, ${s.party.rooms} phòng`);
-  if (s.maxPrice != null) parts.push(`giá dưới ${money(s.maxPrice)}`);
-  if (s.maxKm != null) parts.push(`trong ${s.maxKm} km`);
-  s.flags.forEach((id) => parts.push(CHIPS.find((c) => c.id === id)?.label.toLowerCase()));
-  return parts.length ? ` (${parts.filter(Boolean).join(', ')})` : '';
+  if (s.dates) parts.push(s.flags.includes('hourly') ? dmy(s.dates.checkIn) : `${dmy(s.dates.checkIn)} → ${dmy(s.dates.checkOut)}`);
+  if (s.party) { const g = s.party.adults + s.party.children; parts.push(L(mem, `${g} khách, ${s.party.rooms} phòng`, `${g} guest(s), ${s.party.rooms} room(s)`, `${g}位客人，${s.party.rooms}间房`, `${g}명, 객실 ${s.party.rooms}개`)); }
+  if (s.maxPrice != null) parts.push(L(mem, `giá dưới ${money(s.maxPrice)}`, `under ${money(s.maxPrice)}`, `价格不超过${money(s.maxPrice)}`, `${money(s.maxPrice)} 이하`));
+  if (s.maxKm != null) parts.push(L(mem, `trong ${s.maxKm} km`, `within ${s.maxKm} km`, `${s.maxKm}公里以内`, `${s.maxKm}km 이내`));
+  s.flags.forEach((id) => parts.push(flagText(mem, id)));
+  return parts.length ? ` (${parts.filter(Boolean).join(mem?.lang === 'zh' ? '，' : ', ')})` : '';
 };
 const FLAG_PARAM = { shuttle: { shuttle: true }, freeCancel: { freeCancel: true }, hourly: { hourly: true }, family: { family: true }, open24: { reception24: true }, rating: { minRating: 8 } };
+
+// Phòng theo giờ: loại phòng bật giờ và đủ chỗ, rẻ nhất theo giá của số giờ tối thiểu (còn khung giờ trống hay không kiểm lúc chọn giờ vào, không theo tồn phòng qua đêm).
+const bestHourlyRoom = (h, people, rooms) => h.rooms.filter((r) => r.hourly && r.maxOccupancy * rooms >= people).sort((a, b) => hourlyPriceOf(a.hourly, a.hourly.minHours) - hourlyPriceOf(b.hourly, b.hourly.minHours))[0] ?? null;
 
 async function searchResults(mem) {
   const s = mem.s;
@@ -138,34 +176,41 @@ async function searchResults(mem) {
   const params = { sort: 'distance', guests: people, rooms: party.rooms, maxKm: s.maxKm ?? undefined, maxPrice: s.maxPrice ?? undefined, from: new Date(`${dates.checkIn}T14:00:00+07:00`).toISOString(), to: new Date(`${dates.checkOut}T12:00:00+07:00`).toISOString(), ...Object.assign({}, ...s.flags.map((f) => FLAG_PARAM[f])) };
   let list;
   try { list = await listHotels(s.airport, undefined, params); } catch (e) { return end(mem, { text: describeApiError(e) }); }
-  const found = list.map((h) => { const room = bestRoom(h, people, party.rooms); return room && { ...h, room }; }).filter(Boolean);
-  const where = airportName(s.airport);
+  const hourlyMode = s.flags.includes('hourly');
+  const found = list.map((h) => {
+    const room = hourlyMode ? bestHourlyRoom(h, people, party.rooms) : bestRoom(h, people, party.rooms);
+    return room && { ...h, room, ...(hourlyMode && { hourly: { from: hourlyPriceOf(room.hourly, room.hourly.minHours), hours: room.hourly.minHours } }) };
+  }).filter(Boolean);
+  const where = apName(mem, s.airport);
   if (!found.length) {
     mem.step = 'relax';
-    const chips = [s.maxPrice != null && 'Bỏ giới hạn giá', s.maxKm != null && 'Bỏ giới hạn km', 'Đổi sân bay', 'Dừng tìm'].filter(Boolean);
-    return { text: `Chưa có nơi nghỉ nào gần ${where}${criteria(s)} còn đủ chỗ. Bạn muốn nới điều kiện nào?`, chips };
+    const chips = [s.maxPrice != null && C(mem, 'Bỏ giới hạn giá', 'Remove price limit', '取消价格限制', '가격 제한 해제'), s.maxKm != null && C(mem, 'Bỏ giới hạn km', 'Remove distance limit', '取消距离限制', '거리 제한 해제'), C(mem, 'Đổi sân bay', 'Change airport', '更换机场', '공항 변경'), C(mem, 'Dừng tìm', 'Stop searching', '停止搜索', '검색 중단')].filter(Boolean);
+    const cr = criteria(s, mem);
+    return { text: L(mem, `Chưa có nơi nghỉ nào gần ${where}${cr} còn đủ chỗ. Bạn muốn nới điều kiện nào?`, `There are no available places near ${where}${cr}. Which condition would you like to relax?`, `${where}附近${cr}暂时没有空房。您想放宽哪项条件？`, `${where} 근처${cr}에는 빈 객실이 없어요. 어떤 조건을 완화할까요?`), chips };
   }
   const book = (h) => ({ type: 'book', hotelId: h.id, airport: s.airport, party, dates });
+  mem.found = found.slice(0, 3); mem.search = { dates, party, flags: s.flags, airport: s.airport }; // để khách đặt ngay trong chat (botBook)
   end(mem, null);
-  return { text: `Mình tìm được ${found.length} nơi nghỉ gần ${where}${criteria(s)}. Gần sân bay nhất, bấm vào thẻ để chọn phòng và đặt:`, hotels: found.slice(0, 3).map((h) => ({ ...h, act: book(h) })), actions: [{ label: 'Xem tất cả nơi nghỉ', act: { type: 'stays' } }], chips: ['Tìm lại từ đầu'] };
+  const cr = criteria(s, mem); const n = found.length;
+  return { text: L(mem, `Mình tìm được ${n} nơi nghỉ gần ${where}${cr}. Gần sân bay nhất, bấm vào thẻ (hoặc nhắn "đặt" kèm tên) để mình đặt giúp ngay trong chat:`, `I found ${n} place(s) to stay near ${where}${cr}, closest to the airport first. Tap a card (or say "book" with the name) and I'll book it for you right here in the chat:`, `我为您找到${n}家靠近${where}的住宿${cr}，离机场最近的排在前面。点击卡片（或说“预订”加名称），我可以直接在聊天中为您预订：`, `${where} 근처 숙소 ${n}곳을 찾았어요${cr}. 공항에서 가까운 순서예요. 카드를 누르거나 "예약"과 이름을 말씀해 주시면 채팅에서 바로 예약해 드릴게요:`), hotels: found.slice(0, 3).map((h) => ({ ...h, act: book(h), chatBook: C(mem, `Đặt ${h.name}`, `Book ${h.name}`, `预订 ${h.name}`, `${h.name} 예약`) })), actions: [{ label: L(mem, 'Xem tất cả nơi nghỉ', 'See all places', '查看所有住宿', '모든 숙소 보기'), act: { type: 'stays' } }], chips: [C(mem, 'Tìm lại từ đầu', 'Start a new search', '重新搜索', '처음부터 다시 검색')] };
 }
 
 // seed: slot đã biết (vd sân bay của chuyến bay chậm); immediate: câu đầu đã có điều kiện lọc nên tìm luôn với mặc định.
 export async function beginSearch(mem, text, ctx, { seed, immediate } = {}) {
   mem.flow = 'search'; mem.s = newSearch(seed); mem.step = 'ask';
   if (text) absorb(mem.s, text, norm(text), null, getAirports());
-  if (immediate) { mem.s.airport ??= ctx.airport; Object.assign(mem.s.skip, { budget: true, km: true, extras: true }); mem.s.dates ??= { checkIn: isoDate(0), checkOut: isoDate(1) }; mem.s.party ??= { adults: 2, children: 0, rooms: 1 }; }
+  if (immediate) { Object.assign(mem.s.skip, { prefs: true }); mem.s.dates ??= { checkIn: isoDate(0), checkOut: isoDate(1) }; mem.s.party ??= { adults: 2, children: 0, rooms: 1 }; }
   const next = nextStep(mem.s);
-  return next ? ASK[next]() : searchResults(mem);
+  return next ? ASK[next](mem) : searchResults(mem);
 }
 
 async function searchFlow(text, n, ctx, mem) {
   const s = mem.s;
   if (mem.step === 'relax') {
-    if (/bo gioi han gia/.test(n)) { s.maxPrice = null; s.skip.budget = true; return searchResults(mem); }
-    if (/bo gioi han km/.test(n)) { s.maxKm = null; s.skip.km = true; return searchResults(mem); }
-    if (/doi san bay/.test(n)) { s.airport = null; mem.step = 'ask'; return ASK.airport(); }
-    if (/dung tim|thoi/.test(n)) return end(mem, { text: 'Mình đã dừng tìm kiếm. Cần gì cứ nhắn mình nhé.' });
+    if (/bo gioi han gia/.test(n)) { s.maxPrice = null; s.skip.prefs = true; return searchResults(mem); }
+    if (/bo gioi han km/.test(n)) { s.maxKm = null; s.skip.prefs = true; return searchResults(mem); }
+    if (/doi san bay/.test(n)) { s.airport = null; mem.step = 'ask'; return ASK.airport(mem); }
+    if (/dung tim|thoi/.test(n)) return end(mem, { text: L(mem, 'Mình đã dừng tìm kiếm. Cần gì cứ nhắn mình nhé.', 'I stopped the search. Message me anytime you need anything.', '已停止搜索。有需要随时告诉我。', '검색을 중단했어요. 필요하시면 언제든 말씀해 주세요.') });
     mem.step = 'ask';
   }
   const before = nextStep(s);
@@ -173,8 +218,10 @@ async function searchFlow(text, n, ctx, mem) {
   absorb(s, text, n, before, getAirports());
   const next = nextStep(s);
   if (!next) return searchResults(mem);
-  const q = ASK[next]();
-  return { ...q, text: `${next === before && sig === JSON.stringify(s) ? 'Mình chưa hiểu rõ ý bạn. ' : ''}${q.text}` };
+  const q = ASK[next](mem);
+  const unclear = next === before && sig === JSON.stringify(s); // code chưa ghi nhận được gì từ câu này
+  const apology = unclear ? L(mem, 'Mình chưa hiểu rõ ý bạn. ', 'I didn\'t quite get that. ', '我没太明白您的意思。', '잘 이해하지 못했어요. ') : '';
+  return { ...q, ...(unclear && { noAi: true, apology }), text: `${apology}${q.text}` }; // apology tách riêng để botEngine bỏ đi khi đã trả lời được một câu hỏi ngang
 }
 
 // ---- Luồng hủy / đổi ngày ----
@@ -399,6 +446,7 @@ export async function runFlow(text, n, ctx, mem) {
   }
   switch (mem.flow) {
     case 'search': return searchFlow(text, n, ctx, mem);
+    case 'book': return bookFlow(text, n, ctx, mem);
     case 'cancel': return cancelFlow(text, n, mem);
     case 'shuttle': return shuttleFlow(text, n, ctx, mem);
     case 'complaint': return complaintFlow(text, n, mem);

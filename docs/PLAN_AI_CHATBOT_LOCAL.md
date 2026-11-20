@@ -1,3 +1,5 @@
+> **ĐÃ THAY THẾ (2026-11-20).** Plan này là hướng cũ (AI ở máy khác + Supabase Realtime + `ai-gateway`). Hướng hiện tại: Ollama chạy trong docker-compose cùng web/api, backend gọi thẳng `http://ollama:11434`, không dùng Supabase/gateway. Xem `ai-local/README.md`. Đừng làm theo các pha trong file này.
+
 # PLAN: AI local (Qwen2.5 3B) cho chatbot Airrest qua Supabase Realtime
 
 Trạng thái: **DỰ THẢO, chờ người dùng duyệt các mục ở §2.** Người điều phối (Claude) giữ plan; người thực thi (Antigravity, điều khiển từ xa) làm theo từng pha và ghi báo cáo (§9).
@@ -38,7 +40,7 @@ Máy local tắt/chậm/lỗi → backend trả intent "other" → chatbot chạ
 | D5 | Máy chạy model | **i5-10400, 32 GB** (người dùng xác nhận, thay cho Xeon) |
 | D6 | Commit/push vào repo nào? Thư mục `Airrest_website `.gitignore` của repo cha nên không vào git; bản `/home/phuongdd/data/Airrest_website` (repo GitHub) đã lệch nhiều. Người dùng đã cho phép commit/push nhưng chưa nêu đích | **Chưa chốt** — Antigravity chưa được commit/push tới khi người dùng chốt |
 
-## 3. Pha 0 — Chuẩn bị (máy Xeon)
+## 3. Pha 0 — Chuẩn bị (máy i5-10400)
 
 - [ ] Sao lưu: `tar -czf ~/Airrest_website.backup-$(date +%Y%m%d).tar.gz -C <thư mục cha> Airrest_website` (quyền 600; có chứa `.env`, xóa khi hết cần).
 - [ ] Kiểm: `nproc` (kỳ vọng 12), `lscpu | rg -i "model name|avx"` (kỳ vọng i5-10400, có `avx2`), `free -h`, `swapon --show`, dung lượng trống ≥ 20 GB (`df -h ~`), `node -v`, `npm -v`.
