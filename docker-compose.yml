@@ -79,6 +79,17 @@ services:
       - .:/app
       - web-node-modules:/app/node_modules
 
+  cloudflared:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run
+    depends_on:
+      - web
+
 volumes:
   pg-data:
   api-node-modules:
