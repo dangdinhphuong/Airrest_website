@@ -174,7 +174,7 @@ function Board({ live }) {
   );
 }
 
-// Màn chỉ xem: dữ liệu từ /v1/hotel/shuttle/board (tự cập nhật qua socket, dự phòng polling).
+// Màn chỉ xem: dữ liệu từ /api/v1/hotel/shuttle/board (tự cập nhật qua socket, dự phòng polling).
 export default function Shuttle() {
   const { state } = useApp();
   const live = useLiveData(() => H.getBoard(), [], state.session?.id);

@@ -60,7 +60,7 @@ function Detail({ id }) {
   );
 }
 
-// /v1/hotel/bookings: lọc, phân trang keyset, chi tiết, xác nhận/từ chối/check-in.
+// /api/v1/hotel/bookings: lọc, phân trang keyset, chi tiết, xác nhận/từ chối/check-in.
 export default function Bookings() {
   const { state } = useApp();
   const can = (p) => hasPerm(state.session, p);

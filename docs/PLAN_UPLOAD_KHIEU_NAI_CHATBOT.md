@@ -22,9 +22,9 @@ Khách khiếu nại qua chatbot (hoặc trang Hỗ trợ) gửi được ảnh/
 
 ### 3.1 Luồng
 
-1. Khách gửi ticket như hiện nay (`POST /v1/support`) → nhận `SP-…`.
+1. Khách gửi ticket như hiện nay (`POST /api/v1/support`) → nhận `SP-…`.
 2. Bot hỏi "Bạn có ảnh/video không?" (nút 📎, nút "Bỏ qua").
-3. Với mỗi file: `POST /v1/support/attachments/upload-url` → nhận URL PUT ký sẵn → trình duyệt PUT thẳng lên R2 → `POST /v1/support/attachments/confirm`.
+3. Với mỗi file: `POST /api/v1/support/attachments/upload-url` → nhận URL PUT ký sẵn → trình duyệt PUT thẳng lên R2 → `POST /api/v1/support/attachments/confirm`.
 4. Server **xác minh thật** ở bước confirm (HEAD object trên R2: kích thước thực, content-type); sai quy định thì xóa object và từ chối.
 5. Admin mở ticket thấy danh sách file (ảnh hiện thumbnail, video có trình phát) qua URL tải ký sẵn ngắn hạn.
 
@@ -32,10 +32,10 @@ Khách khiếu nại qua chatbot (hoặc trang Hỗ trợ) gửi được ảnh/
 
 | Endpoint | Việc |
 |---|---|
-| `POST /v1/support/attachments/upload-url` | body `{ code, phone, contentType, size, name? }` → kiểm ticket + SĐT, còn hạn mức file → tạo dòng `PENDING` → trả `{ attachmentId, uploadUrl, headers, expiresIn }` |
-| `POST /v1/support/attachments/confirm` | body `{ code, phone, attachmentId }` → HEAD object, kiểm kích thước/loại thực → `READY` (hoặc xóa + lỗi) |
+| `POST /api/v1/support/attachments/upload-url` | body `{ code, phone, contentType, size, name? }` → kiểm ticket + SĐT, còn hạn mức file → tạo dòng `PENDING` → trả `{ attachmentId, uploadUrl, headers, expiresIn }` |
+| `POST /api/v1/support/attachments/confirm` | body `{ code, phone, attachmentId }` → HEAD object, kiểm kích thước/loại thực → `READY` (hoặc xóa + lỗi) |
 | `GET` kèm ticket ở `support/lookup` | trả thêm `attachments[]` của khách (loại, kích thước, URL tải ký 10 phút) |
-| Admin: `GET /v1/admin/support/:id` | trả thêm `attachments[]` với URL tải ký ngắn hạn (quyền như xem ticket hiện có) |
+| Admin: `GET /api/v1/admin/support/:id` | trả thêm `attachments[]` với URL tải ký ngắn hạn (quyền như xem ticket hiện có) |
 
 Dùng `Idempotency-Key` cho `upload-url`; lỗi theo chuẩn `AppError` hiện có.
 

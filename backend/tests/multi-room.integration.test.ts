@@ -29,7 +29,7 @@ run('tích hợp: đơn nhiều loại phòng (giai đoạn 1)', () => {
   const nextOff = () => (off += 4);
   const make = (hotelId: string, extra: Record<string, unknown>, o = off) => {
     const t = Date.now(); // một mốc cho from/to, tránh lệch ms làm tròn thành 3 đêm
-    return request(app).post('/v1/bookings').set('Idempotency-Key', `mr-${++n}-${Date.now()}`).send({
+    return request(app).post('/api/v1/bookings').set('Idempotency-Key', `mr-${++n}-${Date.now()}`).send({
       hotelId, from: new Date(t + o * DAY).toISOString(), to: new Date(t + (o + 2) * DAY).toISOString(),
       guest: { fullName: 'Khách Nhiều Phòng', phone: '0912345678' }, ...extra,
     });
@@ -70,7 +70,7 @@ run('tích hợp: đơn nhiều loại phòng (giai đoạn 1)', () => {
     expect(rs).toHaveLength(3);
     expect(new Set(rs.map((r: any) => r.roomTypeId))).toEqual(new Set([A, B, C]));
     // tra cứu khách + danh sách khách sạn
-    const lk = await request(app).post('/v1/bookings/lookup').set(guestIp(++ip)).send({ code: res.body.booking.code, phone: '0912345678' });
+    const lk = await request(app).post('/api/v1/bookings/lookup').set(guestIp(++ip)).send({ code: res.body.booking.code, phone: '0912345678' });
     expect(lk.body.booking.lines).toHaveLength(3);
     expect(lk.body.booking.qty).toBe(4);
   });
@@ -145,7 +145,7 @@ run('tích hợp: đơn nhiều loại phòng (giai đoạn 1)', () => {
     expect(p.serviceFeeVnd).toBe(serviceFee(p.roomVnd + p.shuttleVnd, FEE));
     expect(p.totalVnd).toBe(p.roomVnd + p.shuttleVnd + p.serviceFeeVnd);
     expect(res.body.shuttles[0].passengers).toBe(4);
-    const q = await request(app).post('/v1/bookings/quote').send({ hotelId: H, rooms: [{ roomTypeId: A, qty: 1 }, { roomTypeId: B, qty: 1 }], from: new Date(pt + o * DAY).toISOString(), to: new Date(pt + (o + 2) * DAY).toISOString(), shuttle: { legs: [{ direction: 'TO_HOTEL', pickupAt }] } });
+    const q = await request(app).post('/api/v1/bookings/quote').send({ hotelId: H, rooms: [{ roomTypeId: A, qty: 1 }, { roomTypeId: B, qty: 1 }], from: new Date(pt + o * DAY).toISOString(), to: new Date(pt + (o + 2) * DAY).toISOString(), shuttle: { legs: [{ direction: 'TO_HOTEL', pickupAt }] } });
     expect(q.status, JSON.stringify(q.body)).toBe(200);
     expect(q.body).toMatchObject({ roomVnd: p.roomVnd, shuttleVnd: p.shuttleVnd, totalVnd: p.totalVnd, qty: 2 });
     expect(q.body.rooms).toHaveLength(2);
@@ -161,13 +161,13 @@ run('tích hợp: đơn nhiều loại phòng (giai đoạn 1)', () => {
     expect(res.body.booking.status).toBe('PENDING_PAYMENT');
     const pay = (await one<any>("SELECT txn_ref, amount_vnd FROM payments WHERE booking_id = (SELECT id FROM bookings WHERE code = $1)", [code]))!;
     expect(Number(pay.amountVnd)).toBe(pricing.totalVnd);
-    const sim = await request(app).post('/v1/payments/sepay/dev-simulate').send({ orderId: pay.txnRef });
+    const sim = await request(app).post('/api/v1/payments/sepay/dev-simulate').send({ orderId: pay.txnRef });
     expect(sim.body.reply.status).toBe(200);
     const { b, rs } = await state(code);
     expect(b.status).toBe('CONFIRMED');
     expect(Number(b.paidVnd)).toBe(pricing.totalVnd);
     expect(rs.map((r: any) => r.state)).toEqual(['CONFIRMED', 'CONFIRMED']);
-    const q = await request(app).post('/v1/change-requests/quote').set(guestIp(++ip)).send({ code, phone: '0912345678' });
+    const q = await request(app).post('/api/v1/change-requests/quote').set(guestIp(++ip)).send({ code, phone: '0912345678' });
     expect(q.status, JSON.stringify(q.body)).toBe(200);
     expect(q.body.quote.shuttleKeepVnd).toBe(pricing.shuttleVnd);
     expect(q.body.quote.keepVnd).toBeGreaterThanOrEqual(pricing.shuttleVnd);
@@ -183,10 +183,10 @@ run('tích hợp: đơn nhiều loại phòng (giai đoạn 1)', () => {
     const c1 = await hold(nextOff());
     expect((await state(c1)).rs.map((r: any) => r.state)).toEqual(['HOLD', 'HOLD']);
     const id1 = (await state(c1)).b.id;
-    const rj = await request(app).post(`/v1/hotel/bookings/${id1}/reject`).set(auth(staff)).send({ reason: 'Hết phòng' });
+    const rj = await request(app).post(`/api/v1/hotel/bookings/${id1}/reject`).set(auth(staff)).send({ reason: 'Hết phòng' });
     expect(rj.status, JSON.stringify(rj.body)).toBe(200);
     expect((await state(c1)).rs.map((r: any) => r.state)).toEqual(['RELEASED', 'RELEASED']);
-    const hb = await request(app).get(`/v1/hotel/bookings/${id1}`).set(auth(staff));
+    const hb = await request(app).get(`/api/v1/hotel/bookings/${id1}`).set(auth(staff));
     expect(hb.body.booking.lines).toHaveLength(2);
     expect(hb.body.booking).toMatchObject({ roomTypeName: 'Standard +1 loại khác', qty: 3 });
 
@@ -202,13 +202,13 @@ run('tích hợp: đơn nhiều loại phòng (giai đoạn 1)', () => {
   it('khách hủy (duyệt yêu cầu) nhả mọi dòng; đổi ngày kiểm tồn mọi dòng rồi dời mọi reservation và tính lại từng dòng', async () => {
     const mk = async (o: number) => (await make(manualH, { rooms: [{ roomTypeId: M1, qty: 2 }, { roomTypeId: M2, qty: 1 }], guests: 3 }, o)).body.booking.code as string;
     const ask = async (code: string, body: object) => {
-      const r = await request(app).post('/v1/change-requests').set(guestIp(++ip)).set('Idempotency-Key', `cr-${++n}-${Date.now()}`).send({ code, phone: '0912345678', reasonCode: 'CHANGE_OF_PLAN', ...body });
+      const r = await request(app).post('/api/v1/change-requests').set(guestIp(++ip)).set('Idempotency-Key', `cr-${++n}-${Date.now()}`).send({ code, phone: '0912345678', reasonCode: 'CHANGE_OF_PLAN', ...body });
       expect(r.status, JSON.stringify(r.body)).toBe(201);
       return r.body.request.id as string;
     };
-    const approve = (id: string) => request(app).post(`/v1/hotel/change-requests/${id}/approve`).set(auth(staff)).send({});
+    const approve = (id: string) => request(app).post(`/api/v1/hotel/change-requests/${id}/approve`).set(auth(staff)).send({});
     // xác nhận đơn để có thể hủy/đổi
-    const confirm = async (code: string) => { const { b } = await state(code); await request(app).post(`/v1/hotel/bookings/${b.id}/confirm`).set(auth(staff)).send({}); };
+    const confirm = async (code: string) => { const { b } = await state(code); await request(app).post(`/api/v1/hotel/bookings/${b.id}/confirm`).set(auth(staff)).send({}); };
 
     const c1 = await mk(nextOff());
     await confirm(c1);
@@ -233,7 +233,7 @@ run('tích hợp: đơn nhiều loại phòng (giai đoạn 1)', () => {
     expect(before.rs.every((r: any) => r.state === 'CONFIRMED')).toBe(true);
     expect(new Date((await one<any>('SELECT starts_at FROM room_reservations WHERE booking_id = $1 LIMIT 1', [before.b.id]))!.startsAt).getTime()).not.toBe(newFrom.getTime());
 
-    await request(app).post(`/v1/hotel/change-requests/${reqId}/reject`).set(auth(staff)).send({ note: 'Không đổi được' });
+    await request(app).post(`/api/v1/hotel/change-requests/${reqId}/reject`).set(auth(staff)).send({ note: 'Không đổi được' });
     // ngày khác còn đủ: đổi thành công, tính lại từng dòng theo số đêm mới
     const ok = nextOff() + 40;
     const okFrom = new Date(Date.now() + ok * DAY);

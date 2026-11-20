@@ -7,7 +7,7 @@ import { describeError } from '../../lib/api';
 
 const KIND = { ROOM: 'Tiền phòng', ADJUSTMENT: 'Điều chỉnh' };
 
-// /v1/hotel/payouts: các kỳ chi trả đã khóa/đã trả của khách sạn + dòng chi tiết (chỉ đọc).
+// /api/v1/hotel/payouts: các kỳ chi trả đã khóa/đã trả của khách sạn + dòng chi tiết (chỉ đọc).
 export default function Payouts() {
   const list = usePaged((cursor) => H.listPayouts({ cursor }), []);
   const [open, setOpen] = useState(null);

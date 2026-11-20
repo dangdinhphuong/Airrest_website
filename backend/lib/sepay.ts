@@ -3,7 +3,7 @@ import { env } from '../config/env';
 import { AppError } from './errors';
 
 // Cổng SePay (https://developer.sepay.vn/vi/cong-thanh-toan). Khách thanh toán trên trang của SePay:
-//  1) Airrest dựng form POST tới SEPAY_CHECKOUT_URL kèm chữ ký; trình duyệt khách gửi form (trang /v1/payments/sepay/checkout/:id tự submit).
+//  1) Airrest dựng form POST tới SEPAY_CHECKOUT_URL kèm chữ ký; trình duyệt khách gửi form (trang /api/v1/payments/sepay/checkout/:id tự submit).
 //  2) SePay gọi IPN (POST JSON) khi có giao dịch; header X-Secret-Key phải khớp SEPAY_IPN_SECRET.
 const live = env.SEPAY_MODE === 'live';
 
@@ -67,7 +67,7 @@ export const newSepayOrder = (prefix: string) => {
 // Origin API công khai (nơi phục vụ trang checkout) lấy từ SEPAY_IPN_URL.
 export const sepayApiOrigin = () => new URL(env.SEPAY_IPN_URL).origin;
 export const sepayPayUrl = (paymentId: string, invoice: string) =>
-  live ? `${sepayApiOrigin()}/v1/payments/sepay/checkout/${paymentId}` : `${env.SEPAY_RETURN_URL}?mock=1&gateway=sepay&orderId=${encodeURIComponent(invoice)}`;
+  live ? `${sepayApiOrigin()}/api/v1/payments/sepay/checkout/${paymentId}` : `${env.SEPAY_RETURN_URL}?mock=1&gateway=sepay&orderId=${encodeURIComponent(invoice)}`;
 
 // Dùng cho cổng giả lập: dựng đúng gói IPN mà SePay gửi (xem developer.sepay.vn/vi/cong-thanh-toan/IPN).
 export function buildSepayIpn(o: { invoice: string; amount: number; success: boolean; transactionId: string }) {

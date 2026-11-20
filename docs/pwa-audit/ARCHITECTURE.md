@@ -59,7 +59,7 @@ Quy tắc chọn mục cho bottom bar khách sạn: lấy các tab còn lại sa
 | Đăng ký | Sau `load`; `registerType: 'prompt'` — **không tự reload** (tránh mất token nhân sự trong bộ nhớ và ngắt giao dịch) |
 | Precache | Chỉ asset Vite có hash + `index.html` + icon + trang offline. **Loại `public/ocr/*` (23MB)** khỏi precache |
 | Runtime cache | Theo bảng ở `PWA_READINESS.md` mục 5: allowlist GET công khai; ảnh/font CacheFirst có giới hạn; OCR assets cache khi thực sự được tải |
-| Mặc định | **NetworkOnly** cho mọi request có `Authorization` và mọi đường dẫn thuộc nhóm cá nhân (`/v1/me`, `/v1/auth`, `/v1/track`, `/v1/payer`, cổng hotel/admin/driver, bookings, shuttle, support…) |
+| Mặc định | **NetworkOnly** cho mọi request có `Authorization` và mọi đường dẫn thuộc nhóm cá nhân (`/api/v1/me`, `/api/v1/auth`, `/api/v1/track`, `/api/v1/payer`, cổng hotel/admin/driver, bookings, shuttle, support…) |
 | Điều hướng | `NavigationPreload`/NetworkFirst cho `index.html`; fallback trang offline; **không** fallback cho `/payment/result` |
 | Socket.IO | Không đi qua SW |
 | Logout | Nếu có bất kỳ cache dữ liệu nào, xóa khi logout (`caches.delete`); mặc định không có |

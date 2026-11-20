@@ -90,14 +90,14 @@ run('tích hợp: lô đặt phòng delay', () => {
   });
 
   it('điểm đón: API pickup-points, điểm sai -> 422 (không tạo lô), thiếu airport -> 422', async () => {
-    const get = (q: string) => request(createApp()).get(`/v1/payer/pickup-points${q}`).set('Authorization', `Bearer ${tokA}`);
+    const get = (q: string) => request(createApp()).get(`/api/v1/payer/pickup-points${q}`).set('Authorization', `Bearer ${tokA}`);
     const ok = await get('?airport=han');
     expect(ok.status).toBe(200);
     expect(ok.body).toEqual({ airport: 'HAN', items: ['Nhà ga T1 - cửa ra khu vực đón', 'Nhà ga T2 - cửa ra khu vực đón'], default: 'Nhà ga T1 - cửa ra khu vực đón' });
     expect((await get('?airport=VCA')).body.items).toHaveLength(1); // sân bay chưa liệt kê: điểm chung
     expect((await get('')).status).toBe(422);
-    expect((await request(createApp()).get('/v1/payer/pickup-points?airport=HAN')).status).toBe(401);
-    const bad = await request(createApp()).post(`/v1/payer/flights/${flight}/batches`).set('Authorization', `Bearer ${tokA}`).set('Idempotency-Key', idem()).send({ passengerIds: [pax['Binh']!], pickupPoint: 'Cổng lạ' });
+    expect((await request(createApp()).get('/api/v1/payer/pickup-points?airport=HAN')).status).toBe(401);
+    const bad = await request(createApp()).post(`/api/v1/payer/flights/${flight}/batches`).set('Authorization', `Bearer ${tokA}`).set('Idempotency-Key', idem()).send({ passengerIds: [pax['Binh']!], pickupPoint: 'Cổng lạ' });
     expect(bad.status).toBe(422);
     expect(bad.body.error.code).toBe('PICKUP_POINT_INVALID');
     expect(await count('delay_batches')).toBe(0);
@@ -106,14 +106,14 @@ run('tích hợp: lô đặt phòng delay', () => {
   it('cô lập payer: payer khác nhận 404 ở mọi API', async () => {
     await expect(previewBatch({ auth: authB, flightId: flight, passengerIds: [pax['Binh']!] })).rejects.toMatchObject({ status: 404 });
     await expect(updatePassengerContact(authB, pax['Binh']!, { email: 'x@y.vn' })).rejects.toMatchObject({ status: 404 });
-    const res = await request(createApp()).post(`/v1/payer/flights/${flight}/batches/preview`).set('Authorization', `Bearer ${tokB}`).send({ passengerIds: [pax['Binh']!] });
+    const res = await request(createApp()).post(`/api/v1/payer/flights/${flight}/batches/preview`).set('Authorization', `Bearer ${tokB}`).send({ passengerIds: [pax['Binh']!] });
     expect(res.status).toBe(404);
   });
 
   it('đặt: booking PAYER + offer PENDING + HOLD; chuyển KS kế tiếp khi KS gần nhất hết phòng; idempotent; không đặt trùng', async () => {
     const ids = [pax['An Lớn']!, pax['An Nhỏ']!, pax['Binh']!, pax['Cuong']!];
     const key = idem();
-    const res = await request(createApp()).post(`/v1/payer/flights/${flight}/batches`).set('Authorization', `Bearer ${tokA}`).set('Idempotency-Key', key).send({ passengerIds: ids });
+    const res = await request(createApp()).post(`/api/v1/payer/flights/${flight}/batches`).set('Authorization', `Bearer ${tokA}`).set('Idempotency-Key', key).send({ passengerIds: ids });
     expect(res.status).toBe(201);
     const b = res.body;
     expect(b.unplaced).toEqual([]);
@@ -129,7 +129,7 @@ run('tích hợp: lô đặt phòng delay', () => {
     expect(hotelsByPax[pax['An Lớn']!]).toBe(hNear);
     expect((await getBatch(auth, b.id)).offers).toHaveLength(3);
     // Cùng key -> cùng lô, không tạo thêm.
-    const again = await request(createApp()).post(`/v1/payer/flights/${flight}/batches`).set('Authorization', `Bearer ${tokA}`).set('Idempotency-Key', key).send({ passengerIds: ids });
+    const again = await request(createApp()).post(`/api/v1/payer/flights/${flight}/batches`).set('Authorization', `Bearer ${tokA}`).set('Idempotency-Key', key).send({ passengerIds: ids });
     expect(again.body.id).toBe(b.id);
     expect(await count('delay_batches')).toBe(1);
     // Service: cùng key (không qua middleware) cũng trả lô cũ; key khác -> 409 vì khách đã có đơn.
@@ -170,7 +170,7 @@ run('tích hợp: lô đặt phòng delay', () => {
     expect(a.after.email).toBe('moi@example.com');
     expect(a.actor.id).toBe(auth.sub);
     await expect(updatePassengerContact(auth, pax['An Lớn']!, { email: 'khong-hop-le' })).rejects.toThrow();
-    const http = await request(createApp()).patch(`/v1/payer/passengers/${pax['Binh']!}`).set('Authorization', `Bearer ${tokA}`).send({ email: 'sai' });
+    const http = await request(createApp()).patch(`/api/v1/payer/passengers/${pax['Binh']!}`).set('Authorization', `Bearer ${tokA}`).send({ email: 'sai' });
     expect(http.status).toBe(422);
   });
 });

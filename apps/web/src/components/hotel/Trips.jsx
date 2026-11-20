@@ -49,7 +49,7 @@ function TripCard({ t, act, go, pos }) {
   );
 }
 
-// Chuyến của tôi (trip:drive): /v1/driver/trips; máy chủ chỉ trả chuyến của chính tài xế.
+// Chuyến của tôi (trip:drive): /api/v1/driver/trips; máy chủ chỉ trả chuyến của chính tài xế.
 export default function Trips() {
   const { state } = useApp();
   const act = useAction();

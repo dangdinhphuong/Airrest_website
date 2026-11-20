@@ -83,7 +83,7 @@ authRouter.get('/me', authenticate, async (req, res) => {
   });
 });
 
-// Tự đổi mật khẩu / hồ sơ của nhân sự (khách có /v1/me/*). Khóa theo sub trong token.
+// Tự đổi mật khẩu / hồ sơ của nhân sự (khách có /api/v1/me/*). Khóa theo sub trong token.
 // shortcut: không có thu hồi token/phiên (JWT stateless, không token_version) nên token đang dùng ở nơi khác vẫn sống đến khi hết hạn; thêm accounts.password_changed_at + so với iat khi cần.
 const changePasswordBody = z.object({ currentPassword: z.string().min(1).max(200), newPassword: z.string().min(12).max(128) });
 authRouter.patch('/password', authenticate, denyPassenger, staffPasswordRateLimit, validate({ body: changePasswordBody }), async (req, res) => {

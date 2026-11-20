@@ -1,7 +1,7 @@
-// Cổng khách sạn: gọi API thật /v1/hotel/*. Hotel id lấy từ token ở máy chủ nên không truyền.
+// Cổng khách sạn: gọi API thật /api/v1/hotel/*. Hotel id lấy từ token ở máy chủ nên không truyền.
 import { api } from '../lib/api';
 
-const H = '/v1/hotel';
+const H = '/api/v1/hotel';
 const post = (path, body) => api.post(`${H}${path}`, body);
 
 export const getStats = (q) => api.get(`${H}/stats`, { query: q });
@@ -69,9 +69,9 @@ export const reassignTrip = (id, vehicleId) => trip(id, 'reassign', { vehicleId 
 export const cancelTrip = (id, note) => trip(id, 'cancel', { note });
 export const staffStep = (id, step) => trip(id, step); // arrived | onboard | dropped-off (chỉ xe ngoài)
 
-export const listDriverTrips = () => api.get('/v1/driver/trips');
-export const driverNoShow = (id) => api.post(`/v1/driver/trips/${id}/no-show`, {});
-export const driverStep = (id, step, body) => api.post(`/v1/driver/trips/${id}/${step}`, body); // accept | reject | start | arrived | onboard | dropped-off
+export const listDriverTrips = () => api.get('/api/v1/driver/trips');
+export const driverNoShow = (id) => api.post(`/api/v1/driver/trips/${id}/no-show`, {});
+export const driverStep = (id, step, body) => api.post(`/api/v1/driver/trips/${id}/${step}`, body); // accept | reject | start | arrived | onboard | dropped-off
 
 // Yêu cầu giữ phòng cho khách delay (quyền booking:decide).
 export const listDelayOffers = (status = 'PENDING') => api.get(`${H}/delay-offers`, { query: { status, include: 'extension' } });

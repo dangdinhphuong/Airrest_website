@@ -27,7 +27,7 @@ import { hotelPermissionsRouter, hotelRolesRouter, hotelStaffRouter } from './ho
 import { hotelNotificationSettingsRouter, hotelNotificationsRouter } from './notifications/notifications.router';
 import { floorsRouter, roomBlocksRouter, roomsRouter, roomTypesRouter } from './rooms/rooms.router';
 
-// Gắn mọi module vào /v1. Thêm module mới: tạo thư mục modules/<ten>/ rồi thêm 1 dòng ở đây.
+// Gắn mọi module vào /api/v1. Thêm module mới: tạo thư mục modules/<ten>/ rồi thêm 1 dòng ở đây.
 export const v1Router = Router();
 v1Router.use('/auth/passenger', passengerAuthRouter);
 v1Router.use('/auth/business', businessAuthRouter);

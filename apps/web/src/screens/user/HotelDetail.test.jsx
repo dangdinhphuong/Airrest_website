@@ -13,7 +13,7 @@ const { toHotelView } = await import('../../data/user');
 const { AppProvider } = await import('../../state/store');
 const { default: HotelDetail } = await import('./HotelDetail');
 
-// Dữ liệu đúng dạng GET /v1/hotels/:id (đi qua toHotelView thật của app).
+// Dữ liệu đúng dạng GET /api/v1/hotels/:id (đi qua toHotelView thật của app).
 const apiHotel = (over = {}) => toHotelView({
   id: ID, name: 'Ngọc Lan Inn', code: 'HAN-01', location: { coordinates: [105.8, 21.2] }, airports: [{ iata: 'HAN', km: 3.5, minutes: 9 }],
   amenities: ['WIFI', 'SHUTTLE_FREE', '24H_RECEPTION'], rating: { avg: 9.3, count: 21 }, images: [{ key: 'k', url: '/a.jpg' }],

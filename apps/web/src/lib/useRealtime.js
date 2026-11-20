@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import { connectRealtime } from './socket';
 
-// lib/api.js không xuất token nhân sự: lấy đúng một lần bằng cách đọc header Authorization của lời gọi /v1/auth/me.
+// lib/api.js không xuất token nhân sự: lấy đúng một lần bằng cách đọc header Authorization của lời gọi /api/v1/auth/me.
 // shortcut: bắt header qua window.fetch, nên có getter token trong lib/api.js thì thay đoạn này.
 let tokenCache = { key: null, p: null };
 function staffToken(key) {
@@ -13,7 +13,7 @@ function staffToken(key) {
     const orig = window.fetch;
     let tok = null;
     window.fetch = (u, o) => { const a = o?.headers?.Authorization; if (a) tok = String(a).replace(/^Bearer /, ''); return orig(u, o); };
-    try { await api.get('/v1/auth/me'); } finally { window.fetch = orig; }
+    try { await api.get('/api/v1/auth/me'); } finally { window.fetch = orig; }
     return tok;
   })().catch(() => null);
   tokenCache = { key, p };

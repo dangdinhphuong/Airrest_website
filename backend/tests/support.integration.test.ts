@@ -18,8 +18,8 @@ run('tích hợp: hỗ trợ khách + admin xử lý', () => {
   const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
   const g = () => guestIp(++ip + 50);
   const create = (body: Record<string, unknown>, key = `sp-${++n}-${Date.now()}`, ipHdr = g()) =>
-    request(app).post('/v1/support').set(ipHdr).set('Idempotency-Key', key).send({ phone: PHONE, subject: 'Cần hỗ trợ', message: 'Tôi cần đổi giờ đón', ...body });
-  const lookup = (code: string, phone = PHONE) => request(app).post('/v1/support/lookup').set(g()).send({ code, phone });
+    request(app).post('/api/v1/support').set(ipHdr).set('Idempotency-Key', key).send({ phone: PHONE, subject: 'Cần hỗ trợ', message: 'Tôi cần đổi giờ đón', ...body });
+  const lookup = (code: string, phone = PHONE) => request(app).post('/api/v1/support/lookup').set(g()).send({ code, phone });
 
   beforeAll(async () => {
     await freshDb({ roles: true });
@@ -62,7 +62,7 @@ run('tích hợp: hỗ trợ khách + admin xử lý', () => {
     const c = await create({}, 'idem-support-key-1', same);
     expect(c.body.ticket.code).toBe(a.body.ticket.code);
     expect(await count('support_tickets')).toBe(before + 1);
-    const none = await request(app).post('/v1/support').set(g()).send({ phone: PHONE, subject: 'abc', message: 'abc' });
+    const none = await request(app).post('/api/v1/support').set(g()).send({ phone: PHONE, subject: 'abc', message: 'abc' });
     expect(none.status).toBe(400);
   });
 
@@ -81,20 +81,20 @@ run('tích hợp: hỗ trợ khách + admin xử lý', () => {
   it('rate limit 429 sau 10 lần dò mã ticket', async () => {
     const same = guestIp(197);
     let last = 0;
-    for (let i = 0; i < 11; i++) last = (await request(app).post('/v1/support/lookup').set(same).send({ code: 'SP-ZZZZZZZZ', phone: PHONE })).status;
+    for (let i = 0; i < 11; i++) last = (await request(app).post('/api/v1/support/lookup').set(same).send({ code: 'SP-ZZZZZZZZ', phone: PHONE })).status;
     expect(last).toBe(429);
   });
 
   it('khách trả lời thêm được; ghi chú nội bộ không lộ; ticket RESOLVED -> 409', async () => {
     const code = (await create({})).body.ticket.code as string;
-    const reply = await request(app).post('/v1/support/reply').set(g()).set('Idempotency-Key', `rp-${++n}-${Date.now()}`).send({ code, phone: PHONE, message: 'Bổ sung thông tin' });
+    const reply = await request(app).post('/api/v1/support/reply').set(g()).set('Idempotency-Key', `rp-${++n}-${Date.now()}`).send({ code, phone: PHONE, message: 'Bổ sung thông tin' });
     expect(reply.status).toBe(201);
     expect(reply.body.ticket.messages).toHaveLength(2);
     const id = (await one<any>('SELECT id FROM support_tickets WHERE code = $1', [code]))!.id;
     await db.query("INSERT INTO support_messages (ticket_id, author, body, internal) VALUES ($1,'{\"type\":\"ADMIN\"}'::jsonb,'BÍ MẬT NỘI BỘ',true)", [id]);
     expect(JSON.stringify((await lookup(code)).body)).not.toContain('BÍ MẬT');
     await db.query("UPDATE support_tickets SET status = 'RESOLVED' WHERE id = $1", [id]);
-    const late = await request(app).post('/v1/support/reply').set(g()).set('Idempotency-Key', `rp-${++n}-${Date.now()}`).send({ code, phone: PHONE, message: 'Thêm nữa' });
+    const late = await request(app).post('/api/v1/support/reply').set(g()).set('Idempotency-Key', `rp-${++n}-${Date.now()}`).send({ code, phone: PHONE, message: 'Thêm nữa' });
     expect(late.status).toBe(409);
     expect(late.body.error.code).toBe('TICKET_RESOLVED');
   });
@@ -104,7 +104,7 @@ run('tích hợp: hỗ trợ khách + admin xử lý', () => {
     let supId = '';
     let ticketId = '';
     let ticketCode = '';
-    const patch = (id: string, body: object, t = sup) => request(app).patch(`/v1/admin/support/${id}`).set(auth(t)).send(body);
+    const patch = (id: string, body: object, t = sup) => request(app).patch(`/api/v1/admin/support/${id}`).set(auth(t)).send(body);
     beforeAll(async () => {
       const a = await mkAdmin([PERM.SUPPORT_HANDLE]);
       sup = a.token;
@@ -114,21 +114,21 @@ run('tích hợp: hỗ trợ khách + admin xử lý', () => {
     });
 
     it('401 không token; thiếu quyền (lễ tân/OPS) 403; có quyền 200; SĐT trong danh sách đã che', async () => {
-      expect((await request(app).get('/v1/admin/support')).status).toBe(401);
+      expect((await request(app).get('/api/v1/admin/support')).status).toBe(401);
       const hotelStaff = (await mkStaff(hotel, [PERM.BOOKING_READ])).token;
-      expect((await request(app).get('/v1/admin/support').set(auth(hotelStaff))).status).toBe(403);
+      expect((await request(app).get('/api/v1/admin/support').set(auth(hotelStaff))).status).toBe(403);
       const ops = (await mkAdmin([PERM.SHUTTLE_HANDLE])).token;
-      expect((await request(app).get('/v1/admin/support').set(auth(ops))).status).toBe(403);
-      const list = await request(app).get('/v1/admin/support?limit=100').set(auth(sup));
+      expect((await request(app).get('/api/v1/admin/support').set(auth(ops))).status).toBe(403);
+      const list = await request(app).get('/api/v1/admin/support?limit=100').set(auth(sup));
       expect(list.status).toBe(200);
       expect(JSON.stringify(list.body)).not.toContain('912345678');
     });
 
     it('lọc status + phân trang keyset mới nhất trước', async () => {
-      const p1 = await request(app).get('/v1/admin/support?status=OPEN&limit=2').set(auth(sup));
+      const p1 = await request(app).get('/api/v1/admin/support?status=OPEN&limit=2').set(auth(sup));
       expect(p1.body.items.length).toBe(2);
       expect(p1.body.items[0].seq).toBeGreaterThan(p1.body.items[1].seq);
-      const p2 = await request(app).get(`/v1/admin/support?status=OPEN&limit=2&cursor=${p1.body.nextCursor}`).set(auth(sup));
+      const p2 = await request(app).get(`/api/v1/admin/support?status=OPEN&limit=2&cursor=${p1.body.nextCursor}`).set(auth(sup));
       expect(p2.body.items[0].seq).toBeLessThan(p1.body.items[1].seq);
     });
 
@@ -156,17 +156,17 @@ run('tích hợp: hỗ trợ khách + admin xử lý', () => {
     it('admin trả lời công khai khách thấy (STAFF); ghi chú nội bộ chỉ admin thấy; RESOLVED chỉ thêm được ghi chú', async () => {
       const code = (await create({ subject: 'Ticket 3' })).body.ticket.code as string;
       const id = (await one<any>('SELECT id FROM support_tickets WHERE code = $1', [code]))!.id;
-      expect((await request(app).post(`/v1/admin/support/${id}/messages`).set(auth(sup)).send({ message: 'Chúng tôi đã nhận' })).status).toBe(201);
-      expect((await request(app).post(`/v1/admin/support/${id}/messages`).set(auth(sup)).send({ message: 'GHI CHÚ RIÊNG', internal: true })).status).toBe(201);
+      expect((await request(app).post(`/api/v1/admin/support/${id}/messages`).set(auth(sup)).send({ message: 'Chúng tôi đã nhận' })).status).toBe(201);
+      expect((await request(app).post(`/api/v1/admin/support/${id}/messages`).set(auth(sup)).send({ message: 'GHI CHÚ RIÊNG', internal: true })).status).toBe(201);
       const guestView = JSON.stringify((await lookup(code)).body);
       expect(guestView).toContain('Chúng tôi đã nhận');
       expect(guestView).toContain('STAFF');
       expect(guestView).not.toContain('GHI CHÚ RIÊNG');
-      expect(JSON.stringify((await request(app).get(`/v1/admin/support/${id}`).set(auth(sup))).body)).toContain('GHI CHÚ RIÊNG');
+      expect(JSON.stringify((await request(app).get(`/api/v1/admin/support/${id}`).set(auth(sup))).body)).toContain('GHI CHÚ RIÊNG');
       await patch(id, { status: 'IN_PROGRESS' });
       await patch(id, { status: 'RESOLVED' });
-      expect((await request(app).post(`/v1/admin/support/${id}/messages`).set(auth(sup)).send({ message: 'Công khai muộn' })).body.error.code).toBe('TICKET_RESOLVED');
-      expect((await request(app).post(`/v1/admin/support/${id}/messages`).set(auth(sup)).send({ message: 'Ghi chú thêm', internal: true })).status).toBe(201);
+      expect((await request(app).post(`/api/v1/admin/support/${id}/messages`).set(auth(sup)).send({ message: 'Công khai muộn' })).body.error.code).toBe('TICKET_RESOLVED');
+      expect((await request(app).post(`/api/v1/admin/support/${id}/messages`).set(auth(sup)).send({ message: 'Ghi chú thêm', internal: true })).status).toBe(201);
       expect(await count('audit_logs', "entity_type = 'support_ticket' AND entity_id = $1", [id])).toBeGreaterThanOrEqual(5);
     });
   });

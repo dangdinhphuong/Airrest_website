@@ -60,7 +60,7 @@ export async function loadGuestShuttles(bookingId: string, only?: string): Promi
   }));
 }
 
-/** Thông tin công khai của khách sạn để khách tự đặt xe (cùng nguồn với GET /v1/hotels/:id; không SĐT/email/hotelId). */
+/** Thông tin công khai của khách sạn để khách tự đặt xe (cùng nguồn với GET /api/v1/hotels/:id; không SĐT/email/hotelId). */
 export async function guestHotel(b: Pick<BookingDoc, 'hotelId' | 'hotelSnapshot'>) {
   const h = (await db.query<Pick<HotelDoc, 'name' | 'address' | 'location'>>('SELECT name, address, location FROM hotels WHERE id = $1', [b.hotelId])).rows[0];
   const a = h?.address;

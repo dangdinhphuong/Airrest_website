@@ -5,7 +5,7 @@ const tooMany = (req: { id?: unknown }) => ({
   error: { code: 'RATE_LIMITED', message: 'Bạn thao tác quá nhanh, vui lòng thử lại sau', details: undefined, requestId: String(req.id ?? '') },
 });
 
-// Giới hạn chung cho toàn bộ /v1.
+// Giới hạn chung cho toàn bộ /api/v1.
 export const apiRateLimit = rateLimit({
   windowMs: 60_000,
   limit: 300,

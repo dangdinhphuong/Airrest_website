@@ -15,7 +15,7 @@ run('tích hợp: chi tiết khách sạn + đánh giá + chính sách lưu trú
 
   const book = async (hotelId: string, roomType: string, key: string) => {
     const from = new Date(Date.now() + 2 * DAY);
-    const r = await request(app).post('/v1/bookings').set('Idempotency-Key', key)
+    const r = await request(app).post('/api/v1/bookings').set('Idempotency-Key', key)
       .send({ hotelId, roomTypeId: roomType, qty: 1, from: from.toISOString(), to: new Date(from.getTime() + DAY).toISOString(), guest: { fullName: 'Nguyễn Văn Hùng', phone } });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
     for (let i = 0; i < 50; i++) { // đơn tự duyệt chạy nền: đợi xong rồi mới ép CHECKED_OUT để không bị ghi đè
@@ -36,7 +36,7 @@ run('tích hợp: chi tiết khách sạn + đánh giá + chính sách lưu trú
   afterAll(async () => closeDb());
 
   it('chi tiết: chính sách lưu trú mặc định null, stats và thông tin loại phòng', async () => {
-    const res = await request(app).get(`/v1/hotels/${hotel}`);
+    const res = await request(app).get(`/api/v1/hotels/${hotel}`);
     expect(res.status).toBe(200);
     expect(res.body.hotel.stay).toEqual({ checkInTime: null, checkOutTime: null, childPolicy: null, petsAllowed: null });
     expect(res.body.hotel.stats).toEqual({ floors: 0, totalRooms: 3 });
@@ -44,18 +44,18 @@ run('tích hợp: chi tiết khách sạn + đánh giá + chính sách lưu trú
   });
 
   it('lễ tân lưu giờ nhận/trả, trẻ em, thú cưng -> trang công khai thấy; giờ sai -> 422', async () => {
-    const bad = await request(app).patch('/v1/hotel/profile').set('Authorization', `Bearer ${staffToken}`).send({ checkInTime: '25:00' });
+    const bad = await request(app).patch('/api/v1/hotel/profile').set('Authorization', `Bearer ${staffToken}`).send({ checkInTime: '25:00' });
     expect(bad.status).toBe(422);
-    const ok = await request(app).patch('/v1/hotel/profile').set('Authorization', `Bearer ${staffToken}`).send({ checkInTime: '14:00', checkOutTime: '12:00', childPolicy: 'Trẻ dưới 6 tuổi ở miễn phí', petsAllowed: false });
+    const ok = await request(app).patch('/api/v1/hotel/profile').set('Authorization', `Bearer ${staffToken}`).send({ checkInTime: '14:00', checkOutTime: '12:00', childPolicy: 'Trẻ dưới 6 tuổi ở miễn phí', petsAllowed: false });
     expect(ok.status).toBe(200);
-    const res = await request(app).get(`/v1/hotels/${hotel}`);
+    const res = await request(app).get(`/api/v1/hotels/${hotel}`);
     expect(res.body.hotel.stay).toEqual({ checkInTime: '14:00', checkOutTime: '12:00', childPolicy: 'Trẻ dưới 6 tuổi ở miễn phí', petsAllowed: false });
   });
 
   it('đánh giá: chưa trả phòng -> 422; sai SĐT hoặc sai khách sạn -> 404', async () => {
     const rt = (await db.query<{ id: string }>('SELECT id FROM room_types WHERE hotel_id = $1', [hotel])).rows[0]!.id;
     const b = await book(hotel, rt, 'review-key-a');
-    const post = (hid: string, body: object) => request(app).post(`/v1/hotels/${hid}/reviews`).send(body);
+    const post = (hid: string, body: object) => request(app).post(`/api/v1/hotels/${hid}/reviews`).send(body);
     expect((await post(hotel, { code: b.code, phone, score: 9 })).body.error.code).toBe('BOOKING_NOT_COMPLETED');
     await db.query("UPDATE bookings SET status = 'CHECKED_OUT' WHERE code = $1", [b.code]);
     expect((await post(hotel, { code: b.code, phone: '0987654321', score: 9 })).status).toBe(404);
@@ -65,15 +65,15 @@ run('tích hợp: chi tiết khách sạn + đánh giá + chính sách lưu trú
 
   it('đánh giá hợp lệ: ghi 1 lần, cập nhật rating, liệt kê với tên gọi', async () => {
     const code = (await db.query<{ code: string }>("SELECT code FROM bookings WHERE status = 'CHECKED_OUT'")).rows[0]!.code;
-    const r = await request(app).post(`/v1/hotels/${hotel}/reviews`).send({ code, phone, score: 9, comment: 'Sạch sẽ' });
+    const r = await request(app).post(`/api/v1/hotels/${hotel}/reviews`).send({ code, phone, score: 9, comment: 'Sạch sẽ' });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
-    expect((await request(app).post(`/v1/hotels/${hotel}/reviews`).send({ code, phone, score: 5 })).body.error.code).toBe('REVIEW_EXISTS');
-    const list = await request(app).get(`/v1/hotels/${hotel}/reviews`);
+    expect((await request(app).post(`/api/v1/hotels/${hotel}/reviews`).send({ code, phone, score: 5 })).body.error.code).toBe('REVIEW_EXISTS');
+    const list = await request(app).get(`/api/v1/hotels/${hotel}/reviews`);
     expect(list.body.summary).toMatchObject({ avg: 9, count: 1 });
     expect(list.body.summary.distribution[8]).toBe(1);
     expect(list.body.items).toHaveLength(1);
     expect(list.body.items[0]).toMatchObject({ reviewerName: 'Hùng', score: 9, comment: 'Sạch sẽ' });
-    const d = await request(app).get(`/v1/hotels/${hotel}`);
+    const d = await request(app).get(`/api/v1/hotels/${hotel}`);
     expect(d.body.hotel.rating).toEqual({ avg: 9, count: 1 });
   });
 });

@@ -9,7 +9,7 @@ describe('switchWorkingHotel', () => {
   it('gọi switch-hotel và thay token trong phiên', async () => {
     post.mockResolvedValue({ token: 'tok2', hotel: { id: 'h2' }, hotels: [{ id: 'h1' }, { id: 'h2' }] });
     const r = await switchWorkingHotel('h2');
-    expect(post).toHaveBeenCalledWith('/v1/auth/switch-hotel', { hotelId: 'h2' });
+    expect(post).toHaveBeenCalledWith('/api/v1/auth/switch-hotel', { hotelId: 'h2' });
     expect(setAuthToken).toHaveBeenCalledWith('tok2');
     expect(r.hotel.id).toBe('h2');
   });

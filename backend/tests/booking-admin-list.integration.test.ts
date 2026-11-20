@@ -29,14 +29,14 @@ run('tích hợp: admin xem booking + chi tiết', () => {
     for (let i = 0; i < 25; i++) {
       const [hotel, rt] = i % 2 ? [H2, rt2] : [H1, rt1];
       const res = await request(app)
-        .post('/v1/bookings')
+        .post('/api/v1/bookings')
         .set('Idempotency-Key', `ad-${++n}-${Date.now()}`)
         .send({ hotelId: hotel, roomTypeId: rt, from: new Date(Date.now() + (3 + i) * DAY).toISOString(), to: new Date(Date.now() + (4 + i) * DAY).toISOString(), guest: { fullName: 'Khách Test', phone: '0912345678' } });
       codes.push(res.body.booking.code);
     }
     // đơn đầu tiên (H1) bị từ chối để có lịch sử + decision
     rejectedId = (await one<{ id: string }>('SELECT id FROM bookings WHERE code = $1', [codes[0]]))!.id;
-    await request(app).post(`/v1/hotel/bookings/${rejectedId}/reject`).set(auth(staff1)).send({ reason: 'Hết phòng' });
+    await request(app).post(`/api/v1/hotel/bookings/${rejectedId}/reject`).set(auth(staff1)).send({ reason: 'Hết phòng' });
   });
   afterAll(async () => closeDb());
 
@@ -44,7 +44,7 @@ run('tích hợp: admin xem booking + chi tiết', () => {
     const seen: number[] = [];
     let cursor: number | null = null;
     for (let page = 0; page < 5; page++) {
-      const res: any = await request(app).get(`/v1/admin/bookings?limit=10${cursor === null ? '' : `&cursor=${cursor}`}`).set(auth(admin));
+      const res: any = await request(app).get(`/api/v1/admin/bookings?limit=10${cursor === null ? '' : `&cursor=${cursor}`}`).set(auth(admin));
       expect(res.status).toBe(200);
       seen.push(...res.body.items.map((b: any) => b.seq));
       cursor = res.body.nextCursor;
@@ -57,7 +57,7 @@ run('tích hợp: admin xem booking + chi tiết', () => {
   });
 
   it('lọc theo status / hotelId / tiền tố code / khoảng ngày nhận phòng, kết hợp được', async () => {
-    const get = (qs: string) => request(app).get(`/v1/admin/bookings?${qs}`).set(auth(admin));
+    const get = (qs: string) => request(app).get(`/api/v1/admin/bookings?${qs}`).set(auth(admin));
     expect((await get('status=REJECTED')).body.items).toHaveLength(1);
     const h2 = await get(`hotelId=${H2}&limit=100`);
     expect(h2.body.items).toHaveLength(12);
@@ -72,32 +72,32 @@ run('tích hợp: admin xem booking + chi tiết', () => {
   });
 
   it('tham số sai -> 422: to <= from, limit 101, cursor -1, status lạ', async () => {
-    const get = (qs: string) => request(app).get(`/v1/admin/bookings?${qs}`).set(auth(admin));
+    const get = (qs: string) => request(app).get(`/api/v1/admin/bookings?${qs}`).set(auth(admin));
     const a = new Date(Date.now() + DAY).toISOString();
     const b = new Date(Date.now()).toISOString();
     for (const qs of [`from=${a}&to=${b}`, 'limit=101', 'cursor=-1', 'status=FOO']) expect((await get(qs)).status, qs).toBe(422);
   });
 
   it('quyền: không token 401; KS 403; admin thiếu quyền 403; KS không lọc được sang khách sạn khác', async () => {
-    expect((await request(app).get('/v1/admin/bookings')).status).toBe(401);
-    expect((await request(app).get('/v1/admin/bookings').set(auth(staff1))).status).toBe(403);
+    expect((await request(app).get('/api/v1/admin/bookings')).status).toBe(401);
+    expect((await request(app).get('/api/v1/admin/bookings').set(auth(staff1))).status).toBe(403);
     const sup = (await mkAdmin([PERM.BOOKING_READ])).token;
-    expect((await request(app).get('/v1/admin/bookings').set(auth(sup))).status).toBe(403);
-    const mine = await request(app).get(`/v1/hotel/bookings?hotelId=${H2}&limit=100`).set(auth(staff1));
+    expect((await request(app).get('/api/v1/admin/bookings').set(auth(sup))).status).toBe(403);
+    const mine = await request(app).get(`/api/v1/hotel/bookings?hotelId=${H2}&limit=100`).set(auth(staff1));
     expect(mine.status).toBe(200);
     expect(mine.body.items.every((b: any) => b.hotelId === H1)).toBe(true);
   });
 
   it('chi tiết: admin thấy statusHistory + decision; KS khác 404; id sai 422; danh sách không kèm statusHistory', async () => {
-    const d = await request(app).get(`/v1/admin/bookings/${rejectedId}`).set(auth(admin));
+    const d = await request(app).get(`/api/v1/admin/bookings/${rejectedId}`).set(auth(admin));
     expect(d.status).toBe(200);
     expect(d.body.booking.statusHistory.map((h: any) => h.to)).toEqual(['PENDING', 'REJECTED']);
     expect(d.body.decision).toMatchObject({ decision: 'REJECTED', reason: 'Hết phòng' });
     const other = (await mkStaff(H2, [PERM.BOOKING_READ])).token;
-    expect((await request(app).get(`/v1/hotel/bookings/${rejectedId}`).set(auth(other))).status).toBe(404);
-    expect((await request(app).get(`/v1/hotel/bookings/${rejectedId}`).set(auth(staff1))).status).toBe(200);
-    expect((await request(app).get('/v1/admin/bookings/not-a-uuid').set(auth(admin))).status).toBe(422);
-    const list = await request(app).get('/v1/admin/bookings?limit=1').set(auth(admin));
+    expect((await request(app).get(`/api/v1/hotel/bookings/${rejectedId}`).set(auth(other))).status).toBe(404);
+    expect((await request(app).get(`/api/v1/hotel/bookings/${rejectedId}`).set(auth(staff1))).status).toBe(200);
+    expect((await request(app).get('/api/v1/admin/bookings/not-a-uuid').set(auth(admin))).status).toBe(422);
+    const list = await request(app).get('/api/v1/admin/bookings?limit=1').set(auth(admin));
     expect(list.body.items[0]).not.toHaveProperty('statusHistory');
   });
 });

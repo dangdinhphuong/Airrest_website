@@ -4,7 +4,7 @@ import Select from '../../components/Select';
 import { AirportSelect, useAirports, useRun } from '../../components/admin/kit';
 import { createFlight, patchFlight } from '../../data/admin';
 
-// Hành động ghi trên trang /flights: CHỈ dùng endpoint admin có sẵn (POST /v1/admin/flights, PATCH /v1/admin/flights/:id), quyền flight:manage kiểm ở máy chủ.
+// Hành động ghi trên trang /flights: CHỈ dùng endpoint admin có sẵn (POST /api/v1/admin/flights, PATCH /api/v1/admin/flights/:id), quyền flight:manage kiểm ở máy chủ.
 // Giờ nhập/hiển thị luôn theo giờ Việt Nam (+07:00), không phụ thuộc múi giờ trình duyệt.
 export const vnToIso = (local) => (local ? new Date(`${local}:00+07:00`).toISOString() : undefined);
 export const isoToVn = (iso) => (iso ? new Date(new Date(iso).getTime() + 7 * 3600_000).toISOString().slice(0, 16) : '');

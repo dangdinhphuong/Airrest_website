@@ -78,7 +78,7 @@ Danh sách `SCREENS` hợp lệ: `home, stays, support, track, account, login, h
 | Loại phiên | Nơi lưu | Bằng chứng |
 |---|---|---|
 | Nhân sự (khách sạn/quản trị/lái xe) | **Chỉ biến bộ nhớ** `token`; không ghi storage. Tải lại trang là mất phiên | `W/lib/api.js:13-16`, `W/data/auth.js:1` |
-| Khách (hành khách) | `sessionStorage` khóa `airrest.guest.token`; khôi phục sau reload qua `/v1/auth/me`, xóa khi 401/403 hoặc khi `state.user` về null | `W/lib/api.js:14-15`, `W/state/store.jsx:64-75` |
+| Khách (hành khách) | `sessionStorage` khóa `airrest.guest.token`; khôi phục sau reload qua `/api/v1/auth/me`, xóa khi 401/403 hoặc khi `state.user` về null | `W/lib/api.js:14-15`, `W/state/store.jsx:64-75` |
 | Chuyển token | Header `Authorization: Bearer` (không dùng cookie/httpOnly) | `W/lib/api.js:28`, `packages/api-client` |
 | Hai phiên loại trừ nhau | Có token nhân sự thì bỏ phiên khách | `W/lib/api.js:21-22` |
 | Hết hạn | JWT mặc định 1h, không có refresh token [AGENT: `backend/config/env.ts:12`]. 401 → `onUnauthorized` → đăng xuất | `W/lib/api.js:28`, `store.jsx:62` |
@@ -109,5 +109,5 @@ Ghi chú: [AGENT] `useRealtime.js` lấy token nhân sự bằng cách vá tạm
 
 - Chưa chạy app, chưa mở trên trình duyệt/thiết bị nào.
 - Chưa đọc từng dòng `Home.jsx`, `Pages.jsx`, `Login.jsx`, `Stays.jsx`.
-- Chưa kiểm router backend để biết GET `/v1/hotels`, `/v1/airports`, `/v1/flights/:code` có thật sự công khai.
+- Chưa kiểm router backend để biết GET `/api/v1/hotels`, `/api/v1/airports`, `/api/v1/flights/:code` có thật sự công khai.
 - Chưa đọc `apps/web/.env` (cố ý, vì có thể chứa thông tin nhạy cảm).

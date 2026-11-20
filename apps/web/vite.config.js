@@ -11,7 +11,7 @@ export default {
   server: {
     allowedHosts: ['airrest.dpdns.org'],
     proxy: {
-      '/v1': { target: apiTarget },
+      '/api/v1': { target: apiTarget },
       '/socket.io': { target: apiTarget, ws: true },
     },
   },

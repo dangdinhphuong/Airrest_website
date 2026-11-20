@@ -40,13 +40,13 @@ run('tích hợp: khách đặt phòng -> khách sạn nhận realtime + thông 
     sock.onAny((name) => got.push(name));
     await new Promise<void>((r, j) => { sock.on('connect', () => r()); sock.on('connect_error', j); });
     const day = 86400_000;
-    const res = await request(app).post('/v1/bookings').set('Idempotency-Key', 'rt-key-0001').send({ hotelId, roomTypeId, from: new Date(Date.now() + 2 * day).toISOString(), to: new Date(Date.now() + 3 * day).toISOString(), guest: { fullName: 'Khách Realtime', phone: '0912345670' } });
+    const res = await request(app).post('/api/v1/bookings').set('Idempotency-Key', 'rt-key-0001').send({ hotelId, roomTypeId, from: new Date(Date.now() + 2 * day).toISOString(), to: new Date(Date.now() + 3 * day).toISOString(), guest: { fullName: 'Khách Realtime', phone: '0912345670' } });
     expect(res.status).toBe(201);
     await new Promise((r) => setTimeout(r, 600));
     sock.close();
     expect(got).toContain('order:new');
     expect(got).toContain('notify:new');
-    const list = (await request(app).get('/v1/hotel/notifications').set({ Authorization: `Bearer ${token}` })).body as { items: { type: string; title: string }[]; unread: number };
+    const list = (await request(app).get('/api/v1/hotel/notifications').set({ Authorization: `Bearer ${token}` })).body as { items: { type: string; title: string }[]; unread: number };
     expect(list.items.map((i) => i.type)).toContain('BOOKING_NEW');
     expect(list.items[0]!.title).toContain(res.body.booking.code);
     expect(list.unread).toBeGreaterThanOrEqual(1);

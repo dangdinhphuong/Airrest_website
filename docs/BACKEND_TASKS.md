@@ -14,22 +14,22 @@
 | 1 | ERD và API contract | Có | — | `postgres/README.md`, `database/migrations/001_init.sql`, file Postman. Chưa có OpenAPI. |
 | 2 | Tra cứu chuyến bay | **Thiếu** | FLT | Chỉ có mock ở FE. |
 | 3 | Trạng thái chuyến bay | **Thiếu** | FLT | Như trên. |
-| 4 | Tìm và lọc khách sạn | Có | SRC | `GET /v1/hotels`. Cần rà bộ lọc theo SRS 3.2. |
-| 5 | Chi tiết khách sạn | Có | SRC | `GET /v1/hotels/:id`. |
-| 6 | Đặt phòng không tài khoản | Có | BKG | `POST /v1/bookings`, có idempotency và khóa phòng. |
-| 7 | Theo dõi booking | Có | BKG | `POST /v1/bookings/lookup`. |
+| 4 | Tìm và lọc khách sạn | Có | SRC | `GET /api/v1/hotels`. Cần rà bộ lọc theo SRS 3.2. |
+| 5 | Chi tiết khách sạn | Có | SRC | `GET /api/v1/hotels/:id`. |
+| 6 | Đặt phòng không tài khoản | Có | BKG | `POST /api/v1/bookings`, có idempotency và khóa phòng. |
+| 7 | Theo dõi booking | Có | BKG | `POST /api/v1/bookings/lookup`. |
 | 8 | Yêu cầu hỗ trợ | **Thiếu** | SUP | |
 | 9 | Yêu cầu đổi/hủy | **Thiếu** | CXL/RFD | Mới có `refunds` phía payments. |
 | 10 | Phương thức thanh toán | Một phần | PAY | Chỉ VNPay (mock/live). |
 | 11 | Yêu cầu xe | **Thiếu** | SHT | |
-| 12 | Đăng nhập quản trị | Có | ADM | `POST /v1/auth/login`, `GET /v1/auth/me`. |
-| 13 | Dashboard | Một phần | ADM | Chỉ có `GET /v1/admin/hotels/:id/stats`. |
+| 12 | Đăng nhập quản trị | Có | ADM | `POST /api/v1/auth/login`, `GET /api/v1/auth/me`. |
+| 13 | Dashboard | Một phần | ADM | Chỉ có `GET /api/v1/admin/hotels/:id/stats`. |
 | 14 | Quản lý khách sạn | Có | ADM | Tạo, sửa, duyệt, từ chối, đình chỉ, kích hoạt, tài khoản nhận tiền. |
 | 15 | Quản lý phòng | Một phần | HTL | Chưa có CRUD loại phòng riêng và tồn kho theo ngày. |
 | 16 | Quản lý booking | Một phần | HTL/ADM | Có danh sách theo khách sạn và check-in. Chưa có admin xem toàn bộ. |
 | 17 | Xác nhận/từ chối booking | **Thiếu** | HTL | Booking đang tự xác nhận khi thanh toán. |
 | 18 | Xử lý hỗ trợ | **Thiếu** | SUP | Phụ thuộc #8. |
-| 19 | Nhật ký thao tác | Có | ADM | `GET /v1/admin/audit-logs`. |
+| 19 | Nhật ký thao tác | Có | ADM | `GET /api/v1/admin/audit-logs`. |
 | 20 | Xử lý đổi/hủy | **Thiếu** | CXL/RFD | Phụ thuộc #9. |
 | 21 | Dịch vụ xe | **Thiếu** | SHT | Phụ thuộc #11. |
 | 22 | Theo dõi thanh toán | Có | PAY | payments, refunds, reconcile, retry. |
@@ -40,9 +40,9 @@
 
 Nên thêm vào danh sách task:
 
-- Quản lý tài khoản admin và vai trò: `/v1/admin/accounts`, `/v1/admin/roles`.
-- Cấu hình hệ thống có phiên bản: `/v1/admin/configs`.
-- Upload ảnh lên Cloudflare R2 bằng presigned URL: `POST /v1/admin/media/upload-url`.
+- Quản lý tài khoản admin và vai trò: `/api/v1/admin/accounts`, `/api/v1/admin/roles`.
+- Cấu hình hệ thống có phiên bản: `/api/v1/admin/configs`.
+- Upload ảnh lên Cloudflare R2 bằng presigned URL: `POST /api/v1/admin/media/upload-url`.
 - VNPay: tạo link, IPN, hoàn tiền tự động, đối soát thủ công.
 - Realtime booking qua Socket.io (chạy một tiến trình).
 
@@ -51,7 +51,7 @@ Nên thêm vào danh sách task:
 Chưa chốt với nhóm. Mỗi nhóm đều thêm bảng và migration mới, nên cần xác nhận phạm vi trước khi làm.
 
 ### 3.1 Xác nhận/từ chối booking (#17, #16)
-- Bổ sung: `PATCH /v1/hotel/bookings/:id/confirm` và `/reject` (kèm lý do), `GET /v1/admin/bookings` (xem toàn bộ, lọc, phân trang).
+- Bổ sung: `PATCH /api/v1/hotel/bookings/:id/confirm` và `/reject` (kèm lý do), `GET /api/v1/admin/bookings` (xem toàn bộ, lọc, phân trang).
 - Cần quyết định: booking đã thanh toán có chờ khách sạn xác nhận không, và từ chối thì tự hoàn tiền (dùng `refunds`) hay không.
 - Ghi audit cho mọi thao tác; phát sự kiện `bookingEvents` để Socket.io đẩy lên giao diện.
 
@@ -62,7 +62,7 @@ Chưa chốt với nhóm. Mỗi nhóm đều thêm bảng và migration mới, n
 
 ### 3.3 Hỗ trợ (#8, #18)
 - Bảng mới `support_tickets`: `id, booking_id?, contact, subject, body, status (OPEN|IN_PROGRESS|RESOLVED), assignee, created_at` và `support_messages` cho trao đổi.
-- Route: khách `POST /v1/support`, `GET /v1/support/:code`; admin `GET/PATCH /v1/admin/support`.
+- Route: khách `POST /api/v1/support`, `GET /api/v1/support/:code`; admin `GET/PATCH /api/v1/admin/support`.
 - MVP.md ghi FR-16 (hỗ trợ 24/7) là Could và FR-21 là Must; cần chốt phạm vi.
 
 ### 3.4 Xe đưa đón (#11, #21)
@@ -72,14 +72,14 @@ Chưa chốt với nhóm. Mỗi nhóm đều thêm bảng và migration mới, n
 
 ### 3.5 Chuyến bay (#2, #3)
 - Cần chốt nguồn dữ liệu: API ngoài hoặc dữ liệu mẫu. MVP.md ghi "Mock D1".
-- Bản nhỏ nhất: bảng `flights` seed sẵn, `GET /v1/flights/:code` trả giờ cũ/mới, trạng thái, thời điểm cập nhật.
+- Bản nhỏ nhất: bảng `flights` seed sẵn, `GET /api/v1/flights/:code` trả giờ cũ/mới, trạng thái, thời điểm cập nhật.
 
 ### 3.6 Dashboard (#13)
-- `GET /v1/admin/dashboard`: số booking theo trạng thái, doanh thu, số khách sạn chờ duyệt, ticket đang mở. Làm sau khi có 3.1–3.3.
+- `GET /api/v1/admin/dashboard`: số booking theo trạng thái, doanh thu, số khách sạn chờ duyệt, ticket đang mở. Làm sau khi có 3.1–3.3.
 
 ### 3.7 Phương thức thanh toán (#10) và quản lý phòng (#15)
 - Thanh toán: thêm trường phương thức trên `payments` và ít nhất một phương thức mô phỏng ngoài VNPay (MVP.md yêu cầu ≥2 cách trả mô phỏng).
-- Phòng: `POST/PATCH/DELETE /v1/hotel/room-types` và tồn kho theo ngày.
+- Phòng: `POST/PATCH/DELETE /api/v1/hotel/room-types` và tồn kho theo ngày.
 
 ## 4. Thứ tự đề xuất
 

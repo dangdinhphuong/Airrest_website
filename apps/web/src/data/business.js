@@ -28,30 +28,30 @@ export function validateBusinessRegister(f) {
 }
 
 // `website` là ô honeypot: luôn gửi rỗng (người thật không thấy ô này).
-export const registerBusiness = (f) => api.post('/v1/auth/business/register', {
+export const registerBusiness = (f) => api.post('/api/v1/auth/business/register', {
   name: f.name.trim(), taxCode: f.taxCode.trim(), representative: f.representative.trim(), email: f.email.trim(), phone: f.phone.trim(), password: f.password, website: f.website ?? '',
 }, { auth: false });
 
 // Đổi khách sạn đang làm việc: máy chủ cấp token mới (mang hotelId), thay token trong sessionStorage. Trả { hotel, hotels }.
 export async function switchWorkingHotel(hotelId) {
-  const r = await api.post('/v1/auth/switch-hotel', { hotelId });
+  const r = await api.post('/api/v1/auth/switch-hotel', { hotelId });
   setAuthToken(r.token);
   return r;
 }
-export const listMyHotels = () => api.get('/v1/hotel/hotels');
-export const createMyHotel = (body) => api.post('/v1/hotel/hotels', body);
-export const pauseHotel = (id, reason) => api.post(`/v1/hotel/hotels/${id}/pause`, { reason });
-export const resumeHotel = (id) => api.post(`/v1/hotel/hotels/${id}/resume`);
-export const pauseChain = (reason) => api.post('/v1/hotel/hotels/chain/pause', { reason });
-export const resumeChain = () => api.post('/v1/hotel/hotels/chain/resume');
-export const submitMyHotel = (id) => api.post(`/v1/hotel/hotels/${id}/submit`);
-export const getHotelRevenue = (q) => api.get('/v1/hotel/reports/revenue', { query: q });
-export const getBusinessRevenue = (q) => api.get('/v1/hotel/reports/revenue/summary', { query: q });
+export const listMyHotels = () => api.get('/api/v1/hotel/hotels');
+export const createMyHotel = (body) => api.post('/api/v1/hotel/hotels', body);
+export const pauseHotel = (id, reason) => api.post(`/api/v1/hotel/hotels/${id}/pause`, { reason });
+export const resumeHotel = (id) => api.post(`/api/v1/hotel/hotels/${id}/resume`);
+export const pauseChain = (reason) => api.post('/api/v1/hotel/hotels/chain/pause', { reason });
+export const resumeChain = () => api.post('/api/v1/hotel/hotels/chain/resume');
+export const submitMyHotel = (id) => api.post(`/api/v1/hotel/hotels/${id}/submit`);
+export const getHotelRevenue = (q) => api.get('/api/v1/hotel/reports/revenue', { query: q });
+export const getBusinessRevenue = (q) => api.get('/api/v1/hotel/reports/revenue/summary', { query: q });
 
 // Tải CSV có token trong header (không mở link trần), trả { blob, filename }. path: 'revenue' | 'revenue/summary'.
 export async function fetchReportCsv(path, query) {
   const qs = new URLSearchParams({ ...query, format: 'csv' }).toString();
-  const res = await fetch(`${apiBase}/v1/hotel/reports/${path}?${qs}`, { headers: { Authorization: `Bearer ${getAuthToken()}` } });
+  const res = await fetch(`${apiBase}/api/v1/hotel/reports/${path}?${qs}`, { headers: { Authorization: `Bearer ${getAuthToken()}` } });
   if (!res.ok) {
     let e = null;
     try { e = (await res.json())?.error; } catch { /* không phải JSON */ }

@@ -25,7 +25,7 @@ run('tích hợp: dashboard + thống kê khách sạn', () => {
   const finite = (v: unknown): boolean => (typeof v === 'number' ? Number.isFinite(v) : v && typeof v === 'object' ? Object.values(v).every(finite) : true);
 
   it('DB rỗng: đủ khóa bằng 0, trend đủ ngày, không NaN', async () => {
-    const res = await request(app).get('/v1/admin/dashboard').set(auth(dash));
+    const res = await request(app).get('/api/v1/admin/dashboard').set(auth(dash));
     expect(res.status).toBe(200);
     expect(res.body.bookings.total).toBe(0);
     for (const s of BOOKING_STATUSES) expect(res.body.bookings.byStatus[s]).toEqual({ count: 0, totalVnd: 0 });
@@ -37,13 +37,13 @@ run('tích hợp: dashboard + thống kê khách sạn', () => {
   });
 
   it('quyền: không token 401; thiếu quyền 403', async () => {
-    expect((await request(app).get('/v1/admin/dashboard')).status).toBe(401);
-    expect((await request(app).get('/v1/admin/dashboard').set(auth(nothing))).status).toBe(403);
+    expect((await request(app).get('/api/v1/admin/dashboard')).status).toBe(401);
+    expect((await request(app).get('/api/v1/admin/dashboard').set(auth(nothing))).status).toBe(403);
   });
 
   it('khoảng ngày sai -> 422 đúng mã; đúng 92 ngày -> 200', async () => {
     const t = (days: number) => new Date(Date.now() + days * DAY).toISOString();
-    const get = (qs: string) => request(app).get(`/v1/admin/dashboard?${qs}`).set(auth(dash));
+    const get = (qs: string) => request(app).get(`/api/v1/admin/dashboard?${qs}`).set(auth(dash));
     const cases: Array<[string, string]> = [
       [`from=${t(1)}&to=${t(0)}`, 'INVALID_RANGE'],
       [`from=${t(0)}&to=${t(0)}`, 'INVALID_RANGE'],
@@ -71,7 +71,7 @@ run('tích hợp: dashboard + thống kê khách sạn', () => {
     await db.query("INSERT INTO change_requests (booking_id, hotel_id, type, reason_code, quote, requested_by) VALUES ($1,$2,'CANCEL','HEALTH','{}'::jsonb,'{}'::jsonb)", [(await one<any>('SELECT id FROM bookings WHERE id = $1', [a.id]))!.id, H]);
     // Mọi số liệu tính theo ngày nhận phòng (stay_from): các đơn nhận phòng sau 5-11 ngày nên khoảng ngày phải phủ tương lai.
     const win = `from=${encodeURIComponent(new Date(Date.now() - DAY).toISOString())}&to=${encodeURIComponent(new Date(Date.now() + 30 * DAY).toISOString())}`;
-    const res = await request(app).get(`/v1/admin/dashboard?${win}`).set(auth(dash));
+    const res = await request(app).get(`/api/v1/admin/dashboard?${win}`).set(auth(dash));
     expect(res.status).toBe(200);
     expect(res.body.bookings.byStatus.PENDING.count).toBe(1);
     expect(res.body.bookings.pendingApproval).toBe(1);
@@ -81,37 +81,37 @@ run('tích hợp: dashboard + thống kê khách sạn', () => {
     expect(res.body.changeRequests.pending).toBe(1);
     expect(res.body.hotels.pendingApproval).toBe(1);
     const range = `from=${encodeURIComponent(res.body.range.from)}&to=${encodeURIComponent(res.body.range.to)}`;
-    const stats = await request(app).get(`/v1/admin/hotels/${H}/stats?${range}`).set(auth(dash));
+    const stats = await request(app).get(`/api/v1/admin/hotels/${H}/stats?${range}`).set(auth(dash));
     expect(stats.body.revenue.realized).toEqual(res.body.revenue.realized);
     expect(stats.body.bookings.byStatus.CHECKED_OUT.count).toBe(1);
     // đơn tạo hôm nay nhưng nhận phòng ngoài khoảng thì không tính (nhất quán với doanh thu)
-    const created = await request(app).get('/v1/admin/dashboard?from=2020-01-01T00:00:00Z&to=2020-02-01T00:00:00Z').set(auth(dash));
+    const created = await request(app).get('/api/v1/admin/dashboard?from=2020-01-01T00:00:00Z&to=2020-02-01T00:00:00Z').set(auth(dash));
     expect(created.body.bookings.total).toBe(0);
     // trend theo ngày nhận phòng: 17:30Z = 00:30 ngày hôm sau theo giờ VN
     await db.query("UPDATE bookings SET stay_from = '2026-11-05T05:00:00Z' WHERE id <> $1", [a.id]);
     await db.query("UPDATE bookings SET stay_from = '2026-11-11T17:30:00Z' WHERE id = $1", [a.id]);
-    const trend = await request(app).get('/v1/admin/dashboard?from=2026-11-10T00:00:00Z&to=2026-11-14T00:00:00Z').set(auth(dash));
+    const trend = await request(app).get('/api/v1/admin/dashboard?from=2026-11-10T00:00:00Z&to=2026-11-14T00:00:00Z').set(auth(dash));
     expect(trend.body.bookings.trend.find((x: any) => x.date === '2026-11-12').count).toBe(1);
     expect(trend.body.bookings.trend.find((x: any) => x.date === '2026-11-11').count).toBe(0);
   });
 
-  it('/v1/hotel/stats: chỉ khách sạn của token; admin không có hotelId -> 422 HOTEL_REQUIRED; ?hotelId bị bỏ qua; stats khách sạn không tồn tại 404; khách sạn rỗng ổn', async () => {
+  it('/api/v1/hotel/stats: chỉ khách sạn của token; admin không có hotelId -> 422 HOTEL_REQUIRED; ?hotelId bị bỏ qua; stats khách sạn không tồn tại 404; khách sạn rỗng ổn', async () => {
     const A = await mkHotel({ code: 'SA', manual: false });
     const B = await mkHotel({ code: 'SB', manual: false });
     await mkRoomType(A, 4);
     const rtB = await mkRoomType(B, 4);
     await createBookingVia(app, { hotelId: B, roomTypeId: rtB });
     const staffA = (await mkStaff(A, [PERM.BOOKING_READ])).token;
-    const res = await request(app).get(`/v1/hotel/stats?hotelId=${B}`).set(auth(staffA));
+    const res = await request(app).get(`/api/v1/hotel/stats?hotelId=${B}`).set(auth(staffA));
     expect(res.status).toBe(200);
     expect(res.body.hotelId).toBe(A);
     expect(res.body.bookings.total).toBe(0);
     expect(res.body.rooms).toMatchObject({ totalSellable: 4, availableNow: 4 });
     expect(res.body.bookings.trend.every((d: any) => d.count === 0)).toBe(true);
-    expect((await request(app).get('/v1/hotel/stats')).status).toBe(401);
+    expect((await request(app).get('/api/v1/hotel/stats')).status).toBe(401);
     const sys = (await mkAdmin([PERM.BOOKING_READ, PERM.HOTEL_SCOPE_ALL])).token;
-    expect((await request(app).get('/v1/hotel/stats').set(auth(sys))).body.error.code).toBe('HOTEL_REQUIRED');
-    expect((await request(app).get('/v1/admin/hotels/00000000-0000-4000-8000-000000000000/stats').set(auth(dash))).status).toBe(404);
-    expect((await request(app).get(`/v1/hotel/stats?from=2026-12-01&to=2026-11-01`).set(auth(staffA))).body.error.code).toBe('INVALID_RANGE');
+    expect((await request(app).get('/api/v1/hotel/stats').set(auth(sys))).body.error.code).toBe('HOTEL_REQUIRED');
+    expect((await request(app).get('/api/v1/admin/hotels/00000000-0000-4000-8000-000000000000/stats').set(auth(dash))).status).toBe(404);
+    expect((await request(app).get(`/api/v1/hotel/stats?from=2026-12-01&to=2026-11-01`).set(auth(staffA))).body.error.code).toBe('INVALID_RANGE');
   });
 });

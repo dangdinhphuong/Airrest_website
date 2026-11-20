@@ -188,7 +188,7 @@ function Drivers({ drivers, vehicles, reload }) {
   );
 }
 
-// /v1/hotel/vehicles + /v1/hotel/drivers (fleet:manage).
+// /api/v1/hotel/vehicles + /api/v1/hotel/drivers (fleet:manage).
 export default function Fleet() {
   const [tab, setTab] = useState('vehicles');
   const veh = useLoad(() => H.listVehicles(), []);

@@ -20,7 +20,7 @@ run('tích hợp: thanh toán SePay (mock) — link, IPN, hoàn, đối soát', 
   const book = async (opts: { online?: boolean; phone?: string; dayOffset?: number } = {}) => {
     const off = opts.dayOffset ?? 2 + n; // mỗi lần đặt một ngày khác nhau để khỏi hết phòng
     const res = await request(app)
-      .post('/v1/bookings')
+      .post('/api/v1/bookings')
       .set('Idempotency-Key', `pay-key-${++n}-${Date.now()}`)
       .send({
         hotelId, roomTypeId,
@@ -39,7 +39,7 @@ run('tích hợp: thanh toán SePay (mock) — link, IPN, hoàn, đối soát', 
   };
   const stateOf = async (id: string) => (await one<any>('SELECT * FROM bookings WHERE id = $1', [id]))!;
   const ipn = (p: { gateway: { orderId: string } }, amount: number, success = true) =>
-    request(app).post('/v1/payments/sepay/ipn').send(buildSepayIpn({ invoice: p.gateway.orderId, amount, success, transactionId: `tx-${Date.now()}` }));
+    request(app).post('/api/v1/payments/sepay/ipn').send(buildSepayIpn({ invoice: p.gateway.orderId, amount, success, transactionId: `tx-${Date.now()}` }));
 
   beforeAll(async () => {
     await freshDb({ roles: true });
@@ -94,7 +94,7 @@ run('tích hợp: thanh toán SePay (mock) — link, IPN, hoàn, đối soát', 
     const { b, p } = await payOf(res.body.booking.code);
     expect((await ipn(p, 1000)).status).toBe(200);
     expect((await stateOf(b.id)).status).toBe('PENDING_PAYMENT');
-    const list = await request(app).get('/v1/admin/payments?anomaly=true').set(auth(fin));
+    const list = await request(app).get('/api/v1/admin/payments?anomaly=true').set(auth(fin));
     expect(list.status).toBe(200);
     expect(list.body.items.some((x: { anomaly?: { kind: string } }) => x.anomaly?.kind === 'AMOUNT_MISMATCH')).toBe(true);
   });
@@ -104,11 +104,11 @@ run('tích hợp: thanh toán SePay (mock) — link, IPN, hoàn, đối soát', 
     const { b, p } = await payOf(res.body.booking.code);
     await ipn(p, p.amountVnd, false); // TRANSACTION_VOID: chỉ ghi vết
     expect((await stateOf(b.id)).status).toBe('PENDING_PAYMENT');
-    const link = await request(app).post('/v1/payments/link').send({ code: b.code, phone: '0912345678' });
+    const link = await request(app).post('/api/v1/payments/link').send({ code: b.code, phone: '0912345678' });
     expect(link.status).toBe(200);
     expect(link.body.paymentLink.payUrl).toContain('orderId=');
     expect(await count('payments', 'booking_id = $1', [b.id])).toBe(1);
-    expect((await request(app).post('/v1/payments/link').send({ code: b.code, phone: '0999999999' })).status).toBe(404);
+    expect((await request(app).post('/api/v1/payments/link').send({ code: b.code, phone: '0999999999' })).status).toBe(404);
   });
 
   it('IPN đến sau khi đơn hết hạn: đơn EXPIRED, phòng nhả, tự hoàn 100% (mock), sổ cái về 0', async () => {
@@ -134,7 +134,7 @@ run('tích hợp: thanh toán SePay (mock) — link, IPN, hoàn, đối soát', 
     const res = await book();
     const { b, p } = await payOf(res.body.booking.code);
     await db.query("UPDATE payments SET status = 'FAILED' WHERE id = $1", [p.id]); // payment 1 hỏng -> khách lấy link mới
-    const second = await request(app).post('/v1/payments/link').send({ code: b.code, phone: '0912345678' });
+    const second = await request(app).post('/api/v1/payments/link').send({ code: b.code, phone: '0912345678' });
     expect(second.status).toBe(200);
     const all = (await db.query<P>('SELECT * FROM payments WHERE booking_id = $1 ORDER BY created_at', [b.id])).rows;
     expect(all).toHaveLength(2);
@@ -160,7 +160,7 @@ run('tích hợp: thanh toán SePay (mock) — link, IPN, hoàn, đối soát', 
     // 3 lần thử lại (cấu hình refund.gatewayRetries) rồi hết lượt
     for (let i = 0; i < 3; i++) {
       await db.query("UPDATE refunds SET due_at = now() - interval '1 second' WHERE id = $1", [r.id]);
-      const rec = await request(app).post('/v1/admin/payments/reconcile').set(auth(fin));
+      const rec = await request(app).post('/api/v1/admin/payments/reconcile').set(auth(fin));
       expect(rec.status).toBe(200);
     }
     r = (await one<any>('SELECT * FROM refunds WHERE id = $1', [r.id]))!;
@@ -168,12 +168,12 @@ run('tích hợp: thanh toán SePay (mock) — link, IPN, hoàn, đối soát', 
     expect(r.attempts).toHaveLength(4);
     expect(spy.mock.calls.every((c) => c[0].requestId === r.gateway.requestId)).toBe(true); // luôn cùng requestId -> không hoàn kép
     // thiếu quyền -> 403
-    expect((await request(app).post(`/v1/admin/refunds/${r.id}/retry`).set(auth(sup))).status).toBe(403);
+    expect((await request(app).post(`/api/v1/admin/refunds/${r.id}/retry`).set(auth(sup))).status).toBe(403);
     vi.spyOn(sepayRefund, 'refund').mockResolvedValue({ ok: true, code: '0', message: 'ok', transId: 5 });
-    const retry = await request(app).post(`/v1/admin/refunds/${r.id}/retry`).set(auth(fin));
+    const retry = await request(app).post(`/api/v1/admin/refunds/${r.id}/retry`).set(auth(fin));
     expect(retry.status).toBe(200);
     expect(retry.body.refund.status).toBe('REFUNDED');
-    expect((await request(app).post(`/v1/admin/refunds/${r.id}/retry`).set(auth(fin))).status).toBe(409);
+    expect((await request(app).post(`/api/v1/admin/refunds/${r.id}/retry`).set(auth(fin))).status).toBe(409);
   });
 
   it('SePay không có API hoàn (live): lệnh hoàn vào MANUAL_REQUIRED ngay; kế toán đánh dấu đã hoàn -> REFUNDED + sổ cái về 0, bấm lại 409, thiếu quyền 403', async () => {
@@ -185,14 +185,14 @@ run('tích hợp: thanh toán SePay (mock) — link, IPN, hoàn, đối soát', 
     const r = (await one<any>('SELECT * FROM refunds WHERE booking_id = $1', [b.id]))!;
     expect(r.status).toBe('MANUAL_REQUIRED');
     expect(r.attempts).toHaveLength(1);
-    expect((await request(app).post(`/v1/admin/refunds/${r.id}/mark-refunded`).set(auth(sup))).status).toBe(403);
-    const done = await request(app).post(`/v1/admin/refunds/${r.id}/mark-refunded`).set(auth(fin));
+    expect((await request(app).post(`/api/v1/admin/refunds/${r.id}/mark-refunded`).set(auth(sup))).status).toBe(403);
+    const done = await request(app).post(`/api/v1/admin/refunds/${r.id}/mark-refunded`).set(auth(fin));
     expect(done.status).toBe(200);
     expect(done.body.refund.status).toBe('REFUNDED');
     expect((await stateOf(b.id)).paymentStatus).toBe('REFUNDED');
     const sum = (await one<{ s: number }>("SELECT sum(amount_vnd) AS s FROM ledger_entries WHERE booking_id = $1 AND account = 'CUSTOMER_PAID'", [b.id]))!.s;
     expect(sum).toBe(0);
-    expect((await request(app).post(`/v1/admin/refunds/${r.id}/mark-refunded`).set(auth(fin))).status).toBe(409);
+    expect((await request(app).post(`/api/v1/admin/refunds/${r.id}/mark-refunded`).set(auth(fin))).status).toBe(409);
   });
 
   it('đối soát: đơn quá hạn thanh toán -> EXPIRED + nhả phòng; giao dịch treo hỏi SePay ra đã thanh toán -> xác nhận', async () => {
@@ -206,7 +206,7 @@ run('tích hợp: thanh toán SePay (mock) — link, IPN, hoàn, đối soát', 
     vi.spyOn(sepayApi, 'orderDetail').mockImplementation(async (invoice) =>
       invoice === stuckP.gateway.orderId ? { status: 'CAPTURED', amountVnd: stuckP.amountVnd, transactionId: 'tx-77' } : null);
 
-    const rec = await request(app).post('/v1/admin/payments/reconcile').set(auth(fin));
+    const rec = await request(app).post('/api/v1/admin/payments/reconcile').set(auth(fin));
     expect(rec.status).toBe(200);
     expect(rec.body.settled).toBeGreaterThanOrEqual(1);
     expect(rec.body.expiredBookings).toBeGreaterThanOrEqual(1);
@@ -214,13 +214,13 @@ run('tích hợp: thanh toán SePay (mock) — link, IPN, hoàn, đối soát', 
     expect((await resv(expired.id)).state).toBe('RELEASED');
     expect((await one<P>('SELECT status FROM payments WHERE booking_id = $1', [expired.id]))!.status).toBe('EXPIRED');
     expect((await stateOf(stuck.id)).status).toBe('CONFIRMED');
-    expect((await request(app).post('/v1/admin/payments/reconcile').set(auth(sup))).status).toBe(403);
+    expect((await request(app).post('/api/v1/admin/payments/reconcile').set(auth(sup))).status).toBe(403);
   });
 
   it('simulate IPN (mock) đi qua đường thật; đơn AT_HOTEL không đổi', async () => {
     const res = await book();
     const { b, p } = await payOf(res.body.booking.code);
-    const sim = await request(app).post('/v1/payments/sepay/dev-simulate').send({ orderId: p.gateway.orderId });
+    const sim = await request(app).post('/api/v1/payments/sepay/dev-simulate').send({ orderId: p.gateway.orderId });
     expect(sim.status).toBe(200);
     expect((await stateOf(b.id)).status).toBe('CONFIRMED');
 

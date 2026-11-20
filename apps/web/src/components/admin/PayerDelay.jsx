@@ -41,7 +41,7 @@ function SimulateModal({ onClose, onDone, onDisabled }) {
 }
 
 
-// Sửa email/SĐT của một khách ngay tại chỗ (PATCH /v1/payer/passengers/:id). onSaved nhận { id, email, phone }.
+// Sửa email/SĐT của một khách ngay tại chỗ (PATCH /api/v1/payer/passengers/:id). onSaved nhận { id, email, phone }.
 function ContactEdit({ pax, onSaved }) {
   const [edit, setEdit] = useState(false);
   const [f, setF] = useState({ email: pax.email || '', phone: pax.phone || '' });

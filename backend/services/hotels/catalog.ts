@@ -1,6 +1,7 @@
 import { canBook, dayWindow, hourlyOf, hourlyPrice, hourlyViolation, hourlyWindow, remainingRooms, vnClock, type HourlyConfig } from '@airrest/business-logic';
 import { AppError } from '../../lib/errors';
 import { openHotel } from './open';
+import { imageViews } from './profile';
 import { db } from '../../database/pg';
 import type { HotelDoc, RoomTypeDoc } from '../../database/types';
 import { intervalsForCheck, loadActiveIntervals, loadActiveIntervalsMany } from '../rooms/availability';
@@ -20,7 +21,7 @@ export function hotelFeatures(h: Pick<HotelDoc, 'amenities' | 'policy'>) {
   };
 }
 
-export type PublicRoom = { id: string; hotelId: string; name: string; capacity: number; beds: number; areaM2: number; baseNightVnd: number; nonRefundablePct?: number; roomsLeft: number; hourly?: HourlyConfig | null };
+export type PublicRoom = { id: string; hotelId: string; name: string; capacity: number; beds: number; areaM2: number; baseNightVnd: number; nonRefundablePct?: number; roomsLeft: number; hourly?: HourlyConfig | null; images?: Array<{ key: string; url: string | null }> };
 
 // Loại phòng đang bán + số phòng còn trong cửa sổ [from, to) (sweep-line như lúc đặt phòng). Tổng cộng 3 truy vấn cho cả danh sách (khách sạn đã lấy trước): loại phòng, đơn giữ chỗ, khóa phòng.
 export async function publicRooms(hotelIds: string[], window: { from: Date; to: Date }, now = new Date()): Promise<Map<string, PublicRoom[]>> {
@@ -31,7 +32,7 @@ export async function publicRooms(hotelIds: string[], window: { from: Date; to: 
   await Promise.all(
     rts.map(async (rt) => {
       const used = intervalsForCheck(intervals.get(rt.id)!, now);
-      const room: PublicRoom = { id: rt.id, hotelId: rt.hotelId, name: rt.name, capacity: rt.capacity, beds: rt.beds, areaM2: rt.areaM2, baseNightVnd: Number(rt.pricing.baseNightVnd), ...(rt.pricing.nonRefundablePct && { nonRefundablePct: rt.pricing.nonRefundablePct }), roomsLeft: Math.max(0, remainingRooms(rt.totalRooms, used, window)), hourly: hourlyOf(rt.pricing) };
+      const room: PublicRoom = { id: rt.id, hotelId: rt.hotelId, name: rt.name, capacity: rt.capacity, beds: rt.beds, areaM2: rt.areaM2, baseNightVnd: Number(rt.pricing.baseNightVnd), ...(rt.pricing.nonRefundablePct && { nonRefundablePct: rt.pricing.nonRefundablePct }), roomsLeft: Math.max(0, remainingRooms(rt.totalRooms, used, window)), hourly: hourlyOf(rt.pricing), images: imageViews(rt.images) };
       byHotel.set(rt.hotelId, [...(byHotel.get(rt.hotelId) ?? []), room]);
     }),
   );
@@ -73,7 +74,7 @@ export async function hourlySlots(hotelId: string, q: { roomTypeId: string; date
   return { roomTypeId: rt.id, date: q.date, hours: q.hours, qty: q.qty, priceVnd: hourlyPrice(cfg, q.hours) * q.qty, hourly: cfg, slots };
 }
 
-// ---- Tìm kiếm có lọc/sắp xếp (GET /v1/hotels với tham số tìm kiếm) ----
+// ---- Tìm kiếm có lọc/sắp xếp (GET /api/v1/hotels với tham số tìm kiếm) ----
 export type HotelSort = 'distance' | 'price' | 'rating';
 export type HotelSearch = {
   sort: HotelSort; guests?: number; rooms: number; maxKm?: number; priceUnder?: number; minPrice?: number; maxPrice?: number; minRating?: number; minReviews?: number;

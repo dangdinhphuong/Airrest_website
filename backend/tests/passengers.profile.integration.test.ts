@@ -12,23 +12,23 @@ run('tích hợp: hồ sơ khách, cấu hình và ticket của tôi', () => {
   const app = createApp();
   let n = 0;
   let key = 0;
-  const signup = async (username: string) => (await request(app).post('/v1/auth/passenger/register').set(ip(++n)).send({ email: `${username}@example.com`, username, password: 'MatKhau123', fullName: `Tên ${username}` })).body as { token: string; user: { id: string } };
-  const patch = (token: string | undefined, body: object) => request(app).patch('/v1/me/profile').set(token ? bearer(token) : {}).send(body);
+  const signup = async (username: string) => (await request(app).post('/api/v1/auth/passenger/register').set(ip(++n)).send({ email: `${username}@example.com`, username, password: 'MatKhau123', fullName: `Tên ${username}` })).body as { token: string; user: { id: string } };
+  const patch = (token: string | undefined, body: object) => request(app).patch('/api/v1/me/profile').set(token ? bearer(token) : {}).send(body);
   const ticket = (token: string | undefined, subject = 'Cần hỗ trợ') =>
-    request(app).post('/v1/support').set({ ...(token ? bearer(token) : {}), ...ip(++n), 'Idempotency-Key': `pf-${++key}-${Date.now()}` }).send({ phone: PHONE, subject, message: 'Nội dung hỗ trợ' });
-  const mine = (token: string, q = '') => request(app).get(`/v1/me/tickets${q}`).set(bearer(token));
+    request(app).post('/api/v1/support').set({ ...(token ? bearer(token) : {}), ...ip(++n), 'Idempotency-Key': `pf-${++key}-${Date.now()}` }).send({ phone: PHONE, subject, message: 'Nội dung hỗ trợ' });
+  const mine = (token: string, q = '') => request(app).get(`/api/v1/me/tickets${q}`).set(bearer(token));
 
   beforeAll(async () => { await freshDb({ roles: true }); });
   afterAll(async () => closeDb());
 
   it('đăng ký trả preferences rỗng; sửa họ tên: /auth/me và đăng nhập lại thấy tên mới', async () => {
     const a = await signup('lan.anh');
-    const me0 = await request(app).get('/v1/auth/me').set(bearer(a.token));
+    const me0 = await request(app).get('/api/v1/auth/me').set(bearer(a.token));
     expect(me0.body.user.preferences).toEqual({});
     const r = await patch(a.token, { fullName: '  Lan Anh Nguyễn ' });
     expect(r.status).toBe(200);
     expect(r.body.user).toMatchObject({ fullName: 'Lan Anh Nguyễn', username: 'lan.anh' });
-    const login = await request(app).post('/v1/auth/passenger/login').set(ip(++n)).send({ username: 'lan.anh', password: 'MatKhau123' });
+    const login = await request(app).post('/api/v1/auth/passenger/login').set(ip(++n)).send({ username: 'lan.anh', password: 'MatKhau123' });
     expect(login.body.user.fullName).toBe('Lan Anh Nguyễn');
     expect(await count('audit_logs', "action = 'PASSENGER.UPDATE_PROFILE'")).toBeGreaterThanOrEqual(1);
   });
@@ -39,7 +39,7 @@ run('tích hợp: hồ sơ khách, cấu hình và ticket của tôi', () => {
     expect(r.status).toBe(200);
     expect(r.body.user.preferences).toEqual({ airport: 'SGN', adults: 2, children: 1, rooms: 1, paymentMethod: 'SEPAY' });
     await patch(a.token, { fullName: 'Trí Minh' });
-    expect((await request(app).get('/v1/auth/me').set(bearer(a.token))).body.user.preferences.airport).toBe('SGN');
+    expect((await request(app).get('/api/v1/auth/me').set(bearer(a.token))).body.user.preferences.airport).toBe('SGN');
     expect((await patch(a.token, { preferences: {} })).body.user.preferences).toEqual({});
   });
 
@@ -60,7 +60,7 @@ run('tích hợp: hồ sơ khách, cấu hình và ticket của tôi', () => {
 
   it('không có token: 401; tài khoản nhân sự không dùng được endpoint của khách: 403', async () => {
     expect((await patch(undefined, { fullName: 'X' })).status).toBe(401);
-    expect((await request(app).get('/v1/me/tickets')).status).toBe(401);
+    expect((await request(app).get('/api/v1/me/tickets')).status).toBe(401);
     const { token } = await mkAdmin([]);
     expect((await patch(token, { fullName: 'X' })).status).toBe(403);
     expect((await mine(token)).status).toBe(403);
@@ -97,7 +97,7 @@ run('tích hợp: hồ sơ khách, cấu hình và ticket của tôi', () => {
   it('tra ticket bằng mã + SĐT vẫn dùng được cho ticket đã gắn tài khoản; xóa tài khoản không xóa ticket', async () => {
     const a = await signup('kim.chi');
     const code = (await ticket(a.token, 'Gắn tài khoản')).body.ticket.code as string;
-    const look = await request(app).post('/v1/support/lookup').set(ip(++n)).send({ code, phone: PHONE });
+    const look = await request(app).post('/api/v1/support/lookup').set(ip(++n)).send({ code, phone: PHONE });
     expect(look.status).toBe(200);
     await db.query('DELETE FROM accounts WHERE id = $1', [a.user.id]);
     expect(await count('support_tickets', 'code = $1', [code])).toBe(1);

@@ -30,14 +30,14 @@ run('tích hợp: mô phỏng xe ngoài (tự đặt xe + tự chạy)', () => {
 
   // Khách sạn không có xe -> yêu cầu xe sinh ngay chuyến EXTERNAL NEEDS_EXTERNAL.
   const needsExternal = async () => {
-    const res = await request(app).post('/v1/bookings').set(ip()).set('Idempotency-Key', `fb-${randomUUID()}`).send({
+    const res = await request(app).post('/api/v1/bookings').set(ip()).set('Idempotency-Key', `fb-${randomUUID()}`).send({
       hotelId, roomTypeId: rt, qty: 1, paymentMethod: 'AT_HOTEL', from: new Date(Date.now() + 30 * MIN).toISOString(), to: new Date(Date.now() + 30 * MIN + 86400_000).toISOString(),
       guest: { fullName: 'Khách Ngoài', phone: '0912345678' },
     });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     const code = res.body.booking.code as string;
     await db.query("UPDATE bookings SET guest = guest || '{\"count\": 10}'::jsonb WHERE code = $1", [code]);
-    const r = await request(app).post('/v1/shuttle-requests').set(ip()).set('Idempotency-Key', `sh-${randomUUID()}`).send({ code, phone: '0912345678', direction: 'TO_HOTEL', airport: 'HAN', pickupAt: new Date(Date.now() + 20 * MIN).toISOString(), passengers: 2 });
+    const r = await request(app).post('/api/v1/shuttle-requests').set(ip()).set('Idempotency-Key', `sh-${randomUUID()}`).send({ code, phone: '0912345678', direction: 'TO_HOTEL', airport: 'HAN', pickupAt: new Date(Date.now() + 20 * MIN).toISOString(), passengers: 2 });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
     let t: any;
     for (let k = 0; k < 160 && !t; k++) { t = await one<any>('SELECT * FROM shuttle_trips WHERE request_id = $1', [r.body.shuttle.id]); if (!t) await new Promise((res) => setTimeout(res, 25)); }
@@ -45,8 +45,8 @@ run('tích hợp: mô phỏng xe ngoài (tự đặt xe + tự chạy)', () => {
     return { id: t.id as string, requestId: r.body.shuttle.id as string, code, bookingId: (await one<{ id: string }>('SELECT id FROM bookings WHERE code = $1', [code]))!.id };
   };
   const trip = (id: string) => one<any>('SELECT * FROM shuttle_trips WHERE id = $1', [id]);
-  const guestTrip = async (code: string) => (await request(app).post('/v1/shuttle-requests/lookup').set(ip()).send({ code, phone: '0912345678' })).body.shuttles[0].trips[0];
-  const staffTrip = async (id: string) => (await request(app).get(`/v1/hotel/shuttle-trips/${id}`).set(ip()).set({ Authorization: `Bearer ${handler}` })).body.trip;
+  const guestTrip = async (code: string) => (await request(app).post('/api/v1/shuttle-requests/lookup').set(ip()).send({ code, phone: '0912345678' })).body.shuttles[0].trips[0];
+  const staffTrip = async (id: string) => (await request(app).get(`/api/v1/hotel/shuttle-trips/${id}`).set(ip()).set({ Authorization: `Bearer ${handler}` })).body.trip;
 
   it('AUTO: quá thời gian mô phỏng -> tự đặt xe ngoài (SYSTEM) -> ARRIVED -> ONBOARD -> DROPPED_OFF, request DONE', async () => {
     env.SHUTTLE_SIM_AUTO = true;
@@ -87,7 +87,7 @@ run('tích hợp: mô phỏng xe ngoài (tự đặt xe + tự chạy)', () => {
   it('nhân sự nhập tay thắng: mô phỏng bỏ qua (409), chuyến nhập thật KHÔNG bị tự chạy, simulated=false', async () => {
     env.SHUTTLE_SIM_AUTO = true;
     const x = await needsExternal();
-    const r = await request(app).post(`/v1/hotel/shuttle-trips/${x.id}/external`).set(ip()).set({ Authorization: `Bearer ${handler}` }).send({ provider: 'GRAB', shareUrl: 'https://r.grab.com/ride/real1', plate: '51F-123.45', driverName: 'Lê Văn Thật', phone: '0901234567' });
+    const r = await request(app).post(`/api/v1/hotel/shuttle-trips/${x.id}/external`).set(ip()).set({ Authorization: `Bearer ${handler}` }).send({ provider: 'GRAB', shareUrl: 'https://r.grab.com/ride/real1', plate: '51F-123.45', driverName: 'Lê Văn Thật', phone: '0901234567' });
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     await expect(systemSetExternal(x.id, { provider: 'GRAB', shareUrl: 'https://r.grab.com/g/DEMO-AAAAAAAA' })).rejects.toMatchObject({ status: 409, code: 'INVALID_TRANSITION' });
     await simTick(Date.now() + 3_600_000);
@@ -99,7 +99,7 @@ run('tích hợp: mô phỏng xe ngoài (tự đặt xe + tự chạy)', () => {
     const y = await needsExternal();
     await simTick(Date.now() + 9_000);
     expect((await trip(y.id)).simulated).toBe(true);
-    await request(app).post(`/v1/hotel/shuttle-trips/${y.id}/external`).set(ip()).set({ Authorization: `Bearer ${handler}` }).send({ provider: 'XANHSM', shareUrl: 'https://xanhsm.com/share/real2' });
+    await request(app).post(`/api/v1/hotel/shuttle-trips/${y.id}/external`).set(ip()).set({ Authorization: `Bearer ${handler}` }).send({ provider: 'XANHSM', shareUrl: 'https://xanhsm.com/share/real2' });
     await simTick(Date.now() + 3_600_000);
     expect(await trip(y.id)).toMatchObject({ status: 'ACCEPTED', simulated: false, provider: 'XANHSM' });
   });

@@ -128,7 +128,7 @@ async function decide(auth: AuthContext, bookingId: string, mode: 'CONFIRM' | 'R
     const row = (await tx.query('SELECT * FROM bookings WHERE id = $1 AND ($2::uuid IS NULL OR hotel_id = $2) FOR UPDATE', [bookingId, scope.hotelId ?? null])).rows[0];
     if (!row) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Không tìm thấy đơn');
     const cur = bookingFromRow(row);
-    if (cur.payment.method === 'PAYER') throw new AppError(409, 'USE_DELAY_OFFER_API', 'Đơn của đơn vị chi trả xử lý qua /v1/hotel/delay-offers (POST /:id/confirm hoặc /:id/reject)');
+    if (cur.payment.method === 'PAYER') throw new AppError(409, 'USE_DELAY_OFFER_API', 'Đơn của đơn vị chi trả xử lý qua /api/v1/hotel/delay-offers (POST /:id/confirm hoặc /:id/reject)');
     if (cur.status !== 'PENDING') throw new AppError(409, 'INVALID_STATE', 'Đơn không ở trạng thái chờ xác nhận');
     if (cur.expiresAt && cur.expiresAt <= now) {
       // Quá hạn: chuyển EXPIRED và COMMIT (không rollback), rồi báo lỗi ra ngoài.

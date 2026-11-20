@@ -14,13 +14,13 @@ import { businessRegisterRateLimit } from '../../middleware/rateLimit';
 import { validate } from '../../middleware/validate';
 import { address, airports, assertNameFree, checkBuffer, contact, location, policy } from '../admin/hotels.router';
 
-// POST /v1/auth/business/register: công khai, rate limit riêng; luôn trả 202 cùng nội dung (không lộ email/mã số thuế đã tồn tại).
+// POST /api/v1/auth/business/register: công khai, rate limit riêng; luôn trả 202 cùng nội dung (không lộ email/mã số thuế đã tồn tại).
 export const businessAuthRouter = Router();
 businessAuthRouter.post('/register', businessRegisterRateLimit, validate({ body: registerBody }), async (req, res) => {
   res.status(202).json(await registerBusiness(req.valid.body as z.infer<typeof registerBody>, String(req.id)));
 });
 
-// ---- /v1/hotel/hotels: chủ doanh nghiệp tạo/liệt kê khách sạn của CHÍNH doanh nghiệp trong token (không nhận businessId từ body) ----
+// ---- /api/v1/hotel/hotels: chủ doanh nghiệp tạo/liệt kê khách sạn của CHÍNH doanh nghiệp trong token (không nhận businessId từ body) ----
 export const businessHotelsRouter = Router();
 businessHotelsRouter.use(authenticate, requirePermission(PERM.BUSINESS_HOTEL_MANAGE));
 const needBusiness = (req: { auth?: { businessId?: string } }) => {
@@ -112,7 +112,7 @@ businessHotelsRouter.post('/:id/submit', validate({ params: idParams }), async (
   res.json({ hotel });
 });
 
-// ---- /v1/hotel/reports: báo cáo doanh thu ----
+// ---- /api/v1/hotel/reports: báo cáo doanh thu ----
 export const businessReportsRouter = Router();
 businessReportsRouter.use(authenticate);
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày dạng YYYY-MM-DD (giờ Việt Nam)');

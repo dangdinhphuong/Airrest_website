@@ -1,15 +1,15 @@
-// Nhân viên + vai trò RIÊNG của khách sạn (/v1/hotel/*), tách hẳn cổng quản trị.
+// Nhân viên + vai trò RIÊNG của khách sạn (/api/v1/hotel/*), tách hẳn cổng quản trị.
 import { api, describeError } from '../lib/api';
 
-export const listPermissions = () => api.get('/v1/hotel/permissions');
-export const listRoles = (hotelId) => api.get('/v1/hotel/roles', hotelId ? { query: { hotelId } } : undefined);
-export const createRole = (body) => api.post('/v1/hotel/roles', body);
-export const patchRole = (id, body) => api.patch(`/v1/hotel/roles/${id}`, body);
-export const deleteRole = (id) => api.delete(`/v1/hotel/roles/${id}`);
-export const listStaff = (query) => api.get('/v1/hotel/staff', { query });
-export const createStaff = (body) => api.post('/v1/hotel/staff', body);
-export const patchStaff = (id, body) => api.patch(`/v1/hotel/staff/${id}`, body);
-export const resetStaffPassword = (id, password) => api.post(`/v1/hotel/staff/${id}/reset-password`, { password });
+export const listPermissions = () => api.get('/api/v1/hotel/permissions');
+export const listRoles = (hotelId) => api.get('/api/v1/hotel/roles', hotelId ? { query: { hotelId } } : undefined);
+export const createRole = (body) => api.post('/api/v1/hotel/roles', body);
+export const patchRole = (id, body) => api.patch(`/api/v1/hotel/roles/${id}`, body);
+export const deleteRole = (id) => api.delete(`/api/v1/hotel/roles/${id}`);
+export const listStaff = (query) => api.get('/api/v1/hotel/staff', { query });
+export const createStaff = (body) => api.post('/api/v1/hotel/staff', body);
+export const patchStaff = (id, body) => api.patch(`/api/v1/hotel/staff/${id}`, body);
+export const resetStaffPassword = (id, password) => api.post(`/api/v1/hotel/staff/${id}/reset-password`, { password });
 
 const list = (a) => (Array.isArray(a) && a.length ? a.join(', ') : 'không rõ');
 const VI = {
@@ -22,7 +22,7 @@ const VI = {
   STAFF_NOT_FOUND: 'Không tìm thấy nhân viên (có thể đã bị xóa). Hãy tải lại danh sách.',
   OWNER_PROTECTED: 'Không thể thao tác lên tài khoản chủ.',
 };
-// Thông báo tiếng Việt theo mã lỗi của /v1/hotel/*; mã khác rơi về describeError.
+// Thông báo tiếng Việt theo mã lỗi của /api/v1/hotel/*; mã khác rơi về describeError.
 export function staffErr(e) {
   const d = e?.details && !Array.isArray(e.details) ? e.details : {};
   if (e?.code === 'PERMISSION_ESCALATION') return `Bạn không thể gán hoặc chạm tới quyền mà chính bạn không có: ${list(d.missing)}.`;

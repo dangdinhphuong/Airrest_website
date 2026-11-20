@@ -9,7 +9,7 @@ export const emptyShuttle = (airport) => ({ airport, TO_HOTEL: { on: false, at: 
 const DIRS = ['TO_HOTEL', 'TO_AIRPORT'];
 const errCls = (on) => (on ? 'tw:ring-2 tw:ring-rose-400' : '');
 
-// Xe đưa đón cùng đơn: số khách đi xe = số người đặt phòng (chỉ hiển thị). Giá lấy từ POST /v1/hotels/:id/shuttle-quote (có pickupAt để khớp phụ thu đêm).
+// Xe đưa đón cùng đơn: số khách đi xe = số người đặt phòng (chỉ hiển thị). Giá lấy từ POST /api/v1/hotels/:id/shuttle-quote (có pickupAt để khớp phụ thu đêm).
 // `value.<chiều>.at` rỗng = dùng giờ mặc định theo ngày nhận/trả (đổi ngày thì giờ mặc định đổi theo, chỉ khi khách chưa sửa tay).
 export default function ShuttleOptions({ hotel, checkIn, checkOut, people, value, onChange, error, onQuote, hourly, times }) {
   const [quote, setQuote] = useState({ s: 'idle' }); // idle | loading | ok | error

@@ -202,18 +202,18 @@ run('tích hợp: offer delay (xác nhận / từ chối / hết hạn / chuyể
     const g = await mkGroup([{ age: 30 }]);
     const o = await mkOffer(hotels[2]!, g);
     // Router chưa được đăng ký ở modules/index.ts (người điều phối làm) nên gắn riêng ở đây.
-    const app = express().use(express.json()).use('/v1/hotel/delay-offers', hotelDelayRouter).use(errorHandler);
+    const app = express().use(express.json()).use('/api/v1/hotel/delay-offers', hotelDelayRouter).use(errorHandler);
     const auth = (h: string) => ({ Authorization: `Bearer ${tokens[h]}` });
-    const list = await request(app).get('/v1/hotel/delay-offers?status=PENDING').set(auth(hotels[2]!));
+    const list = await request(app).get('/api/v1/hotel/delay-offers?status=PENDING').set(auth(hotels[2]!));
     expect(list.status).toBe(200);
     const item = list.body.items.find((x: any) => x.id === o.id);
     expect(item).toMatchObject({ representative: 'Đại Diện', guests: 1, roomType: 'Deluxe' });
     expect(item.secondsLeft).toBeGreaterThan(200);
     expect(JSON.stringify(item)).not.toContain('0912345678');
-    expect((await request(app).get('/v1/hotel/delay-offers').set(auth(hotels[3]!))).body.items.find((x: any) => x.id === o.id)).toBeUndefined();
-    expect((await request(app).post(`/v1/hotel/delay-offers/${o.id}/confirm`).set(auth(hotels[3]!)).send({ roomNumbers: ['1'] })).status).toBe(404);
-    expect((await request(app).post(`/v1/hotel/delay-offers/${o.id}/confirm`).set(auth(hotels[2]!)).send({ roomNumbers: [] })).status).toBe(422);
-    expect((await request(app).post(`/v1/hotel/delay-offers/${o.id}/confirm`).set(auth(hotels[2]!)).send({ roomNumbers: ['305'] })).status).toBe(200);
-    expect((await request(app).get('/v1/hotel/delay-offers')).status).toBe(401);
+    expect((await request(app).get('/api/v1/hotel/delay-offers').set(auth(hotels[3]!))).body.items.find((x: any) => x.id === o.id)).toBeUndefined();
+    expect((await request(app).post(`/api/v1/hotel/delay-offers/${o.id}/confirm`).set(auth(hotels[3]!)).send({ roomNumbers: ['1'] })).status).toBe(404);
+    expect((await request(app).post(`/api/v1/hotel/delay-offers/${o.id}/confirm`).set(auth(hotels[2]!)).send({ roomNumbers: [] })).status).toBe(422);
+    expect((await request(app).post(`/api/v1/hotel/delay-offers/${o.id}/confirm`).set(auth(hotels[2]!)).send({ roomNumbers: ['305'] })).status).toBe(200);
+    expect((await request(app).get('/api/v1/hotel/delay-offers')).status).toBe(401);
   });
 });

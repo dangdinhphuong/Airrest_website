@@ -44,7 +44,7 @@ run('tích hợp: tồn phòng cho danh sách công khai (gộp truy vấn)', ()
   it('danh sách công khai trả roomsLeft đúng (trừ đơn và khóa), rỗng danh sách id không lỗi', async () => {
     const from = new Date(Date.now() + 5 * DAY).toISOString();
     const to = new Date(Date.now() + 6 * DAY).toISOString();
-    const r = await request(app).get('/v1/hotels').query({ from, to });
+    const r = await request(app).get('/api/v1/hotels').query({ from, to });
     expect(r.status).toBe(200);
     const left = Object.fromEntries(r.body.items.flatMap((h: { rooms: Array<{ id: string; roomsLeft: number }> }) => h.rooms.map((x) => [x.id, x.roomsLeft])));
     expect(left[ids[0]!]).toBe(1); // 3 phòng - 2 đã đặt

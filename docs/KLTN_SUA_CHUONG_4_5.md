@@ -15,7 +15,7 @@ Quy ước:
 |---|---|
 | Cấu trúc | Monorepo npm workspaces: `apps/web`, `apps/mobile` (chưa làm), `packages/*`, `backend` |
 | Frontend | React 18.3.1, Vite 6, Tailwind v4 (class tiền tố `tw:`, chỉ cho giao diện người dùng), GSAP, lucide-react; giao diện người dùng `screens/user`, cổng khách sạn `components/hotel`, cổng quản trị `components/admin` |
-| Dữ liệu FE | **Gọi API thật** `/v1/*` qua `packages/api-client` (`apps/web/src/data/*`); domain backend cấu hình trong `apps/web/.env` (`VITE_API_BASE_URL`). Chỉ còn đăng nhập hành khách là mô phỏng (`mock/users.js`) |
+| Dữ liệu FE | **Gọi API thật** `/api/v1/*` qua `packages/api-client` (`apps/web/src/data/*`); domain backend cấu hình trong `apps/web/.env` (`VITE_API_BASE_URL`). Chỉ còn đăng nhập hành khách là mô phỏng (`mock/users.js`) |
 | Backend | Node.js ≥ 22, TypeScript, Express 5, PostgreSQL (Supabase, driver `pg`), Socket.IO, zod, JWT, pino, Swagger/OpenAPI |
 | CSDL | **PostgreSQL**, 8 migration, 20 bảng. Thiết kế MongoDB trong `docs/mongodb/` là tài liệu gốc, đã được chuyển sang quan hệ (`docs/postgres/README.md`) |
 | Thanh toán | VNPay, chế độ `mock` (không giao dịch thật) |
@@ -54,29 +54,29 @@ Lưu ý repo: có hai cây mã FE gần giống nhau là `src/` (gốc) và `app
 
 | Mã | Trạng thái hiện thực (đề xuất) | Căn cứ trong repo |
 |---|---|---|
-| FR-01 | Giao diện: mô phỏng. Backend: có | `GET /v1/flights/:code`, `flights` + `flight_changes` |
+| FR-01 | Giao diện: mô phỏng. Backend: có | `GET /api/v1/flights/:code`, `flights` + `flight_changes` |
 | FR-02 | Giao diện: có, mô phỏng | `screens/Home.jsx` |
 | FR-03 | Giao diện: một phần. Backend: có lịch sử đổi giờ | `flight_changes`, `PATCH /admin/flights/:id` |
 | FR-04 | Một phần | `config/rights.js`, `screens/Status.jsx` |
 | FR-05 | Giao diện: có, mô phỏng | `screens/Advice.jsx` |
-| FR-06 | Giao diện: dữ liệu mô phỏng. Backend: có | `GET /v1/hotels`, `GET /v1/hotels/:id` |
+| FR-06 | Giao diện: dữ liệu mô phỏng. Backend: có | `GET /api/v1/hotels`, `GET /api/v1/hotels/:id` |
 | FR-07 | Có, dữ liệu tĩnh (khoảng cách sân bay lưu trong `hotels.airports`) | `Stays.jsx` |
 | FR-08 | Có (bộ lọc ở màn Stays) | `Stays.jsx` |
 | FR-09 | **Đã bỏ khỏi giao diện mới** (không còn bản đồ) | — |
 | FR-10 | Giao diện: một phần. Backend: có | `Detail.jsx`, chính sách trong `hotels` |
-| FR-11 | Giao diện: mô phỏng. Backend: có | `Booking.jsx`, `POST /v1/bookings` (bắt buộc Idempotency-Key) |
-| FR-12 | **Có**: chọn thanh toán tại khách sạn hoặc VNPay (mock), trang `/payment/result` | `screens/user/Home.jsx`, `Pages.jsx`, `/v1/payments/vnpay/*` |
+| FR-11 | Giao diện: mô phỏng. Backend: có | `Booking.jsx`, `POST /api/v1/bookings` (bắt buộc Idempotency-Key) |
+| FR-12 | **Có**: chọn thanh toán tại khách sạn hoặc VNPay (mock), trang `/payment/result` | `screens/user/Home.jsx`, `Pages.jsx`, `/api/v1/payments/vnpay/*` |
 | FR-13 | **Đã bỏ khỏi giao diện mới** (không còn màn Nhắc giờ, xuất lịch) | — |
 | FR-14 | `[CẦN XÁC NHẬN]` | |
 | FR-15 | Có, mức giao diện | `Terminal.jsx` |
-| FR-16 | Giao diện: có. Backend: có | `Support.jsx`, `/v1/support` |
+| FR-16 | Giao diện: có. Backend: có | `Support.jsx`, `/api/v1/support` |
 | FR-17 | `[CẦN XÁC NHẬN]` | |
 | FR-18 | Có | luồng khách dùng mã + SĐT (`/bookings/lookup`) |
 | FR-19, FR-20 | Ngoài phạm vi (giữ nguyên) | |
 | FR-21 | Backend: có (`support_tickets`, `change_requests`). Giao diện: mô phỏng | `Request.jsx` |
 | FR-22 | Một phần: khách sạn duyệt/từ chối kèm lý do (`booking_decisions`). Hãng hàng không duyệt vẫn là mô phỏng | `POST /hotel/bookings/:id/confirm|reject` |
 | FR-23 | **Có**: xác nhận/từ chối, tối đa 3 khách sạn thay thế | `booking_decisions.alternatives` |
-| FR-24 | Có: yêu cầu hủy/đổi, báo giá chốt lúc gửi | `change_requests`, `/v1/change-requests` |
+| FR-24 | Có: yêu cầu hủy/đổi, báo giá chốt lúc gửi | `change_requests`, `/api/v1/change-requests` |
 
 Cột cuối của Bảng 4.2 (điều kiện nghiệm thu) giữ nguyên.
 
@@ -164,9 +164,9 @@ Các thực thể cũ không có bảng tương ứng (`RATE_LOG`, `PICKUP`, `IN
 
 | Nhu cầu | FR/NFR | Use case | Minh chứng |
 |---|---|---|---|
-| Biết giờ bay mới | FR-01–03 | UC01, UC15 | `Status.jsx`, `GET /v1/flights/:code`, `flights.integration.test.ts` |
-| Nơi nghỉ nhận khách | FR-06–10 | UC04–06 | `Stays.jsx`, `GET /v1/hotels`, `rooms.integration.test.ts` |
-| Đặt phòng không bán vượt tồn | FR-11, NFR-10 | UC06 | `POST /v1/bookings`, `booking.integration.test.ts` |
+| Biết giờ bay mới | FR-01–03 | UC01, UC15 | `Status.jsx`, `GET /api/v1/flights/:code`, `flights.integration.test.ts` |
+| Nơi nghỉ nhận khách | FR-06–10 | UC04–06 | `Stays.jsx`, `GET /api/v1/hotels`, `rooms.integration.test.ts` |
+| Đặt phòng không bán vượt tồn | FR-11, NFR-10 | UC06 | `POST /api/v1/bookings`, `booking.integration.test.ts` |
 | Khách sạn xác nhận/từ chối | FR-22–23 | UC13 | `alternatives.integration.test.ts`, `booking-decisions.integration.test.ts` |
 | Theo dõi phản hồi, hủy/đổi | FR-21, 24 | UC11, UC14 | `changeRequests.integration.test.ts`, `support.integration.test.ts` |
 | Nhắc giờ quay lại | FR-13 | UC07 | (đã bỏ khỏi giao diện mới) |
@@ -193,7 +193,7 @@ Các thực thể cũ không có bảng tương ứng (`RATE_LOG`, `PICKUP`, `IN
 |---|---|---|---|
 | Trình bày | `apps/web`: 13 màn hình, `components/`, `components/partner/` | React 18, state tập trung ở `state/store.jsx` | SPA responsive |
 | Dữ liệu giao diện | `apps/web/src/data/*`, `lib/api.js` | Gọi API qua `@airrest/api-client` | Dữ liệu thật từ PostgreSQL (seed 22 sân bay, ~160 khách sạn) |
-| API | `backend/api/modules/*` | Express 5, kiểm tra đầu vào bằng zod | REST `/v1/...` |
+| API | `backend/api/modules/*` | Express 5, kiểm tra đầu vào bằng zod | REST `/api/v1/...` |
 | Nghiệp vụ | `backend/services`, `packages/business-logic` | Tồn phòng (sweep-line), phí dịch vụ, hủy/đổi | Quy tắc thuần, có unit test |
 | Dữ liệu | `backend/database` | PostgreSQL, 8 migration, seed | 20 bảng |
 | Hạ tầng | `docker-compose.yml`, `render.yaml` | Docker, Render | Môi trường dev và triển khai |
@@ -256,7 +256,7 @@ Các thực thể cũ không có bảng tương ứng (`RATE_LOG`, `PICKUP`, `IN
 | Thời gian thực | `api/realtime` | Đẩy sự kiện đơn | Có |
 | Hạ tầng | Docker, Render | Chạy và triển khai | Có |
 
-**5.4.1 Luồng xử lý một yêu cầu:** thêm luồng backend, ví dụ đặt phòng: `POST /v1/bookings` → validate zod → kiểm tra Idempotency-Key → transaction (khóa tồn, kiểm tra tồn theo khoảng thời gian, ghi đơn + giữ phòng + audit) → trả mã đơn. Giữ luồng giao diện (event handler → store → render) như hiện có.
+**5.4.1 Luồng xử lý một yêu cầu:** thêm luồng backend, ví dụ đặt phòng: `POST /api/v1/bookings` → validate zod → kiểm tra Idempotency-Key → transaction (khóa tồn, kiểm tra tồn theo khoảng thời gian, ghi đơn + giữ phòng + audit) → trả mã đơn. Giữ luồng giao diện (event handler → store → render) như hiện có.
 
 **5.4.2 Mô hình triển khai:** thay câu "không có cấu hình backend, Docker, CSDL, biến môi trường" bằng mô tả `docker-compose.yml` (dịch vụ `api`, `web`, `db` tùy chọn), `render.yaml`, biến môi trường kiểm tra bằng zod và dừng ngay khi thiếu (`config/env.ts`), và `DATABASE_URL` trỏ Supabase hoặc Postgres local.
 
@@ -300,7 +300,7 @@ Các thực thể cũ không có bảng tương ứng (`RATE_LOG`, `PICKUP`, `IN
 
 **Hành động:** Viết lại hoàn toàn.
 
-> Cổng khách sạn gồm tổng quan, đơn đặt, loại phòng và tồn, khóa/bảo trì phòng, giá, thống kê (`screens/Hotel.jsx`, `components/partner/HotelTabs1–3`). Cổng quản trị gồm khách sạn, tài khoản, cấu hình, ticket, chuyến bay, thanh toán, audit (`screens/Admin.jsx`, `components/partner/AdminTabs1–3`). Backend cung cấp các nhóm API `/v1/hotel/*` và `/v1/admin/*` với kiểm tra quyền theo permission. Các thao tác nhạy cảm (đổi tài khoản nhận tiền của khách sạn) có bước duyệt riêng.
+> Cổng khách sạn gồm tổng quan, đơn đặt, loại phòng và tồn, khóa/bảo trì phòng, giá, thống kê (`screens/Hotel.jsx`, `components/partner/HotelTabs1–3`). Cổng quản trị gồm khách sạn, tài khoản, cấu hình, ticket, chuyến bay, thanh toán, audit (`screens/Admin.jsx`, `components/partner/AdminTabs1–3`). Backend cung cấp các nhóm API `/api/v1/hotel/*` và `/api/v1/admin/*` với kiểm tra quyền theo permission. Các thao tác nhạy cảm (đổi tài khoản nhận tiền của khách sạn) có bước duyệt riêng.
 
 Liệt kê tối đa 10 nhóm endpoint tiêu biểu thay cho danh sách đầy đủ; phần còn lại đưa vào phụ lục (xem mục "Phụ lục đề xuất").
 
@@ -308,7 +308,7 @@ Liệt kê tối đa 10 nhóm endpoint tiêu biểu thay cho danh sách đầy �
 
 **Hành động:** Viết lại hoàn toàn. Nội dung:
 
-- Tài khoản nội bộ đăng nhập `POST /v1/auth/login`, mật khẩu băm scrypt, token JWT, `GET /v1/auth/me`.
+- Tài khoản nội bộ đăng nhập `POST /api/v1/auth/login`, mật khẩu băm scrypt, token JWT, `GET /api/v1/auth/me`.
 - Phân quyền theo permission (`config/permissions.ts`), vai trò hệ thống OPS, SUPPORT, FINANCE, SYSADMIN và `hotel_owner`; quyền nạp từ CSDL; khách sạn bị khóa theo `hotelId` trong token.
 - Khách vãng lai tra cứu bằng mã + SĐT; sai thì trả 404 chung; được cấp `guestToken` cho Socket.IO.
 - Chống lạm dụng: rate limit chặt cho login/lookup/flight, helmet, CORS cấu hình được, idempotency cho thao tác ghi.

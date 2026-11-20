@@ -35,7 +35,7 @@ run('tích hợp: gửi lại email xác nhận + rate limit group-lookup tách 
       `INSERT INTO delay_room_offers (batch_id, group_id, booking_id, hotel_id, room_type_id, qty, expires_at, pax_ids, status, room_numbers) VALUES ($1,$2,$3,$4,$5,1,$6,$7::uuid[],$8,'{101}') RETURNING id`,
       [batch, group, b.id, hotel, rt, b.expiresAt, paxIds, status]))!.id;
   };
-  const resend = (id: string, tok: string, key = `k-${randomUUID()}`) => request(app).post(`/v1/payer/passengers/${id}/resend-email`).set({ Authorization: `Bearer ${tok}`, 'Idempotency-Key': key });
+  const resend = (id: string, tok: string, key = `k-${randomUUID()}`) => request(app).post(`/api/v1/payer/passengers/${id}/resend-email`).set({ Authorization: `Bearer ${tok}`, 'Idempotency-Key': key });
   const mails = () => db.query<any>("SELECT * FROM email_outbox WHERE template = 'room-confirmed' ORDER BY seq").then((r) => r.rows);
 
   beforeAll(async () => {
@@ -90,9 +90,9 @@ run('tích hợp: gửi lại email xác nhận + rate limit group-lookup tách 
   it('group-lookup 429 không làm đăng nhập bị 429 (bộ đếm tách)', async () => {
     const ip = { 'X-Forwarded-For': '10.99.0.7' };
     let last = 0;
-    for (let i = 0; i < 12; i++) last = (await request(app).post('/v1/bookings/group-lookup').set(ip).send({ groupCode: 'NH-ZZZZZZZZ', phone: '0912345678' })).status;
+    for (let i = 0; i < 12; i++) last = (await request(app).post('/api/v1/bookings/group-lookup').set(ip).send({ groupCode: 'NH-ZZZZZZZZ', phone: '0912345678' })).status;
     expect(last).toBe(429);
-    const login = await request(app).post('/v1/auth/login').set(ip).send({ email: 'nobody@airrest.vn', password: 'Sai12345678!' });
+    const login = await request(app).post('/api/v1/auth/login').set(ip).send({ email: 'nobody@airrest.vn', password: 'Sai12345678!' });
     expect(login.status).toBe(401);
   });
 });

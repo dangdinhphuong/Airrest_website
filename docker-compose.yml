@@ -73,22 +73,11 @@ services:
     working_dir: /app
     command: sh -c "npm install && npm run dev -w @airrest/web -- --host 0.0.0.0 --port 5173"
     environment:
-      VITE_PROXY_TARGET: http://api:3000 # web chuyển tiếp /v1 và /socket.io sang API (dùng khi VITE_API_BASE_URL=/)
+      VITE_PROXY_TARGET: http://api:3000 # web chuyển tiếp /api/v1 và /socket.io sang API (dùng khi VITE_API_BASE_URL=/)
     ports: ["5174:5173"]
     volumes:
       - .:/app
       - web-node-modules:/app/node_modules
-
-  cloudflared:
-    profiles: ["tunnel"]
-    image: cloudflare/cloudflared:latest
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
-    command: tunnel --no-autoupdate run
-    depends_on:
-      - web
 
 volumes:
   pg-data:

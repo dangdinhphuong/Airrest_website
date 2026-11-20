@@ -46,7 +46,7 @@ describe('SePay: xác thực IPN ở chế độ live', () => {
     expect(m.sepayIpnAuthorized('spsk_ipn_secret')).toBe(true);
     expect(m.sepayIpnAuthorized('sai')).toBe(false);
     expect(m.sepayIpnAuthorized(undefined)).toBe(false);
-    expect(m.sepayPayUrl('pid', 'inv')).toBe('http://a/v1/payments/sepay/checkout/pid');
+    expect(m.sepayPayUrl('pid', 'inv')).toBe('http://a/api/v1/payments/sepay/checkout/pid');
   });
   it('chưa cấu hình SEPAY_IPN_SECRET -> luôn từ chối (không nhận IPN không xác thực được)', async () => {
     const m = await load(undefined);

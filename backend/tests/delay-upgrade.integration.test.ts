@@ -99,7 +99,7 @@ run('tích hợp: nâng hạng phòng tại quầy', () => {
 
   let offerId = '', bookingId = '', period = '';
   it('đặt có nâng hạng: giá hợp đồng hạng đã nâng + phần chênh lưu ở offer; BatchView thấy hạng', async () => {
-    const res = await request(createApp()).post(`/v1/payer/flights/${flight}/batches`).set('Authorization', `Bearer ${tokP}`).set('Idempotency-Key', idem()).send({ passengerIds: [pax['P1']!], upgrades: [{ unitKey: pax['P1']!, roomTypeId: dlx }] });
+    const res = await request(createApp()).post(`/api/v1/payer/flights/${flight}/batches`).set('Authorization', `Bearer ${tokP}`).set('Idempotency-Key', idem()).send({ passengerIds: [pax['P1']!], upgrades: [{ unitKey: pax['P1']!, roomTypeId: dlx }] });
     expect(res.status).toBe(201);
     const o = res.body.offers[0];
     expect(o).toMatchObject({ roomTypeName: 'Dlx', upgradedFrom: 'Std', upgradeDeltaVnd: 250_000, hotelId: h1 });
@@ -142,7 +142,7 @@ run('tích hợp: nâng hạng phòng tại quầy', () => {
     const on = (e: any) => e.type === 'alert' && alerts.push(e.payload);
     delayBus.on('event', on);
     try {
-      const res = await request(createApp()).post(`/v1/payer/flights/${flight}/batches`).set('Authorization', `Bearer ${tokP}`).set('Idempotency-Key', idem()).send({ passengerIds: [pax['P3']!], upgrades: [{ unitKey: pax['P3']!, roomTypeId: dlx }] });
+      const res = await request(createApp()).post(`/api/v1/payer/flights/${flight}/batches`).set('Authorization', `Bearer ${tokP}`).set('Idempotency-Key', idem()).send({ passengerIds: [pax['P3']!], upgrades: [{ unitKey: pax['P3']!, roomTypeId: dlx }] });
       expect(res.status).toBe(201);
       const first = res.body.offers[0];
       expect(first.upgradeDeltaVnd).toBe(250_000);

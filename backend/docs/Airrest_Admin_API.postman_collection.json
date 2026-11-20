@@ -112,7 +112,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/auth/login",
+              "raw": "{{baseUrl}}/api/v1/auth/login",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -160,7 +160,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/auth/login",
+              "raw": "{{baseUrl}}/api/v1/auth/login",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -203,7 +203,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/auth/me",
+              "raw": "{{baseUrl}}/api/v1/auth/me",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -236,7 +236,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/roles",
+              "raw": "{{baseUrl}}/api/v1/admin/roles",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -264,7 +264,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/accounts?limit=20",
+              "raw": "{{baseUrl}}/api/v1/admin/accounts?limit=20",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -303,7 +303,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/accounts",
+              "raw": "{{baseUrl}}/api/v1/admin/accounts",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -357,7 +357,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/accounts/{{accountId}}",
+              "raw": "{{baseUrl}}/api/v1/admin/accounts/{{accountId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -401,7 +401,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/accounts/{{accountId}}/reset-password",
+              "raw": "{{baseUrl}}/api/v1/admin/accounts/{{accountId}}/reset-password",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -445,7 +445,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/configs",
+              "raw": "{{baseUrl}}/api/v1/admin/configs",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -473,7 +473,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/configs/pricing.serviceFee/versions",
+              "raw": "{{baseUrl}}/api/v1/admin/configs/pricing.serviceFee/versions",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -508,7 +508,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/configs/pricing.serviceFee",
+              "raw": "{{baseUrl}}/api/v1/admin/configs/pricing.serviceFee",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -551,7 +551,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/configs/pricing.serviceFee",
+              "raw": "{{baseUrl}}/api/v1/admin/configs/pricing.serviceFee",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -594,7 +594,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/configs/flight.thresholds",
+              "raw": "{{baseUrl}}/api/v1/admin/configs/flight.thresholds",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -637,7 +637,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/configs/payout",
+              "raw": "{{baseUrl}}/api/v1/admin/configs/payout",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -680,7 +680,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels?status=ACTIVE&limit=20",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels?status=ACTIVE&limit=20",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -718,7 +718,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{hotelId}}",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{hotelId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -752,7 +752,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -807,7 +807,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{newHotelId}}",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{newHotelId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -850,7 +850,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{newHotelId}}",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{newHotelId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -889,7 +889,7 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{newHotelId}}/approve",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{newHotelId}}/approve",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -924,7 +924,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{newHotelId}}/reject",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{newHotelId}}/reject",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -968,7 +968,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{newHotelId}}/suspend",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{newHotelId}}/suspend",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1007,7 +1007,7 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{newHotelId}}/activate",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{newHotelId}}/activate",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1037,7 +1037,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{hotelId}}/stats?from=2026-11-01&to=2026-12-01",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{hotelId}}/stats?from=2026-11-01&to=2026-12-01",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1087,7 +1087,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{newHotelId}}/payout-account",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{newHotelId}}/payout-account",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1131,7 +1131,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{newHotelId}}/payout-account",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{newHotelId}}/payout-account",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1170,7 +1170,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels?pendingPayout=true",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels?pendingPayout=true",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1204,7 +1204,7 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{newHotelId}}/payout-account/approve",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{newHotelId}}/payout-account/approve",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1235,7 +1235,7 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{newHotelId}}/payout-account/approve",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{newHotelId}}/payout-account/approve",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1271,7 +1271,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/hotels/{{newHotelId}}/payout-account/reject",
+              "raw": "{{baseUrl}}/api/v1/admin/hotels/{{newHotelId}}/payout-account/reject",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1316,7 +1316,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/audit-logs?limit=10",
+              "raw": "{{baseUrl}}/api/v1/admin/audit-logs?limit=10",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1362,7 +1362,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/audit-logs?limit=10&cursor={{auditCursor}}",
+              "raw": "{{baseUrl}}/api/v1/admin/audit-logs?limit=10&cursor={{auditCursor}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1400,7 +1400,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/audit-logs?action=CONFIG.UPDATE&limit=10",
+              "raw": "{{baseUrl}}/api/v1/admin/audit-logs?action=CONFIG.UPDATE&limit=10",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1438,7 +1438,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/audit-logs?entityType=hotel&entityId={{hotelId}}",
+              "raw": "{{baseUrl}}/api/v1/admin/audit-logs?entityType=hotel&entityId={{hotelId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1476,7 +1476,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/audit-logs?from=2026-11-01T00:00:00Z&to=2026-12-01T00:00:00Z",
+              "raw": "{{baseUrl}}/api/v1/admin/audit-logs?from=2026-11-01T00:00:00Z&to=2026-12-01T00:00:00Z",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1528,7 +1528,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/bookings",
+              "raw": "{{baseUrl}}/api/v1/bookings",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1567,7 +1567,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/payments/vnpay/link",
+              "raw": "{{baseUrl}}/api/v1/payments/vnpay/link",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1595,7 +1595,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/payments/vnpay/dev-simulate",
+              "raw": "{{baseUrl}}/api/v1/payments/vnpay/dev-simulate",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1623,7 +1623,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/payments/vnpay/dev-simulate",
+              "raw": "{{baseUrl}}/api/v1/payments/vnpay/dev-simulate",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1646,7 +1646,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/payments?limit=20",
+              "raw": "{{baseUrl}}/api/v1/admin/payments?limit=20",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1680,7 +1680,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/payments?anomaly=true",
+              "raw": "{{baseUrl}}/api/v1/admin/payments?anomaly=true",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1714,7 +1714,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/refunds?limit=20",
+              "raw": "{{baseUrl}}/api/v1/admin/refunds?limit=20",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1748,7 +1748,7 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/payments/reconcile",
+              "raw": "{{baseUrl}}/api/v1/admin/payments/reconcile",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1777,7 +1777,7 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/refunds/REFUND_ID/retry",
+              "raw": "{{baseUrl}}/api/v1/admin/refunds/REFUND_ID/retry",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1812,7 +1812,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/room-types?hotelId={{hotelId}}",
+              "raw": "{{baseUrl}}/api/v1/hotel/room-types?hotelId={{hotelId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1851,7 +1851,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/room-types?hotelId={{hotelId}}",
+              "raw": "{{baseUrl}}/api/v1/hotel/room-types?hotelId={{hotelId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1894,7 +1894,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/room-types/{{roomTypeId}}?hotelId={{hotelId}}",
+              "raw": "{{baseUrl}}/api/v1/hotel/room-types/{{roomTypeId}}?hotelId={{hotelId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1933,7 +1933,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/room-types/{{roomTypeId}}/inventory?hotelId={{hotelId}}&from=2026-12-01&to=2026-12-10",
+              "raw": "{{baseUrl}}/api/v1/hotel/room-types/{{roomTypeId}}/inventory?hotelId={{hotelId}}&from=2026-12-01&to=2026-12-10",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1982,7 +1982,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/room-blocks?hotelId={{hotelId}}",
+              "raw": "{{baseUrl}}/api/v1/hotel/room-blocks?hotelId={{hotelId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2020,7 +2020,7 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/room-types/{{roomTypeId}}?hotelId={{hotelId}}",
+              "raw": "{{baseUrl}}/api/v1/hotel/room-types/{{roomTypeId}}?hotelId={{hotelId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2060,7 +2060,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/bookings/{{bookingId}}",
+              "raw": "{{baseUrl}}/api/v1/hotel/bookings/{{bookingId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2089,7 +2089,7 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/bookings/{{bookingId}}/confirm",
+              "raw": "{{baseUrl}}/api/v1/hotel/bookings/{{bookingId}}/confirm",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2124,7 +2124,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/bookings/{{bookingId}}/reject",
+              "raw": "{{baseUrl}}/api/v1/hotel/bookings/{{bookingId}}/reject",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2158,7 +2158,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/stats",
+              "raw": "{{baseUrl}}/api/v1/hotel/stats",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2191,7 +2191,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/bookings?limit=20",
+              "raw": "{{baseUrl}}/api/v1/admin/bookings?limit=20",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2225,7 +2225,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/bookings/{{bookingId}}",
+              "raw": "{{baseUrl}}/api/v1/admin/bookings/{{bookingId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2254,7 +2254,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/dashboard",
+              "raw": "{{baseUrl}}/api/v1/admin/dashboard",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2292,7 +2292,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/change-requests/quote",
+              "raw": "{{baseUrl}}/api/v1/change-requests/quote",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2323,7 +2323,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/change-requests",
+              "raw": "{{baseUrl}}/api/v1/change-requests",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2353,7 +2353,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/change-requests",
+              "raw": "{{baseUrl}}/api/v1/change-requests",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2379,7 +2379,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/change-requests/lookup",
+              "raw": "{{baseUrl}}/api/v1/change-requests/lookup",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2406,7 +2406,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/change-requests?status=PENDING",
+              "raw": "{{baseUrl}}/api/v1/hotel/change-requests?status=PENDING",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2445,7 +2445,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/change-requests/{{requestId}}/approve",
+              "raw": "{{baseUrl}}/api/v1/hotel/change-requests/{{requestId}}/approve",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2484,7 +2484,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/change-requests/{{requestId}}/reject",
+              "raw": "{{baseUrl}}/api/v1/hotel/change-requests/{{requestId}}/reject",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2532,7 +2532,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/support",
+              "raw": "{{baseUrl}}/api/v1/support",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2558,7 +2558,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/support/lookup",
+              "raw": "{{baseUrl}}/api/v1/support/lookup",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2589,7 +2589,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/support/reply",
+              "raw": "{{baseUrl}}/api/v1/support/reply",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2616,7 +2616,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/support?status=OPEN",
+              "raw": "{{baseUrl}}/api/v1/admin/support?status=OPEN",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2655,7 +2655,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/support/{{ticketId}}",
+              "raw": "{{baseUrl}}/api/v1/admin/support/{{ticketId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2693,7 +2693,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/support/{{ticketId}}/messages",
+              "raw": "{{baseUrl}}/api/v1/admin/support/{{ticketId}}/messages",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2732,7 +2732,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/support/{{ticketId}}/messages",
+              "raw": "{{baseUrl}}/api/v1/admin/support/{{ticketId}}/messages",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2771,7 +2771,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/support/{{ticketId}}",
+              "raw": "{{baseUrl}}/api/v1/admin/support/{{ticketId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2814,7 +2814,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/shuttle-requests/quote",
+              "raw": "{{baseUrl}}/api/v1/shuttle-requests/quote",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2845,7 +2845,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/shuttle-requests",
+              "raw": "{{baseUrl}}/api/v1/shuttle-requests",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2871,7 +2871,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/shuttle-requests/lookup",
+              "raw": "{{baseUrl}}/api/v1/shuttle-requests/lookup",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2893,7 +2893,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/shuttle-requests?status=REQUESTED",
+              "raw": "{{baseUrl}}/api/v1/hotel/shuttle-requests?status=REQUESTED",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2932,7 +2932,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/shuttle-requests/{{shuttleId}}/assign",
+              "raw": "{{baseUrl}}/api/v1/hotel/shuttle-requests/{{shuttleId}}/assign",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2966,7 +2966,7 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/hotel/shuttle-requests/{{shuttleId}}/complete",
+              "raw": "{{baseUrl}}/api/v1/hotel/shuttle-requests/{{shuttleId}}/complete",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3001,7 +3001,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/flights/VN218",
+              "raw": "{{baseUrl}}/api/v1/flights/VN218",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3019,7 +3019,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/flights?date=2026-11-11",
+              "raw": "{{baseUrl}}/api/v1/admin/flights?date=2026-11-11",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3058,7 +3058,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/flights/{{flightId}}",
+              "raw": "{{baseUrl}}/api/v1/admin/flights/{{flightId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3091,7 +3091,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/v1/admin/flights/{{flightId}}/changes",
+              "raw": "{{baseUrl}}/api/v1/admin/flights/{{flightId}}/changes",
               "host": [
                 "{{baseUrl}}"
               ],

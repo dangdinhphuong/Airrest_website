@@ -12,7 +12,7 @@ const REASON = { CHANGE_OF_PLAN: 'Đổi kế hoạch', FLIGHT_CANCELLED: 'Chuy�
 // Báo giá đã lưu trong yêu cầu (tính cho cả đơn nhiều dòng phòng): đổi ngày = số đêm + tổng mới + chênh lệch; hủy = giữ/hoàn.
 export const quoteText = (q) => !q ? '' : q.kind === 'CHANGE' ? `${q.newNights} đêm, tổng mới ${money(q.newTotalVnd)} (${q.diffVnd >= 0 ? '+' : ''}${money(q.diffVnd)})` : q.kind === 'CANCEL' ? `Giữ ${money(q.keepVnd)}, hoàn ${money(q.refundVnd)}` : '';
 
-// /v1/hotel/change-requests: danh sách theo trạng thái, duyệt, từ chối (ghi chú bắt buộc).
+// /api/v1/hotel/change-requests: danh sách theo trạng thái, duyệt, từ chối (ghi chú bắt buộc).
 export default function Changes() {
   const [status, setStatus] = useState('PENDING');
   const act = useAction();

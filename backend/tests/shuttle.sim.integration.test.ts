@@ -54,13 +54,13 @@ run('tích hợp: mô phỏng vị trí xe, realtime, theo dõi của khách', (
     const rt = await mkRoomType(hotelId, 30);
     const owner = (await mkStaff(hotelId, [PERM.FLEET_MANAGE, PERM.BOOKING_READ])).token;
     const handler = (await mkStaff(hotelId, [PERM.SHUTTLE_HANDLE])).token;
-    const v = await request(app).post('/v1/hotel/vehicles').set(ip()).set(auth(owner)).send({ plate: `30A-${String(++seqPlate).padStart(5, '0')}`, seats: 7, model: 'Xe 7 chỗ' });
-    const d = await request(app).post('/v1/hotel/drivers').set(ip()).set(auth(owner)).send({ email: `d${randomUUID().slice(0, 8)}@airrest.vn`, password: 'MatKhau-Tai-Xe-1', fullName: 'Tài xế Sim', phone: '0988777666', vehicleId: v.body.vehicle.id });
+    const v = await request(app).post('/api/v1/hotel/vehicles').set(ip()).set(auth(owner)).send({ plate: `30A-${String(++seqPlate).padStart(5, '0')}`, seats: 7, model: 'Xe 7 chỗ' });
+    const d = await request(app).post('/api/v1/hotel/drivers').set(ip()).set(auth(owner)).send({ email: `d${randomUUID().slice(0, 8)}@airrest.vn`, password: 'MatKhau-Tai-Xe-1', fullName: 'Tài xế Sim', phone: '0988777666', vehicleId: v.body.vehicle.id });
     expect(d.status, JSON.stringify(d.body)).toBe(201);
     return { hotelId, rt, owner, handler, driver: { id: d.body.driver.accountId, token: signAccountToken({ sub: d.body.driver.accountId, accountType: 'DRIVER' }) } };
   };
   const mkBooking = async (c: Ctx) => {
-    const res = await request(app).post('/v1/bookings').set(ip()).set('Idempotency-Key', `fb-${randomUUID()}`).send({
+    const res = await request(app).post('/api/v1/bookings').set(ip()).set('Idempotency-Key', `fb-${randomUUID()}`).send({
       hotelId: c.hotelId, roomTypeId: c.rt, qty: 1, paymentMethod: 'AT_HOTEL', from: new Date(Date.now() + 30 * MIN).toISOString(), to: new Date(Date.now() + 30 * MIN + 86400_000).toISOString(),
       guest: { fullName: 'Khách Sim', phone: '0912345678' },
     });
@@ -69,16 +69,16 @@ run('tích hợp: mô phỏng vị trí xe, realtime, theo dõi của khách', (
     await db.query("UPDATE bookings SET guest = guest || '{\"count\": 10}'::jsonb WHERE code = $1", [code]); // yêu cầu xe không được vượt số người của đơn
     return { id: (await one<{ id: string }>('SELECT id FROM bookings WHERE code = $1', [code]))!.id, code, phone: '0912345678' };
   };
-  const lookupToken = async (b: { code: string; phone: string }) => (await request(app).post('/v1/shuttle-requests/lookup').set(ip()).send({ code: b.code, phone: b.phone })).body.guestToken as string;
+  const lookupToken = async (b: { code: string; phone: string }) => (await request(app).post('/api/v1/shuttle-requests/lookup').set(ip()).send({ code: b.code, phone: b.phone })).body.guestToken as string;
   // Đơn + yêu cầu xe (điều phối ngay) -> chuyến OFFERED của tài xế.
   const offered = async (c: Ctx, direction = 'TO_HOTEL') => {
     const b = await mkBooking(c);
-    const r = await request(app).post('/v1/shuttle-requests').set(ip()).set('Idempotency-Key', `sh-${randomUUID()}`).send({ code: b.code, phone: b.phone, direction, airport: 'HAN', pickupAt: new Date(Date.now() + 20 * MIN).toISOString(), passengers: 2 });
+    const r = await request(app).post('/api/v1/shuttle-requests').set(ip()).set('Idempotency-Key', `sh-${randomUUID()}`).send({ code: b.code, phone: b.phone, direction, airport: 'HAN', pickupAt: new Date(Date.now() + 20 * MIN).toISOString(), passengers: 2 });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
     const t = await waitFor(() => one<{ id: string }>('SELECT id FROM shuttle_trips WHERE request_id = $1', [r.body.shuttle.id]));
     return { b, tripId: t.id, requestId: r.body.shuttle.id as string };
   };
-  const act = (c: Ctx, tripId: string, a: string) => request(app).post(`/v1/driver/trips/${tripId}/${a}`).set(ip()).set(auth(c.driver.token)).send({});
+  const act = (c: Ctx, tripId: string, a: string) => request(app).post(`/api/v1/driver/trips/${tripId}/${a}`).set(ip()).set(auth(c.driver.token)).send({});
   const tripRow = (id: string) => one<any>('SELECT * FROM shuttle_trips WHERE id = $1', [id]);
   const connect = async (token: string): Promise<Socket> => {
     const s = ioClient(url, { auth: { token }, reconnection: false });
@@ -109,7 +109,7 @@ run('tích hợp: mô phỏng vị trí xe, realtime, theo dõi của khách', (
     await closeDb();
   });
 
-  it('tài xế nhận -> tuyến OSRM được lưu (source osrm, approach + ride); khách thấy route + position qua GET /v1/track/shuttle', async () => {
+  it('tài xế nhận -> tuyến OSRM được lưu (source osrm, approach + ride); khách thấy route + position qua GET /api/v1/track/shuttle', async () => {
     clearOsrmCache(); osrmMock.mockClear();
     const c = await setup();
     const { b, tripId } = await offered(c);
@@ -120,17 +120,17 @@ run('tích hợp: mô phỏng vị trí xe, realtime, theo dõi của khách', (
     expect(row.route.ride.length).toBeGreaterThan(1);
     expect(osrmMock).toHaveBeenCalledTimes(2);
     expect(String(osrmMock.mock.calls[0]![0])).toContain('overview=full&geometries=geojson');
-    const track = await request(app).get('/v1/track/shuttle').set(ip()).set(auth(await lookupToken(b)));
+    const track = await request(app).get('/api/v1/track/shuttle').set(ip()).set(auth(await lookupToken(b)));
     expect(track.status).toBe(200);
     const trip = track.body.shuttles[0].trips[0];
     expect(trip.status).toBe('ACCEPTED');
     expect(trip.position).toMatchObject({ phase: 'APPROACH', speedKmh: 0 });
     expect(trip.route.approach.length).toBeGreaterThan(1);
     // nhân sự + tài xế cũng có route/position
-    const staff = await request(app).get(`/v1/hotel/shuttle-trips/${tripId}`).set(ip()).set(auth(c.handler));
+    const staff = await request(app).get(`/api/v1/hotel/shuttle-trips/${tripId}`).set(ip()).set(auth(c.handler));
     expect(staff.body.trip.route.source).toBe('osrm');
     expect(staff.body.trip.position.phase).toBe('APPROACH');
-    const drv = await request(app).get('/v1/driver/trips').set(ip()).set(auth(c.driver.token));
+    const drv = await request(app).get('/api/v1/driver/trips').set(ip()).set(auth(c.driver.token));
     expect(drv.body.items[0].position.phase).toBe('APPROACH');
   });
 
@@ -247,9 +247,9 @@ run('tích hợp: mô phỏng vị trí xe, realtime, theo dõi của khách', (
 
     await db.query("UPDATE bookings SET status = 'PENDING', expires_at = now() + interval '1 hour' WHERE id = $1", [b.id]);
     await db.query("UPDATE room_reservations SET state = 'HOLD', hold_expires_at = now() + interval '1 hour' WHERE booking_id = $1", [b.id]);
-    expect((await post(`/v1/hotel/bookings/${b.id}/confirm`)).status).toBe(200);
-    expect((await post(`/v1/hotel/bookings/${b.id}/check-in`)).status).toBe(200);
-    expect((await post(`/v1/hotel/bookings/${b.id}/check-out`)).status).toBe(200);
+    expect((await post(`/api/v1/hotel/bookings/${b.id}/confirm`)).status).toBe(200);
+    expect((await post(`/api/v1/hotel/bookings/${b.id}/check-in`)).status).toBe(200);
+    expect((await post(`/api/v1/hotel/bookings/${b.id}/check-out`)).status).toBe(200);
     await waitFor(() => seen('guest').length >= 3 && seen('staff').length >= 3);
     expect(seen('guest')).toEqual(['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT']);
     expect(seen('staff')).toEqual(['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT']);
@@ -259,9 +259,9 @@ run('tích hợp: mô phỏng vị trí xe, realtime, theo dõi của khách', (
 
     const b2 = await mkBooking(c);
     const g2got = collect(await connect(await lookupToken(b2)), 'shuttle:update');
-    const cr = await request(app).post('/v1/change-requests').set(ip()).set('Idempotency-Key', `cx-${randomUUID()}`).send({ code: b2.code, phone: b2.phone, type: 'CANCEL', reasonCode: 'HEALTH' });
+    const cr = await request(app).post('/api/v1/change-requests').set(ip()).set('Idempotency-Key', `cx-${randomUUID()}`).send({ code: b2.code, phone: b2.phone, type: 'CANCEL', reasonCode: 'HEALTH' });
     expect(cr.status, JSON.stringify(cr.body)).toBe(201);
-    expect((await post(`/v1/hotel/change-requests/${cr.body.request.id}/approve`)).status).toBe(200);
+    expect((await post(`/api/v1/hotel/change-requests/${cr.body.request.id}/approve`)).status).toBe(200);
     await waitFor(() => g2got.some((x) => x.type === 'BOOKING_STATUS' && x.status === 'CANCELLED'));
 
     await sleep(300);
@@ -308,25 +308,25 @@ run('tích hợp: mô phỏng vị trí xe, realtime, theo dõi của khách', (
     s.close();
   });
 
-  it('GET /v1/track/shuttle: thiếu token 401, token nhân sự 403, token đơn khác không lộ dữ liệu; giới hạn 120/phút/đơn (429); không dính strictRateLimit', async () => {
+  it('GET /api/v1/track/shuttle: thiếu token 401, token nhân sự 403, token đơn khác không lộ dữ liệu; giới hạn 120/phút/đơn (429); không dính strictRateLimit', async () => {
     const c = await setup();
     const { b } = await offered(c);
     const other = await mkBooking(c); // đơn không có xe
-    expect((await request(app).get('/v1/track/shuttle').set(ip())).status).toBe(401);
-    expect((await request(app).get('/v1/track/shuttle').set(ip()).set(auth('abc'))).status).toBe(401);
-    expect((await request(app).get('/v1/track/shuttle').set(ip()).set(auth(c.owner))).status).toBe(403);
-    const mine = await request(app).get('/v1/track/shuttle').set(ip()).set(auth(await lookupToken(b)));
+    expect((await request(app).get('/api/v1/track/shuttle').set(ip())).status).toBe(401);
+    expect((await request(app).get('/api/v1/track/shuttle').set(ip()).set(auth('abc'))).status).toBe(401);
+    expect((await request(app).get('/api/v1/track/shuttle').set(ip()).set(auth(c.owner))).status).toBe(403);
+    const mine = await request(app).get('/api/v1/track/shuttle').set(ip()).set(auth(await lookupToken(b)));
     expect(mine.body.shuttles).toHaveLength(1);
     const tokOther = await lookupToken(other);
-    const theirs = await request(app).get('/v1/track/shuttle').set(ip()).set(auth(tokOther));
+    const theirs = await request(app).get('/api/v1/track/shuttle').set(ip()).set(auth(tokOther));
     expect(theirs.status).toBe(200);
     expect(theirs.body.shuttles).toHaveLength(0);
     expect(JSON.stringify(theirs.body)).not.toContain(b.code);
     // mỗi request một IP khác nhau (tránh giới hạn chung theo IP): chỉ bộ đếm theo đơn có tác dụng
     let last = 0;
-    for (let i = 0; i < 125 && last !== 429; i++) last = (await request(app).get('/v1/track/shuttle').set(ip()).set(auth(tokOther))).status;
+    for (let i = 0; i < 125 && last !== 429; i++) last = (await request(app).get('/api/v1/track/shuttle').set(ip()).set(auth(tokOther))).status;
     expect(last).toBe(429);
-    expect((await request(app).get('/v1/track/shuttle').set(ip()).set(auth(await lookupToken(b)))).status).toBe(200); // đơn khác không bị ảnh hưởng
+    expect((await request(app).get('/api/v1/track/shuttle').set(ip()).set(auth(await lookupToken(b)))).status).toBe(200); // đơn khác không bị ảnh hưởng
   });
 
   it('khởi động lại: vị trí khôi phục từ route + mốc thời gian trong DB (không cần trạng thái bộ nhớ)', async () => {
@@ -337,7 +337,7 @@ run('tích hợp: mô phỏng vị trí xe, realtime, theo dõi của khách', (
     await waitFor(async () => (await tripRow(tripId)).route);
     await act(c, tripId, 'start');
     const tok = await lookupToken(b);
-    const get = async () => (await request(app).get('/v1/track/shuttle').set(ip()).set(auth(tok))).body.shuttles[0].trips[0].position;
+    const get = async () => (await request(app).get('/api/v1/track/shuttle').set(ip()).set(auth(tok))).body.shuttles[0].trips[0].position;
     const p0 = await get();
     await db.query("UPDATE shuttle_trips SET en_route_at = now() - interval '100 seconds' WHERE id = $1", [tripId]); // như thể server tắt 100 giây rồi bật lại
     const p1 = await get();

@@ -58,8 +58,8 @@ run('tích hợp: báo cáo doanh thu từng khách sạn + tổng doanh nghiệ
   });
   afterAll(async () => closeDb());
 
-  const rev = (t: string, qs: string) => request(app).get(`/v1/hotel/reports/revenue?${qs}`).set(bearer(t));
-  const sum = (t: string, qs: string) => request(app).get(`/v1/hotel/reports/revenue/summary?${qs}`).set(bearer(t));
+  const rev = (t: string, qs: string) => request(app).get(`/api/v1/hotel/reports/revenue?${qs}`).set(bearer(t));
+  const sum = (t: string, qs: string) => request(app).get(`/api/v1/hotel/reports/revenue/summary?${qs}`).set(bearer(t));
 
   it('riêng khách sạn: đúng công thức realized/expected (phòng+xe), phí dịch vụ tách riêng, đơn hủy/không đến bị loại, ranh giới ngày theo giờ VN', async () => {
     const r = await rev(ownerTok, `hotelId=${H1}&from=2026-03-01&to=2026-03-31&groupBy=day`);
@@ -77,7 +77,7 @@ run('tích hợp: báo cáo doanh thu từng khách sạn + tổng doanh nghiệ
 
   it('khớp với thống kê khách sạn hiện có (cùng định nghĩa)', async () => {
     const r = await rev(ownerTok, `hotelId=${H1}&from=2026-03-01&to=2026-03-31`);
-    const s = await request(app).get(`/v1/hotel/stats?from=${encodeURIComponent('2026-02-28T17:00:00.000Z')}&to=${encodeURIComponent('2026-03-31T17:00:00.000Z')}`).set(bearer(ownerTok));
+    const s = await request(app).get(`/api/v1/hotel/stats?from=${encodeURIComponent('2026-02-28T17:00:00.000Z')}&to=${encodeURIComponent('2026-03-31T17:00:00.000Z')}`).set(bearer(ownerTok));
     expect(s.body.revenue.realized.hotelShareVnd).toBe(r.body.totals.realizedVnd);
     expect(s.body.revenue.expected.hotelShareVnd).toBe(r.body.totals.expectedVnd);
   });
@@ -97,7 +97,7 @@ run('tích hợp: báo cáo doanh thu từng khách sạn + tổng doanh nghiệ
     expect((await rev(ownerTok, `hotelId=${randomUUID()}&from=2026-03-01&to=2026-03-31`)).status).toBe(404);
     expect((await rev(ownerBTok, `hotelId=${H1}&from=2026-03-01&to=2026-03-31`)).status).toBe(404);
     expect((await rev(staffNoRead, `hotelId=${H1}&from=2026-03-01&to=2026-03-31`)).status).toBe(403);
-    expect((await request(app).get(`/v1/hotel/reports/revenue?hotelId=${H1}&from=2026-03-01&to=2026-03-31`)).status).toBe(401);
+    expect((await request(app).get(`/api/v1/hotel/reports/revenue?hotelId=${H1}&from=2026-03-01&to=2026-03-31`)).status).toBe(401);
     expect((await rev(ownerTok, `hotelId=${H2}&from=2026-03-01&to=2026-03-31`)).status).toBe(200); // chủ xem được khách sạn khác của DN mình
   });
 
@@ -127,7 +127,7 @@ run('tích hợp: báo cáo doanh thu từng khách sạn + tổng doanh nghiệ
 
   it('tổng doanh nghiệp: chỉ chủ (business:report:read + businessId); nhân viên 403', async () => {
     expect((await sum(staff1, 'from=2026-03-01&to=2026-03-31')).status).toBe(403);
-    expect((await request(app).get('/v1/hotel/reports/revenue/summary?from=2026-03-01&to=2026-03-31')).status).toBe(401);
+    expect((await request(app).get('/api/v1/hotel/reports/revenue/summary?from=2026-03-01&to=2026-03-31')).status).toBe(401);
     const b = await sum(ownerBTok, 'from=2026-03-01&to=2026-03-31');
     expect(b.body.hotels.map((h: any) => h.code)).toEqual(['RB']);
     expect(b.body.totals.realizedVnd).toBe(123_000_000);

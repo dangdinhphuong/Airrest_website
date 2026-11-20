@@ -12,7 +12,7 @@ const PW_ERR = {
   WRONG_CURRENT_PASSWORD: ['current', 'Mật khẩu hiện tại không đúng.'],
   SAME_PASSWORD: ['next', 'Mật khẩu mới phải khác mật khẩu hiện tại.'],
 };
-// Lỗi của PATCH /v1/auth/password -> { field?, text } tiếng Việt theo mã.
+// Lỗi của PATCH /api/v1/auth/password -> { field?, text } tiếng Việt theo mã.
 export function passwordError(e) {
   if (e?.status === 429) return { text: 'Bạn thao tác quá nhanh. Vui lòng chờ một chút rồi thử lại.' };
   const m = PW_ERR[e?.code];

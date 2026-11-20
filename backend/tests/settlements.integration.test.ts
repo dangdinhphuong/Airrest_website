@@ -41,9 +41,9 @@ describe('settlement calc', () => {
 run('tích hợp: kết toán tháng hai chiều', () => {
   const app = express();
   app.use(express.json());
-  app.use('/v1/admin/payer-statements', adminPayerStatementsRouter);
-  app.use('/v1/admin/hotel-payouts', adminHotelPayoutsRouter);
-  app.use('/v1/payer/statements', payerStatementsRouter);
+  app.use('/api/v1/admin/payer-statements', adminPayerStatementsRouter);
+  app.use('/api/v1/admin/hotel-payouts', adminHotelPayoutsRouter);
+  app.use('/api/v1/payer/statements', payerStatementsRouter);
   app.use(errorHandler);
 
   let payerA = '', payerB = '', H1 = '', H2 = '', rt1 = '', rt2 = '', flightReal = '', flightSim = '', batchA = '', batchASim = '', batchB = '', batchAFlightSim = '';
@@ -261,19 +261,19 @@ run('tích hợp: kết toán tháng hai chiều', () => {
 
   it('hoa hồng không lộ cho đơn vị chi trả: CSV + JSON payer không có commission; admin vẫn có', async () => {
     const r = request(app);
-    const pc = await r.get(`/v1/payer/statements/${stA}/csv`).set(bearer(tokA));
+    const pc = await r.get(`/api/v1/payer/statements/${stA}/csv`).set(bearer(tokA));
     expect(pc.text.startsWith('﻿kind,booking_code,group_code,flight_code,hotel,amount_vnd,memo\r\n')).toBe(true);
     expect(pc.text).not.toMatch(/commission/i);
     expect(pc.text).not.toContain('193332');
     expect(pc.text).toContain('TOTAL,,,,,2003332,');
     expect(pc.text.trim().split('\r\n').every((l) => l.split(',').length === 7 || l.includes('"'))).toBe(true);
-    const ac = await r.get(`/v1/admin/payer-statements/${stA}/csv`).set(bearer(readTok));
+    const ac = await r.get(`/api/v1/admin/payer-statements/${stA}/csv`).set(bearer(readTok));
     expect(ac.text).toContain('commission_vnd');
     expect(ac.text).toContain('TOTAL,,,,,2003332,193332,');
-    const pj = (await r.get(`/v1/payer/statements/${stA}`).set(bearer(tokA))).body;
+    const pj = (await r.get(`/api/v1/payer/statements/${stA}`).set(bearer(tokA))).body;
     expect(JSON.stringify(pj)).not.toMatch(/commission/i);
-    expect(JSON.stringify((await r.get('/v1/payer/statements').set(bearer(tokA))).body)).not.toMatch(/commission/i);
-    const aj = (await r.get(`/v1/admin/payer-statements/${stA}`).set(bearer(readTok))).body;
+    expect(JSON.stringify((await r.get('/api/v1/payer/statements').set(bearer(tokA))).body)).not.toMatch(/commission/i);
+    const aj = (await r.get(`/api/v1/admin/payer-statements/${stA}`).set(bearer(readTok))).body;
     expect(aj.statement.commissionVnd).toBe(193332);
     expect(aj.lines.some((l: any) => 'commissionVnd' in l)).toBe(true);
   });
@@ -281,48 +281,48 @@ run('tích hợp: kết toán tháng hai chiều', () => {
   it('API: quyền theo permission; nhân viên payer không khóa được; cô lập payer; nháp ẩn với payer; Idempotency-Key', async () => {
     const r = request(app);
     // nhân viên payer xem của mình (không thấy nháp), đơn vị khác 404
-    const list = await r.get('/v1/payer/statements').set(bearer(tokA));
+    const list = await r.get('/api/v1/payer/statements').set(bearer(tokA));
     expect(list.status).toBe(200);
     expect(list.body.items.every((s: any) => s.payerId === payerA && s.status !== 'DRAFT')).toBe(true);
-    expect((await r.get(`/v1/payer/statements/${stA}`).set(bearer(tokA))).body.lines).toHaveLength(6);
-    expect((await r.get(`/v1/payer/statements/${stA}`).set(bearer(tokB))).status).toBe(404);
-    expect((await r.get(`/v1/payer/statements/${stA}/csv`).set(bearer(tokB))).status).toBe(404);
-    expect((await r.get(`/v1/payer/statements/${stA}/csv`).set(bearer(tokA))).headers['content-type']).toContain('text/csv');
+    expect((await r.get(`/api/v1/payer/statements/${stA}`).set(bearer(tokA))).body.lines).toHaveLength(6);
+    expect((await r.get(`/api/v1/payer/statements/${stA}`).set(bearer(tokB))).status).toBe(404);
+    expect((await r.get(`/api/v1/payer/statements/${stA}/csv`).set(bearer(tokB))).status).toBe(404);
+    expect((await r.get(`/api/v1/payer/statements/${stA}/csv`).set(bearer(tokA))).headers['content-type']).toContain('text/csv');
     const draft = (await st.generateStatement(ctx(), payerA, '2026-06')).statement.id;
-    expect((await r.get(`/v1/payer/statements/${draft}`).set(bearer(tokA))).status).toBe(404);
+    expect((await r.get(`/api/v1/payer/statements/${draft}`).set(bearer(tokA))).status).toBe(404);
     // nhân viên payer không dùng được API admin
-    for (const [m, url] of [['post', `/v1/admin/payer-statements/${stA}/lock`], ['post', `/v1/admin/payer-statements/${stA}/reopen`], ['get', '/v1/admin/payer-statements'], ['get', '/v1/admin/hotel-payouts'], ['post', '/v1/admin/hotel-payouts/generate']] as const) {
+    for (const [m, url] of [['post', `/api/v1/admin/payer-statements/${stA}/lock`], ['post', `/api/v1/admin/payer-statements/${stA}/reopen`], ['get', '/api/v1/admin/payer-statements'], ['get', '/api/v1/admin/hotel-payouts'], ['post', '/api/v1/admin/hotel-payouts/generate']] as const) {
       expect((await (r as any)[m](url).set(bearer(tokA)).set(idem()).send({})).status).toBe(403);
     }
     // quyền tách bạch: chỉ-đọc không ghi; manage không khóa; finance không tạo
-    expect((await r.get('/v1/admin/payer-statements').set(bearer(readTok))).status).toBe(200);
-    expect((await r.post('/v1/admin/payer-statements/generate').set(bearer(readTok)).set(idem()).send({ payerId: payerA, period: '2026-06' })).status).toBe(403);
-    expect((await r.post(`/v1/admin/payer-statements/${draft}/lock`).set(bearer(manageTok)).set(idem()).send()).status).toBe(403);
-    expect((await r.post('/v1/admin/payer-statements/generate').set(bearer(financeTok)).set(idem()).send({ payerId: payerA, period: '2026-06' })).status).toBe(403);
+    expect((await r.get('/api/v1/admin/payer-statements').set(bearer(readTok))).status).toBe(200);
+    expect((await r.post('/api/v1/admin/payer-statements/generate').set(bearer(readTok)).set(idem()).send({ payerId: payerA, period: '2026-06' })).status).toBe(403);
+    expect((await r.post(`/api/v1/admin/payer-statements/${draft}/lock`).set(bearer(manageTok)).set(idem()).send()).status).toBe(403);
+    expect((await r.post('/api/v1/admin/payer-statements/generate').set(bearer(financeTok)).set(idem()).send({ payerId: payerA, period: '2026-06' })).status).toBe(403);
     // generate qua API: cần Idempotency-Key; phát lại cùng key trả kết quả cũ; kỳ sai -> 422
-    expect((await r.post('/v1/admin/payer-statements/generate').set(bearer(manageTok)).send({ payerId: payerA, period: '2026-06' })).status).toBe(400);
-    expect((await r.post('/v1/admin/payer-statements/generate').set(bearer(manageTok)).set(idem()).send({ payerId: payerA, period: '2026-13' })).status).toBe(422);
+    expect((await r.post('/api/v1/admin/payer-statements/generate').set(bearer(manageTok)).send({ payerId: payerA, period: '2026-06' })).status).toBe(400);
+    expect((await r.post('/api/v1/admin/payer-statements/generate').set(bearer(manageTok)).set(idem()).send({ payerId: payerA, period: '2026-13' })).status).toBe(422);
     const h = idem();
-    const g1 = await r.post('/v1/admin/payer-statements/generate').set(bearer(manageTok)).set(h).send({ payerId: payerA, period: '2026-06' });
-    const g2 = await r.post('/v1/admin/payer-statements/generate').set(bearer(manageTok)).set(h).send({ payerId: payerA, period: '2026-06' });
+    const g1 = await r.post('/api/v1/admin/payer-statements/generate').set(bearer(manageTok)).set(h).send({ payerId: payerA, period: '2026-06' });
+    const g2 = await r.post('/api/v1/admin/payer-statements/generate').set(bearer(manageTok)).set(h).send({ payerId: payerA, period: '2026-06' });
     expect([g1.status, g2.headers['idempotent-replay']]).toEqual([200, 'true']);
     // finance khóa/mở lại qua API: kỳ nháp không khóa được (409); mở lại bảng kê đã khóa cần lý do
-    expect((await r.post(`/v1/admin/payer-statements/${draft}/lock`).set(bearer(financeTok)).set(idem()).send()).status).toBe(409);
-    expect((await r.post(`/v1/admin/payer-statements/${stB}/reopen`).set(bearer(financeTok)).set(idem()).send({})).status).toBe(422);
-    const reo = await r.post(`/v1/admin/payer-statements/${stB}/reopen`).set(bearer(financeTok)).set(idem()).send({ reason: 'Đối chiếu lại đơn mới' });
+    expect((await r.post(`/api/v1/admin/payer-statements/${draft}/lock`).set(bearer(financeTok)).set(idem()).send()).status).toBe(409);
+    expect((await r.post(`/api/v1/admin/payer-statements/${stB}/reopen`).set(bearer(financeTok)).set(idem()).send({})).status).toBe(422);
+    const reo = await r.post(`/api/v1/admin/payer-statements/${stB}/reopen`).set(bearer(financeTok)).set(idem()).send({ reason: 'Đối chiếu lại đơn mới' });
     expect([reo.status, reo.body.statement.status]).toEqual([200, 'DRAFT']);
     // khiếu nại qua API (payer): bảng kê nháp -> 404; payer khác -> 404
     await st.generateStatement(ctx(), payerB, '2026-03');
-    expect((await r.post(`/v1/payer/statements/${stB}/dispute`).set(bearer(tokB)).set(idem()).send({ reason: 'chưa gửi' })).status).toBe(404);
+    expect((await r.post(`/api/v1/payer/statements/${stB}/dispute`).set(bearer(tokB)).set(idem()).send({ reason: 'chưa gửi' })).status).toBe(404);
     await st.sendStatement(ctx(), stB, new Date(Date.now() - 0)); // kỳ 2026-03 đã kết thúc theo giờ thật
-    expect((await r.post(`/v1/payer/statements/${stB}/dispute`).set(bearer(tokA)).set(idem()).send({ reason: 'không phải của tôi' })).status).toBe(404);
-    const dis = await r.post(`/v1/payer/statements/${stB}/dispute`).set(bearer(tokB)).set(idem()).send({ reason: 'Sai tiền phòng' });
+    expect((await r.post(`/api/v1/payer/statements/${stB}/dispute`).set(bearer(tokA)).set(idem()).send({ reason: 'không phải của tôi' })).status).toBe(404);
+    const dis = await r.post(`/api/v1/payer/statements/${stB}/dispute`).set(bearer(tokB)).set(idem()).send({ reason: 'Sai tiền phòng' });
     expect([dis.status, dis.body.statement.status]).toEqual([200, 'DISPUTED']);
     // bảng chi trả KS qua API
-    const hl = await r.get('/v1/admin/hotel-payouts?period=2026-03').set(bearer(readTok));
+    const hl = await r.get('/api/v1/admin/hotel-payouts?period=2026-03').set(bearer(readTok));
     expect(hl.body.items).toHaveLength(2);
-    expect((await r.post(`/v1/admin/hotel-payouts/${hl.body.items[0].id}/lock`).set(bearer(manageTok)).set(idem()).send()).status).toBe(403);
-    expect((await r.post(`/v1/admin/hotel-payouts/${hl.body.items.find((p: any) => p.hotelId === H2).id}/lock`).set(bearer(financeTok)).set(idem()).send()).status).toBe(200);
-    expect((await r.get(`/v1/admin/hotel-payouts/${hl.body.items[0].id}`).set(bearer(readTok))).body.lines.length).toBeGreaterThan(0);
+    expect((await r.post(`/api/v1/admin/hotel-payouts/${hl.body.items[0].id}/lock`).set(bearer(manageTok)).set(idem()).send()).status).toBe(403);
+    expect((await r.post(`/api/v1/admin/hotel-payouts/${hl.body.items.find((p: any) => p.hotelId === H2).id}/lock`).set(bearer(financeTok)).set(idem()).send()).status).toBe(200);
+    expect((await r.get(`/api/v1/admin/hotel-payouts/${hl.body.items[0].id}`).set(bearer(readTok))).body.lines.length).toBeGreaterThan(0);
   });
 });

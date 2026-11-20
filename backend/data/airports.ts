@@ -1,6 +1,6 @@
 // Nguồn dữ liệu sân bay: 22 sân bay thương mại Việt Nam đang khai thác đường bay định kỳ (HAN, SGN và 20 sân bay địa phương).
 // Tên và tỉnh/thành theo cách gọi thông dụng; tọa độ là vị trí xấp xỉ (dùng để đặt cơ sở lưu trú mô phỏng quanh sân bay).
-// `international`: có đường bay quốc tế (định kỳ hoặc thuê chuyến). Thêm/bớt sân bay: sửa mảng này, API /v1/airports và seed tự theo.
+// `international`: có đường bay quốc tế (định kỳ hoặc thuê chuyến). Thêm/bớt sân bay: sửa mảng này, API /api/v1/airports và seed tự theo.
 export interface Airport {
   iata: string;
   name: string; // tên thông dụng, ví dụ "Nội Bài"

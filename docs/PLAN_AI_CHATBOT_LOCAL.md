@@ -22,7 +22,7 @@ Trạng thái: **DỰ THẢO, chờ người dùng duyệt các mục ở §2.**
 - **Bản đầu chỉ làm: hiểu ý định + trích thông tin.** AI không tự tạo đơn/hủy/ticket; mọi hành động vẫn qua luồng sẵn có và nút xác nhận.
 
 ```
-Khách → ChatBot.jsx → botEngine.reply() ─(mọi regex không khớp)→ POST /v1/chat/understand   [backend, host]
+Khách → ChatBot.jsx → botEngine.reply() ─(mọi regex không khớp)→ POST /api/v1/chat/understand   [backend, host]
 backend ─Broadcast "ai-req"→ Supabase Realtime ←─nối ra── ai-gateway [local] ⇄ Ollama (qwen2.5:3b-instruct)
 backend ←─Broadcast "ai-res"──────────────────────────────┘   (ghép cặp bằng requestId)
 → { intent, params } → botEngine gọi beginSearch/beginCancel/... như hiện tại
@@ -125,7 +125,7 @@ System prompt (tiếng Việt, ngắn): chỉ phân loại và trích thông tin
 
 **Phạm vi file:** module mới `chat` (router + handler), đăng ký trong `backend/api/modules/index.ts`, biến môi trường mới trong `.env.example` (`AI_GATEWAY_SECRET`, `AI_CHANNEL_PREFIX`, `AI_TIMEOUT_MS=8000`), test. **Không migration, không bảng DB.** Trước khi sửa, đọc `backend/api/realtime/` và `app.ts` để làm theo mẫu có sẵn (không tạo kiểu mới).
 
-- `POST /v1/chat/understand` body `{ text }`: công khai, **`strictRateLimit`** (xem `backend/api/middleware/rateLimit.ts`), kiểm độ dài ≤ 500.
+- `POST /api/v1/chat/understand` body `{ text }`: công khai, **`strictRateLimit`** (xem `backend/api/middleware/rateLimit.ts`), kiểm độ dài ≤ 500.
 - Giữ **một** kết nối Realtime lâu dài từ lúc khởi động, subscribe `:res`; map trong bộ nhớ `requestId → resolver`; ký HMAC khi gửi, kiểm chữ ký khi nhận; bỏ qua `requestId` lạ/muộn (host chạy nhiều tiến trình thì bỏ qua thông điệp không phải của mình).
 - Trước khi gửi: kiểm Presence — gateway không online → trả `{intent:"other"}` ngay.
 - Timeout 8 giây, `busy`, lỗi bất kỳ → `{intent:"other"}`. **Endpoint không bao giờ trả 5xx vì AI lỗi.**

@@ -43,7 +43,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     const d = o.off ?? nextOff();
     const legs = o.legs === undefined ? legs2(d) : o.legs;
     return request(app)
-      .post('/v1/bookings')
+      .post('/api/v1/bookings')
       .set('Idempotency-Key', o.key ?? `sb-${randomUUID()}`)
       .send({
         hotelId: o.hotel ?? paid, roomTypeId: o.rt ?? paidRt, qty: o.qty ?? 1, paymentMethod: o.method ?? 'AT_HOTEL',
@@ -59,7 +59,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
   const pay = async (code: string) => {
     const b = await row(code);
     const p = await payOf(b.id);
-    const r = await request(app).post('/v1/payments/sepay/ipn').send(buildSepayIpn({ invoice: p.gateway.orderId, amount: p.amountVnd, success: true, transactionId: 'tx-test' }));
+    const r = await request(app).post('/api/v1/payments/sepay/ipn').send(buildSepayIpn({ invoice: p.gateway.orderId, amount: p.amountVnd, success: true, transactionId: 'tx-test' }));
     expect([200, 204]).toContain(r.status);
   };
   // Đơn đã trả tiền nhưng còn chờ khách sạn duyệt (PENDING + HOLD): SePay nay xác nhận ngay nên trạng thái này chỉ còn ở đơn cũ; dựng lại để kiểm logic hoàn tiền khi từ chối.
@@ -72,11 +72,11 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     const g = (a: string) => Number(rows.find((r) => r.account === a)?.s ?? 0);
     return { paid: g('CUSTOMER_PAID'), hotel: g('HOTEL_PAYABLE'), rev: g('AIRREST_REVENUE'), refundable: g('CUSTOMER_REFUNDABLE') };
   };
-  const cancelLeg = (code: string, id: string) => request(app).post(`/v1/shuttle-requests/${id}/cancel`).set(ipFor()).send({ code, phone: '+84912345678' });
-  const askCancelOrder = (code: string) => request(app).post('/v1/change-requests').set(ipFor()).set('Idempotency-Key', `co-${randomUUID()}`).send({ code, phone: '+84912345678', type: 'CANCEL', reasonCode: 'CHANGE_OF_PLAN' });
-  const lookup = (code: string) => request(app).post('/v1/bookings/lookup').set(ipFor()).send({ code, phone: '+84912345678' });
+  const cancelLeg = (code: string, id: string) => request(app).post(`/api/v1/shuttle-requests/${id}/cancel`).set(ipFor()).send({ code, phone: '+84912345678' });
+  const askCancelOrder = (code: string) => request(app).post('/api/v1/change-requests').set(ipFor()).set('Idempotency-Key', `co-${randomUUID()}`).send({ code, phone: '+84912345678', type: 'CANCEL', reasonCode: 'CHANGE_OF_PLAN' });
+  const lookup = (code: string) => request(app).post('/api/v1/bookings/lookup').set(ipFor()).send({ code, phone: '+84912345678' });
   let staff = '';
-  const approve = (id: string) => request(app).post(`/v1/hotel/change-requests/${id}/approve`).set({ Authorization: `Bearer ${staff}` }).send({});
+  const approve = (id: string) => request(app).post(`/api/v1/hotel/change-requests/${id}/approve`).set({ Authorization: `Bearer ${staff}` }).send({});
   const addTrip = (r: any, status: string) =>
     db.query("INSERT INTO shuttle_trips (request_id, booking_id, hotel_id, kind, seats, status) VALUES ($1,$2,$3,'EXTERNAL',$4,$5)", [r.id, r.bookingId, r.hotelId, r.passengers, status]);
 
@@ -96,28 +96,28 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
 
   // ---------- Báo giá trước khi có đơn ----------
   it('POST /hotels/:id/shuttle-quote: không có xe -> offered false; có phí -> giá từng chiều; free -> 0; sai KS 404; body sai 422', async () => {
-    const q0 = await request(app).post(`/v1/hotels/${none}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL' }] });
+    const q0 = await request(app).post(`/api/v1/hotels/${none}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL' }] });
     expect(q0.status).toBe(200);
     expect(q0.body).toEqual({ offered: false, free: false, legs: [], totalVnd: 0 });
-    const q = await request(app).post(`/v1/hotels/${paid}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL' }, { direction: 'TO_AIRPORT', airport: 'han' }], guests: 3 });
+    const q = await request(app).post(`/api/v1/hotels/${paid}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL' }, { direction: 'TO_AIRPORT', airport: 'han' }], guests: 3 });
     expect(q.status).toBe(200);
     expect(q.body).toMatchObject({ offered: true, free: false, totalVnd: 2 * LEG, guests: 3 });
     expect(q.body.legs[0]).toMatchObject({ direction: 'TO_HOTEL', airport: 'HAN', distanceKm: 5, priceVnd: LEG });
-    const night = await request(app).post(`/v1/hotels/${paid}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL', pickupAt: dayAt(9, 15).toISOString() }] }); // 22:00 VN
+    const night = await request(app).post(`/api/v1/hotels/${paid}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL', pickupAt: dayAt(9, 15).toISOString() }] }); // 22:00 VN
     expect(night.body.legs[0]).toMatchObject({ priceVnd: 96_000, night: true });
-    const qf = await request(app).post(`/v1/hotels/${free}/shuttle-quote`).send({ legs: [{ direction: 'TO_AIRPORT' }] });
+    const qf = await request(app).post(`/api/v1/hotels/${free}/shuttle-quote`).send({ legs: [{ direction: 'TO_AIRPORT' }] });
     expect(qf.body).toMatchObject({ offered: true, free: true, totalVnd: 0 });
-    expect((await request(app).post(`/v1/hotels/${randomUUID()}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL' }] })).status).toBe(404);
-    expect((await request(app).post(`/v1/hotels/${paid}/shuttle-quote`).send({ legs: [] })).status).toBe(422);
-    expect((await request(app).post(`/v1/hotels/${paid}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL' }, { direction: 'TO_HOTEL' }] })).status).toBe(422);
-    expect((await request(app).post(`/v1/hotels/${paid}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL', airport: 'SGN' }] })).body.error.code).toBe('AIRPORT_NOT_SERVED');
-    const detail = await request(app).get(`/v1/hotels/${paid}`);
+    expect((await request(app).post(`/api/v1/hotels/${randomUUID()}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL' }] })).status).toBe(404);
+    expect((await request(app).post(`/api/v1/hotels/${paid}/shuttle-quote`).send({ legs: [] })).status).toBe(422);
+    expect((await request(app).post(`/api/v1/hotels/${paid}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL' }, { direction: 'TO_HOTEL' }] })).status).toBe(422);
+    expect((await request(app).post(`/api/v1/hotels/${paid}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL', airport: 'SGN' }] })).body.error.code).toBe('AIRPORT_NOT_SERVED');
+    const detail = await request(app).get(`/api/v1/hotels/${paid}`);
     expect(detail.body.hotel.features.shuttle).toBe('paid'); // FE biết khách sạn có xe
   });
 
   // ---------- Tạo đơn: tiền ----------
   it('2 chiều có phí (SePay): tổng = phòng + xe + phí DV(phòng+xe); payments.amount khớp; yêu cầu xe REQUESTED, billed, passengers = guests; quote khớp', async () => {
-    const quote = await request(app).post(`/v1/hotels/${paid}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL' }, { direction: 'TO_AIRPORT' }] });
+    const quote = await request(app).post(`/api/v1/hotels/${paid}/shuttle-quote`).send({ legs: [{ direction: 'TO_HOTEL' }, { direction: 'TO_AIRPORT' }] });
     const res = await book({ method: 'SEPAY', guests: 2, qty: 1 });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     const fee = serviceFee(ROOM + 2 * LEG, FEE);
@@ -209,14 +209,14 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     expect((await lookup(ok.body.booking.code)).body.booking).toMatchObject({ guests: 2, children: 1 });
     const b = await row(ok.body.booking.code);
     expect(b.guest).toMatchObject({ count: 2, children: 1 });
-    const detail = await request(app).get(`/v1/hotel/bookings/${b.id}`).set({ Authorization: `Bearer ${staff}` });
+    const detail = await request(app).get(`/api/v1/hotel/bookings/${b.id}`).set({ Authorization: `Bearer ${staff}` });
     expect(detail.body.booking.guest).toMatchObject({ count: 2, children: 1 });
-    const list = await request(app).get('/v1/hotel/bookings').set({ Authorization: `Bearer ${staff}` });
+    const list = await request(app).get('/api/v1/hotel/bookings').set({ Authorization: `Bearer ${staff}` });
     expect(list.body.items.find((x: any) => x.code === ok.body.booking.code).guest).toMatchObject({ count: 2, children: 1 });
     // đơn cũ (chưa lưu số người) hiển thị 1 người, 0 trẻ em
     await db.query("UPDATE bookings SET guest = guest - 'count' - 'children' WHERE id = $1", [b.id]);
     expect((await lookup(ok.body.booking.code)).body.booking).toMatchObject({ guests: 1, children: 0 });
-    expect((await request(app).get(`/v1/hotel/bookings/${b.id}`).set({ Authorization: `Bearer ${staff}` })).body.booking.guest).toMatchObject({ count: 1, children: 0 });
+    expect((await request(app).get(`/api/v1/hotel/bookings/${b.id}`).set({ Authorization: `Bearer ${staff}` })).body.booking.guest).toMatchObject({ count: 1, children: 0 });
   });
 
   it('số khách đi xe: lấy guests của đơn; yêu cầu xe sau đó mặc định = guests, gửi lớn hơn -> 422, nhỏ hơn được', async () => {
@@ -225,12 +225,12 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     expect(res.body.shuttles[0].passengers).toBe(4);
     const code = res.body.booking.code;
     const body = { code, phone: '+84912345678', direction: 'TO_AIRPORT', airport: 'HAN', pickupAt: dayAt(60, 8).toISOString() };
-    const q = await request(app).post('/v1/shuttle-requests/quote').set(ipFor()).send(body);
+    const q = await request(app).post('/api/v1/shuttle-requests/quote').set(ipFor()).send(body);
     expect(q.body.quote.passengers).toBe(4);
-    const tooMany = await request(app).post('/v1/shuttle-requests').set(ipFor()).set('Idempotency-Key', `sh-${randomUUID()}`).send({ ...body, passengers: 5 });
+    const tooMany = await request(app).post('/api/v1/shuttle-requests').set(ipFor()).set('Idempotency-Key', `sh-${randomUUID()}`).send({ ...body, passengers: 5 });
     expect(tooMany.status).toBe(422);
     expect(tooMany.body.error.code).toBe('PASSENGERS_EXCEED_GUESTS');
-    const fewer = await request(app).post('/v1/shuttle-requests').set(ipFor()).set('Idempotency-Key', `sh-${randomUUID()}`).send({ ...body, passengers: 3 });
+    const fewer = await request(app).post('/api/v1/shuttle-requests').set(ipFor()).set('Idempotency-Key', `sh-${randomUUID()}`).send({ ...body, passengers: 3 });
     expect(fewer.status).toBe(201);
     expect(fewer.body.shuttle.passengers).toBe(3);
     // yêu cầu tạo SAU đơn: không thu riêng (billed = false), giá đơn không đổi
@@ -248,13 +248,13 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     await db.query('UPDATE room_types SET capacity = 3 WHERE id = $1', [rt]);
     const owner = (await mkStaff(h, [PERM.FLEET_MANAGE])).token;
     for (const k of [1, 2]) {
-      const v = await request(app).post('/v1/hotel/vehicles').set({ Authorization: `Bearer ${owner}` }).send({ plate: `30A-${method === 'SEPAY' ? 1 : 2}000${k}`, seats: 4, model: 'Xe 4 chỗ' });
+      const v = await request(app).post('/api/v1/hotel/vehicles').set({ Authorization: `Bearer ${owner}` }).send({ plate: `30A-${method === 'SEPAY' ? 1 : 2}000${k}`, seats: 4, model: 'Xe 4 chỗ' });
       expect(v.status, JSON.stringify(v.body)).toBe(201);
-      const d = await request(app).post('/v1/hotel/drivers').set({ Authorization: `Bearer ${owner}` }).send({ email: `d${randomUUID().slice(0, 8)}@airrest.vn`, password: 'MatKhau-Tai-Xe-1', fullName: `Tài xế ${k}`, phone: '0988777666', vehicleId: v.body.vehicle.id });
+      const d = await request(app).post('/api/v1/hotel/drivers').set({ Authorization: `Bearer ${owner}` }).send({ email: `d${randomUUID().slice(0, 8)}@airrest.vn`, password: 'MatKhau-Tai-Xe-1', fullName: `Tài xế ${k}`, phone: '0988777666', vehicleId: v.body.vehicle.id });
       expect(d.status, JSON.stringify(d.body)).toBe(201);
     }
     const from = new Date(Date.now() + 30 * MIN);
-    const res = await request(app).post('/v1/bookings').set('Idempotency-Key', `sb-${randomUUID()}`).send({
+    const res = await request(app).post('/api/v1/bookings').set('Idempotency-Key', `sb-${randomUUID()}`).send({
       hotelId: h, roomTypeId: rt, qty: 2, guests: 5, children: 1, paymentMethod: method, from: from.toISOString(), to: new Date(from.getTime() + DAY).toISOString(),
       guest: { fullName: 'Đoàn 5 người', phone: '0912345678' },
       shuttle: { legs: [{ direction: 'TO_HOTEL', pickupAt: new Date(Date.now() + 20 * MIN).toISOString() }] },
@@ -339,7 +339,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     await asLegacyPaidPending((await row(a.body.booking.code)).id);
     const ba = await row(a.body.booking.code);
     expect(ba.status).toBe('PENDING');
-    const rj = await request(app).post(`/v1/hotel/bookings/${ba.id}/reject`).set({ Authorization: `Bearer ${t}` }).send({ reason: 'Hết phòng thật' });
+    const rj = await request(app).post(`/api/v1/hotel/bookings/${ba.id}/reject`).set({ Authorization: `Bearer ${t}` }).send({ reason: 'Hết phòng thật' });
     expect(rj.status, JSON.stringify(rj.body)).toBe(200);
     const ra = (await db.query<any>('SELECT * FROM refunds WHERE booking_id = $1', [ba.id])).rows;
     expect(ra).toHaveLength(1);
@@ -352,7 +352,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     const bc = await row(c.body.booking.code);
     const toHotel = (await reqs(bc.id))[0];
     expect((await cancelLeg(bc.code, toHotel.id)).status).toBe(200);
-    const rj2 = await request(app).post(`/v1/hotel/bookings/${bc.id}/reject`).set({ Authorization: `Bearer ${t}` }).send({ reason: 'Từ chối sau khi hủy chiều' });
+    const rj2 = await request(app).post(`/api/v1/hotel/bookings/${bc.id}/reject`).set({ Authorization: `Bearer ${t}` }).send({ reason: 'Từ chối sau khi hủy chiều' });
     expect(rj2.status).toBe(200);
     const rc = (await db.query<any>('SELECT reason_code, amount_vnd FROM refunds WHERE booking_id = $1 ORDER BY seq', [bc.id])).rows;
     expect(rc.map((r) => [r.reasonCode, r.amountVnd])).toEqual([['HOTEL_REJECTED', bc.paidVnd]]);
@@ -422,7 +422,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     const b = await row(res.body.booking.code);
     const [x] = await reqs(b.id);
     const t = (await mkStaff(paid, [PERM.SHUTTLE_HANDLE])).token;
-    const r = await request(app).post(`/v1/hotel/shuttle-requests/${x.id}/cancel`).set({ Authorization: `Bearer ${t}` }).send({ note: 'Không có xe' });
+    const r = await request(app).post(`/api/v1/hotel/shuttle-requests/${x.id}/cancel`).set({ Authorization: `Bearer ${t}` }).send({ note: 'Không có xe' });
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     expect(await count('refunds', 'booking_id = $1', [b.id])).toBe(0);
     expect((await row(b.code)).pricing.totalVnd).toBe(b.pricing.totalVnd);
@@ -435,7 +435,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     const b = await row(res.body.booking.code);
     const [toHotel] = await reqs(b.id);
     await addTrip(toHotel, 'ACCEPTED');
-    const q = await request(app).post('/v1/change-requests/quote').set(ipFor()).send({ code: b.code, phone: '+84912345678' });
+    const q = await request(app).post('/api/v1/change-requests/quote').set(ipFor()).send({ code: b.code, phone: '+84912345678' });
     expect(q.body.quote).toMatchObject({ tier: 'FREE', shuttleRefundVnd: 0, shuttleKeepVnd: 2 * LEG, keepVnd: 2 * LEG, refundVnd: b.paidVnd - 2 * LEG });
     const cr = await askCancelOrder(b.code);
     expect(cr.status, JSON.stringify(cr.body)).toBe(201);
@@ -461,10 +461,10 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     const res = await book({ hotel: h, rt, method: 'SEPAY' });
     await pay(res.body.booking.code);
     const b = await row(res.body.booking.code);
-    const q = await request(app).post('/v1/change-requests/quote').set(ipFor()).send({ code: b.code, phone: '+84912345678' });
+    const q = await request(app).post('/api/v1/change-requests/quote').set(ipFor()).send({ code: b.code, phone: '+84912345678' });
     expect(q.body.quote).toMatchObject({ tier: 'LATE', refundVnd: 0, keepVnd: b.paidVnd, shuttleRefundVnd: 0, shuttleKeepVnd: 2 * LEG });
     const cr = await askCancelOrder(b.code);
-    const ap = await request(app).post(`/v1/hotel/change-requests/${cr.body.request.id}/approve`).set({ Authorization: `Bearer ${t}` }).send({});
+    const ap = await request(app).post(`/api/v1/hotel/change-requests/${cr.body.request.id}/approve`).set({ Authorization: `Bearer ${t}` }).send({});
     expect(ap.status, JSON.stringify(ap.body)).toBe(200);
     expect(await count('refunds', 'booking_id = $1', [b.id])).toBe(0);
   });
@@ -495,7 +495,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     const res = await book({ legs: null, method: 'SEPAY' });
     await pay(res.body.booking.code);
     const b = await row(res.body.booking.code);
-    const q = await request(app).post('/v1/change-requests/quote').set(ipFor()).send({ code: b.code, phone: '+84912345678' });
+    const q = await request(app).post('/api/v1/change-requests/quote').set(ipFor()).send({ code: b.code, phone: '+84912345678' });
     expect(q.body.quote).toMatchObject({ tier: 'FREE', keepVnd: 0, refundVnd: b.paidVnd, shuttleRefundVnd: 0, shuttleKeepVnd: 0 });
   });
 
@@ -504,7 +504,7 @@ run('tích hợp: đặt xe cùng đơn — tạo đơn, tiền, thanh toán, h�
     const res = await book({ method: 'AT_HOTEL' });
     const b = await row(res.body.booking.code);
     const nd = nextOff();
-    const cr = await request(app).post('/v1/change-requests').set(ipFor()).set('Idempotency-Key', `ch-${randomUUID()}`)
+    const cr = await request(app).post('/api/v1/change-requests').set(ipFor()).set('Idempotency-Key', `ch-${randomUUID()}`)
       .send({ code: b.code, phone: '+84912345678', type: 'CHANGE', reasonCode: 'CHANGE_OF_PLAN', newFrom: dayAt(nd, 4).toISOString(), newTo: dayAt(nd + 2, 4).toISOString() });
     expect(cr.status, JSON.stringify(cr.body)).toBe(201);
     const newRoom = 2 * ROOM;

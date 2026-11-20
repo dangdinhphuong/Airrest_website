@@ -18,7 +18,7 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
   const book = (h = hotelId, r = roomTypeId) => {
     const off = 2 + n;
     return request(app)
-      .post('/v1/bookings')
+      .post('/api/v1/bookings')
       .set('Idempotency-Key', `sepay-key-${++n}-${Date.now()}`)
       .send({
         hotelId: h, roomTypeId: r,
@@ -34,7 +34,7 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
     return { b, p };
   };
   const status = async (id: string) => (await one<any>('SELECT * FROM bookings WHERE id = $1', [id]))!.status as string;
-  const ipn = (body: object) => request(app).post('/v1/payments/sepay/ipn').send(body);
+  const ipn = (body: object) => request(app).post('/api/v1/payments/sepay/ipn').send(body);
 
   beforeAll(async () => {
     await freshDb({ roles: true });
@@ -54,13 +54,13 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
     const { p } = await payOf(res.body.booking.code);
     expect(p.status).toBe('PENDING');
     expect(res.body.paymentLink.payUrl).toContain(p.gateway.orderId);
-    const m = await request(app).get('/v1/payments/methods');
+    const m = await request(app).get('/api/v1/payments/methods');
     expect(m.body.methods.some((x: { id: string }) => x.id === 'SEPAY')).toBe(true);
   });
 
   it('trang checkout: form POST có chữ ký, CSP riêng; mỗi lần mở dùng mã đơn MỚI; id lạ -> 404', async () => {
     const { p } = await payOf((await book()).body.booking.code);
-    const open = () => request(app).get(`/v1/payments/sepay/checkout/${p.id}`);
+    const open = () => request(app).get(`/api/v1/payments/sepay/checkout/${p.id}`);
     const inv = (html: string) => /name="order_invoice_number" value="([^"]+)"/.exec(html)![1]!;
     const a = await open();
     expect(a.status).toBe(200);
@@ -69,14 +69,14 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
     const b = await open(); // khách mở lại / bấm lại: SePay không chấp nhận mã trùng
     expect(inv(b.text)).not.toBe(inv(a.text));
     expect((await one<P>('SELECT * FROM payments WHERE id = $1', [p.id]))!.gateway.orderId).toBe(inv(b.text)); // bản ghi giữ mã mới nhất
-    expect((await request(app).get('/v1/payments/sepay/checkout/00000000-0000-4000-8000-000000000000')).status).toBe(404);
-    expect((await request(app).get('/v1/payments/sepay/checkout/khong-phai-uuid')).status).toBe(404);
+    expect((await request(app).get('/api/v1/payments/sepay/checkout/00000000-0000-4000-8000-000000000000')).status).toBe(404);
+    expect((await request(app).get('/api/v1/payments/sepay/checkout/khong-phai-uuid')).status).toBe(404);
   });
 
   it('IPN theo mã ĐÃ DÙNG ở phiên mở trước vẫn khớp giao dịch (khách thanh toán ở tab cũ)', async () => {
     const { b, p } = await payOf((await book()).body.booking.code);
-    const first = /name="order_invoice_number" value="([^"]+)"/.exec((await request(app).get(`/v1/payments/sepay/checkout/${p.id}`)).text)![1]!;
-    await request(app).get(`/v1/payments/sepay/checkout/${p.id}`); // mở lần 2 -> mã hiện tại đổi, `first` thành mã cũ
+    const first = /name="order_invoice_number" value="([^"]+)"/.exec((await request(app).get(`/api/v1/payments/sepay/checkout/${p.id}`)).text)![1]!;
+    await request(app).get(`/api/v1/payments/sepay/checkout/${p.id}`); // mở lần 2 -> mã hiện tại đổi, `first` thành mã cũ
     expect((await ipn(buildSepayIpn({ invoice: first, amount: p.amountVnd, success: true, transactionId: 'tx-old' }))).status).toBe(200);
     expect(await status(b.id)).toBe('CONFIRMED');
   });
@@ -114,7 +114,7 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
   it('IPN không tới: mở lại đơn (lookup) -> hỏi SePay, đơn CAPTURED thì thành CONFIRMED; sau đó IPN muộn không ghi trùng', async () => {
     const { b, p } = await payOf((await book()).body.booking.code);
     const spy = vi.spyOn(sepayApi, 'orderDetail').mockResolvedValue({ status: 'CAPTURED', amountVnd: p.amountVnd, transactionId: 'tx-pull' });
-    const r = await request(app).post('/v1/bookings/lookup').send({ code: b.code, phone: '0912345678' });
+    const r = await request(app).post('/api/v1/bookings/lookup').send({ code: b.code, phone: '0912345678' });
     expect(r.status).toBe(200);
     expect(r.body.booking.status).toBe('CONFIRMED');
     expect(spy).toHaveBeenCalled();
@@ -126,7 +126,7 @@ run('tích hợp: thanh toán SePay (mock) — link, trang checkout, IPN, idempo
 
   it('hỏi SePay: đơn chưa trả (AUTHENTICATION_NOT_NEEDED) / chưa có (null) / lỗi mạng -> giữ PENDING_PAYMENT; lệch tiền -> không xác nhận', async () => {
     const { b, p } = await payOf((await book()).body.booking.code);
-    const lookup = () => request(app).post('/v1/bookings/lookup').send({ code: b.code, phone: '0912345678' });
+    const lookup = () => request(app).post('/api/v1/bookings/lookup').send({ code: b.code, phone: '0912345678' });
     for (const mock of [() => vi.spyOn(sepayApi, 'orderDetail').mockResolvedValue({ status: 'AUTHENTICATION_NOT_NEEDED', amountVnd: p.amountVnd }), () => vi.spyOn(sepayApi, 'orderDetail').mockResolvedValue(null), () => vi.spyOn(sepayApi, 'orderDetail').mockRejectedValue(new Error('mạng'))]) {
       vi.restoreAllMocks(); mock();
       const r = await lookup();

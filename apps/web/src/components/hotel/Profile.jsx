@@ -40,7 +40,7 @@ function InfoForm({ p, busy, onSave }) {
   );
 }
 
-// GET/PATCH /v1/hotel/profile + ảnh qua /v1/hotel/media/upload-url (PUT thẳng lên kho, rồi PATCH images theo khóa).
+// GET/PATCH /api/v1/hotel/profile + ảnh qua /api/v1/hotel/media/upload-url (PUT thẳng lên kho, rồi PATCH images theo khóa).
 export default function Profile() {
   const l = useLoad(() => H.getProfile(), []);
   const [p, setP] = useState(null);

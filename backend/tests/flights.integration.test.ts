@@ -37,7 +37,7 @@ run('tích hợp: chuyến bay mô phỏng', () => {
   let ip = 0;
   const get = (path: string) => request(app).get(path).set(guestIp(++ip + 150));
   const flightId = async (code: string) => (await one<{ id: string }>('SELECT id FROM flights WHERE code = $1', [code]))!.id;
-  const patch = (id: string, body: object, t = ops) => request(app).patch(`/v1/admin/flights/${id}`).set(auth(t)).send(body);
+  const patch = (id: string, body: object, t = ops) => request(app).patch(`/api/v1/admin/flights/${id}`).set(auth(t)).send(body);
 
   beforeAll(async () => {
     await freshDb({ roles: true });
@@ -72,37 +72,37 @@ run('tích hợp: chuyến bay mô phỏng', () => {
   });
 
   it('GET công khai: chữ thường OK; chậm 400 phút; simulated; không lộ seq; 404 khác ngày; date sai 422; hủy; chưa biết giờ mới', async () => {
-    const ok = await get('/v1/flights/vn218?date=2026-11-11');
+    const ok = await get('/api/v1/flights/vn218?date=2026-11-11');
     expect(ok.status).toBe(200);
     expect(ok.body).toMatchObject({ code: 'VN218', simulated: true, status: 'DELAYED', delayMinutes: 400, lastChange: null });
     expect(ok.body.effectiveDepartureAt).toBe(ok.body.newDepartureAt);
     expect(ok.body).not.toHaveProperty('seq');
-    const fb = (await get('/v1/flights/VN218?date=2026-11-13')).body; // không đúng ngày → chuyến gần nhất + thông báo
+    const fb = (await get('/api/v1/flights/VN218?date=2026-11-13')).body; // không đúng ngày → chuyến gần nhất + thông báo
     expect(fb).toMatchObject({ code: 'VN218', flightDate: '2026-11-11' });
     expect(fb.notice).toContain('13/11/2026');
     expect(fb.notice).toContain('(đã qua)');
     expect(ok.body).not.toHaveProperty('notice');
-    expect((await get('/v1/flights/ZZ999?date=2026-11-13')).body.error.code).toBe('FLIGHT_NOT_FOUND');
-    expect((await get('/v1/flights/VN218?date=2026-02-30')).status).toBe(422);
-    expect((await get('/v1/flights/VN12345')).status).toBe(422);
-    const cancelled = (await get('/v1/flights/QH321?date=2026-11-11')).body;
+    expect((await get('/api/v1/flights/ZZ999?date=2026-11-13')).body.error.code).toBe('FLIGHT_NOT_FOUND');
+    expect((await get('/api/v1/flights/VN218?date=2026-02-30')).status).toBe(422);
+    expect((await get('/api/v1/flights/VN12345')).status).toBe(422);
+    const cancelled = (await get('/api/v1/flights/QH321?date=2026-11-11')).body;
     expect(cancelled).toMatchObject({ status: 'CANCELLED', newDepartureAt: null, effectiveDepartureAt: null, delayMinutes: null, delayedOverThreshold: false });
     expect(cancelled.cancelledAt).toBeTruthy();
-    expect((await get('/v1/flights/QH555?date=2026-11-11')).body).toMatchObject({ status: 'DELAYED', newDepartureAt: null, delayMinutes: null });
+    expect((await get('/api/v1/flights/QH555?date=2026-11-11')).body).toMatchObject({ status: 'DELAYED', newDepartureAt: null, delayMinutes: null });
   });
 
   it('rate limit: request thứ 11 trong 1 phút -> 429', async () => {
     const same = guestIp(240);
     let last = 0;
-    for (let i = 0; i < 11; i++) last = (await request(app).get('/v1/flights/XX').set(same)).status;
+    for (let i = 0; i < 11; i++) last = (await request(app).get('/api/v1/flights/XX').set(same)).status;
     expect(last).toBe(429);
   });
 
   describe('admin', () => {
     it('quyền: không token 401; SUPPORT 403; OPS 200', async () => {
-      expect((await request(app).get('/v1/admin/flights')).status).toBe(401);
-      expect((await request(app).get('/v1/admin/flights').set(auth(sup))).status).toBe(403);
-      expect((await request(app).get('/v1/admin/flights').set(auth(ops))).status).toBe(200);
+      expect((await request(app).get('/api/v1/admin/flights')).status).toBe(401);
+      expect((await request(app).get('/api/v1/admin/flights').set(auth(sup))).status).toBe(403);
+      expect((await request(app).get('/api/v1/admin/flights').set(auth(ops))).status).toBe(200);
     });
 
     it('đổi giờ: ngày bay không đổi khi qua nửa đêm; offset khác nhau cùng thời điểm -> 409; lịch sử + lastChange công khai', async () => {
@@ -112,7 +112,7 @@ run('tích hợp: chuyến bay mô phỏng', () => {
       expect(res.body.change.toAt).toBe('2026-11-11T23:00:00.000Z');
       expect(res.body.flight.flightDate).toBe('2026-11-11');
       expect((await patch(id, { status: 'DELAYED', newDepartureAt: '2026-11-11T23:00:00+00:00', cause: 'FORCE', reason: 'Lặp' })).status).toBe(409); // cùng thời điểm + cùng cause
-      const pub = (await get('/v1/flights/VN123?date=2026-11-11')).body;
+      const pub = (await get('/api/v1/flights/VN123?date=2026-11-11')).body;
       expect(pub.lastChange.toAt).toBe('2026-11-11T23:00:00.000Z');
       expect(await count('audit_logs', "action = 'FLIGHT.UPDATE' AND entity_id = $1", [id])).toBe(1);
     });
@@ -151,9 +151,9 @@ run('tích hợp: chuyến bay mô phỏng', () => {
       expect(rows).toHaveLength(2);
       expect(rows[1].fromDep.getTime()).toBe(rows[0].toDep.getTime());
       await patch(id, { status: 'DELAYED', newDepartureAt: '2026-11-11T16:00:00Z', reason: 'Lần C' });
-      const p1 = await request(app).get(`/v1/admin/flights/${id}/changes?limit=2`).set(auth(ops));
+      const p1 = await request(app).get(`/api/v1/admin/flights/${id}/changes?limit=2`).set(auth(ops));
       expect(p1.body.items).toHaveLength(2);
-      const p2 = await request(app).get(`/v1/admin/flights/${id}/changes?limit=2&cursor=${p1.body.nextCursor}`).set(auth(ops));
+      const p2 = await request(app).get(`/api/v1/admin/flights/${id}/changes?limit=2&cursor=${p1.body.nextCursor}`).set(auth(ops));
       expect(p2.body.items).toHaveLength(1);
     });
   });

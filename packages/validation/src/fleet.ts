@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { lookupBody } from './bookings';
 
-// Khóa ảnh tài xế do server cấp ở POST /v1/hotel/media/upload-url (folder 'drivers'): drivers/<năm>/<uuid>.<jpg|png|webp>.
+// Khóa ảnh tài xế do server cấp ở POST /api/v1/hotel/media/upload-url (folder 'drivers'): drivers/<năm>/<uuid>.<jpg|png|webp>.
 export const DRIVER_PHOTO_KEY_RE = /^drivers\/\d{4}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/;
 const photoKey = z.string().regex(DRIVER_PHOTO_KEY_RE, 'Khóa ảnh không hợp lệ');
 const uuid = z.string().uuid('Mã không hợp lệ');

@@ -102,7 +102,7 @@ hotelsRouter.get('/:id', validate({ params: idParams, query: idQuery }), async (
   res.json({ hotel: { ...toPublic(hotel), stay: stayPolicy(hotel.policy), stats }, rooms, window });
 });
 
-// Báo giá xe TRƯỚC khi có đơn (bước đặt phòng). Công khai, chỉ chịu giới hạn chung của /v1 (không strictRateLimit); không lộ dữ liệu nội bộ.
+// Báo giá xe TRƯỚC khi có đơn (bước đặt phòng). Công khai, chỉ chịu giới hạn chung của /api/v1 (không strictRateLimit); không lộ dữ liệu nội bộ.
 hotelsRouter.post('/:id/shuttle-quote', validate({ params: idParams, body: hotelShuttleQuoteBody }), async (req, res) => {
   const { id } = req.valid.params as z.infer<typeof idParams>;
   res.json(await quoteHotelShuttle(id, req.valid.body as HotelShuttleQuoteBody));

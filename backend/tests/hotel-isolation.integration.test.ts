@@ -24,7 +24,7 @@ run('tích hợp: cách ly dữ liệu theo khách sạn của nhân viên', () 
     return id;
   };
   const book = async (hotelId: string, roomTypeId: string, phone: string) => {
-    const res = await request(app).post('/v1/bookings').set('Idempotency-Key', `iso-${phone}-key`).send({ hotelId, roomTypeId, from: new Date(Date.now() + 2 * 86400_000).toISOString(), to: new Date(Date.now() + 3 * 86400_000).toISOString(), guest: { fullName: 'Khách ' + phone, phone } });
+    const res = await request(app).post('/api/v1/bookings').set('Idempotency-Key', `iso-${phone}-key`).send({ hotelId, roomTypeId, from: new Date(Date.now() + 2 * 86400_000).toISOString(), to: new Date(Date.now() + 3 * 86400_000).toISOString(), guest: { fullName: 'Khách ' + phone, phone } });
     expect(res.status).toBe(201);
     return (await db.query<{ id: string }>('SELECT id FROM bookings WHERE code = $1', [res.body.booking.code])).rows[0]!;
   };
@@ -53,44 +53,44 @@ run('tích hợp: cách ly dữ liệu theo khách sạn của nhân viên', () 
 
   it('đăng nhập: token mang đúng khách sạn được gán, /me không trả khách sạn khác', async () => {
     await db.query("UPDATE accounts SET password_hash = (SELECT password_hash FROM accounts WHERE email = 's1@airrest.vn') WHERE email = 'multi@airrest.vn'"); // cùng mật khẩu để đăng nhập
-    const me = (await get(s1, '/v1/auth/me')).body;
+    const me = (await get(s1, '/api/v1/auth/me')).body;
     expect(JSON.stringify(me)).not.toContain(B);
     expect(me.auth?.hotelId ?? me.hotelId).toBe(A);
   });
 
   it('token giả khai khách sạn B: nhân viên 1 khách sạn vẫn chỉ ở A; nhân viên nhiều khách sạn bị 401', async () => {
     const forgedSingle = signAccountToken({ sub: s1Id, accountType: 'HOTEL', hotelId: B });
-    const me = (await get(forgedSingle, '/v1/auth/me')).body;
+    const me = (await get(forgedSingle, '/api/v1/auth/me')).body;
     expect(me.auth?.hotelId ?? me.hotelId).toBe(A);
-    const ids = ((await get(forgedSingle, '/v1/hotel/bookings')).body.items as { id: string }[]).map((x) => x.id);
+    const ids = ((await get(forgedSingle, '/api/v1/hotel/bookings')).body.items as { id: string }[]).map((x) => x.id);
     expect(ids).toContain(bookingA); expect(ids).not.toContain(bookingB);
     const forgedMulti = signAccountToken({ sub: multiId, accountType: 'HOTEL', hotelId: B });
-    expect((await get(forgedMulti, '/v1/hotel/bookings')).status).toBe(401);
-    expect((await get(signAccountToken({ sub: multiId, accountType: 'HOTEL', hotelId: C }), '/v1/hotel/bookings')).status).toBe(200);
+    expect((await get(forgedMulti, '/api/v1/hotel/bookings')).status).toBe(401);
+    expect((await get(signAccountToken({ sub: multiId, accountType: 'HOTEL', hotelId: C }), '/api/v1/hotel/bookings')).status).toBe(200);
   });
 
   it('chuyển khách sạn: chỉ sang khách sạn được gán; khách sạn lạ -> 404, nhân viên 1 khách sạn không có gì để chuyển', async () => {
     const multi = signAccountToken({ sub: multiId, accountType: 'HOTEL' });
-    expect((await request(app).post('/v1/auth/switch-hotel').set(bearer(multi)).send({ hotelId: B })).status).toBe(404);
-    expect((await request(app).post('/v1/auth/switch-hotel').set(bearer(multi)).send({ hotelId: C })).status).toBe(200);
-    expect((await request(app).post('/v1/auth/switch-hotel').set(bearer(s1)).send({ hotelId: B })).status).toBe(404);
-    expect((await request(app).post('/v1/auth/switch-hotel').set(bearer(s1)).send({ hotelId: C })).status).toBe(404);
+    expect((await request(app).post('/api/v1/auth/switch-hotel').set(bearer(multi)).send({ hotelId: B })).status).toBe(404);
+    expect((await request(app).post('/api/v1/auth/switch-hotel').set(bearer(multi)).send({ hotelId: C })).status).toBe(200);
+    expect((await request(app).post('/api/v1/auth/switch-hotel').set(bearer(s1)).send({ hotelId: B })).status).toBe(404);
+    expect((await request(app).post('/api/v1/auth/switch-hotel').set(bearer(s1)).send({ hotelId: C })).status).toBe(404);
   });
 
   it('danh sách chỉ có dữ liệu khách sạn mình; truy cập theo id của khách sạn khác -> 404/403', async () => {
-    const lists = ['/v1/hotel/bookings', '/v1/hotel/room-types', '/v1/hotel/rooms', '/v1/hotel/staff', '/v1/hotel/roles', '/v1/hotel/vehicles', '/v1/hotel/drivers', '/v1/hotel/shuttle/board', '/v1/hotel/payouts', '/v1/hotel/change-requests', '/v1/hotel/notifications', '/v1/hotel/notification-settings', '/v1/hotel/stats'];
+    const lists = ['/api/v1/hotel/bookings', '/api/v1/hotel/room-types', '/api/v1/hotel/rooms', '/api/v1/hotel/staff', '/api/v1/hotel/roles', '/api/v1/hotel/vehicles', '/api/v1/hotel/drivers', '/api/v1/hotel/shuttle/board', '/api/v1/hotel/payouts', '/api/v1/hotel/change-requests', '/api/v1/hotel/notifications', '/api/v1/hotel/notification-settings', '/api/v1/hotel/stats'];
     for (const p of lists) {
       const r = await get(s1, p);
       const txt = JSON.stringify(r.body);
       expect([p, r.status, [B, bookingB, rtB, staffB, roleB, vehB].filter((x) => txt.includes(x))]).toEqual([p, r.status, []]);
     }
     const blocked = [
-      ['get', `/v1/hotel/bookings/${bookingB}`], ['get', `/v1/hotel/bookings/${bookingB}/events`],
-      ['post', `/v1/hotel/bookings/${bookingB}/check-in`], ['post', `/v1/hotel/bookings/${bookingB}/confirm`], ['post', `/v1/hotel/bookings/${bookingB}/reject`],
-      ['get', `/v1/hotel/room-types/${rtB}/inventory`], ['patch', `/v1/hotel/room-types/${rtB}`], ['delete', `/v1/hotel/room-types/${rtB}`],
-      ['patch', `/v1/hotel/staff/${staffB}`], ['post', `/v1/hotel/staff/${staffB}/reset-password`],
-      ['patch', `/v1/hotel/roles/${roleB}`], ['delete', `/v1/hotel/roles/${roleB}`], ['get', `/v1/hotel/roles?hotelId=${B}`],
-      ['patch', `/v1/hotel/vehicles/${vehB}`], ['delete', `/v1/hotel/vehicles/${vehB}`],
+      ['get', `/api/v1/hotel/bookings/${bookingB}`], ['get', `/api/v1/hotel/bookings/${bookingB}/events`],
+      ['post', `/api/v1/hotel/bookings/${bookingB}/check-in`], ['post', `/api/v1/hotel/bookings/${bookingB}/confirm`], ['post', `/api/v1/hotel/bookings/${bookingB}/reject`],
+      ['get', `/api/v1/hotel/room-types/${rtB}/inventory`], ['patch', `/api/v1/hotel/room-types/${rtB}`], ['delete', `/api/v1/hotel/room-types/${rtB}`],
+      ['patch', `/api/v1/hotel/staff/${staffB}`], ['post', `/api/v1/hotel/staff/${staffB}/reset-password`],
+      ['patch', `/api/v1/hotel/roles/${roleB}`], ['delete', `/api/v1/hotel/roles/${roleB}`], ['get', `/api/v1/hotel/roles?hotelId=${B}`],
+      ['patch', `/api/v1/hotel/vehicles/${vehB}`], ['delete', `/api/v1/hotel/vehicles/${vehB}`],
     ] as const;
     for (const [m, p] of blocked) {
       const r = await request(app)[m](p).set(bearer(s1)).send({ reason: 'x', name: 'x', seats: 4 });
@@ -104,6 +104,6 @@ run('tích hợp: cách ly dữ liệu theo khách sạn của nhân viên', () 
   });
 
   it('API quản trị: nhân viên khách sạn bị 403', async () => {
-    for (const p of ['/v1/admin/hotels', '/v1/admin/bookings', '/v1/admin/accounts']) expect([p, (await get(s1, p)).status]).toEqual([p, 403]);
+    for (const p of ['/api/v1/admin/hotels', '/api/v1/admin/bookings', '/api/v1/admin/accounts']) expect([p, (await get(s1, p)).status]).toEqual([p, 403]);
   });
 });

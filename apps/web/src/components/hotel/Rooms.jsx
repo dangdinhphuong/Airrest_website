@@ -85,7 +85,7 @@ function RoomForm({ initial, editing, managed, busy, onSubmit, onCancel }) {
   );
 }
 
-// /v1/hotel/room-types: danh sách, tạo, sửa, ngừng bán (DELETE = retire).
+// /api/v1/hotel/room-types: danh sách, tạo, sửa, ngừng bán (DELETE = retire).
 export default function Rooms() {
   const { state } = useApp();
   const manage = hasPerm(state.session, PERM.ROOM_MANAGE);

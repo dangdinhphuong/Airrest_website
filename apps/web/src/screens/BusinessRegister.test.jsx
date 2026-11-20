@@ -43,7 +43,7 @@ describe('BusinessRegister', () => {
     fireEvent.click(screen.getByTestId('biz-submit'));
     await screen.findByTestId('biz-done');
     const [path, body, opt] = post.mock.calls[0];
-    expect(path).toBe('/v1/auth/business/register');
+    expect(path).toBe('/api/v1/auth/business/register');
     expect(body).toMatchObject({ name: 'Công ty ABC', taxCode: '0312345678', email: 'a@abc.vn', website: '' });
     expect(body).not.toHaveProperty('confirm');
     expect(opt).toEqual({ auth: false });

@@ -21,7 +21,7 @@ const bearer = (t: string) => ({ Authorization: `Bearer ${t}` });
 run('tích hợp: thông báo khách sạn + cấu hình vai trò × loại', () => {
   const app = createApp();
   let hotel = '', other = '', desk = '', manager = '', deskRole = '';
-  const list = async (t: string) => (await request(app).get('/v1/hotel/notifications').set(bearer(t))).body as { items: { id: string; type: string; read: boolean }[]; unread: number };
+  const list = async (t: string) => (await request(app).get('/api/v1/hotel/notifications').set(bearer(t))).body as { items: { id: string; type: string; read: boolean }[]; unread: number };
 
   beforeAll(async () => {
     await freshDb({ roles: true });
@@ -46,22 +46,22 @@ run('tích hợp: thông báo khách sạn + cấu hình vai trò × loại', ()
   it('đánh dấu đã đọc theo từng người; đọc hết; không có token -> 401', async () => {
     const { items, unread } = await list(manager);
     expect(unread).toBe(2);
-    expect((await request(app).post(`/v1/hotel/notifications/${items[0]!.id}/read`).set(bearer(manager))).status).toBe(204);
+    expect((await request(app).post(`/api/v1/hotel/notifications/${items[0]!.id}/read`).set(bearer(manager))).status).toBe(204);
     expect((await list(manager)).unread).toBe(1);
     expect((await list(desk)).unread).toBe(1); // người khác chưa đọc
-    await request(app).post('/v1/hotel/notifications/read-all').set(bearer(manager));
+    await request(app).post('/api/v1/hotel/notifications/read-all').set(bearer(manager));
     expect((await list(manager)).unread).toBe(0);
-    expect((await request(app).get('/v1/hotel/notifications')).status).toBe(401);
+    expect((await request(app).get('/api/v1/hotel/notifications')).status).toBe(401);
   });
 
   it('cấu hình: cần quyền quản lý vai trò; ghi đè áp cho thông báo SAU đó; id lạ -> 422', async () => {
-    expect((await request(app).get('/v1/hotel/notification-settings').set(bearer(desk))).status).toBe(403);
-    const m = (await request(app).get('/v1/hotel/notification-settings').set(bearer(manager))).body as { types: { key: string }[]; roles: { id: string; enabled: Record<string, boolean> }[] };
+    expect((await request(app).get('/api/v1/hotel/notification-settings').set(bearer(desk))).status).toBe(403);
+    const m = (await request(app).get('/api/v1/hotel/notification-settings').set(bearer(manager))).body as { types: { key: string }[]; roles: { id: string; enabled: Record<string, boolean> }[] };
     expect(m.types.length).toBeGreaterThanOrEqual(8);
     expect(m.roles.find((r) => r.id === deskRole)?.enabled).toMatchObject({ BOOKING_PAID: true, BOOKING_PENDING: false });
     const roleId = deskRole;
-    expect((await request(app).put('/v1/hotel/notification-settings').set(bearer(manager)).send({ cells: [{ roleId: '00000000-0000-4000-8000-000000000000', type: 'BOOKING_PAID', enabled: false }] })).status).toBe(422);
-    expect((await request(app).put('/v1/hotel/notification-settings').set(bearer(manager)).send({ cells: [{ roleId, type: 'BOOKING_PAID', enabled: false }] })).status).toBe(200);
+    expect((await request(app).put('/api/v1/hotel/notification-settings').set(bearer(manager)).send({ cells: [{ roleId: '00000000-0000-4000-8000-000000000000', type: 'BOOKING_PAID', enabled: false }] })).status).toBe(422);
+    expect((await request(app).put('/api/v1/hotel/notification-settings').set(bearer(manager)).send({ cells: [{ roleId, type: 'BOOKING_PAID', enabled: false }] })).status).toBe(200);
     await notify(hotel, 'BOOKING_PAID', { title: 'Đã thanh toán AR-2', dedupeKey: 'pay2' });
     expect((await list(desk)).items.filter((i) => i.type === 'BOOKING_PAID')).toHaveLength(1); // chỉ còn cái cũ: thông báo mới sau khi tắt không tới vai trò desk
     expect((await list(manager)).items.filter((i) => i.type === 'BOOKING_PAID')).toHaveLength(2);

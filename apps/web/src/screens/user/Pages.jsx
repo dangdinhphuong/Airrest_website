@@ -201,7 +201,7 @@ function AttachPicker({ code, phone, onDone }) {
 const TICKET_STATUS = { OPEN: ['Đang mở', 'wait'], IN_PROGRESS: ['Đang xử lý', 'wait'], RESOLVED: ['Đã giải quyết', 'ok'] };
 const dmyHm = (iso) => new Date(iso).toLocaleString('vi-VN', { hour12: false, dateStyle: 'short', timeStyle: 'short' });
 
-// Tra cứu ticket bằng mã SP-XXXXXXXX + SĐT, xem hội thoại và trả lời (backend: /v1/support/lookup, /v1/support/reply).
+// Tra cứu ticket bằng mã SP-XXXXXXXX + SĐT, xem hội thoại và trả lời (backend: /api/v1/support/lookup, /api/v1/support/reply).
 function TicketLookup({ initialCode = '', initialPhone = '' }) {
   const [t, setT] = useState(null); // { ticket, phone }
   const [error, setError] = useState('');
@@ -414,7 +414,7 @@ export function PaymentResult() {
 
 const LIMIT_NOTE = `Mật khẩu ${PASSWORD_MIN}-${PASSWORD_MAX} ký tự`;
 
-// Danh sách đơn của tài khoản (GET /v1/me/bookings, phân trang theo nextCursor).
+// Danh sách đơn của tài khoản (GET /api/v1/me/bookings, phân trang theo nextCursor).
 function MyBookings() {
   const go = useGo();
   const [st, setSt] = useState({ items: [], next: null, loading: true, more: false, error: '' });
@@ -449,7 +449,7 @@ function MyBookings() {
   );
 }
 
-// Đổi mật khẩu (PATCH /v1/me/password).
+// Đổi mật khẩu (PATCH /api/v1/me/password).
 function ChangePassword() {
   const [f, setF] = useState({ cur: '', next: '', again: '' });
   const [msg, setMsg] = useState({ ok: '', err: '' });

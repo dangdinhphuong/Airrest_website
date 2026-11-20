@@ -28,9 +28,9 @@ run('tích hợp: mức giá Linh hoạt / Không hoàn hủy theo loại phòng
   const from = () => new Date(Date.now() + 20 * DAY).toISOString();
   const to = () => new Date(Date.now() + 21 * DAY).toISOString();
   const body = (rooms: object[], extra: object = {}) => ({ hotelId: hotel, rooms, from: from(), to: to(), guests: 1, guest: { fullName: 'Khách Test', phone: '0912345678' }, ...extra });
-  const quote = (rooms: object[]) => request(app).post('/v1/bookings/quote').send({ hotelId: hotel, rooms, from: from(), to: to() });
-  const book = (rooms: object[], paymentMethod = 'AT_HOTEL') => request(app).post('/v1/bookings').set('Idempotency-Key', `rp-${randomUUID()}`).send(body(rooms, { paymentMethod }));
-  const cancelQuote = (code: string) => request(app).post('/v1/change-requests/quote').set(guestIp(++ip)).send({ code, phone: '0912345678' });
+  const quote = (rooms: object[]) => request(app).post('/api/v1/bookings/quote').send({ hotelId: hotel, rooms, from: from(), to: to() });
+  const book = (rooms: object[], paymentMethod = 'AT_HOTEL') => request(app).post('/api/v1/bookings').set('Idempotency-Key', `rp-${randomUUID()}`).send(body(rooms, { paymentMethod }));
+  const cancelQuote = (code: string) => request(app).post('/api/v1/change-requests/quote').set(guestIp(++ip)).send({ code, phone: '0912345678' });
 
   beforeAll(async () => {
     await freshDb({ roles: true });
@@ -42,13 +42,13 @@ run('tích hợp: mức giá Linh hoạt / Không hoàn hủy theo loại phòng
   afterAll(async () => closeDb());
 
   it('lễ tân đặt % giảm; sai biên bị từ chối; null thì ngừng bán; công khai thấy nonRefundablePct', async () => {
-    const patch = (b: object) => request(app).patch(`/v1/hotel/room-types/${withNr}`).set('Authorization', `Bearer ${staffToken}`).send(b);
+    const patch = (b: object) => request(app).patch(`/api/v1/hotel/room-types/${withNr}`).set('Authorization', `Bearer ${staffToken}`).send(b);
     expect((await patch({ nonRefundablePct: 60 })).status).toBe(422);
     expect((await patch({ nonRefundablePct: 0 })).status).toBe(422);
     const ok = await patch({ nonRefundablePct: 10 });
     expect(ok.status).toBe(200);
     expect(ok.body.roomType.pricing).toMatchObject({ baseNightVnd: 740000, nonRefundablePct: 10 });
-    const pub = await request(app).get(`/v1/hotels/${hotel}`);
+    const pub = await request(app).get(`/api/v1/hotels/${hotel}`);
     expect(pub.body.rooms.find((r: { id: string }) => r.id === withNr).nonRefundablePct).toBe(10);
     expect(pub.body.rooms.find((r: { id: string }) => r.id === noNr).nonRefundablePct).toBeUndefined();
     await patch({ nonRefundablePct: null });

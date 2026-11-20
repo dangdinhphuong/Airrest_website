@@ -16,11 +16,11 @@ run('tích hợp: tài khoản khách (PASSENGER)', () => {
   let roomTypeId = '';
 
   let emailSeq = 0;
-  const register = (body: object, n = 1) => request(app).post('/v1/auth/passenger/register').set(ip(n)).send({ email: `u${++emailSeq}@example.com`, ...body });
-  const login = (body: object, n = 1) => request(app).post('/v1/auth/passenger/login').set(ip(n)).send(body);
+  const register = (body: object, n = 1) => request(app).post('/api/v1/auth/passenger/register').set(ip(n)).send({ email: `u${++emailSeq}@example.com`, ...body });
+  const login = (body: object, n = 1) => request(app).post('/api/v1/auth/passenger/login').set(ip(n)).send(body);
   const book = (token: string | undefined, key: string) =>
     request(app)
-      .post('/v1/bookings')
+      .post('/api/v1/bookings')
       .set({ ...(token ? bearer(token) : {}), 'Idempotency-Key': key })
       .send({
         hotelId, roomTypeId, qty: 1, paymentMethod: 'AT_HOTEL', from: new Date(Date.now() + 10 * DAY).toISOString(), to: new Date(Date.now() + 11 * DAY).toISOString(),
@@ -39,7 +39,7 @@ run('tích hợp: tài khoản khách (PASSENGER)', () => {
     expect(res.status).toBe(201);
     expect(res.body.user).toMatchObject({ type: 'PASSENGER', username: 'Lan Anh', fullName: 'Lan Anh Nguyễn', permissions: [] });
     expect(JSON.stringify(res.body)).not.toMatch(/passwordHash|scrypt/);
-    const me = await request(app).get('/v1/auth/me').set(bearer(res.body.token));
+    const me = await request(app).get('/api/v1/auth/me').set(bearer(res.body.token));
     expect(me.status).toBe(200);
     expect(me.body.auth).toMatchObject({ kind: 'ACCOUNT', accountType: 'PASSENGER', permissions: [] });
     expect(me.body.user).toMatchObject({ type: 'PASSENGER', fullName: 'Lan Anh Nguyễn', username: 'Lan Anh', permissions: [] });
@@ -85,8 +85,8 @@ run('tích hợp: tài khoản khách (PASSENGER)', () => {
   it('đăng nhập nhân sự không bị ảnh hưởng; khách không đăng nhập được bằng /auth/login', async () => {
     const staff = await mkAdmin([PERM.AUDIT_READ], 'nv@airrest.vn');
     expect(staff.id).toBeTruthy();
-    expect((await request(app).post('/v1/auth/login').send({ email: 'nv@airrest.vn', password: 'Pass12345678!' })).status).toBe(200);
-    expect((await request(app).post('/v1/auth/login').send({ email: 'lananh@x.vn', password: 'MatKhau123' })).status).toBe(401);
+    expect((await request(app).post('/api/v1/auth/login').send({ email: 'nv@airrest.vn', password: 'Pass12345678!' })).status).toBe(200);
+    expect((await request(app).post('/api/v1/auth/login').send({ email: 'lananh@x.vn', password: 'MatKhau123' })).status).toBe(401);
   });
 
   it('rate limit: quá 10 lần/phút -> 429', async () => {
@@ -97,7 +97,7 @@ run('tích hợp: tài khoản khách (PASSENGER)', () => {
 
   it('đổi mật khẩu: sai hiện tại -> 400; trùng cũ -> 422; ngắn -> 422; đúng -> 204 và đăng nhập bằng mật khẩu mới', async () => {
     const t = (await login({ username: 'Lan Anh', password: 'MatKhau123' }, 5)).body.token as string;
-    const patch = (b: object) => request(app).patch('/v1/me/password').set({ ...bearer(t), ...ip(5) }).send(b);
+    const patch = (b: object) => request(app).patch('/api/v1/me/password').set({ ...bearer(t), ...ip(5) }).send(b);
     expect((await patch({ currentPassword: 'Sai12345678', newPassword: 'MatKhauMoi99' })).body.error.code).toBe('WRONG_CURRENT_PASSWORD');
     expect((await patch({ currentPassword: 'MatKhau123', newPassword: 'MatKhau123' })).status).toBe(422);
     expect((await patch({ currentPassword: 'MatKhau123', newPassword: 'ngan' })).status).toBe(422);
@@ -105,7 +105,7 @@ run('tích hợp: tài khoản khách (PASSENGER)', () => {
     expect((await login({ username: 'Lan Anh', password: 'MatKhau123' }, 5)).status).toBe(401);
     expect((await login({ username: 'Lan Anh', password: 'MatKhauMoi99' }, 5)).status).toBe(200);
     expect(JSON.stringify(await one("SELECT * FROM audit_logs WHERE action = 'PASSENGER.CHANGE_PASSWORD'"))).not.toContain('MatKhau');
-    expect((await request(app).patch('/v1/me/password').send({ currentPassword: 'a', newPassword: 'b' })).status).toBe(401);
+    expect((await request(app).patch('/api/v1/me/password').send({ currentPassword: 'a', newPassword: 'b' })).status).toBe(401);
   });
 
   it('đặt phòng: có token khách -> gắn account_id; vãng lai vẫn đặt được + tra cứu mã+SĐT; token sai coi như vãng lai', async () => {
@@ -120,7 +120,7 @@ run('tích hợp: tài khoản khách (PASSENGER)', () => {
     const guest = await book(undefined, 'pax-key-0002');
     expect(guest.status).toBe(201);
     expect((await one<{ accountId?: string }>('SELECT account_id FROM bookings WHERE code = $1', [guest.body.booking.code]))!.accountId).toBeUndefined();
-    expect((await request(app).post('/v1/bookings/lookup').set(ip(7)).send({ code: guest.body.booking.code, phone: '0912345678' })).status).toBe(200);
+    expect((await request(app).post('/api/v1/bookings/lookup').set(ip(7)).send({ code: guest.body.booking.code, phone: '0912345678' })).status).toBe(200);
 
     const junk = await book('khong.phai.token', 'pax-key-0003');
     expect(junk.status).toBe(201);
@@ -133,38 +133,38 @@ run('tích hợp: tài khoản khách (PASSENGER)', () => {
     expect((await book(t1, 'pax-key-0004')).status).toBe(201);
     expect((await book(t2, 'pax-key-0005')).status).toBe(201);
 
-    const p1 = await request(app).get('/v1/me/bookings?limit=1').set(bearer(t1));
+    const p1 = await request(app).get('/api/v1/me/bookings?limit=1').set(bearer(t1));
     expect(p1.status).toBe(200);
     expect(p1.body.items).toHaveLength(1);
     expect(p1.body.nextCursor).toBeTruthy();
-    const p2 = await request(app).get(`/v1/me/bookings?limit=5&cursor=${p1.body.nextCursor}`).set(bearer(t1));
+    const p2 = await request(app).get(`/api/v1/me/bookings?limit=5&cursor=${p1.body.nextCursor}`).set(bearer(t1));
     expect(p2.body.items).toHaveLength(1);
     expect(p2.body.nextCursor).toBeNull();
-    const all = await request(app).get('/v1/me/bookings').set(bearer(t1));
+    const all = await request(app).get('/api/v1/me/bookings').set(bearer(t1));
     expect(all.body.items).toHaveLength(2); // 2 đơn của Lan Anh (đơn 0001 + 0004), không có đơn của Binh / vãng lai
     expect(all.body.items[0]).toMatchObject({ code: expect.any(String), status: 'CONFIRMED', guest: { phone: '+84912345678' } });
     expect(JSON.stringify(all.body)).not.toMatch(/hotelId|accountId|statusHistory/);
-    const b = await request(app).get('/v1/me/bookings').set(bearer(t2));
+    const b = await request(app).get('/api/v1/me/bookings').set(bearer(t2));
     expect(b.body.items).toHaveLength(1);
     expect(all.body.items.map((i: { code: string }) => i.code)).not.toContain(b.body.items[0].code);
-    expect((await request(app).get('/v1/me/bookings')).status).toBe(401);
+    expect((await request(app).get('/api/v1/me/bookings')).status).toBe(401);
   });
 
-  it('token khách bị chặn ở /v1/hotel/* và /v1/admin/*, token nhân sự không dùng được /v1/me', async () => {
+  it('token khách bị chặn ở /api/v1/hotel/* và /api/v1/admin/*, token nhân sự không dùng được /api/v1/me', async () => {
     const t = (await login({ username: 'Binh', password: 'MatKhau123' }, 9)).body.token as string;
-    for (const path of ['/v1/admin/accounts', '/v1/admin/roles', '/v1/admin/permissions', '/v1/admin/audit-logs', '/v1/admin/dashboard', '/v1/admin/hotels', '/v1/admin/bookings', '/v1/hotel/bookings', '/v1/hotel/room-types', '/v1/hotel/profile', '/v1/hotel/stats', '/v1/hotel/shuttle-requests', '/v1/hotel/change-requests']) {
+    for (const path of ['/api/v1/admin/accounts', '/api/v1/admin/roles', '/api/v1/admin/permissions', '/api/v1/admin/audit-logs', '/api/v1/admin/dashboard', '/api/v1/admin/hotels', '/api/v1/admin/bookings', '/api/v1/hotel/bookings', '/api/v1/hotel/room-types', '/api/v1/hotel/profile', '/api/v1/hotel/stats', '/api/v1/hotel/shuttle-requests', '/api/v1/hotel/change-requests']) {
       const r = await request(app).get(path).set(bearer(t));
       expect(r.status, path).toBe(403);
     }
-    expect((await request(app).post('/v1/admin/accounts').set(bearer(t)).send({})).status).toBe(403);
+    expect((await request(app).post('/api/v1/admin/accounts').set(bearer(t)).send({})).status).toBe(403);
     const staff = await mkStaff(hotelId, [PERM.BOOKING_READ]);
-    expect((await request(app).get('/v1/me/bookings').set(bearer(staff.token))).status).toBe(403);
+    expect((await request(app).get('/api/v1/me/bookings').set(bearer(staff.token))).status).toBe(403);
   });
 
   it('tài khoản khách bị khóa: token cũ -> 401 ACCOUNT_INACTIVE, đăng nhập -> 401 INVALID_CREDENTIALS', async () => {
     const reg = await register({ username: 'Khoa', password: 'MatKhau123' }, 10);
     await db.query("UPDATE accounts SET status = 'LOCKED' WHERE username = 'Khoa'");
-    const me = await request(app).get('/v1/me/bookings').set(bearer(reg.body.token));
+    const me = await request(app).get('/api/v1/me/bookings').set(bearer(reg.body.token));
     expect(me.status).toBe(401);
     expect(me.body.error.code).toBe('ACCOUNT_INACTIVE');
     expect((await login({ username: 'Khoa', password: 'MatKhau123' }, 10)).body.error.code).toBe('INVALID_CREDENTIALS');
@@ -176,7 +176,7 @@ run('tích hợp: tài khoản khách (PASSENGER)', () => {
 
   it('admin liệt kê tài khoản không lẫn PASSENGER', async () => {
     const a = await mkAdmin([PERM.ADMIN_ACCOUNT_MANAGE]);
-    const list = await request(app).get('/v1/admin/accounts?limit=100').set(bearer(a.token));
+    const list = await request(app).get('/api/v1/admin/accounts?limit=100').set(bearer(a.token));
     expect(list.status).toBe(200);
     expect(list.body.items.every((i: { type: string }) => i.type === 'ADMIN')).toBe(true);
   });

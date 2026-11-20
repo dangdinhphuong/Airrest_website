@@ -89,9 +89,9 @@ run('tích hợp: đơn PAYER (createPayerBooking)', () => {
     expect((r.find((x) => x.status === 'rejected') as PromiseRejectedResult).reason).toMatchObject({ code: 'SOLD_OUT' });
   });
 
-  it('PAYER không tạo được qua POST /v1/bookings (422)', async () => {
+  it('PAYER không tạo được qua POST /api/v1/bookings (422)', async () => {
     const rt = await mkRoomType(H, 1);
-    const res = await request(createApp()).post('/v1/bookings').set('Idempotency-Key', `py-${Date.now()}`).send({ hotelId: H, rooms: [{ roomTypeId: rt, qty: 1 }], paymentMethod: 'PAYER', ...Object.fromEntries(Object.entries(win(20)).map(([k, v]) => [k, v.toISOString()])), guest });
+    const res = await request(createApp()).post('/api/v1/bookings').set('Idempotency-Key', `py-${Date.now()}`).send({ hotelId: H, rooms: [{ roomTypeId: rt, qty: 1 }], paymentMethod: 'PAYER', ...Object.fromEntries(Object.entries(win(20)).map(([k, v]) => [k, v.toISOString()])), guest });
     expect(res.status).toBe(422);
   });
 });

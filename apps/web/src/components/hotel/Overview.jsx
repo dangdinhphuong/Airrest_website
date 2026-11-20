@@ -6,7 +6,7 @@ import { getStats } from '../../data/hotel';
 import { money } from '../../lib/time';
 import { fmtD, fmtDT, today, useLoad } from './kit';
 
-// GET /v1/hotel/stats?from&to: mọi số liệu theo ngày nhận phòng; mặc định 30 ngày trước đến 30 ngày sau hôm nay (tối đa 92 ngày).
+// GET /api/v1/hotel/stats?from&to: mọi số liệu theo ngày nhận phòng; mặc định 30 ngày trước đến 30 ngày sau hôm nay (tối đa 92 ngày).
 export default function Overview() {
   const [from, setFrom] = useState(today(-30));
   const [to, setTo] = useState(today(30));

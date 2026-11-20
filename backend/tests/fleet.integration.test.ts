@@ -32,9 +32,9 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     const owner = (await mkStaff(hotelId, [PERM.FLEET_MANAGE, PERM.BOOKING_READ])).token;
     const ctx: Ctx = { hotelId, rt, owner, vehicles: [], drivers: [] };
     for (const s of seats) {
-      const v = await call('post', '/v1/hotel/vehicles', owner, { plate: `30A-${String(++seqPlate).padStart(5, '0')}`, seats: s, model: `Xe ${s} chỗ` });
+      const v = await call('post', '/api/v1/hotel/vehicles', owner, { plate: `30A-${String(++seqPlate).padStart(5, '0')}`, seats: s, model: `Xe ${s} chỗ` });
       expect(v.status, JSON.stringify(v.body)).toBe(201);
-      const d = await call('post', '/v1/hotel/drivers', owner, { email: `d${randomUUID().slice(0, 8)}@airrest.vn`, password: 'MatKhau-Tai-Xe-1', fullName: `Tài xế ${s}`, phone: '0988777666', vehicleId: v.body.vehicle.id });
+      const d = await call('post', '/api/v1/hotel/drivers', owner, { email: `d${randomUUID().slice(0, 8)}@airrest.vn`, password: 'MatKhau-Tai-Xe-1', fullName: `Tài xế ${s}`, phone: '0988777666', vehicleId: v.body.vehicle.id });
       expect(d.status, JSON.stringify(d.body)).toBe(201);
       ctx.vehicles.push(v.body.vehicle.id);
       ctx.drivers.push({ id: d.body.driver.accountId, token: signAccountToken({ sub: d.body.driver.accountId, accountType: 'DRIVER' }) });
@@ -44,7 +44,7 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
   // Đơn CONFIRMED có giờ nhận phòng gần (để giờ đón trong 30 phút nằm trong cửa sổ lưu trú).
   // `guests` = số người của đơn: yêu cầu xe mặc định lấy số này và không được vượt (mặc định 10 để các ca đoàn gửi passengers <= 10).
   const mkBooking = async (c: Ctx, guests = 10) => {
-    const res = await call('post', '/v1/bookings').set('Idempotency-Key', `fb-${randomUUID()}`).send({
+    const res = await call('post', '/api/v1/bookings').set('Idempotency-Key', `fb-${randomUUID()}`).send({
       hotelId: c.hotelId, roomTypeId: c.rt, qty: 1, paymentMethod: 'AT_HOTEL', from: new Date(Date.now() + 30 * MIN).toISOString(), to: new Date(Date.now() + 30 * MIN + 86400_000).toISOString(),
       guest: { fullName: 'Khách Đoàn', phone: '0912345678' },
     });
@@ -53,11 +53,11 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     await db.query("UPDATE bookings SET guest = guest || jsonb_build_object('count', $2::int) WHERE code = $1", [code, guests]);
     return { id: (await one<{ id: string }>('SELECT id FROM bookings WHERE code = $1', [code]))!.id, code, phone: '0912345678' };
   };
-  const guest = (path: string, body: object, key?: string) => call('post', `/v1/shuttle-requests${path}`).set(key ? { 'Idempotency-Key': key } : {}).send(body);
+  const guest = (path: string, body: object, key?: string) => call('post', `/api/v1/shuttle-requests${path}`).set(key ? { 'Idempotency-Key': key } : {}).send(body);
   const reqShuttle = (b: { code: string; phone: string }, passengers: number, minutes = 20, direction = 'TO_HOTEL') =>
     guest('', { code: b.code, phone: b.phone, direction, airport: 'HAN', pickupAt: new Date(Date.now() + minutes * MIN).toISOString(), passengers }, `sh-${randomUUID()}`);
   const lookup = (b: { code: string; phone: string }) => guest('/lookup', { code: b.code, phone: b.phone });
-  const act = (token: string, id: string, action: string, body: object = {}) => call('post', `/v1/driver/trips/${id}/${action}`, token, body);
+  const act = (token: string, id: string, action: string, body: object = {}) => call('post', `/api/v1/driver/trips/${id}/${action}`, token, body);
   const tripsOf = (requestId: string) => db.query<any>('SELECT * FROM shuttle_trips WHERE request_id = $1 ORDER BY seq', [requestId]).then((r) => r.rows);
 
   beforeAll(async () => {
@@ -95,14 +95,14 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     expect(before.body.stage).toBe('BOOKED');
 
     // Tài xế thấy chuyến của mình kèm thông tin khách để đón.
-    const mine = await call('get', '/v1/driver/trips', c.drivers[0]!.token);
+    const mine = await call('get', '/api/v1/driver/trips', c.drivers[0]!.token);
     expect(mine.status).toBe(200);
     expect(mine.body.items).toHaveLength(1);
     expect(mine.body.items[0]).toMatchObject({ status: 'OFFERED', guest: { fullName: 'Khách Đoàn', phone: '+84912345678' }, request: { passengers: 5, direction: 'TO_HOTEL' } });
 
     // Cả hai tài xế nhận và chạy hết các bước.
     for (const d of c.drivers) {
-      const tid = (await call('get', '/v1/driver/trips', d.token)).body.items[0].id as string;
+      const tid = (await call('get', '/api/v1/driver/trips', d.token)).body.items[0].id as string;
       expect((await act(d.token, tid, 'accept')).body.trip.status).toBe('ACCEPTED');
       if (d === c.drivers[0]) {
         const after = await lookup(b);
@@ -120,23 +120,23 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     expect((await one<any>('SELECT status, completed_at FROM shuttle_requests WHERE id = $1', [rid]))!.status).toBe('DONE');
 
     // Nhật ký đơn (khách sạn + admin), có phân trang và lịch sử trạng thái ở trang đầu.
-    const ev = await call('get', `/v1/hotel/bookings/${b.id}/events?limit=200`, c.owner);
+    const ev = await call('get', `/api/v1/hotel/bookings/${b.id}/events?limit=200`, c.owner);
     expect(ev.status).toBe(200);
     const types = ev.body.items.map((e: any) => e.type);
     for (const t of ['SHUTTLE_REQUESTED', 'TRIP_OFFERED', 'TRIP_ACCEPTED', 'TRIP_EN_ROUTE', 'TRIP_ARRIVED', 'TRIP_ONBOARD', 'TRIP_DROPPED_OFF', 'SHUTTLE_DONE']) expect(types, t).toContain(t);
     expect(ev.body.statusHistory).toBeDefined();
-    const page = await call('get', `/v1/hotel/bookings/${b.id}/events?limit=2`, c.owner);
+    const page = await call('get', `/api/v1/hotel/bookings/${b.id}/events?limit=2`, c.owner);
     expect(page.body.items).toHaveLength(2);
     expect(page.body.nextCursor).not.toBeNull();
     expect(page.body.statusHistory).toBeDefined();
-    const page2 = await call('get', `/v1/hotel/bookings/${b.id}/events?limit=2&cursor=${page.body.nextCursor}`, c.owner);
+    const page2 = await call('get', `/api/v1/hotel/bookings/${b.id}/events?limit=2&cursor=${page.body.nextCursor}`, c.owner);
     expect(page2.body.items[0].seq).toBeGreaterThan(page.body.nextCursor);
     expect(page2.body.statusHistory).toBeUndefined();
     const other = (await mkStaff(await mkHotel(), [PERM.BOOKING_READ])).token;
-    expect((await call('get', `/v1/hotel/bookings/${b.id}/events`, other)).status).toBe(404);
+    expect((await call('get', `/api/v1/hotel/bookings/${b.id}/events`, other)).status).toBe(404);
     const adm = (await mkAdmin([PERM.ADMIN_BOOKING_READ])).token;
-    expect((await call('get', `/v1/admin/bookings/${b.id}/events`, adm)).body.items.length).toBe(ev.body.items.length);
-    expect((await call('get', `/v1/admin/bookings/${b.id}/events`, c.owner)).status).toBe(403);
+    expect((await call('get', `/api/v1/admin/bookings/${b.id}/events`, adm)).body.items.length).toBe(ev.body.items.length);
+    expect((await call('get', `/api/v1/admin/bookings/${b.id}/events`, c.owner)).status).toBe(403);
     // Khách xem bản rút gọn: có loại sự kiện + thời điểm, không có actor.
     const g = (await lookup(b)).body;
     expect(g.stage).toBe('BOOKED'); // chiều đón xong nhưng chưa check-in
@@ -174,7 +174,7 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     expect(t).toMatchObject({ kind: 'EXTERNAL', status: 'NEEDS_EXTERNAL', seats: 3 });
 
     const dispatcher = (await mkStaff(c.hotelId, [PERM.SHUTTLE_HANDLE])).token; // lễ tân có shuttle:handle vẫn xử lý được xe ngoài
-    const board = await call('get', '/v1/hotel/shuttle/board', dispatcher);
+    const board = await call('get', '/api/v1/hotel/shuttle/board', dispatcher);
     expect(board.status).toBe(200);
     expect(board.body.alerts).toEqual([expect.objectContaining({ tripId: t.id, overdue: true })]);
     expect(board.body.alerts[0].deadlineAt).toBeTruthy();
@@ -186,7 +186,7 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     expect(g1.body.shuttles[0].trips[0].message).toContain('Xe của khách sạn hiện đã hết');
     expect(g1.body.shuttles[0].trips[0].shareUrl).toBeUndefined();
 
-    const ext = (body: object) => call('post', `/v1/hotel/shuttle-trips/${t.id}/external`, dispatcher, body);
+    const ext = (body: object) => call('post', `/api/v1/hotel/shuttle-trips/${t.id}/external`, dispatcher, body);
     for (const shareUrl of ['http://grab.com/x', 'javascript:alert(1)', 'https://evil.example.com/x', 'https://evilgrab.com/x', 'https://127.0.0.1/x', 'https://user:p@grab.com/x', `https://grab.com/${'a'.repeat(500)}`]) {
       const r = await ext({ provider: 'GRAB', shareUrl });
       expect(r.status, shareUrl).toBe(422);
@@ -203,7 +203,7 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     expect(await count('audit_logs', "action = 'TRIP.EXTERNAL_SET'")).toBe(1);
 
     // Các bước do nhân sự bấm (không có bước start cho xe ngoài).
-    const step = (a: string) => call('post', `/v1/hotel/shuttle-trips/${t.id}/${a}`, dispatcher, {});
+    const step = (a: string) => call('post', `/api/v1/hotel/shuttle-trips/${t.id}/${a}`, dispatcher, {});
     expect((await step('onboard')).body.error.code).toBe('INVALID_TRANSITION');
     expect((await step('arrived')).body.trip.status).toBe('ARRIVED');
     expect((await step('onboard')).body.trip.status).toBe('ONBOARD');
@@ -217,20 +217,20 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     const rid = (await reqShuttle(b, 4)).body.shuttle.id as string;
     const [own] = await tripsOf(rid);
     const staff = (await mkStaff(c.hotelId, [PERM.FLEET_MANAGE])).token;
-    expect((await call('post', `/v1/hotel/shuttle-trips/${own.id}/arrived`, staff, {})).body.error.code).toBe('NOT_EXTERNAL_TRIP');
-    expect((await call('post', `/v1/hotel/shuttle-trips/${own.id}/external`, staff, { provider: 'GRAB', shareUrl: 'https://grab.com/x' })).body.error.code).toBe('NOT_EXTERNAL_TRIP');
+    expect((await call('post', `/api/v1/hotel/shuttle-trips/${own.id}/arrived`, staff, {})).body.error.code).toBe('NOT_EXTERNAL_TRIP');
+    expect((await call('post', `/api/v1/hotel/shuttle-trips/${own.id}/external`, staff, { provider: 'GRAB', shareUrl: 'https://grab.com/x' })).body.error.code).toBe('NOT_EXTERNAL_TRIP');
     // Chuyến 4 khách hủy -> yêu cầu mới 3 khách thiếu xe (xe duy nhất đang bận) -> xe ngoài.
     const b2 = await mkBooking(c);
     const rid2 = (await reqShuttle(b2, 3, 25)).body.shuttle.id as string;
     const [x] = await tripsOf(rid2);
     expect(x.status).toBe('NEEDS_EXTERNAL'); // xe trùng giờ (lệch 5 phút < 90) bị loại
     const otherHotel = (await mkStaff(await mkHotel(), [PERM.FLEET_MANAGE])).token;
-    expect((await call('post', `/v1/hotel/shuttle-trips/${x.id}/external`, otherHotel, { provider: 'GRAB', shareUrl: 'https://grab.com/x' })).status).toBe(404);
-    expect((await call('post', `/v1/hotel/shuttle-trips/${x.id}/cancel`, otherHotel, { note: 'thử hủy' })).status).toBe(404);
-    expect((await call('post', `/v1/hotel/shuttle-trips/${x.id}/external`, staff, { provider: 'XANHSM', shareUrl: 'https://xanhsm.com/s/1' })).body.trip.status).toBe('ACCEPTED');
-    expect((await call('post', `/v1/hotel/shuttle-trips/${x.id}/external`, staff, { provider: 'GRAB', shareUrl: 'https://grab.com/s/2' })).body.trip.external.provider).toBe('GRAB'); // đổi xe ngoài
-    expect((await call('post', `/v1/hotel/shuttle-trips/${x.id}/cancel`, staff, { note: 'Khách tự đi' })).body.trip.status).toBe('CANCELLED');
-    expect((await call('post', `/v1/hotel/shuttle-trips/${x.id}/cancel`, staff, { note: 'Khách tự đi' })).status).toBe(409);
+    expect((await call('post', `/api/v1/hotel/shuttle-trips/${x.id}/external`, otherHotel, { provider: 'GRAB', shareUrl: 'https://grab.com/x' })).status).toBe(404);
+    expect((await call('post', `/api/v1/hotel/shuttle-trips/${x.id}/cancel`, otherHotel, { note: 'thử hủy' })).status).toBe(404);
+    expect((await call('post', `/api/v1/hotel/shuttle-trips/${x.id}/external`, staff, { provider: 'XANHSM', shareUrl: 'https://xanhsm.com/s/1' })).body.trip.status).toBe('ACCEPTED');
+    expect((await call('post', `/api/v1/hotel/shuttle-trips/${x.id}/external`, staff, { provider: 'GRAB', shareUrl: 'https://grab.com/s/2' })).body.trip.external.provider).toBe('GRAB'); // đổi xe ngoài
+    expect((await call('post', `/api/v1/hotel/shuttle-trips/${x.id}/cancel`, staff, { note: 'Khách tự đi' })).body.trip.status).toBe('CANCELLED');
+    expect((await call('post', `/api/v1/hotel/shuttle-trips/${x.id}/cancel`, staff, { note: 'Khách tự đi' })).status).toBe(409);
     expect(await one<any>('SELECT status FROM shuttle_requests WHERE id = $1', [rid2])).toMatchObject({ status: 'CANCELLED' }); // hủy chuyến duy nhất -> đóng yêu cầu, không treo REQUESTED
   });
 
@@ -240,9 +240,9 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     const b = await mkBooking(c);
     const rid = (await reqShuttle(b, 8)).body.shuttle.id as string;
     const [t0, t1] = await tripsOf(rid);
-    const mine = await call('get', '/v1/driver/trips', c.drivers[0]!.token);
+    const mine = await call('get', '/api/v1/driver/trips', c.drivers[0]!.token);
     expect(mine.body.items.map((i: any) => i.id)).toEqual([t0.vehicleId === c.vehicles[0] ? t0.id : t1.id]);
-    expect((await call('get', '/v1/driver/trips', c2.drivers[0]!.token)).body.items).toEqual([]);
+    expect((await call('get', '/api/v1/driver/trips', c2.drivers[0]!.token)).body.items).toEqual([]);
     const theirs = t0.vehicleId === c.vehicles[0] ? t1 : t0; // chuyến của tài xế còn lại
     expect((await act(c.drivers[0]!.token, theirs.id, 'accept')).status).toBe(404);
     expect((await act(c2.drivers[0]!.token, theirs.id, 'accept')).status).toBe(404);
@@ -250,18 +250,18 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     expect((await act(c.owner, theirs.id, 'accept')).status).toBe(403); // chủ không có trip:drive
     // Thiếu quyền
     const reader = (await mkStaff(c.hotelId, [PERM.BOOKING_READ])).token;
-    for (const [m, p] of [['get', '/v1/hotel/vehicles'], ['get', '/v1/hotel/drivers'], ['get', '/v1/hotel/shuttle/board'], ['get', '/v1/driver/trips']] as const) expect((await call(m, p, reader)).status, p).toBe(403);
+    for (const [m, p] of [['get', '/api/v1/hotel/vehicles'], ['get', '/api/v1/hotel/drivers'], ['get', '/api/v1/hotel/shuttle/board'], ['get', '/api/v1/driver/trips']] as const) expect((await call(m, p, reader)).status, p).toBe(403);
     const handler = (await mkStaff(c.hotelId, [PERM.SHUTTLE_HANDLE])).token; // shuttle:handle: điều phối được nhưng không quản lý đội xe
-    expect((await call('get', '/v1/hotel/shuttle/board', handler)).status).toBe(200);
-    expect((await call('post', '/v1/hotel/vehicles', handler, { plate: '30A-99999', seats: 4 })).status).toBe(403);
-    expect((await call('get', '/v1/hotel/shuttle/board', c.drivers[0]!.token)).status).toBe(403);
-    expect((await call('get', `/v1/hotel/bookings/${b.id}`, c.drivers[0]!.token)).status).toBe(403);
-    expect((await call('get', '/v1/driver/trips')).status).toBe(401);
-    // Tài xế đăng nhập bằng /v1/auth/login như nhân sự: có hotelId + trip:drive.
+    expect((await call('get', '/api/v1/hotel/shuttle/board', handler)).status).toBe(200);
+    expect((await call('post', '/api/v1/hotel/vehicles', handler, { plate: '30A-99999', seats: 4 })).status).toBe(403);
+    expect((await call('get', '/api/v1/hotel/shuttle/board', c.drivers[0]!.token)).status).toBe(403);
+    expect((await call('get', `/api/v1/hotel/bookings/${b.id}`, c.drivers[0]!.token)).status).toBe(403);
+    expect((await call('get', '/api/v1/driver/trips')).status).toBe(401);
+    // Tài xế đăng nhập bằng /api/v1/auth/login như nhân sự: có hotelId + trip:drive.
     const email = (await one<{ email: string }>('SELECT email FROM accounts WHERE id = $1', [c.drivers[0]!.id]))!.email;
-    const login = await call('post', '/v1/auth/login', undefined, { email, password: 'MatKhau-Tai-Xe-1' });
+    const login = await call('post', '/api/v1/auth/login', undefined, { email, password: 'MatKhau-Tai-Xe-1' });
     expect(login.body.account).toMatchObject({ type: 'DRIVER', permissions: [PERM.TRIP_DRIVE] });
-    expect((await call('get', '/v1/driver/trips', login.body.token)).status).toBe(200);
+    expect((await call('get', '/api/v1/driver/trips', login.body.token)).status).toBe(200);
     // Vai trò mặc định: chủ khách sạn có fleet:manage, tài xế chỉ trip:drive.
     const ownerRole = (await one<{ permissions: string[] }>("SELECT permissions FROM roles WHERE key = 'hotel_owner' AND hotel_id IS NULL"))!;
     expect(ownerRole.permissions).toContain(PERM.FLEET_MANAGE);
@@ -309,7 +309,7 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     expect((await one<any>('SELECT status FROM bookings WHERE id = $1', [b.id]))!.status).toBe('PENDING');
     const rid = (await reqShuttle(b, 2)).body.shuttle.id as string;
     expect(await tripsOf(rid)).toHaveLength(0);
-    expect((await call('post', `/v1/hotel/bookings/${b.id}/confirm`, manual, {})).status).toBe(200);
+    expect((await call('post', `/api/v1/hotel/bookings/${b.id}/confirm`, manual, {})).status).toBe(200);
     expect(await tripsOf(rid)).toHaveLength(1);
     await db.query("UPDATE hotels SET approval = '{\"manual\":false}'::jsonb WHERE id = $1", [c.hotelId]);
   });
@@ -357,10 +357,10 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     const b = await mkBooking(c);
     const rid = (await reqShuttle(b, 2)).body.shuttle.id as string;
     const reqStaff = (await mkStaff(c.hotelId, [PERM.REQUEST_HANDLE])).token;
-    const cr = await call('post', '/v1/change-requests').set('Idempotency-Key', `cx-${randomUUID()}`).send({ code: b.code, phone: b.phone, type: 'CANCEL', reasonCode: 'HEALTH' });
-    expect((await call('post', `/v1/hotel/change-requests/${cr.body.request.id}/approve`, reqStaff, {})).status).toBe(200);
+    const cr = await call('post', '/api/v1/change-requests').set('Idempotency-Key', `cx-${randomUUID()}`).send({ code: b.code, phone: b.phone, type: 'CANCEL', reasonCode: 'HEALTH' });
+    expect((await call('post', `/api/v1/hotel/change-requests/${cr.body.request.id}/approve`, reqStaff, {})).status).toBe(200);
     expect((await tripsOf(rid))[0].status).toBe('CANCELLED');
-    expect((await call('get', '/v1/driver/trips', c.drivers[0]!.token)).body.items).toEqual([]);
+    expect((await call('get', '/api/v1/driver/trips', c.drivers[0]!.token)).body.items).toEqual([]);
     expect(await count('booking_events', "booking_id = $1 AND type = 'TRIP_CANCELLED'", [b.id])).toBe(1);
   });
 
@@ -371,7 +371,7 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     const [t] = await tripsOf(rid);
     expect([c.vehicles[0], c.vehicles[2]]).toContain(t.vehicleId); // một trong hai xe 4 chỗ (nhỏ nhất đủ chỗ), không phải xe 7
     const staff = (await mkStaff(c.hotelId, [PERM.FLEET_MANAGE])).token;
-    const re = (v: string) => call('post', `/v1/hotel/shuttle-trips/${t.id}/reassign`, staff, { vehicleId: v });
+    const re = (v: string) => call('post', `/api/v1/hotel/shuttle-trips/${t.id}/reassign`, staff, { vehicleId: v });
     expect((await re(randomUUID())).status).toBe(404);
     // Xe khách sạn khác không đổi được.
     const foreign = await setup([4]);
@@ -380,19 +380,19 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     const ok = await re(c.vehicles[1]!);
     expect(ok.status, JSON.stringify(ok.body)).toBe(200);
     expect(ok.body.trip).toMatchObject({ status: 'OFFERED', vehicle: { id: c.vehicles[1] } });
-    expect((await call('get', '/v1/driver/trips', c.drivers[c.vehicles.indexOf(t.vehicleId)]!.token)).body.items).toEqual([]); // tài xế cũ không còn thấy
-    expect((await call('get', '/v1/driver/trips', c.drivers[1]!.token)).body.items).toHaveLength(1);
+    expect((await call('get', '/api/v1/driver/trips', c.drivers[c.vehicles.indexOf(t.vehicleId)]!.token)).body.items).toEqual([]); // tài xế cũ không còn thấy
+    expect((await call('get', '/api/v1/driver/trips', c.drivers[1]!.token)).body.items).toHaveLength(1);
     // Xe 4 chỗ thứ hai bận với yêu cầu khác cùng giờ -> không đổi sang được; xe quá nhỏ -> 422.
     const b2 = await mkBooking(c);
     const rid2 = (await reqShuttle(b2, 4, 25)).body.shuttle.id as string;
     const [t2] = await tripsOf(rid2);
     expect([c.vehicles[0], c.vehicles[2]]).toContain(t2.vehicleId);
-    expect((await call('post', `/v1/hotel/shuttle-trips/${t2.id}/reassign`, staff, { vehicleId: c.vehicles[1]! })).body.error.code).toBe('VEHICLE_UNAVAILABLE');
-    expect((await call('post', `/v1/hotel/shuttle-trips/${t.id}/reassign`, staff, { vehicleId: c.vehicles.find((v, i) => i !== 1 && v !== t2.vehicleId)! })).status).toBe(200);
+    expect((await call('post', `/api/v1/hotel/shuttle-trips/${t2.id}/reassign`, staff, { vehicleId: c.vehicles[1]! })).body.error.code).toBe('VEHICLE_UNAVAILABLE');
+    expect((await call('post', `/api/v1/hotel/shuttle-trips/${t.id}/reassign`, staff, { vehicleId: c.vehicles.find((v, i) => i !== 1 && v !== t2.vehicleId)! })).status).toBe(200);
     // Endpoint cũ: gán tay/hoàn tất bị chặn (chuyến là nguồn sự thật), hủy cũ hủy luôn chuyến.
     const legacy = (await mkStaff(c.hotelId, [PERM.SHUTTLE_HANDLE])).token;
-    expect((await call('post', `/v1/hotel/shuttle-requests/${rid}/assign`, legacy, { driverName: 'Nguyễn Văn A', driverPhone: '0988777666' })).body.error.code).toBe('USE_TRIP_FLOW');
-    expect((await call('post', `/v1/hotel/shuttle-requests/${rid}/cancel`, legacy, { note: 'Khách báo hủy' })).body.shuttle.status).toBe('CANCELLED');
+    expect((await call('post', `/api/v1/hotel/shuttle-requests/${rid}/assign`, legacy, { driverName: 'Nguyễn Văn A', driverPhone: '0988777666' })).body.error.code).toBe('USE_TRIP_FLOW');
+    expect((await call('post', `/api/v1/hotel/shuttle-requests/${rid}/cancel`, legacy, { note: 'Khách báo hủy' })).body.shuttle.status).toBe('CANCELLED');
     expect((await tripsOf(rid)).every((x) => x.status === 'CANCELLED')).toBe(true);
     // Chuyến đã chạy thì không đổi xe.
     const small = await setup([4, 4]);
@@ -400,29 +400,29 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     const [st] = await tripsOf((await reqShuttle(sb, 4)).body.shuttle.id);
     await act(small.drivers[small.vehicles.indexOf(st.vehicleId)]!.token, st.id, 'accept');
     await act(small.drivers[small.vehicles.indexOf(st.vehicleId)]!.token, st.id, 'start');
-    expect((await call('post', `/v1/hotel/shuttle-trips/${st.id}/reassign`, (await mkStaff(small.hotelId, [PERM.FLEET_MANAGE])).token, { vehicleId: small.vehicles.find((v) => v !== st.vehicleId)! })).body.error.code).toBe('INVALID_TRANSITION');
+    expect((await call('post', `/api/v1/hotel/shuttle-trips/${st.id}/reassign`, (await mkStaff(small.hotelId, [PERM.FLEET_MANAGE])).token, { vehicleId: small.vehicles.find((v) => v !== st.vehicleId)! })).body.error.code).toBe('INVALID_TRANSITION');
   });
 
   it('đội xe: CRUD xe/tài xế, validation, cách ly khách sạn, xóa mềm khi đã có chuyến', async () => {
     const c = await setup([]);
     const post = (p: string, b: object, t = c.owner) => call('post', p, t, b);
     // Xe
-    expect((await post('/v1/hotel/vehicles', { plate: 'ab', seats: 4 })).status).toBe(422);
-    expect((await post('/v1/hotel/vehicles', { plate: '30A-12345', seats: 0 })).status).toBe(422);
-    expect((await post('/v1/hotel/vehicles', { plate: '30A-12345', seats: 51 })).status).toBe(422);
-    expect((await post('/v1/hotel/vehicles', { plate: '30A-12345', seats: 4, hotelId: randomUUID() })).status).toBe(422); // strict
-    const v = await post('/v1/hotel/vehicles', { plate: '30a-123.45', seats: 4, model: 'Vios' });
+    expect((await post('/api/v1/hotel/vehicles', { plate: 'ab', seats: 4 })).status).toBe(422);
+    expect((await post('/api/v1/hotel/vehicles', { plate: '30A-12345', seats: 0 })).status).toBe(422);
+    expect((await post('/api/v1/hotel/vehicles', { plate: '30A-12345', seats: 51 })).status).toBe(422);
+    expect((await post('/api/v1/hotel/vehicles', { plate: '30A-12345', seats: 4, hotelId: randomUUID() })).status).toBe(422); // strict
+    const v = await post('/api/v1/hotel/vehicles', { plate: '30a-123.45', seats: 4, model: 'Vios' });
     expect(v.status).toBe(201);
     expect(v.body.vehicle).toMatchObject({ plate: '30A-123.45', seats: 4, model: 'Vios', active: true, driver: null });
-    expect((await post('/v1/hotel/vehicles', { plate: '30A-123.45', seats: 7 })).body.error.code).toBe('PLATE_TAKEN');
+    expect((await post('/api/v1/hotel/vehicles', { plate: '30A-123.45', seats: 7 })).body.error.code).toBe('PLATE_TAKEN');
     const other = await setup([]);
-    expect((await post('/v1/hotel/vehicles', { plate: '30A-123.45', seats: 7 }, other.owner)).status).toBe(201); // trùng biển ở khách sạn khác được
-    expect((await call('patch', `/v1/hotel/vehicles/${v.body.vehicle.id}`, other.owner, { seats: 5 })).status).toBe(404);
-    expect((await call('delete', `/v1/hotel/vehicles/${v.body.vehicle.id}`, other.owner)).status).toBe(404);
-    expect((await call('patch', `/v1/hotel/vehicles/${v.body.vehicle.id}`, c.owner, {})).status).toBe(422);
-    expect((await call('patch', `/v1/hotel/vehicles/${v.body.vehicle.id}`, c.owner, { seats: 7, model: null })).body.vehicle).toMatchObject({ seats: 7, model: null });
+    expect((await post('/api/v1/hotel/vehicles', { plate: '30A-123.45', seats: 7 }, other.owner)).status).toBe(201); // trùng biển ở khách sạn khác được
+    expect((await call('patch', `/api/v1/hotel/vehicles/${v.body.vehicle.id}`, other.owner, { seats: 5 })).status).toBe(404);
+    expect((await call('delete', `/api/v1/hotel/vehicles/${v.body.vehicle.id}`, other.owner)).status).toBe(404);
+    expect((await call('patch', `/api/v1/hotel/vehicles/${v.body.vehicle.id}`, c.owner, {})).status).toBe(422);
+    expect((await call('patch', `/api/v1/hotel/vehicles/${v.body.vehicle.id}`, c.owner, { seats: 7, model: null })).body.vehicle).toMatchObject({ seats: 7, model: null });
     // Tài xế
-    const drv = (o: object = {}) => post('/v1/hotel/drivers', { email: `t${randomUUID().slice(0, 6)}@airrest.vn`, password: 'MatKhau-Tai-Xe-1', fullName: 'Phạm Tài Xế', phone: '0911222333', ...o });
+    const drv = (o: object = {}) => post('/api/v1/hotel/drivers', { email: `t${randomUUID().slice(0, 6)}@airrest.vn`, password: 'MatKhau-Tai-Xe-1', fullName: 'Phạm Tài Xế', phone: '0911222333', ...o });
     expect((await drv({ password: 'ngan' })).status).toBe(422);
     expect((await drv({ phone: '123' })).status).toBe(422);
     expect((await drv({ photoKey: 'hotels/2026/x.jpg' })).status).toBe(422);
@@ -438,39 +438,39 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     expect((await drv({ email: 'tx.dup@airrest.vn' })).body.error.code).toBe('EMAIL_TAKEN');
     expect((await drv({ vehicleId: v.body.vehicle.id })).body.error.code).toBe('VEHICLE_HAS_DRIVER');
     expect((await drv({ vehicleId: randomUUID() })).status).toBe(404);
-    expect((await call('get', '/v1/hotel/vehicles', c.owner)).body.items[0].driver).toMatchObject({ name: 'Phạm Tài Xế', photoUrl: `https://pub-test.r2.dev/${key}` });
-    expect((await call('get', '/v1/hotel/drivers', other.owner)).body.items).toEqual([]);
-    expect((await call('patch', `/v1/hotel/drivers/${d1.body.driver.accountId}`, other.owner, { fullName: 'Kẻ lạ' })).status).toBe(404);
-    expect((await call('delete', `/v1/hotel/drivers/${d1.body.driver.accountId}`, other.owner)).status).toBe(404);
-    const upd = await call('patch', `/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner, { fullName: 'Phạm Mới', photoKey: null, vehicleId: null });
+    expect((await call('get', '/api/v1/hotel/vehicles', c.owner)).body.items[0].driver).toMatchObject({ name: 'Phạm Tài Xế', photoUrl: `https://pub-test.r2.dev/${key}` });
+    expect((await call('get', '/api/v1/hotel/drivers', other.owner)).body.items).toEqual([]);
+    expect((await call('patch', `/api/v1/hotel/drivers/${d1.body.driver.accountId}`, other.owner, { fullName: 'Kẻ lạ' })).status).toBe(404);
+    expect((await call('delete', `/api/v1/hotel/drivers/${d1.body.driver.accountId}`, other.owner)).status).toBe(404);
+    const upd = await call('patch', `/api/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner, { fullName: 'Phạm Mới', photoKey: null, vehicleId: null });
     expect(upd.body.driver).toMatchObject({ fullName: 'Phạm Mới', photoKey: null, photoUrl: null, vehicleId: null });
-    expect((await call('patch', `/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner, { vehicleId: v.body.vehicle.id })).status).toBe(200);
+    expect((await call('patch', `/api/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner, { vehicleId: v.body.vehicle.id })).status).toBe(200);
     // Khóa tài xế: không đăng nhập được
-    expect((await call('patch', `/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner, { active: false })).body.driver.active).toBe(false);
-    expect((await call('post', '/v1/auth/login', undefined, { email: 'tx.dup@airrest.vn', password: 'MatKhau-Tai-Xe-1' })).status).toBe(401);
-    expect((await call('patch', `/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner, { active: true, password: 'MatKhauMoi-123456' })).status).toBe(200);
-    expect((await call('post', '/v1/auth/login', undefined, { email: 'tx.dup@airrest.vn', password: 'MatKhauMoi-123456' })).status).toBe(200);
+    expect((await call('patch', `/api/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner, { active: false })).body.driver.active).toBe(false);
+    expect((await call('post', '/api/v1/auth/login', undefined, { email: 'tx.dup@airrest.vn', password: 'MatKhau-Tai-Xe-1' })).status).toBe(401);
+    expect((await call('patch', `/api/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner, { active: true, password: 'MatKhauMoi-123456' })).status).toBe(200);
+    expect((await call('post', '/api/v1/auth/login', undefined, { email: 'tx.dup@airrest.vn', password: 'MatKhauMoi-123456' })).status).toBe(200);
     expect(await count('audit_logs', "action IN ('VEHICLE.CREATE','VEHICLE.UPDATE','DRIVER.CREATE','DRIVER.UPDATE') AND hotel_id = $1", [c.hotelId])).toBeGreaterThanOrEqual(7);
     expect(JSON.stringify((await db.query('SELECT after FROM audit_logs WHERE action = \'DRIVER.UPDATE\'')).rows)).not.toContain('MatKhauMoi');
 
     // Xóa: chưa có chuyến -> xóa hẳn; đang có chuyến -> 409; đã có chuyến xong -> chỉ ngừng hoạt động.
-    const spare = await post('/v1/hotel/vehicles', { plate: '30B-00001', seats: 4 });
-    expect((await call('delete', `/v1/hotel/vehicles/${spare.body.vehicle.id}`, c.owner)).body).toEqual({ deleted: true, deactivated: false });
+    const spare = await post('/api/v1/hotel/vehicles', { plate: '30B-00001', seats: 4 });
+    expect((await call('delete', `/api/v1/hotel/vehicles/${spare.body.vehicle.id}`, c.owner)).body).toEqual({ deleted: true, deactivated: false });
     const b = await mkBooking(c);
     const rid = (await reqShuttle(b, 2)).body.shuttle.id as string;
     const [t] = await tripsOf(rid);
     expect(t.vehicleId).toBe(v.body.vehicle.id);
-    expect((await call('delete', `/v1/hotel/vehicles/${v.body.vehicle.id}`, c.owner)).body.error.code).toBe('VEHICLE_IN_USE');
-    expect((await call('delete', `/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner)).body.error.code).toBe('DRIVER_IN_USE');
-    expect((await call('patch', `/v1/hotel/vehicles/${v.body.vehicle.id}`, c.owner, { active: false })).body.error.code).toBe('VEHICLE_IN_USE');
+    expect((await call('delete', `/api/v1/hotel/vehicles/${v.body.vehicle.id}`, c.owner)).body.error.code).toBe('VEHICLE_IN_USE');
+    expect((await call('delete', `/api/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner)).body.error.code).toBe('DRIVER_IN_USE');
+    expect((await call('patch', `/api/v1/hotel/vehicles/${v.body.vehicle.id}`, c.owner, { active: false })).body.error.code).toBe('VEHICLE_IN_USE');
     const dtoken = signAccountToken({ sub: d1.body.driver.accountId, accountType: 'DRIVER' });
     for (const a of ['accept', 'start', 'arrived', 'onboard', 'dropped-off']) expect((await act(dtoken, t.id, a)).status, a).toBe(200);
-    expect((await call('delete', `/v1/hotel/vehicles/${v.body.vehicle.id}`, c.owner)).body).toEqual({ deleted: false, deactivated: true });
-    expect((await call('delete', `/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner)).body).toEqual({ deleted: false, deactivated: true });
-    expect((await call('get', '/v1/hotel/vehicles?active=true', c.owner)).body.items.map((x: any) => x.id)).not.toContain(v.body.vehicle.id);
+    expect((await call('delete', `/api/v1/hotel/vehicles/${v.body.vehicle.id}`, c.owner)).body).toEqual({ deleted: false, deactivated: true });
+    expect((await call('delete', `/api/v1/hotel/drivers/${d1.body.driver.accountId}`, c.owner)).body).toEqual({ deleted: false, deactivated: true });
+    expect((await call('get', '/api/v1/hotel/vehicles?active=true', c.owner)).body.items.map((x: any) => x.id)).not.toContain(v.body.vehicle.id);
     expect((await one<any>('SELECT status FROM accounts WHERE id = $1', [d1.body.driver.accountId]))!.status).toBe('LOCKED');
     const d2 = await drv();
-    expect((await call('delete', `/v1/hotel/drivers/${d2.body.driver.accountId}`, c.owner)).body).toEqual({ deleted: true, deactivated: false });
+    expect((await call('delete', `/api/v1/hotel/drivers/${d2.body.driver.accountId}`, c.owner)).body).toEqual({ deleted: true, deactivated: false });
     expect(await count('accounts', 'id = $1', [d2.body.driver.accountId])).toBe(0);
   });
 
@@ -479,22 +479,22 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     const fleet = (await mkStaff(h, [PERM.FLEET_MANAGE])).token;
     const room = (await mkStaff(h, [PERM.ROOM_MANAGE])).token;
     const body = { folder: 'drivers', contentType: 'image/jpeg', size: 1000 };
-    const ok = await call('post', '/v1/hotel/media/upload-url', fleet, body);
+    const ok = await call('post', '/api/v1/hotel/media/upload-url', fleet, body);
     expect(ok.status, JSON.stringify(ok.body)).toBe(201);
     expect(ok.body.key).toMatch(/^drivers\/\d{4}\/[0-9a-f-]{36}\.jpg$/);
-    expect((await call('post', '/v1/hotel/media/upload-url', room, body)).status).toBe(403);
-    expect((await call('post', '/v1/hotel/media/upload-url', fleet, { ...body, folder: 'hotels' })).status).toBe(403);
-    expect((await call('post', '/v1/hotel/media/upload-url', room, { ...body, folder: 'hotels' })).status).toBe(201);
-    expect((await call('post', '/v1/hotel/media/upload-url', fleet, { ...body, contentType: 'image/gif' })).status).toBe(422);
+    expect((await call('post', '/api/v1/hotel/media/upload-url', room, body)).status).toBe(403);
+    expect((await call('post', '/api/v1/hotel/media/upload-url', fleet, { ...body, folder: 'hotels' })).status).toBe(403);
+    expect((await call('post', '/api/v1/hotel/media/upload-url', room, { ...body, folder: 'hotels' })).status).toBe(201);
+    expect((await call('post', '/api/v1/hotel/media/upload-url', fleet, { ...body, contentType: 'image/gif' })).status).toBe(422);
   });
 
   it('chủ khách sạn thật (vai trò hotel_owner) quản lý được đội xe; quyền admin không có fleet:manage không vào được', async () => {
     const h = await mkHotel();
     const id = await mkAccount({ type: 'HOTEL', email: `own${randomUUID().slice(0, 6)}@airrest.vn`, hotelId: h, roleIds: [await systemRoleId('hotel_owner')] });
     const token = signAccountToken({ sub: id, accountType: 'HOTEL' });
-    expect((await call('post', '/v1/hotel/vehicles', token, { plate: '29A-11111', seats: 4 })).status).toBe(201);
+    expect((await call('post', '/api/v1/hotel/vehicles', token, { plate: '29A-11111', seats: 4 })).status).toBe(201);
     const adm = (await mkAdmin([PERM.ADMIN_HOTEL_READ])).token;
-    expect((await call('get', '/v1/hotel/vehicles', adm)).status).toBe(403);
+    expect((await call('get', '/api/v1/hotel/vehicles', adm)).status).toBe(403);
   });
   it('khách không có mặt: chỉ tài xế được giao, chỉ khi ARRIVED; chuyến + yêu cầu đóng, khách thấy lý do, phí không đổi, có sự kiện', async () => {
     const c = await setup([4, 4]);
@@ -509,7 +509,7 @@ run('tích hợp: đội xe, điều phối, tài xế, xe ngoài', () => {
     expect((await noShow(d)).body.error.code).toBe('INVALID_TRANSITION'); // EN_ROUTE
     await act(d, t.id, 'arrived');
     expect((await noShow(other)).status).toBe(404); // không phải chuyến của tôi
-    expect((await call('post', `/v1/driver/trips/${t.id}/no-show`, c.owner)).status).toBe(403); // thiếu trip:drive
+    expect((await call('post', `/api/v1/driver/trips/${t.id}/no-show`, c.owner)).status).toBe(403); // thiếu trip:drive
     const before = await one<any>('SELECT price_vnd FROM shuttle_requests WHERE id = $1', [rid]);
     const seen: any[] = [];
     const { shuttleBus } = await import('../services/shuttle/events.js');

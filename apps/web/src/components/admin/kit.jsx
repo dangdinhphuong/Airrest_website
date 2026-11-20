@@ -14,7 +14,7 @@ export const isoOrUndef = (v) => (v ? new Date(v).toISOString() : undefined);
 export const endOfDayIso = (v) => vnDayEnd(v)?.toISOString();
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Danh mục sân bay (GET /v1/airports, công khai) tải một lần cho cả phiên.
+// Danh mục sân bay (GET /api/v1/airports, công khai) tải một lần cho cả phiên.
 let airportCache = null;
 export function useAirports() {
   const [s, set] = useState({ items: airportCache || [], err: null });

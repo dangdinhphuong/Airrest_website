@@ -39,7 +39,7 @@ export interface PayLink { payUrl: string; expiresAt?: Date }
 /**
  * Trả link thanh toán SePay còn dùng được cho đơn PENDING_PAYMENT; chưa có thì tạo link mới.
  * Mỗi lần tạo mới là một bản ghi payments với orderId mới (cổng không cho dùng lại mã giao dịch).
- * Lỗi tạo link -> AppError 502, đơn vẫn giữ chỗ, khách thử lại qua POST /v1/payments/link.
+ * Lỗi tạo link -> AppError 502, đơn vẫn giữ chỗ, khách thử lại qua POST /api/v1/payments/link.
  */
 export async function ensurePaymentLink(bookingId: string): Promise<PayLink> {
   const b = (await db.query('SELECT * FROM bookings WHERE id = $1', [bookingId])).rows[0];
@@ -77,7 +77,7 @@ export async function startBookingPayment(bookingId: string, code: string): Prom
   return startPayment(p, code);
 }
 
-// Tạo link SePay cho bản ghi payments INITIATED. Không gọi mạng: link = trang /v1/payments/sepay/checkout/:id (live) tự gửi form có chữ ký sang SePay; mock = về thẳng trang kết quả giả lập.
+// Tạo link SePay cho bản ghi payments INITIATED. Không gọi mạng: link = trang /api/v1/payments/sepay/checkout/:id (live) tự gửi form có chữ ký sang SePay; mock = về thẳng trang kết quả giả lập.
 const startPayment = (p: PaymentDoc, _code: string) => startSepayPayment(p);
 
 async function startSepayPayment(payment: PaymentDoc): Promise<PayLink> {
@@ -318,7 +318,7 @@ export async function processRefund(refundId: string, requestId?: string): Promi
   if (res.ok) {
     await completeRefund(r, res.transId, at, requestId);
   } else if (res.code === 'MANUAL') {
-    // Cổng không hoàn được bằng API: chuyển thẳng cho kế toán (không đếm lượt thử); xong thì POST /v1/admin/refunds/:id/mark-refunded.
+    // Cổng không hoàn được bằng API: chuyển thẳng cho kế toán (không đếm lượt thử); xong thì POST /api/v1/admin/refunds/:id/mark-refunded.
     await db.query("UPDATE refunds SET status = 'MANUAL_REQUIRED', attempts = attempts || $2::jsonb, updated_at = $3 WHERE id = $1", [r.id, json([{ at, ok: false, code: -1, message: res.message }]), at]);
   } else {
     const retries = (await getConfig('refund')).value.gatewayRetries;

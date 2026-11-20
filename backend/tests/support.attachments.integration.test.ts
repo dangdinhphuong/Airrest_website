@@ -25,9 +25,9 @@ run('tích hợp: tệp đính kèm hỗ trợ', () => {
   let ip = 0;
   let n = 0;
   const g = () => guestIp(++ip + 120);
-  const mkTicket = async () => (await request(app).post('/v1/support').set(g()).set('Idempotency-Key', `at-${++n}-${Date.now()}`).send({ phone: PHONE, subject: 'Có bằng chứng', message: 'Tôi gửi kèm ảnh' })).body.ticket.code as string;
-  const upload = (body: Record<string, unknown>) => request(app).post('/v1/support/attachments/upload-url').set(g()).set('Idempotency-Key', `up-${++n}-${Date.now()}`).send({ phone: PHONE, ...body });
-  const confirm = (code: string, attachmentId: string, phone = PHONE) => request(app).post('/v1/support/attachments/confirm').set(g()).send({ code, phone, attachmentId });
+  const mkTicket = async () => (await request(app).post('/api/v1/support').set(g()).set('Idempotency-Key', `at-${++n}-${Date.now()}`).send({ phone: PHONE, subject: 'Có bằng chứng', message: 'Tôi gửi kèm ảnh' })).body.ticket.code as string;
+  const upload = (body: Record<string, unknown>) => request(app).post('/api/v1/support/attachments/upload-url').set(g()).set('Idempotency-Key', `up-${++n}-${Date.now()}`).send({ phone: PHONE, ...body });
+  const confirm = (code: string, attachmentId: string, phone = PHONE) => request(app).post('/api/v1/support/attachments/confirm').set(g()).send({ code, phone, attachmentId });
   const put = (body: { key?: string; size: number; type: string }, id: string) => { // mô phỏng trình duyệt PUT lên R2: object mang tên khóa của dòng DB
     return one<{ storageKey: string }>('SELECT storage_key FROM support_attachments WHERE id = $1', [id]).then((r) => store.objects.set(r!.storageKey, { size: body.size, contentType: body.type }));
   };
@@ -50,7 +50,7 @@ run('tích hợp: tệp đính kèm hỗ trợ', () => {
     const row = (await one<any>('SELECT * FROM support_attachments WHERE id = $1', [id]))!;
     expect(row.status).toBe('READY');
     expect(Number(row.sizeBytes)).toBe(2 * MB);
-    const look = await request(app).post('/v1/support/lookup').set(g()).send({ code, phone: PHONE });
+    const look = await request(app).post('/api/v1/support/lookup').set(g()).send({ code, phone: PHONE });
     expect(look.body.ticket.attachments).toHaveLength(1);
     expect(look.body.ticket.attachments[0]).toMatchObject({ id, contentType: 'image/png', sizeBytes: 2 * MB });
     expect(look.body.ticket.attachments[0].url).toMatch(/^https:\/\/r2\.test\/get\//);
@@ -120,7 +120,7 @@ run('tích hợp: tệp đính kèm hỗ trợ', () => {
     const code = await mkTicket();
     await addOk(code);
     const id = (await one<{ id: string }>('SELECT id FROM support_tickets WHERE code = $1', [code]))!.id;
-    const res = await request(app).get(`/v1/admin/support/${id}`).set({ Authorization: `Bearer ${token}` });
+    const res = await request(app).get(`/api/v1/admin/support/${id}`).set({ Authorization: `Bearer ${token}` });
     expect(res.status).toBe(200);
     expect(res.body.attachments).toHaveLength(1);
     expect(res.body.attachments[0].url).toMatch(/^https:\/\/r2\.test\/get\//);

@@ -20,24 +20,24 @@ describe('middleware HTTP', () => {
   });
 
   it('route cần đăng nhập, không token -> 401', async () => {
-    const res = await request(app).get('/v1/hotel/bookings');
+    const res = await request(app).get('/api/v1/hotel/bookings');
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('UNAUTHENTICATED');
   });
 
   it('token sai -> 401 INVALID_TOKEN', async () => {
-    const res = await request(app).get('/v1/hotel/bookings').set('Authorization', 'Bearer abc.def.ghi');
+    const res = await request(app).get('/api/v1/hotel/bookings').set('Authorization', 'Bearer abc.def.ghi');
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('INVALID_TOKEN');
   });
 
   it('token khách vãng lai không dùng được cổng khách sạn -> 403', async () => {
-    const res = await request(app).get('/v1/hotel/bookings').set('Authorization', `Bearer ${signGuestToken('AR-ABCDEFGH')}`);
+    const res = await request(app).get('/api/v1/hotel/bookings').set('Authorization', `Bearer ${signGuestToken('AR-ABCDEFGH')}`);
     expect(res.status).toBe(403);
   });
 
   it('validate: body tra cứu sai -> 422 kèm chi tiết', async () => {
-    const res = await request(app).post('/v1/bookings/lookup').send({ code: 'x', phone: '123' });
+    const res = await request(app).post('/api/v1/bookings/lookup').send({ code: 'x', phone: '123' });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
     expect(res.body.error.details.length).toBeGreaterThan(0);
@@ -45,7 +45,7 @@ describe('middleware HTTP', () => {
 
   it('tạo đơn thiếu Idempotency-Key -> 400 (sau khi body hợp lệ)', async () => {
     const res = await request(app)
-      .post('/v1/bookings')
+      .post('/api/v1/bookings')
       .send({
         hotelId: '65000000-0000-4000-8000-000000000001',
         roomTypeId: '65000000-0000-4000-8000-000000000002',
@@ -58,7 +58,7 @@ describe('middleware HTTP', () => {
   });
 
   it('JSON hỏng -> 400 INVALID_JSON', async () => {
-    const res = await request(app).post('/v1/auth/login').set('Content-Type', 'application/json').send('{bad');
+    const res = await request(app).post('/api/v1/auth/login').set('Content-Type', 'application/json').send('{bad');
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('INVALID_JSON');
   });
@@ -68,7 +68,7 @@ describe('Swagger', () => {
   it('phục vụ OpenAPI và trang /docs', async () => {
     const spec = await request(createApp()).get('/openapi.json').expect(200);
     expect(spec.body.openapi).toMatch(/^3\./);
-    expect(Object.keys(spec.body.paths)).toContain('/v1/bookings');
+    expect(Object.keys(spec.body.paths)).toContain('/api/v1/bookings');
     await request(createApp()).get('/docs/').expect(200);
   });
 });

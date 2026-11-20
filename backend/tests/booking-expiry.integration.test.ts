@@ -22,7 +22,7 @@ run('tích hợp: hết hạn đơn chờ xác nhận', () => {
   let n = 0;
   const book = (rt: string, off: number, method: 'AT_HOTEL' | 'SEPAY' = 'AT_HOTEL') =>
     request(app)
-      .post('/v1/bookings')
+      .post('/api/v1/bookings')
       .set('Idempotency-Key', `ex-${++n}-${Date.now()}`)
       .send({ hotelId: H, roomTypeId: rt, paymentMethod: method, from: new Date(Date.now() + off * DAY).toISOString(), to: new Date(Date.now() + (off + 1) * DAY).toISOString(), guest: { fullName: 'Khách Test', phone: PHONE } });
   const idOf = async (code: string) => (await one<{ id: string }>('SELECT id FROM bookings WHERE code = $1', [code]))!.id;
@@ -81,7 +81,7 @@ run('tích hợp: hết hạn đơn chờ xác nhận', () => {
     const b = await book(rt, 30, 'SEPAY');
     const id = await idOf(b.body.booking.code);
     const pay = (await one<any>('SELECT txn_ref FROM payments WHERE booking_id = $1', [id]))!;
-    await request(app).post('/v1/payments/sepay/dev-simulate').send({ orderId: pay.txnRef });
+    await request(app).post('/api/v1/payments/sepay/dev-simulate').send({ orderId: pay.txnRef });
     await asLegacyPaidPending(id);
     await overdue(id);
     await expireOverdueBookings();
@@ -107,13 +107,13 @@ run('tích hợp: hết hạn đơn chờ xác nhận', () => {
     const rt = await mkRoomType(H, 5);
     const a = await book(rt, 50);
     await overdue(await idOf(a.body.booking.code));
-    const look = await request(app).post('/v1/bookings/lookup').send({ code: a.body.booking.code, phone: PHONE });
+    const look = await request(app).post('/api/v1/bookings/lookup').send({ code: a.body.booking.code, phone: PHONE });
     expect(look.body.booking.status).toBe('EXPIRED');
     expect(look.body.booking.decision.status).toBe('EXPIRED');
     const b = await book(rt, 51);
     await overdue(await idOf(b.body.booking.code));
     const fin = (await mkAdmin([PERM.ADMIN_PAYMENT_MANAGE])).token;
-    const rec = await request(app).post('/v1/admin/payments/reconcile').set({ Authorization: `Bearer ${fin}` });
+    const rec = await request(app).post('/api/v1/admin/payments/reconcile').set({ Authorization: `Bearer ${fin}` });
     expect(rec.status).toBe(200);
     expect(rec.body.expiredBookings).toBeGreaterThanOrEqual(1);
   });

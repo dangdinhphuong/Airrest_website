@@ -3,7 +3,7 @@ import { newIdempotencyKey } from '@airrest/api-client';
 import { api, apiBase, getAuthToken } from '../lib/api';
 import { adminApi } from './admin';
 
-const A = '/v1/admin';
+const A = '/api/v1/admin';
 const e = encodeURIComponent;
 const post = (path, body) => api.post(`${A}${path}`, body, { idempotencyKey: newIdempotencyKey() });
 // Đơn vị chi trả (ghi PATCH/POST trạm không cần khóa; tạo đơn vị và nhân viên có)

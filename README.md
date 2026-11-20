@@ -37,7 +37,7 @@ VITE_API_BASE_URL=http://localhost:3000   # production: https://<airrest-api>.on
 - Thiếu hoặc sai URL: giao diện hiện màn "Chưa cấu hình địa chỉ máy chủ" thay vì chạy mù. Đổi giá trị thì khởi động lại dev server; khi triển khai phải build lại (Vite nhúng biến lúc build). Render: khai báo `VITE_API_BASE_URL` ở dịch vụ `airrest-web` trong `render.yaml`.
 - Backend phải cho phép origin của giao diện: `CORS_ORIGINS` trong `backend/.env` (dev: `http://localhost:5173` khi chạy `npm run dev:web`, `http://localhost:5174` khi chạy bằng Docker).
 - SePay: `SEPAY_RETURN_URL` trỏ về `<origin giao diện>/payment/result` (giao diện đã có trang xử lý); `SEPAY_IPN_URL` là URL API công khai khai báo ở SePay.
-- Phân quyền menu và nút theo `permissions` trả về từ `POST /v1/auth/login` (lib/access.js); máy chủ vẫn kiểm quyền ở mọi route.
+- Phân quyền menu và nút theo `permissions` trả về từ `POST /api/v1/auth/login` (lib/access.js); máy chủ vẫn kiểm quyền ở mọi route.
 
 ## Chạy nhanh
 

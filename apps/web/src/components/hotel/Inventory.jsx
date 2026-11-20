@@ -48,7 +48,7 @@ function BlockForm({ types, onDone, onCancel, act }) {
   );
 }
 
-// Tồn phòng theo ngày (GET room-types/:id/inventory) + khóa/bảo trì (/v1/hotel/room-blocks).
+// Tồn phòng theo ngày (GET room-types/:id/inventory) + khóa/bảo trì (/api/v1/hotel/room-blocks).
 export default function Inventory() {
   const { state } = useApp();
   const manage = hasPerm(state.session, PERM.ROOM_MANAGE);

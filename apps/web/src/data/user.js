@@ -1,4 +1,4 @@
-// Dữ liệu cho các màn người dùng cuối: gọi API thật /v1/* (công khai, không đăng nhập). Backend: backend/api/modules/*.
+// Dữ liệu cho các màn người dùng cuối: gọi API thật /api/v1/* (công khai, không đăng nhập). Backend: backend/api/modules/*.
 import { ApiError, newIdempotencyKey } from '@airrest/api-client';
 import { api, apiBase, asGuest, describeError } from '../lib/api';
 
@@ -8,10 +8,10 @@ export const AMENITY_LABEL = {
   SHUTTLE_FREE: 'Xe đưa đón miễn phí', SHUTTLE_PAID: 'Xe đưa đón có phí', SHUTTLE: 'Xe đưa đón', '24H_RECEPTION': 'Lễ tân 24/24', HOURLY: 'Thuê theo giờ', FAMILY_ROOM: 'Phòng gia đình',
 };
 
-// Danh mục sân bay thương mại Việt Nam từ backend (GET /v1/airports), tải một lần rồi dùng lại.
+// Danh mục sân bay thương mại Việt Nam từ backend (GET /api/v1/airports), tải một lần rồi dùng lại.
 let airports = [];
 let airportsP = null;
-export const listAirports = () => (airportsP ??= api.get('/v1/airports', { auth: false }).then((r) => (airports = r.items)).catch((e) => { airportsP = null; throw e; }));
+export const listAirports = () => (airportsP ??= api.get('/api/v1/airports', { auth: false }).then((r) => (airports = r.items)).catch((e) => { airportsP = null; throw e; }));
 export const getAirports = () => airports; // đồng bộ, dùng sau khi listAirports() đã xong
 export const airportName = (iata) => airports.find((a) => a.iata === iata)?.name ?? iata;
 export const airportCity = (iata) => airports.find((a) => a.iata === iata)?.city ?? '';
@@ -64,7 +64,7 @@ export const clearHotelCache = () => HOTEL_CACHE.clear();
 
 export async function listHotels(airport, signal, search = {}) {
   const query = Object.fromEntries(Object.entries({ limit: 50, ...search }).filter(([, v]) => v !== undefined && v !== '' && v !== false));
-  const { items, total, priceRange = null } = await api.get('/v1/hotels', { query: { ...(airport && { airport }), ...query }, signal });
+  const { items, total, priceRange = null } = await api.get('/api/v1/hotels', { query: { ...(airport && { airport }), ...query }, signal });
   const out = Object.assign(items.map((h) => toHotelView(h, airport)).filter(Boolean), { total: total ?? items.length, priceRange });
   HOTEL_CACHE.set(hotelKey(airport, search), { data: out, at: Date.now() });
   return out;
@@ -80,20 +80,20 @@ export async function listTopRated(signal, search = {}, n = 4, fetchHotels = lis
 
 // `window` (tuỳ chọn) = { from, to } (ISO) để số phòng còn tính theo ngày khách chọn.
 export async function getHotel(id, signal, window) {
-  const { hotel, rooms } = await api.get(`/v1/hotels/${id}`, { signal, ...(window && { query: window }) });
+  const { hotel, rooms } = await api.get(`/api/v1/hotels/${id}`, { signal, ...(window && { query: window }) });
   return toHotelView({ ...hotel, rooms }, hotel.airports[0]?.iata);
 }
 
 // Đánh giá của khách (công khai). `cursor` = nextCursor của trang trước.
-export const getReviews = (id, cursor, signal) => api.get(`/v1/hotels/${id}/reviews`, { auth: false, signal, query: { limit: 5, ...(cursor && { cursor }) } });
+export const getReviews = (id, cursor, signal) => api.get(`/api/v1/hotels/${id}/reviews`, { auth: false, signal, query: { limit: 5, ...(cursor && { cursor }) } });
 // Gửi đánh giá bằng mã đơn + SĐT của đơn đã trả phòng; điểm 1-10.
-export const postReview = (id, body) => api.post(`/v1/hotels/${id}/reviews`, body, { auth: false });
+export const postReview = (id, body) => api.post(`/api/v1/hotels/${id}/reviews`, body, { auth: false });
 
 const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : null);
 
 // Trạng thái chuyến bay (dữ liệu mô phỏng ở backend). Ném ApiError 404 FLIGHT_NOT_FOUND khi không có chuyến.
 export async function lookupFlight(code, dateIso) {
-  const f = await api.get(`/v1/flights/${encodeURIComponent(code)}`, { query: { date: dateIso } });
+  const f = await api.get(`/api/v1/flights/${encodeURIComponent(code)}`, { query: { date: dateIso } });
   return {
     code: f.code, origin: f.origin, dest: f.dest, status: f.status.toLowerCase(), delayMinutes: f.delayMinutes,
     schedTime: hhmm(f.scheduledDepartureAt), newTime: hhmm(f.newDepartureAt), updatedAt: hhmm(f.asOf), notice: f.notice ?? null,
@@ -153,7 +153,7 @@ export function bookingFieldError(e) {
   return null;
 }
 // Báo giá xe trước khi có đơn (công khai).
-export const quoteHotelShuttle = (hotelId, body, signal) => api.post(`/v1/hotels/${hotelId}/shuttle-quote`, body, { auth: false, signal });
+export const quoteHotelShuttle = (hotelId, body, signal) => api.post(`/api/v1/hotels/${hotelId}/shuttle-quote`, body, { auth: false, signal });
 
 // `rooms` = [{ roomTypeId, qty }] (nhiều loại phòng cùng khách sạn).
 // Đơn toàn giờ không gửi from/to (backend suy ra từ các dòng giờ); có dòng đêm thì gửi ngày nhận/trả như cũ.
@@ -166,7 +166,7 @@ export function windowFor(rooms, checkIn, checkOut, times) {
 }
 export async function createBooking({ hotelId, rooms, guest, checkIn, checkOut, paymentMethod, idempotencyKey, guests = 1, children = 0, shuttle, times }) {
   const { from, to } = windowFor(rooms, checkIn, checkOut, times);
-  const { booking, paymentLink, shuttles } = await api.post('/v1/bookings', { hotelId, rooms, guests, children, ...(shuttle && { shuttle }), paymentMethod, from, to, guest }, { auth: asGuest(), idempotencyKey: idempotencyKey ?? newIdempotencyKey() }); // khách đã đăng nhập: gửi Bearer để đơn gắn vào tài khoản
+  const { booking, paymentLink, shuttles } = await api.post('/api/v1/bookings', { hotelId, rooms, guests, children, ...(shuttle && { shuttle }), paymentMethod, from, to, guest }, { auth: asGuest(), idempotencyKey: idempotencyKey ?? newIdempotencyKey() }); // khách đã đăng nhập: gửi Bearer để đơn gắn vào tài khoản
   clearHotelCache(); // số phòng còn đã đổi
   return { ...booking, paymentLink, shuttles };
 }
@@ -174,26 +174,26 @@ export async function createBooking({ hotelId, rooms, guest, checkIn, checkOut, 
 // Báo giá trước khi gửi yêu cầu (backend tính phòng + xe + phí dịch vụ + tổng; không giữ phòng).
 export async function quoteBooking({ hotelId, rooms, checkIn, checkOut, shuttle, times }, signal) {
   const { from, to } = windowFor(rooms, checkIn, checkOut, times);
-  return api.post('/v1/bookings/quote', { hotelId, rooms, ...(shuttle && { shuttle }), from, to }, { auth: false, signal });
+  return api.post('/api/v1/bookings/quote', { hotelId, rooms, ...(shuttle && { shuttle }), from, to }, { auth: false, signal });
 }
 
 // Giờ vào còn trống của một loại phòng bật giờ trong một ngày (mỗi 30 phút + mốc 'Bây giờ'); khung kín có `reason` (PAST | CLOSED | FULL).
-export const getHourlySlots = (hotelId, { roomTypeId, date, hours, qty = 1 }, signal) => api.get(`/v1/hotels/${hotelId}/hourly-slots`, { auth: false, signal, query: { roomTypeId, date, hours, qty } });
+export const getHourlySlots = (hotelId, { roomTypeId, date, hours, qty = 1 }, signal) => api.get(`/api/v1/hotels/${hotelId}/hourly-slots`, { auth: false, signal, query: { roomTypeId, date, hours, qty } });
 export const SLOT_REASON = { PAST: 'đã qua', CLOSED: 'quá giờ bán', FULL: 'hết phòng' };
 
 export async function lookupBooking(code, phone) {
-  const { booking } = await api.post('/v1/bookings/lookup', { code, phone }, { auth: false });
+  const { booking } = await api.post('/api/v1/bookings/lookup', { code, phone }, { auth: false });
   return booking;
 }
 
 export async function getPaymentLink(code, phone) {
-  const { paymentLink } = await api.post('/v1/payments/link', { code, phone }, { auth: false });
+  const { paymentLink } = await api.post('/api/v1/payments/link', { code, phone }, { auth: false });
   return paymentLink;
 }
 
-// Cổng đang bật (GET /v1/payments/methods). Lỗi mạng/API: chỉ còn 'tại khách sạn'.
+// Cổng đang bật (GET /api/v1/payments/methods). Lỗi mạng/API: chỉ còn 'tại khách sạn'.
 export const AT_HOTEL_ONLY = [{ id: 'AT_HOTEL', label: 'Thanh toán tại khách sạn' }];
-export const listPaymentMethods = () => api.get('/v1/payments/methods', { auth: false }).then((r) => r.methods);
+export const listPaymentMethods = () => api.get('/api/v1/payments/methods', { auth: false }).then((r) => r.methods);
 export const PAY_LABEL = { AT_HOTEL: 'Tại khách sạn', SEPAY: 'SePay', VNPAY: 'VNPay (cũ)', MOMO: 'MoMo (cũ)' }; // VNPAY/MOMO chỉ để hiển thị đơn cũ
 
 // Đơn vừa tạo, để trang kết quả thanh toán tra lại trạng thái thật (chỉ giữ đơn gần nhất, mất khi đóng tab).
@@ -202,54 +202,54 @@ export const saveLastBooking = (code, phone) => { try { sessionStorage.setItem(L
 export const readLastBooking = () => { try { const v = JSON.parse(sessionStorage.getItem(LAST)); return v?.code && v?.phone ? v : null; } catch { return null; } };
 export const clearLastBooking = () => { try { sessionStorage.removeItem(LAST); } catch { /* bỏ qua */ } };
 
-export const simulateSepayPayment = (orderId, success) => api.post('/v1/payments/sepay/dev-simulate', { orderId, resultCode: success ? 0 : 1 }, { auth: false });
+export const simulateSepayPayment = (orderId, success) => api.post('/api/v1/payments/sepay/dev-simulate', { orderId, resultCode: success ? 0 : 1 }, { auth: false });
 
 // Trợ lý chat AI local: { intent, params } hoặc null khi lỗi mạng/API (chatbot khi đó chạy bản từ khóa).
 // Dịch lời khách (en/zh/ko) sang tiếng Việt chuẩn để chạy qua bộ phân tích tiếng Việt: { vi, blocked } hoặc null khi lỗi mạng/API (khi đó dùng nguyên văn).
 export async function normalizeText(text, lang) {
-  try { return await api.post('/v1/chat/normalize', { text, lang }, { auth: false }); } catch { return null; }
+  try { return await api.post('/api/v1/chat/normalize', { text, lang }, { auth: false }); } catch { return null; }
 }
 
 // Nhờ AI diễn đạt câu trả lời tự nhiên: trả chuỗi hoặc null (AI tắt/lỗi/không an toàn: chatbot giữ câu mẫu).
 export async function composeReply(directive, history) {
-  try { return (await api.post('/v1/chat/reply', { directive, history }, { auth: false }))?.reply ?? null; } catch { return null; }
+  try { return (await api.post('/api/v1/chat/reply', { directive, history }, { auth: false }))?.reply ?? null; } catch { return null; }
 }
 
 export async function understandText(text) {
-  try { return await api.post('/v1/chat/understand', { text }, { auth: false }); } catch { return null; }
+  try { return await api.post('/api/v1/chat/understand', { text }, { auth: false }); } catch { return null; }
 }
 
 export async function createTicket({ bookingCode, phone, fullName, email, subject, message }) {
-  const { ticket } = await api.post('/v1/support', { bookingCode: bookingCode || undefined, phone, fullName: fullName || undefined, email: email || undefined, subject, message }, { auth: asGuest(), idempotencyKey: newIdempotencyKey() }); // khách đã đăng nhập: gửi Bearer để ticket gắn vào tài khoản
+  const { ticket } = await api.post('/api/v1/support', { bookingCode: bookingCode || undefined, phone, fullName: fullName || undefined, email: email || undefined, subject, message }, { auth: asGuest(), idempotencyKey: newIdempotencyKey() }); // khách đã đăng nhập: gửi Bearer để ticket gắn vào tài khoản
   return ticket;
 }
 
 // ---- Hủy / đổi ngày (khách xác thực bằng mã booking + SĐT) ----
-export const quoteCancel = (code, phone) => api.post('/v1/change-requests/quote', { code, phone }, { auth: false }).then((r) => r.quote);
-export const createChangeRequest = (body) => api.post('/v1/change-requests', body, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.request);
-export const listChangeRequests = (code, phone) => api.post('/v1/change-requests/lookup', { code, phone }, { auth: false }).then((r) => r.requests);
+export const quoteCancel = (code, phone) => api.post('/api/v1/change-requests/quote', { code, phone }, { auth: false }).then((r) => r.quote);
+export const createChangeRequest = (body) => api.post('/api/v1/change-requests', body, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.request);
+export const listChangeRequests = (code, phone) => api.post('/api/v1/change-requests/lookup', { code, phone }, { auth: false }).then((r) => r.requests);
 
 // ---- Xe đưa đón gắn booking ----
-export const quoteShuttle = (body) => api.post('/v1/shuttle-requests/quote', body, { auth: false }).then((r) => r.quote);
-export const createShuttle = (body) => api.post('/v1/shuttle-requests', body, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.shuttle);
-export const listShuttles = (code, phone) => api.post('/v1/shuttle-requests/lookup', { code, phone }, { auth: false }).then((r) => r.shuttles);
+export const quoteShuttle = (body) => api.post('/api/v1/shuttle-requests/quote', body, { auth: false }).then((r) => r.quote);
+export const createShuttle = (body) => api.post('/api/v1/shuttle-requests', body, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.shuttle);
+export const listShuttles = (code, phone) => api.post('/api/v1/shuttle-requests/lookup', { code, phone }, { auth: false }).then((r) => r.shuttles);
 // Tra cứu đầy đủ (giới hạn nghiêm): { booking, guestToken, stage, shuttles, events }. Làm mới sau đó chỉ dùng getTrackState (không dính giới hạn nghiêm).
-export const lookupBookingFull = (code, phone) => api.post('/v1/bookings/lookup', { code, ...(phone && { phone }) }, { auth: false }); // không SĐT: chỉ xem đơn
+export const lookupBookingFull = (code, phone) => api.post('/api/v1/bookings/lookup', { code, ...(phone && { phone }) }, { auth: false }); // không SĐT: chỉ xem đơn
 // Token theo dõi khác token tài khoản khách nên không đi qua `api` (nó gắn token phiên); lỗi chuẩn hóa thành ApiError (401 = token hết hạn).
 export async function getTrackState(guestToken, signal) {
   let res;
-  try { res = await fetch(`${apiBase}/v1/track/shuttle`, { headers: { Authorization: `Bearer ${guestToken}`, Accept: 'application/json' }, signal }); }
+  try { res = await fetch(`${apiBase}/api/v1/track/shuttle`, { headers: { Authorization: `Bearer ${guestToken}`, Accept: 'application/json' }, signal }); }
   catch (e) { if (signal?.aborted) throw e; throw new ApiError(0, 'NETWORK_ERROR', 'Không kết nối được máy chủ. Kiểm tra mạng hoặc thử lại sau.'); }
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? 'HTTP_ERROR', data?.error?.message ?? `Lỗi máy chủ (${res.status})`);
   return data;
 }
-export const callShuttleNow = (body) => api.post('/v1/shuttle-requests/call-now', body, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.shuttle);
-export const cancelShuttle = (id, code, phone) => api.post(`/v1/shuttle-requests/${id}/cancel`, { code, phone }, { auth: false }).then((r) => r.shuttle);
+export const callShuttleNow = (body) => api.post('/api/v1/shuttle-requests/call-now', body, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.shuttle);
+export const cancelShuttle = (id, code, phone) => api.post(`/api/v1/shuttle-requests/${id}/cancel`, { code, phone }, { auth: false }).then((r) => r.shuttle);
 
 // ---- Tra cứu / trả lời ticket hỗ trợ (mã SP-XXXXXXXX + SĐT) ----
-export const lookupTicket = (code, phone) => api.post('/v1/support/lookup', { code, phone }, { auth: false }).then((r) => r.ticket);
-export const replyTicket = (code, phone, message) => api.post('/v1/support/reply', { code, phone, message }, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.ticket);
+export const lookupTicket = (code, phone) => api.post('/api/v1/support/lookup', { code, phone }, { auth: false }).then((r) => r.ticket);
+export const replyTicket = (code, phone, message) => api.post('/api/v1/support/reply', { code, phone, message }, { auth: false, idempotencyKey: newIdempotencyKey() }).then((r) => r.ticket);
 
 // ---- Ảnh/video đính kèm ticket (khớp SUPPORT_ATTACHMENT ở packages/validation/src/support.ts; máy chủ kiểm lại) ----
 export const ATTACH = { accept: 'image/jpeg,image/png,image/webp,video/mp4', maxImageMb: 5, maxVideoMb: 30, hint: 'Ảnh JPG/PNG/WebP tối đa 5 MB (tối đa 5 ảnh), video MP4 tối đa 30 MB (1 video).' };
@@ -276,14 +276,14 @@ export function checkAttachments(files, have = []) {
 export async function attachFile(code, phone, file) {
   const bad = checkAttachment(file);
   if (bad) throw new ApiError(0, 'ATTACHMENT_INVALID', bad);
-  const u = await api.post('/v1/support/attachments/upload-url', { code, phone, contentType: file.type, size: file.size }, { auth: false, idempotencyKey: newIdempotencyKey() });
+  const u = await api.post('/api/v1/support/attachments/upload-url', { code, phone, contentType: file.type, size: file.size }, { auth: false, idempotencyKey: newIdempotencyKey() });
   let put;
   try { put = await fetch(u.uploadUrl, { method: u.method, headers: u.headers, body: file }); } catch { throw new ApiError(0, 'UPLOAD_FAILED', 'Không tải được tệp lên máy chủ lưu trữ. Kiểm tra mạng rồi thử lại.'); }
   if (!put.ok) throw new ApiError(put.status, 'UPLOAD_FAILED', 'Máy chủ lưu trữ từ chối tệp. Thử lại hoặc chọn tệp khác.');
-  return (await api.post('/v1/support/attachments/confirm', { code, phone, attachmentId: u.attachmentId }, { auth: false })).attachment;
+  return (await api.post('/api/v1/support/attachments/confirm', { code, phone, attachmentId: u.attachmentId }, { auth: false })).attachment;
 }
 
-// ---- Tài khoản hành khách (backend: /v1/auth/passenger/*, /v1/auth/me, /v1/me/*) ----
+// ---- Tài khoản hành khách (backend: /api/v1/auth/passenger/*, /api/v1/auth/me, /api/v1/me/*) ----
 export const USERNAME_MAX = 50;
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 128;
@@ -322,31 +322,31 @@ const userView = (u) => ({ id: u.id, username: u.username ?? '', email: u.email 
 
 // Đăng ký / đăng nhập: trả { token, user }; người gọi tự lưu token (setGuestToken) rồi cập nhật store.
 export async function registerPassenger({ email, username, password, fullName }) {
-  const r = await api.post('/v1/auth/passenger/register', { email: email.trim(), username: username.trim(), password, ...(fullName?.trim() && { fullName: fullName.trim() }) }, { auth: false });
+  const r = await api.post('/api/v1/auth/passenger/register', { email: email.trim(), username: username.trim(), password, ...(fullName?.trim() && { fullName: fullName.trim() }) }, { auth: false });
   return { token: r.token, user: userView(r.user) };
 }
 export async function loginPassenger(username, password) {
-  const r = await api.post('/v1/auth/passenger/login', { username: username.trim(), password }, { auth: false });
+  const r = await api.post('/api/v1/auth/passenger/login', { username: username.trim(), password }, { auth: false });
   return { token: r.token, user: userView(r.user) };
 }
 // Khôi phục phiên khách từ token đang giữ; ném lỗi nếu token không phải của khách.
 export async function fetchMe() {
-  const { user } = await api.get('/v1/auth/me');
+  const { user } = await api.get('/api/v1/auth/me');
   if (user?.type !== 'PASSENGER') throw Object.assign(new Error('not passenger'), { status: 403 });
   return userView(user);
 }
-export const changePassword = (currentPassword, newPassword) => api.patch('/v1/me/password', { currentPassword, newPassword });
-export const listMyBookings = (cursor, signal) => api.get('/v1/me/bookings', { query: { limit: 10, cursor }, signal });
+export const changePassword = (currentPassword, newPassword) => api.patch('/api/v1/me/password', { currentPassword, newPassword });
+export const listMyBookings = (cursor, signal) => api.get('/api/v1/me/bookings', { query: { limit: 10, cursor }, signal });
 // Sửa họ tên và/hoặc cấu hình cá nhân { airport, adults, children, rooms, paymentMethod } (gửi là thay nguyên khối). Trả user mới.
-export const updateProfile = (body) => api.patch('/v1/me/profile', body).then((r) => userView(r.user));
+export const updateProfile = (body) => api.patch('/api/v1/me/profile', body).then((r) => userView(r.user));
 // Yêu thích (trả hotelIds), thông báo (đổi trạng thái đơn của tôi + số chưa đọc), mã giảm giá còn hiệu lực.
-export const listFavoriteIds = () => api.get('/v1/me/favorites').then((r) => r.hotelIds);
-export const addFavorite = (hotelId) => api.put(`/v1/me/favorites/${hotelId}`, {});
-export const removeFavorite = (hotelId) => api.delete(`/v1/me/favorites/${hotelId}`);
-export const listNotifications = () => api.get('/v1/me/notifications');
-export const markNotificationsRead = () => api.post('/v1/me/notifications/read', {});
-export const listMyVouchers = () => api.get('/v1/me/vouchers').then((r) => r.items);
-export const listMyTickets = (cursor, signal) => api.get('/v1/me/tickets', { query: { limit: 10, cursor }, signal });
+export const listFavoriteIds = () => api.get('/api/v1/me/favorites').then((r) => r.hotelIds);
+export const addFavorite = (hotelId) => api.put(`/api/v1/me/favorites/${hotelId}`, {});
+export const removeFavorite = (hotelId) => api.delete(`/api/v1/me/favorites/${hotelId}`);
+export const listNotifications = () => api.get('/api/v1/me/notifications');
+export const markNotificationsRead = () => api.post('/api/v1/me/notifications/read', {});
+export const listMyVouchers = () => api.get('/api/v1/me/vouchers').then((r) => r.items);
+export const listMyTickets = (cursor, signal) => api.get('/api/v1/me/tickets', { query: { limit: 10, cursor }, signal });
 
 // Tra cứu cả nhóm khách delay bằng mã nhóm NH-XXXXXXXX + SĐT người đại diện (backend: strictRateLimit, 404 không phân biệt sai mã/SĐT).
-export const lookupGroup = (groupCode, phone) => api.post('/v1/bookings/group-lookup', { groupCode, phone }, { auth: false });
+export const lookupGroup = (groupCode, phone) => api.post('/api/v1/bookings/group-lookup', { groupCode, phone }, { auth: false });

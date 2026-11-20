@@ -44,7 +44,7 @@ const schema = z.object({
   EMAIL_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),
   PUBLIC_WEB_URL: z.string().url().default('http://localhost:5173'), // base dựng link tra cứu trong email, không có dấu / cuối
 
-  // --- Trợ lý chat dùng AI local (Ollama). Tắt (mặc định) hoặc lỗi/quá hạn thì /v1/chat/understand trả intent "other" và chatbot chạy bản từ khóa.
+  // --- Trợ lý chat dùng AI local (Ollama). Tắt (mặc định) hoặc lỗi/quá hạn thì /api/v1/chat/understand trả intent "other" và chatbot chạy bản từ khóa.
   AI_CHAT_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   OLLAMA_URL: z.string().url().default('http://127.0.0.1:11434'), // Ollama chỉ nghe localhost; KHÔNG đưa cổng này qua tunnel
   OLLAMA_MODEL: z.string().default('qwen2.5:3b-instruct'),
@@ -68,7 +68,7 @@ const schema = z.object({
   SEPAY_PAYMENT_METHOD: z.enum(['BANK_TRANSFER', 'CARD', 'NAPAS_BANK_TRANSFER']).default('BANK_TRANSFER'), // SePay bắt buộc payment_method: BANK_TRANSFER = QR chuyển khoản, CARD = thẻ quốc tế
   SEPAY_CHECKOUT_URL: z.string().url().default('https://pay.sepay.vn/v1/checkout/init'), // sandbox: dùng URL sandbox trong tài liệu SePay
   SEPAY_RETURN_URL: z.string().url().default('http://localhost:5174/payment/result'), // SePay đưa khách về trang FE này (kèm status=success|error|cancel)
-  SEPAY_IPN_URL: z.string().url().default('http://localhost:3000/v1/payments/sepay/ipn'), // API công khai SePay gọi; origin của nó cũng là nơi phục vụ trang chuyển hướng checkout
+  SEPAY_IPN_URL: z.string().url().default('http://localhost:3000/api/v1/payments/sepay/ipn'), // API công khai SePay gọi; origin của nó cũng là nơi phục vụ trang chuyển hướng checkout
 });
 
 const parsed = schema

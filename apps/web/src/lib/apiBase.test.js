@@ -13,6 +13,6 @@ describe('parseBase (VITE_API_BASE_URL)', () => {
     expect(parseBase('same-origin')).toBe(window.location.origin);
   });
   it('bỏ trống, sai giao thức, rác: vẫn là lỗi cấu hình (null), không tự đoán', () => {
-    for (const bad of [undefined, null, '', '   ', 'ftp://x', 'javascript:alert(1)', 'localhost:3000', 'api', '/v1']) expect(parseBase(bad), String(bad)).toBeNull();
+    for (const bad of [undefined, null, '', '   ', 'ftp://x', 'javascript:alert(1)', 'localhost:3000', 'api', '/api/v1']) expect(parseBase(bad), String(bad)).toBeNull();
   });
 });

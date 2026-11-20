@@ -4,7 +4,7 @@
 
 Hợp đồng chi tiết: `backend/README.md` (mục "Đơn nhiều loại phòng") và `backend/api/openapi.ts`.
 
-Request `POST /v1/bookings` (Idempotency-Key bắt buộc như cũ):
+Request `POST /api/v1/bookings` (Idempotency-Key bắt buộc như cũ):
 ```json
 { "hotelId": "...", "from": "2026-12-01T14:00:00Z", "to": "2026-12-03T12:00:00Z", "guests": 5, "children": 1,
   "rooms": [{ "roomTypeId": "<Standard>", "qty": 2 }, { "roomTypeId": "<Deluxe>", "qty": 1 }],

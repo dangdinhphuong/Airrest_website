@@ -19,7 +19,7 @@ run('tích hợp: thanh toán MoMo (mock) — link, IPN POST JSON, hoàn, đối
   const book = (method: 'MOMO' | 'VNPAY' = 'MOMO') => {
     const off = 2 + n;
     return request(app)
-      .post('/v1/bookings')
+      .post('/api/v1/bookings')
       .set('Idempotency-Key', `momo-key-${++n}-${Date.now()}`)
       .send({
         hotelId, roomTypeId,
@@ -36,7 +36,7 @@ run('tích hợp: thanh toán MoMo (mock) — link, IPN POST JSON, hoàn, đối
   };
   const stateOf = async (id: string) => (await one<any>('SELECT * FROM bookings WHERE id = $1', [id]))!;
   const ipnBody = (p: P, amount = p.amountVnd, resultCode = 0) => buildMomoIpn({ orderId: p.gateway.orderId, requestId: p.gateway.requestId, amount, transId: 4242, resultCode });
-  const ipn = (body: Record<string, unknown>) => request(app).post('/v1/payments/momo/ipn').send(body);
+  const ipn = (body: Record<string, unknown>) => request(app).post('/api/v1/payments/momo/ipn').send(body);
 
   beforeAll(async () => {
     await freshDb({ roles: true });
@@ -63,7 +63,7 @@ run('tích hợp: thanh toán MoMo (mock) — link, IPN POST JSON, hoàn, đối
   it('IPN thành công qua dev-simulate: CONFIRMED; IPN lặp idempotent', async () => {
     const res = await book();
     const { b, p } = await payOf(res.body.booking.code);
-    const sim = await request(app).post('/v1/payments/momo/dev-simulate').send({ orderId: p.gateway.orderId });
+    const sim = await request(app).post('/api/v1/payments/momo/dev-simulate').send({ orderId: p.gateway.orderId });
     expect(sim.status).toBe(200);
     expect(sim.body.reply.httpStatus).toBe(204);
     expect((await stateOf(b.id)).status).toBe('CONFIRMED');
@@ -78,13 +78,13 @@ run('tích hợp: thanh toán MoMo (mock) — link, IPN POST JSON, hoàn, đối
   it('IPN thất bại: payment FAILED, đơn vẫn chờ, lấy lại link được (cả /link và /momo/link)', async () => {
     const res = await book();
     const { b, p } = await payOf(res.body.booking.code);
-    expect((await request(app).post('/v1/payments/momo/dev-simulate').send({ orderId: p.gateway.orderId, resultCode: 1006 })).status).toBe(200);
+    expect((await request(app).post('/api/v1/payments/momo/dev-simulate').send({ orderId: p.gateway.orderId, resultCode: 1006 })).status).toBe(200);
     expect((await one<P>('SELECT status FROM payments WHERE id = $1', [p.id]))!.status).toBe('FAILED');
     expect((await stateOf(b.id)).status).toBe('PENDING_PAYMENT');
-    const link = await request(app).post('/v1/payments/link').send({ code: b.code, phone: '0912345678' });
+    const link = await request(app).post('/api/v1/payments/link').send({ code: b.code, phone: '0912345678' });
     expect(link.status).toBe(200);
     expect(link.body.paymentLink.payUrl).toContain('gateway=momo');
-    expect((await request(app).post('/v1/payments/momo/link').send({ code: b.code, phone: '0912345678' })).status).toBe(200);
+    expect((await request(app).post('/api/v1/payments/momo/link').send({ code: b.code, phone: '0912345678' })).status).toBe(200);
     expect(await count('payments', 'booking_id = $1', [b.id])).toBe(2);
   });
 
@@ -142,7 +142,7 @@ run('tích hợp: thanh toán MoMo (mock) — link, IPN POST JSON, hoàn, đối
     await db.query("UPDATE payments SET created_at = now() - interval '20 minutes' WHERE id = $1", [p.id]);
     vi.spyOn(momoGateway, 'query').mockImplementation(async ({ orderId }) =>
       orderId === p.gateway.orderId ? { resultCode: 0, message: 'ok', transId: 99, amount: p.amountVnd } : { resultCode: 1000, message: 'chờ' });
-    const rec = await request(app).post('/v1/admin/payments/reconcile').set({ Authorization: `Bearer ${fin}` });
+    const rec = await request(app).post('/api/v1/admin/payments/reconcile').set({ Authorization: `Bearer ${fin}` });
     expect(rec.status).toBe(200);
     expect((await stateOf(b.id)).status).toBe('CONFIRMED');
   });
@@ -152,20 +152,20 @@ run('tích hợp: thanh toán MoMo (mock) — link, IPN POST JSON, hoàn, đối
     const res = await book();
     expect(res.status).toBe(201);
     expect(res.body.paymentLink.error).toBe('MOMO_UNAVAILABLE');
-    expect((await request(app).post('/v1/payments/link').send({ code: res.body.booking.code, phone: '0912345678' })).status).toBe(200);
+    expect((await request(app).post('/api/v1/payments/link').send({ code: res.body.booking.code, phone: '0912345678' })).status).toBe(200);
   });
 
   it('lọc admin theo cổng: method=MOMO chỉ trả giao dịch MoMo', async () => {
-    const r = await request(app).get('/v1/admin/payments?method=MOMO').set({ Authorization: `Bearer ${fin}` });
+    const r = await request(app).get('/api/v1/admin/payments?method=MOMO').set({ Authorization: `Bearer ${fin}` });
     expect(r.status).toBe(200);
     expect(r.body.items.length).toBeGreaterThan(0);
     expect(r.body.items.every((x: { method: string }) => x.method === 'MOMO')).toBe(true);
   });
 
   it('GET /payments/methods theo cờ env; cổng tắt -> đặt phòng 409', async () => {
-    const ids = async () => ((await request(app).get('/v1/payments/methods')).body.methods as Array<{ id: string; mode?: string }>).map((m) => m.id);
+    const ids = async () => ((await request(app).get('/api/v1/payments/methods')).body.methods as Array<{ id: string; mode?: string }>).map((m) => m.id);
     expect(await ids()).toEqual(['AT_HOTEL', 'VNPAY', 'MOMO', 'SEPAY']);
-    const body = (await request(app).get('/v1/payments/methods')).body;
+    const body = (await request(app).get('/api/v1/payments/methods')).body;
     expect(JSON.stringify(body)).not.toMatch(/partner|secret|key/i);
 
     const e = env as { MOMO_ENABLED: boolean; VNPAY_ENABLED: boolean; SEPAY_ENABLED: boolean };

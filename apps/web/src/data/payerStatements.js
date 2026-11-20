@@ -1,8 +1,8 @@
-// Bảng kê tháng của đơn vị chi trả (/v1/payer/statements). Quyền kiểm ở máy chủ; đơn vị khác hoặc bản nháp -> 404.
+// Bảng kê tháng của đơn vị chi trả (/api/v1/payer/statements). Quyền kiểm ở máy chủ; đơn vị khác hoặc bản nháp -> 404.
 import { newIdempotencyKey } from '@airrest/api-client';
 import { api, apiBase, getAuthToken } from '../lib/api';
 
-const P = '/v1/payer/statements';
+const P = '/api/v1/payer/statements';
 export const listStatements = (after) => api.get(P, { query: { after } });
 export const getStatement = (id) => api.get(`${P}/${encodeURIComponent(id)}`);
 export const disputeStatement = (id, reason, idempotencyKey = newIdempotencyKey()) => api.post(`${P}/${encodeURIComponent(id)}/dispute`, { reason }, { idempotencyKey });

@@ -25,6 +25,6 @@ export interface FlightDto {
   updatedAt: string;
   asOf: string;
   simulated: true;
-  /** Chỉ có ở GET /v1/flights/:code khi không có đúng ngày và trả chuyến gần nhất; vắng nếu khớp ngày. */
+  /** Chỉ có ở GET /api/v1/flights/:code khi không có đúng ngày và trả chuyến gần nhất; vắng nếu khớp ngày. */
   notice?: string;
 }

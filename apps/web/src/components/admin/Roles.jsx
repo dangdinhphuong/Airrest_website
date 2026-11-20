@@ -10,7 +10,7 @@ import { Act, LoadView, cols, useLoad, useRun } from './kit';
 const Sens = () => <Tag tone="warn">Nhạy cảm</Tag>;
 const KIND = { true: ['Hệ thống', 'info'], false: ['Tùy chỉnh', 'ok'] };
 
-// Nhóm quyền theo `group` từ /v1/admin/permissions.
+// Nhóm quyền theo `group` từ /api/v1/admin/permissions.
 const groupBy = (items) => {
   const m = new Map();
   for (const p of items) { if (!m.has(p.group)) m.set(p.group, []); m.get(p.group).push(p); }

@@ -59,7 +59,7 @@ export const HOTEL_DRIVER_ROLE = { key: 'hotel_driver', name: 'Tài xế khách 
 // Nhân viên đơn vị chi trả (tài khoản PAYER): chỉ thao tác dữ liệu của đơn vị/trạm mình, không xem tiền hay dữ liệu khách sạn.
 export const PAYER_STAFF_ROLE = { key: 'payer_staff', name: 'Nhân viên đơn vị chi trả', permissions: [PERM.PAYER_DELAY_READ, PERM.PAYER_DELAY_MANAGE] };
 
-// Quyền thuộc phạm vi khách sạn: chỉ các quyền này xuất hiện ở GET /v1/hotel/permissions và gán được cho vai trò của khách sạn.
+// Quyền thuộc phạm vi khách sạn: chỉ các quyền này xuất hiện ở GET /api/v1/hotel/permissions và gán được cho vai trò của khách sạn.
 // Không có admin:*, payer:*, hotel:scope:all, business:* (chỉ chủ doanh nghiệp), support:handle, trip:drive (tài xế quản qua /hotel/drivers).
 export const HOTEL_ASSIGNABLE_PERMISSIONS: readonly string[] = [
   PERM.BOOKING_READ, PERM.BOOKING_CHECKIN, PERM.BOOKING_DECIDE, PERM.ROOM_MANAGE, PERM.REQUEST_HANDLE, PERM.SHUTTLE_HANDLE, PERM.FLEET_MANAGE, PERM.HOTEL_STAFF_MANAGE, PERM.HOTEL_ROLE_MANAGE,

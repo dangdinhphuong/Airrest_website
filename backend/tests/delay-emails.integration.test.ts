@@ -107,7 +107,7 @@ run('tích hợp: email sau xác nhận + tra cứu mã nhóm + route offers/rou
     const o1 = await mkOffer(g.id, [a]), o2 = await mkOffer(g.id, [b]);
     await confirmOffer(o1.id, ['501'], auth());
     const app = createApp();
-    const look = (groupCode: string, phone: string) => request(app).post('/v1/bookings/group-lookup').send({ groupCode, phone });
+    const look = (groupCode: string, phone: string) => request(app).post('/api/v1/bookings/group-lookup').send({ groupCode, phone });
 
     const ok = await look('NH-LOOKUP01', '0900000003'); // contact_phone của người thứ hai
     expect(ok.status).toBe(200);
@@ -131,20 +131,20 @@ run('tích hợp: email sau xác nhận + tra cứu mã nhóm + route offers/rou
 
   it('route offers đã đăng ký trên app thật; route cũ confirm/reject chặn đơn PAYER (409), đơn khách lẻ không bị ảnh hưởng', async () => {
     const app = createApp();
-    expect((await request(app).get('/v1/hotel/delay-offers')).status).toBe(401); // không phải 404 => đã mount
-    const list = await request(app).get('/v1/hotel/delay-offers').set('Authorization', `Bearer ${token}`);
+    expect((await request(app).get('/api/v1/hotel/delay-offers')).status).toBe(401); // không phải 404 => đã mount
+    const list = await request(app).get('/api/v1/hotel/delay-offers').set('Authorization', `Bearer ${token}`);
     expect(list.status).toBe(200);
     expect(Array.isArray(list.body.items)).toBe(true);
 
     const g = await mkGroup('NH-ROUTE001');
     const a = await mkPax(g.id, g.pnr, 'Rep R', { rep: true });
     const o = await mkOffer(g.id, [a]);
-    const r1 = await request(app).post(`/v1/hotel/bookings/${o.bookingId}/confirm`).set('Authorization', `Bearer ${token}`);
-    const r2 = await request(app).post(`/v1/hotel/bookings/${o.bookingId}/reject`).set('Authorization', `Bearer ${token}`).send({ reason: 'không được' });
+    const r1 = await request(app).post(`/api/v1/hotel/bookings/${o.bookingId}/confirm`).set('Authorization', `Bearer ${token}`);
+    const r2 = await request(app).post(`/api/v1/hotel/bookings/${o.bookingId}/reject`).set('Authorization', `Bearer ${token}`).send({ reason: 'không được' });
     expect([r1.status, r2.status]).toEqual([409, 409]);
     expect([r1.body.error.code, r2.body.error.code]).toEqual(['USE_DELAY_OFFER_API', 'USE_DELAY_OFFER_API']);
     expect((await one<any>('SELECT status FROM bookings WHERE id = $1', [o.bookingId]))!.status).toBe('PENDING');
-    const viaApi = await request(app).post(`/v1/hotel/delay-offers/${o.id}/confirm`).set('Authorization', `Bearer ${token}`).send({ roomNumbers: ['601'] });
+    const viaApi = await request(app).post(`/api/v1/hotel/delay-offers/${o.id}/confirm`).set('Authorization', `Bearer ${token}`).send({ roomNumbers: ['601'] });
     expect(viaApi.status).toBe(200);
   });
 });

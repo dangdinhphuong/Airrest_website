@@ -1,7 +1,7 @@
-// Gọi API cổng quản trị (/v1/admin/*). Quyền kiểm ở máy chủ; giao diện chỉ ẩn/hiện nút.
+// Gọi API cổng quản trị (/api/v1/admin/*). Quyền kiểm ở máy chủ; giao diện chỉ ẩn/hiện nút.
 import { api } from '../lib/api';
 
-const A = '/v1/admin';
+const A = '/api/v1/admin';
 export const adminApi = {
   list: (path, query) => api.get(`${A}${path}`, { query }),
   get: (path, query) => api.get(`${A}${path}`, { query }),
@@ -10,7 +10,7 @@ export const adminApi = {
   patch: (path, body) => api.patch(`${A}${path}`, body),
 };
 
-export const listAirports = () => api.get('/v1/airports');
+export const listAirports = () => api.get('/api/v1/airports');
 export const createFlight = (body) => adminApi.post('/flights', body);
 export const deleteFlight = (id) => api.delete(`${A}/flights/${id}`);
 // Hotels

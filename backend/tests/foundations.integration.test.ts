@@ -18,9 +18,9 @@ run('nền tảng plan 2', () => {
     expect(k.default.STANDARD.freeHours).toBe(24);
   });
 
-  it('GET /v1/admin/configs liệt kê cancellation.fee ở version 0', async () => {
+  it('GET /api/v1/admin/configs liệt kê cancellation.fee ở version 0', async () => {
     const t = (await mkAdmin([PERM.ADMIN_CONFIG_READ])).token;
-    const res = await request(createApp()).get('/v1/admin/configs').set({ Authorization: `Bearer ${t}` });
+    const res = await request(createApp()).get('/api/v1/admin/configs').set({ Authorization: `Bearer ${t}` });
     const list = res.body.items ?? res.body.configs;
     expect(list.find((i: any) => i.key === 'cancellation.fee')).toMatchObject({ version: 0, isDefault: true });
   });

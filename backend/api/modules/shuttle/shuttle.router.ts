@@ -56,7 +56,7 @@ hotelShuttleRouter.post('/:id/cancel', validate({ params: idParams, body: shuttl
 });
 
 // Theo dõi xe của khách: Bearer guestToken (cấp sau khi tra cứu mã + SĐT đúng), CHỈ đơn trong token. Không dùng strictRateLimit (bản đồ hỏi lại thường xuyên):
-// giới hạn riêng 120/phút theo đơn (token), token sai bị authenticate chặn 401 trước và vẫn nằm dưới giới hạn chung theo IP của /v1.
+// giới hạn riêng 120/phút theo đơn (token), token sai bị authenticate chặn 401 trước và vẫn nằm dưới giới hạn chung theo IP của /api/v1.
 export const trackShuttleRouter = Router();
 trackShuttleRouter.get(
   '/shuttle',

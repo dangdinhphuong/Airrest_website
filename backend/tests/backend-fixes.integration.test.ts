@@ -45,56 +45,56 @@ run('tích hợp: sửa lỗi backend đợt tester', () => {
   afterAll(async () => closeDb());
 
   it('ngày sai -> 422 (không 500), tiếng Việt', async () => {
-    for (const p of ['/v1/admin/flights?date=abc', '/v1/admin/flights?date=2026-02-31']) {
+    for (const p of ['/api/v1/admin/flights?date=abc', '/api/v1/admin/flights?date=2026-02-31']) {
       const r = await request(app).get(p).set(auth(admin));
       expect(r.status, p).toBe(422);
     }
-    const r = await request(app).get('/v1/flights/VN218?date=abc').set(guestIp(++ip));
+    const r = await request(app).get('/api/v1/flights/VN218?date=abc').set(guestIp(++ip));
     expect(r.status).toBe(422);
     expect(r.body.error.details[0].message).toBe('Ngày phải dạng YYYY-MM-DD');
   });
 
   it('lỗi zod trả tiếng Việt', async () => {
-    const r = await request(app).post('/v1/auth/login').set(guestIp(++ip)).send({ email: 'x' });
+    const r = await request(app).post('/api/v1/auth/login').set(guestIp(++ip)).send({ email: 'x' });
     expect(r.status).toBe(422);
     const msgs = r.body.error.details.map((d: any) => d.message).join('|');
     expect(msgs).not.toMatch(/Invalid|Required|String must/);
   });
 
   it('khách sạn: mã sân bay lạ -> 422', async () => {
-    const r = await request(app).patch(`/v1/admin/hotels/${hotelId}`).set(auth(admin)).send({ airports: [{ iata: 'ZZZ', km: 3, minutes: 5 }] });
+    const r = await request(app).patch(`/api/v1/admin/hotels/${hotelId}`).set(auth(admin)).send({ airports: [{ iata: 'ZZZ', km: 3, minutes: 5 }] });
     expect(r.status).toBe(422);
-    const ok = await request(app).patch(`/v1/admin/hotels/${hotelId}`).set(auth(admin)).send({ airports: [{ iata: 'han', km: 3, minutes: 5 }] });
+    const ok = await request(app).patch(`/api/v1/admin/hotels/${hotelId}`).set(auth(admin)).send({ airports: [{ iata: 'han', km: 3, minutes: 5 }] });
     expect(ok.status).toBe(200);
-    expect((await request(app).get('/v1/hotels?airport=ZZZ')).body.items).toEqual([]);
+    expect((await request(app).get('/api/v1/hotels?airport=ZZZ')).body.items).toEqual([]);
   });
 
   it('PUT configs: 403 trước 422', async () => {
-    const r = await request(app).put('/v1/admin/configs/booking.hold').set(auth(admin)).send({});
+    const r = await request(app).put('/api/v1/admin/configs/booking.hold').set(auth(admin)).send({});
     expect(r.status).toBe(403);
   });
 
   it('chuyến bay: tạo, trùng 409, sân bay lạ 422, xóa 204, đã có lịch sử 409', async () => {
     const body = { code: 'vj999', origin: 'HAN', dest: 'SGN', scheduledDepartureAt: '2026-12-01T03:00:00Z', reason: 'thử nghiệm' };
-    const c = await request(app).post('/v1/admin/flights').set(auth(admin)).send(body);
+    const c = await request(app).post('/api/v1/admin/flights').set(auth(admin)).send(body);
     expect(c.status).toBe(201);
     expect(c.body.flight).toMatchObject({ code: 'VJ999', status: 'ONTIME' });
-    expect((await request(app).post('/v1/admin/flights').set(auth(admin)).send(body)).status).toBe(409);
-    expect((await request(app).post('/v1/admin/flights').set(auth(admin)).send({ ...body, code: 'VJ998', origin: 'ZZZ' })).status).toBe(422);
+    expect((await request(app).post('/api/v1/admin/flights').set(auth(admin)).send(body)).status).toBe(409);
+    expect((await request(app).post('/api/v1/admin/flights').set(auth(admin)).send({ ...body, code: 'VJ998', origin: 'ZZZ' })).status).toBe(422);
     const id = c.body.flight.id;
-    const p = await request(app).patch(`/v1/admin/flights/${id}`).set(auth(admin)).send({ status: 'CANCELLED', reason: 'hủy thử' });
+    const p = await request(app).patch(`/api/v1/admin/flights/${id}`).set(auth(admin)).send({ status: 'CANCELLED', reason: 'hủy thử' });
     expect(p.status).toBe(200);
-    const d1 = await request(app).delete(`/v1/admin/flights/${id}`).set(auth(admin));
+    const d1 = await request(app).delete(`/api/v1/admin/flights/${id}`).set(auth(admin));
     expect(d1.status).toBe(409);
     expect(d1.body.error.code).toBe('FLIGHT_IN_USE');
-    const c2 = await request(app).post('/v1/admin/flights').set(auth(admin)).send({ ...body, code: 'VJ997' });
-    expect((await request(app).delete(`/v1/admin/flights/${c2.body.flight.id}`).set(auth(admin))).status).toBe(204);
-    expect((await request(app).delete(`/v1/admin/flights/${c2.body.flight.id}`).set(auth(admin))).status).toBe(404);
+    const c2 = await request(app).post('/api/v1/admin/flights').set(auth(admin)).send({ ...body, code: 'VJ997' });
+    expect((await request(app).delete(`/api/v1/admin/flights/${c2.body.flight.id}`).set(auth(admin))).status).toBe(204);
+    expect((await request(app).delete(`/api/v1/admin/flights/${c2.body.flight.id}`).set(auth(admin))).status).toBe(404);
   });
 
   it('check-out / no-show', async () => {
     const a = await createBookingVia(app, { hotelId, roomTypeId: rt, offDays: 3 });
-    const post = (act: string, id: string, t = front) => request(app).post(`/v1/hotel/bookings/${id}/${act}`).set(auth(t));
+    const post = (act: string, id: string, t = front) => request(app).post(`/api/v1/hotel/bookings/${id}/${act}`).set(auth(t));
     expect((await post('check-out', a.id)).status).toBe(409); // chưa check-in
     await setStatus(a.id, 'CONFIRMED');
     expect((await post('no-show', a.id)).body.error.code).toBe('NO_SHOW_NOT_DUE');
@@ -120,25 +120,25 @@ run('tích hợp: sửa lỗi backend đợt tester', () => {
   });
 
   it('hồ sơ khách sạn + ảnh', async () => {
-    const g = await request(app).get('/v1/hotel/profile').set(auth(front));
+    const g = await request(app).get('/api/v1/hotel/profile').set(auth(front));
     expect(g.status).toBe(200);
     expect(g.body.profile.id).toBe(hotelId);
     expect(JSON.stringify(g.body)).not.toMatch(/payout/i);
     const key = 'hotels/2026/123e4567-e89b-12d3-a456-426614174000.jpg';
-    const p = await request(app).patch('/v1/hotel/profile').set(auth(front)).send({ description: 'Mô tả mới', phone: '0241234567', receptionCloseHour: 23, cancellationTemplate: 'STANDARD', amenities: ['WIFI'], images: [key] });
+    const p = await request(app).patch('/api/v1/hotel/profile').set(auth(front)).send({ description: 'Mô tả mới', phone: '0241234567', receptionCloseHour: 23, cancellationTemplate: 'STANDARD', amenities: ['WIFI'], images: [key] });
     expect(p.status).toBe(200);
     expect(p.body.profile).toMatchObject({ description: 'Mô tả mới', contact: { phone: '0241234567' }, policy: { cancellationTemplate: 'STANDARD', receptionCloseHour: 23 } });
     expect(p.body.profile.images[0].key).toBe(key);
-    expect((await request(app).patch('/v1/hotel/profile').set(auth(front)).send({ status: 'ACTIVE' })).status).toBe(422);
-    expect((await request(app).patch('/v1/hotel/profile').set(auth(front)).send({ images: ['evil/../x.jpg'] })).status).toBe(422);
-    expect((await request(app).patch('/v1/hotel/profile').set(auth(front)).send({})).status).toBe(422);
-    const pub = await request(app).get(`/v1/hotels/${hotelId}`);
+    expect((await request(app).patch('/api/v1/hotel/profile').set(auth(front)).send({ status: 'ACTIVE' })).status).toBe(422);
+    expect((await request(app).patch('/api/v1/hotel/profile').set(auth(front)).send({ images: ['evil/../x.jpg'] })).status).toBe(422);
+    expect((await request(app).patch('/api/v1/hotel/profile').set(auth(front)).send({})).status).toBe(422);
+    const pub = await request(app).get(`/api/v1/hotels/${hotelId}`);
     expect(pub.body.hotel.images.map((i: any) => i.key)).toEqual([key]);
-    const empty = await request(app).get(`/v1/hotels/${await mkHotel({ code: 'BF3' })}`);
+    const empty = await request(app).get(`/api/v1/hotels/${await mkHotel({ code: 'BF3' })}`);
     expect(empty.body.hotel.images).toEqual([]);
     const thin = (await mkStaff(hotelId, [PERM.BOOKING_READ])).token;
-    expect((await request(app).get('/v1/hotel/profile').set(auth(thin))).status).toBe(403);
-    const up = await request(app).post('/v1/hotel/media/upload-url').set(auth(front)).send({ contentType: 'image/png', size: 1000 });
+    expect((await request(app).get('/api/v1/hotel/profile').set(auth(thin))).status).toBe(403);
+    const up = await request(app).post('/api/v1/hotel/media/upload-url').set(auth(front)).send({ contentType: 'image/png', size: 1000 });
     expect(up.status).toBe(201);
     expect(up.body.key).toMatch(/^hotels\//);
     void db;
@@ -146,7 +146,7 @@ run('tích hợp: sửa lỗi backend đợt tester', () => {
 
   it('rate limit 429 có requestId', async () => {
     let last: any;
-    for (let i = 0; i < 12; i++) last = await request(app).post('/v1/auth/login').set(guestIp(250)).send({ email: 'a@b.vn', password: 'x' });
+    for (let i = 0; i < 12; i++) last = await request(app).post('/api/v1/auth/login').set(guestIp(250)).send({ email: 'a@b.vn', password: 'x' });
     expect(last.status).toBe(429);
     expect(last.body.error.requestId).toBeTruthy();
   });

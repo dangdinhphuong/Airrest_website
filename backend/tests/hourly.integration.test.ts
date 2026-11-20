@@ -39,7 +39,7 @@ run('tích hợp: đặt phòng theo giờ (giai đoạn 2)', () => {
   const at = (day: Date, h: number, m = 0) => new Date(day.getTime() + (h - 10) * H1 + m * MIN);
   const hl = (roomTypeId: string, startsAt: Date, hours: number, qty = 1) => ({ roomTypeId, qty, kind: 'HOURLY', startsAt: startsAt.toISOString(), hours });
   const make = (hotelId: string, extra: Record<string, unknown>) =>
-    request(app).post('/v1/bookings').set('Idempotency-Key', `hr-${++n}-${Date.now()}`).send({ hotelId, guest: { fullName: 'Khách Giờ', phone: '0912345678' }, ...extra });
+    request(app).post('/api/v1/bookings').set('Idempotency-Key', `hr-${++n}-${Date.now()}`).send({ hotelId, guest: { fullName: 'Khách Giờ', phone: '0912345678' }, ...extra });
   const state = async (code: string) => {
     const b = (await one<any>('SELECT * FROM bookings WHERE code = $1', [code]))!;
     const rs = (await db.query<any>('SELECT room_type_id, qty, state, starts_at, ends_at FROM room_reservations WHERE booking_id = $1 ORDER BY starts_at, qty', [b.id])).rows;
@@ -68,7 +68,7 @@ run('tích hợp: đặt phòng theo giờ (giai đoạn 2)', () => {
 
   it('báo giá đơn toàn giờ: không cần from/to, 3 giờ = 120k + 2×70k, nhân qty; trả kind/giờ ra từng dòng', async () => {
     const d = nextDay();
-    const res = await request(app).post('/v1/bookings/quote').send({ hotelId: H, rooms: [hl(R3, at(d, 14), 3, 2)] });
+    const res = await request(app).post('/api/v1/bookings/quote').send({ hotelId: H, rooms: [hl(R3, at(d, 14), 3, 2)] });
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     expect(res.body.roomVnd).toBe(2 * 260_000);
     expect(res.body.serviceFeeVnd).toBe(serviceFee(520_000, FEE));
@@ -87,7 +87,7 @@ run('tích hợp: đặt phòng theo giờ (giai đoạn 2)', () => {
     const { rs } = await state(b.code);
     expect(new Date(rs[0].startsAt).getTime()).toBe(at(d, 14).getTime());
     expect(new Date(rs[0].endsAt).getTime()).toBe(at(d, 17, 30).getTime());
-    const lk = await request(app).post('/v1/bookings/lookup').set(guestIp(++ip)).send({ code: b.code, phone: '0912345678' });
+    const lk = await request(app).post('/api/v1/bookings/lookup').set(guestIp(++ip)).send({ code: b.code, phone: '0912345678' });
     expect(lk.body.booking.lines[0]).toMatchObject({ kind: 'HOURLY', hours: 3 });
     expect(lk.body.booking.stay.type).toBe('HOURLY');
   });
@@ -212,7 +212,7 @@ run('tích hợp: đặt phòng theo giờ (giai đoạn 2)', () => {
     const c1 = await hold(at(d, 14));
     const id1 = (await state(c1)).b.id;
     expect((await state(c1)).rs.map((r: any) => r.state)).toEqual(['HOLD']);
-    expect((await request(app).post(`/v1/hotel/bookings/${id1}/reject`).set(auth(staff)).send({ reason: 'Hết phòng' })).status).toBe(200);
+    expect((await request(app).post(`/api/v1/hotel/bookings/${id1}/reject`).set(auth(staff)).send({ reason: 'Hết phòng' })).status).toBe(200);
     expect((await state(c1)).rs.map((r: any) => r.state)).toEqual(['RELEASED']);
     const c2 = await hold(at(d, 14));
     await db.query("UPDATE bookings SET expires_at = now() - interval '1 minute' WHERE code = $1", [c2]);
@@ -223,13 +223,13 @@ run('tích hợp: đặt phòng theo giờ (giai đoạn 2)', () => {
     expect(s2.rs.map((r: any) => r.state)).toEqual(['RELEASED']);
     // hủy qua yêu cầu của khách
     const c3 = await hold(at(d, 14));
-    const ask = (body: object) => request(app).post('/v1/change-requests').set(guestIp(++ip)).set('Idempotency-Key', `cr-${++n}-${Date.now()}`).send({ code: c3, phone: '0912345678', reasonCode: 'CHANGE_OF_PLAN', ...body });
+    const ask = (body: object) => request(app).post('/api/v1/change-requests').set(guestIp(++ip)).set('Idempotency-Key', `cr-${++n}-${Date.now()}`).send({ code: c3, phone: '0912345678', reasonCode: 'CHANGE_OF_PLAN', ...body });
     const chg = await ask({ type: 'CHANGE', newFrom: at(d, 15).toISOString(), newTo: at(d, 18).toISOString() });
     expect(chg.status).toBe(422);
     expect(chg.body.error.code).toBe('CHANGE_NOT_SUPPORTED_HOURLY');
     const cancel = await ask({ type: 'CANCEL' });
     expect(cancel.status, JSON.stringify(cancel.body)).toBe(201);
-    expect((await request(app).post(`/v1/hotel/change-requests/${cancel.body.request.id}/approve`).set(auth(staff)).send({})).status).toBe(200);
+    expect((await request(app).post(`/api/v1/hotel/change-requests/${cancel.body.request.id}/approve`).set(auth(staff)).send({})).status).toBe(200);
     const s3 = await state(c3);
     expect(s3.b.status).toBe('CANCELLED');
     expect(s3.rs.map((r: any) => r.state)).toEqual(['RELEASED']);
@@ -241,20 +241,20 @@ run('tích hợp: đặt phòng theo giờ (giai đoạn 2)', () => {
     const a = await make(H, { rooms: [hl(R, at(d, 14), 3)] });
     const id = (await state(a.body.booking.code)).b.id;
     expect((await make(H, { rooms: [hl(R, at(d, 14), 3)] })).status).toBe(409);
-    expect((await request(app).post(`/v1/hotel/bookings/${id}/check-in`).set(auth(staffH)).send({})).status).toBe(200);
+    expect((await request(app).post(`/api/v1/hotel/bookings/${id}/check-in`).set(auth(staffH)).send({})).status).toBe(200);
     expect((await state(a.body.booking.code)).rs.map((r: any) => r.state)).toEqual(['CHECKED_IN']);
-    const out = await request(app).post(`/v1/hotel/bookings/${id}/check-out`).set(auth(staffH)).send({});
+    const out = await request(app).post(`/api/v1/hotel/bookings/${id}/check-out`).set(auth(staffH)).send({});
     expect(out.status, JSON.stringify(out.body)).toBe(200);
     expect((await state(a.body.booking.code)).rs.map((r: any) => r.state)).toEqual(['COMPLETED']);
     expect((await make(H, { rooms: [hl(R, at(d, 14), 3)] })).status).toBe(201); // phòng trống lại
     // không đến
     const future = await make(H, { rooms: [hl(R3, at(nextDay(), 14), 2)] });
-    const early = await request(app).post(`/v1/hotel/bookings/${(await state(future.body.booking.code)).b.id}/no-show`).set(auth(staffH)).send({});
+    const early = await request(app).post(`/api/v1/hotel/bookings/${(await state(future.body.booking.code)).b.id}/no-show`).set(auth(staffH)).send({});
     expect(early.status).toBe(409);
     expect(early.body.error.code).toBe('NO_SHOW_NOT_DUE');
     const started = await make(H, { rooms: [hl(R3, new Date(Date.now() - 2 * MIN), 2)] });
     expect(started.status, JSON.stringify(started.body)).toBe(201);
-    const ns = await request(app).post(`/v1/hotel/bookings/${(await state(started.body.booking.code)).b.id}/no-show`).set(auth(staffH)).send({});
+    const ns = await request(app).post(`/api/v1/hotel/bookings/${(await state(started.body.booking.code)).b.id}/no-show`).set(auth(staffH)).send({});
     expect(ns.status, JSON.stringify(ns.body)).toBe(200);
     expect((await state(started.body.booking.code)).rs.map((r: any) => r.state)).toEqual(['RELEASED']);
   });
@@ -263,7 +263,7 @@ run('tích hợp: đặt phòng theo giờ (giai đoạn 2)', () => {
     const d = nextDay();
     expect((await make(H, { rooms: [hl(R, at(d, 14), 3)] })).status).toBe(201); // 14:00-17:00, nhả 17:30
     const date = d.toISOString().slice(0, 10);
-    const slots = async (roomTypeId: string, q: string) => request(app).get(`/v1/hotels/${H}/hourly-slots?roomTypeId=${roomTypeId}&${q}`);
+    const slots = async (roomTypeId: string, q: string) => request(app).get(`/api/v1/hotels/${H}/hourly-slots?roomTypeId=${roomTypeId}&${q}`);
     const res = await slots(R, `date=${date}&hours=2`);
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     const by = Object.fromEntries(res.body.slots.map((s: any) => [s.time, s]));
@@ -295,21 +295,21 @@ run('tích hợp: đặt phòng theo giờ (giai đoạn 2)', () => {
   it('cấu hình theo loại phòng: PATCH hourly giữ nguyên giá đêm, đồng bộ cờ HOURLY của khách sạn; công khai trả cấu hình', async () => {
     const hid = await mkHotel({ code: 'HR9' });
     const owner = (await mkStaff(hid, [PERM.BOOKING_READ, PERM.ROOM_MANAGE])).token;
-    const created = await request(app).post('/v1/hotel/room-types').set(auth(owner)).send({ code: 'STD', name: 'Standard', capacity: 2, beds: 1, areaM2: 20, totalRooms: 2, baseNightVnd: 400_000 });
+    const created = await request(app).post('/api/v1/hotel/room-types').set(auth(owner)).send({ code: 'STD', name: 'Standard', capacity: 2, beds: 1, areaM2: 20, totalRooms: 2, baseNightVnd: 400_000 });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     const id = created.body.roomType?.id ?? created.body.id;
-    const bad = await request(app).patch(`/v1/hotel/room-types/${id}`).set(auth(owner)).send({ hourly: { enabled: true, firstHourVnd: 120_000 } });
+    const bad = await request(app).patch(`/api/v1/hotel/room-types/${id}`).set(auth(owner)).send({ hourly: { enabled: true, firstHourVnd: 120_000 } });
     expect(bad.status).toBe(422);
-    const ok = await request(app).patch(`/v1/hotel/room-types/${id}`).set(auth(owner)).send({ hourly: { enabled: true, firstHourVnd: 120_000, nextHourVnd: 70_000, minHours: 2, maxHours: 6 } });
+    const ok = await request(app).patch(`/api/v1/hotel/room-types/${id}`).set(auth(owner)).send({ hourly: { enabled: true, firstHourVnd: 120_000, nextHourVnd: 70_000, minHours: 2, maxHours: 6 } });
     expect(ok.status, JSON.stringify(ok.body)).toBe(200);
     expect((await one<any>('SELECT pricing FROM room_types WHERE id = $1', [id]))!.pricing).toMatchObject({ baseNightVnd: 400_000, hourly: { enabled: true, firstHourVnd: 120_000, nextHourVnd: 70_000, minHours: 2, maxHours: 6, cleaningMin: 30 } });
     expect((await one<any>('SELECT amenities FROM hotels WHERE id = $1', [hid]))!.amenities).toContain('HOURLY');
-    const pub = await request(app).get(`/v1/hotels/${hid}`);
+    const pub = await request(app).get(`/api/v1/hotels/${hid}`);
     expect(pub.body.rooms[0].hourly).toMatchObject({ enabled: true, firstHourVnd: 120_000, minHours: 2 });
-    await request(app).patch(`/v1/hotel/room-types/${id}`).set(auth(owner)).send({ baseNightVnd: 450_000 });
+    await request(app).patch(`/api/v1/hotel/room-types/${id}`).set(auth(owner)).send({ baseNightVnd: 450_000 });
     expect((await one<any>('SELECT pricing FROM room_types WHERE id = $1', [id]))!.pricing).toMatchObject({ baseNightVnd: 450_000, hourly: { enabled: true } }); // sửa giá đêm không mất cấu hình giờ
-    await request(app).patch(`/v1/hotel/room-types/${id}`).set(auth(owner)).send({ hourly: { enabled: false } });
+    await request(app).patch(`/api/v1/hotel/room-types/${id}`).set(auth(owner)).send({ hourly: { enabled: false } });
     expect((await one<any>('SELECT amenities FROM hotels WHERE id = $1', [hid]))!.amenities).not.toContain('HOURLY');
-    expect((await request(app).get(`/v1/hotels/${hid}`)).body.rooms[0].hourly).toBeNull();
+    expect((await request(app).get(`/api/v1/hotels/${hid}`)).body.rooms[0].hourly).toBeNull();
   });
 });

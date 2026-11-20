@@ -40,7 +40,7 @@ export const denyPassenger: RequestHandler = (req, _res, next) => {
   next();
 };
 
-// Chỉ tài khoản khách (PASSENGER) — dùng cho /v1/me/*.
+// Chỉ tài khoản khách (PASSENGER) — dùng cho /api/v1/me/*.
 export const requirePassenger: RequestHandler = (req, _res, next) => {
   const auth = req.auth;
   if (!auth) throw new AppError(401, 'UNAUTHENTICATED', 'Chưa đăng nhập');

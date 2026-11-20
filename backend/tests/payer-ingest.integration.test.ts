@@ -36,8 +36,8 @@ run('tích hợp: cổng kết nối đơn vị chi trả', () => {
     await db.query("INSERT INTO accounts (id, type, email, password_hash, full_name, status, payer_id, payer_station_id, role_ids) VALUES ($1,'PAYER',$2,'x','NV','ACTIVE',$3,$4,$5::uuid[])", [id, `${id.slice(0, 8)}@p.vn`, payerId, stationId, [roleId]]);
     return signAccountToken({ sub: id, accountType: 'PAYER' });
   };
-  const ingest = (k: string, b: object) => request(app).post('/v1/payer/ingest/flights').set('x-payer-key', k).set(idem()).send(b);
-  const simulate = (t: string) => request(app).post('/v1/payer/simulate-delay').set(bearer(t)).set(idem()).send({ delayUntil: new Date(Date.now() + 5 * 3600_000).toISOString() });
+  const ingest = (k: string, b: object) => request(app).post('/api/v1/payer/ingest/flights').set('x-payer-key', k).set(idem()).send(b);
+  const simulate = (t: string) => request(app).post('/api/v1/payer/simulate-delay').set(bearer(t)).set(idem()).send({ delayUntil: new Date(Date.now() + 5 * 3600_000).toISOString() });
 
   beforeAll(async () => {
     await freshDb({ roles: true });
@@ -60,7 +60,7 @@ run('tích hợp: cổng kết nối đơn vị chi trả', () => {
   it('khóa chỉ lưu hash; khóa sai/thiếu/thu hồi -> 401', async () => {
     expect((await one<any>('SELECT key_hash, key_prefix FROM payer_api_keys WHERE id = $1', [keyAid]))!.keyHash).not.toContain(keyA);
     expect((await ingest('pk_sai', body())).status).toBe(401);
-    expect((await request(app).post('/v1/payer/ingest/flights').set(idem()).send(body())).status).toBe(401);
+    expect((await request(app).post('/api/v1/payer/ingest/flights').set(idem()).send(body())).status).toBe(401);
     const tmp = await issuePayerKey(payerA, 'tạm');
     expect((await ingest(tmp.key, body({ code: 'VN9100' }))).status).toBe(200);
     await revokePayerKey(tmp.id);
@@ -79,10 +79,10 @@ run('tích hợp: cổng kết nối đơn vị chi trả', () => {
     expect((await one<any>('SELECT last_used_at FROM payer_api_keys WHERE id = $1', [keyAid]))!.lastUsedAt).toBeTruthy();
     // đúng Idempotency-Key + cùng body -> phát lại kết quả cũ
     const h = idem();
-    const a = await request(app).post('/v1/payer/ingest/flights').set('x-payer-key', keyA).set(h).send(body({ code: 'VN9002' }));
-    const b = await request(app).post('/v1/payer/ingest/flights').set('x-payer-key', keyA).set(h).send(body({ code: 'VN9002' }));
+    const a = await request(app).post('/api/v1/payer/ingest/flights').set('x-payer-key', keyA).set(h).send(body({ code: 'VN9002' }));
+    const b = await request(app).post('/api/v1/payer/ingest/flights').set('x-payer-key', keyA).set(h).send(body({ code: 'VN9002' }));
     expect([a.status, b.status, b.headers['idempotent-replay']]).toEqual([200, 200, 'true']);
-    expect((await request(app).post('/v1/payer/ingest/flights').set('x-payer-key', keyA).send(body())).status).toBe(400); // thiếu Idempotency-Key
+    expect((await request(app).post('/api/v1/payer/ingest/flights').set('x-payer-key', keyA).send(body())).status).toBe(400); // thiếu Idempotency-Key
   });
 
   it('đổi giờ bay mới -> flight_changes; không đổi thì không ghi', async () => {
@@ -107,12 +107,12 @@ run('tích hợp: cổng kết nối đơn vị chi trả', () => {
 
   it('cô lập 2 đơn vị: B không thấy/không ghi đè chuyến của A', async () => {
     const id = (await one<{ id: string }>("SELECT id FROM flights WHERE code = 'VN9001'"))!.id;
-    const own = await request(app).get(`/v1/payer/flights/${id}/passengers`).set(bearer(tokA));
+    const own = await request(app).get(`/api/v1/payer/flights/${id}/passengers`).set(bearer(tokA));
     expect(own.status).toBe(200);
     expect(own.body.groups.map((g: any) => [g.pnr, g.counts.total])).toEqual([['ABC123', 2], ['XYZ789', 1]]);
-    expect((await request(app).get(`/v1/payer/flights/${id}/passengers`).set(bearer(tokB))).status).toBe(404);
-    expect((await request(app).get('/v1/payer/flights').set(bearer(tokB))).body.items).toEqual([]);
-    const list = await request(app).get('/v1/payer/flights').set(bearer(tokA));
+    expect((await request(app).get(`/api/v1/payer/flights/${id}/passengers`).set(bearer(tokB))).status).toBe(404);
+    expect((await request(app).get('/api/v1/payer/flights').set(bearer(tokB))).body.items).toEqual([]);
+    const list = await request(app).get('/api/v1/payer/flights').set(bearer(tokA));
     expect(list.body.items.map((f: any) => f.code)).toContain('VN9001');
     expect(list.body.items.find((f: any) => f.code === 'VN9001')).toMatchObject({ paxCount: 3, groupCount: 2 });
     const clash = await ingest(keyB, body({ newDep: '2099-01-10T20:00:00Z' }));
@@ -122,22 +122,22 @@ run('tích hợp: cổng kết nối đơn vị chi trả', () => {
 
   it('JWT không phải đơn vị chi trả / thiếu quyền -> 403; tài khoản theo trạm chỉ thấy trạm mình', async () => {
     const admin = signAccountToken({ sub: randomUUID(), accountType: 'ADMIN' });
-    expect((await request(app).get('/v1/payer/flights').set(bearer(admin))).status).toBe(401);
+    expect((await request(app).get('/api/v1/payer/flights').set(bearer(admin))).status).toBe(401);
     expect((await simulate(tokNoSim)).status).toBe(403);
     // tài khoản gắn trạm HAN thấy chuyến HAN; tạo chuyến DAD bằng khóa cấp đơn vị thì không thấy
     await ingest(keyA, body({ code: 'VN9300', origin: 'DAD' }));
-    const hanOnly = (await request(app).get('/v1/payer/flights').set(bearer(tokStationA))).body.items.map((f: any) => f.code);
+    const hanOnly = (await request(app).get('/api/v1/payer/flights').set(bearer(tokStationA))).body.items.map((f: any) => f.code);
     expect(hanOnly).toContain('VN9001');
     expect(hanOnly).not.toContain('VN9300');
-    const all = (await request(app).get('/v1/payer/flights').set(bearer(tokA))).body.items.map((f: any) => f.code);
+    const all = (await request(app).get('/api/v1/payer/flights').set(bearer(tokA))).body.items.map((f: any) => f.code);
     expect(all).toContain('VN9300');
   });
 
   it('phân trang keyset theo seq', async () => {
-    const p1 = await request(app).get('/v1/payer/flights?limit=1').set(bearer(tokA));
+    const p1 = await request(app).get('/api/v1/payer/flights?limit=1').set(bearer(tokA));
     expect(p1.body.items).toHaveLength(1);
     expect(p1.body.nextCursor).toBe(p1.body.items[0].seq);
-    const p2 = await request(app).get(`/v1/payer/flights?limit=1&cursor=${p1.body.nextCursor}`).set(bearer(tokA));
+    const p2 = await request(app).get(`/api/v1/payer/flights?limit=1&cursor=${p1.body.nextCursor}`).set(bearer(tokA));
     expect(p2.body.items[0].seq).toBeLessThan(p1.body.items[0].seq);
   });
 
@@ -168,14 +168,14 @@ run('tích hợp: cổng kết nối đơn vị chi trả', () => {
     expect(ra.filter((p) => p.isRepresentative && !p.email && !p.phone).length).toBeGreaterThan(0); // có đại diện thiếu liên lạc
     expect(await count('payer_ingest_logs', "source = 'SIMULATION' AND result = 'OK' AND payer_id = $1", [payerA])).toBe(2);
     // chuyến mô phỏng chỉ thuộc đơn vị A; tài khoản theo trạm HAN: sân bay của chuyến = trạm đầu tiên (HAN)
-    expect((await request(app).get(`/v1/payer/flights/${a.body.flight.id}/passengers`).set(bearer(tokB))).status).toBe(404);
+    expect((await request(app).get(`/api/v1/payer/flights/${a.body.flight.id}/passengers`).set(bearer(tokB))).status).toBe(404);
     expect((await one<any>('SELECT origin FROM flights WHERE id = $1', [a.body.flight.id]))!.origin).toBe('HAN');
     const viaStation = await simulate(tokStationA);
     expect(viaStation.status).toBe(201);
   });
 
   it('simulate: giờ bay mới ở quá khứ -> 422', async () => {
-    const r = await request(app).post('/v1/payer/simulate-delay').set(bearer(tokA)).set(idem()).send({ delayUntil: '2000-01-01T00:00:00Z' });
+    const r = await request(app).post('/api/v1/payer/simulate-delay').set(bearer(tokA)).set(idem()).send({ delayUntil: '2000-01-01T00:00:00Z' });
     expect(r.status).toBe(422);
   });
 });

@@ -60,7 +60,7 @@ describe('searchHotels (thuần)', () => {
   });
 });
 
-run('tích hợp: GET /v1/hotels kèm giá, số phòng còn, cờ tính năng', () => {
+run('tích hợp: GET /api/v1/hotels kèm giá, số phòng còn, cờ tính năng', () => {
   const app = createApp();
   let hotel = '';
   let cheap = '';
@@ -76,7 +76,7 @@ run('tích hợp: GET /v1/hotels kèm giá, số phòng còn, cờ tính năng',
   afterAll(async () => closeDb());
 
   it('trả rooms theo giá tăng dần với roomsLeft và features', async () => {
-    const res = await request(app).get('/v1/hotels?airport=HAN');
+    const res = await request(app).get('/api/v1/hotels?airport=HAN');
     expect(res.status).toBe(200);
     const h = res.body.items.find((x: { id: string }) => x.id === hotel);
     expect(h.features).toMatchObject({ shuttle: 'free', hourly: true, freeCancel: true });
@@ -87,11 +87,11 @@ run('tích hợp: GET /v1/hotels kèm giá, số phòng còn, cờ tính năng',
   it('đặt phòng làm giảm roomsLeft trong cửa sổ trùng, không ảnh hưởng cửa sổ khác', async () => {
     const from = new Date(Date.now() + 2 * DAY);
     const to = new Date(from.getTime() + DAY);
-    const book = await request(app).post('/v1/bookings').set('Idempotency-Key', `cat-${Date.now()}`)
+    const book = await request(app).post('/api/v1/bookings').set('Idempotency-Key', `cat-${Date.now()}`)
       .send({ hotelId: hotel, roomTypeId: cheap, qty: 1, from: from.toISOString(), to: to.toISOString(), guest: { fullName: 'Khách Test', phone: '0912345678' } });
     expect(book.status).toBe(201);
     const left = async (f: Date, t: Date) => {
-      const r = await request(app).get(`/v1/hotels/${hotel}?from=${f.toISOString()}&to=${t.toISOString()}`);
+      const r = await request(app).get(`/api/v1/hotels/${hotel}?from=${f.toISOString()}&to=${t.toISOString()}`);
       return r.body.rooms.find((x: { id: string }) => x.id === cheap).roomsLeft as number;
     };
     expect(await left(from, to)).toBe(1);
@@ -99,48 +99,48 @@ run('tích hợp: GET /v1/hotels kèm giá, số phòng còn, cờ tính năng',
   });
 
   it('tìm kiếm: sort/limit/lọc ở backend, trả total; tham số sai -> 422; không tham số -> cursor như cũ', async () => {
-    const ok = await request(app).get('/v1/hotels?airport=HAN&sort=rating&limit=5&guests=2&shuttle=true&hourly=true');
+    const ok = await request(app).get('/api/v1/hotels?airport=HAN&sort=rating&limit=5&guests=2&shuttle=true&hourly=true');
     expect(ok.status).toBe(200);
     expect(ok.body.total).toBeGreaterThanOrEqual(1);
     expect(ok.body.items.map((x: { id: string }) => x.id)).toContain(hotel);
-    const rng = await request(app).get('/v1/hotels?airport=HAN&guests=2&minPrice=500000&maxPrice=1000000');
+    const rng = await request(app).get('/api/v1/hotels?airport=HAN&guests=2&minPrice=500000&maxPrice=1000000');
     expect(rng.body.priceRange.min).toBeLessThanOrEqual(rng.body.priceRange.max);
     expect(rng.body.items.every((x: { rooms: { baseNightVnd: number }[] }) => x.rooms.some((r) => r.baseNightVnd >= 500000 && r.baseNightVnd <= 1000000))).toBe(true);
-    expect((await request(app).get('/v1/hotels?airport=HAN&priceUnder=100000')).body).toMatchObject({ items: [], total: 0 });
-    expect((await request(app).get('/v1/hotels?airport=HAN&family=true')).body.items.map((x: { id: string }) => x.id)).not.toContain(hotel);
-    expect((await request(app).get('/v1/hotels?airport=HAN&sort=bogus')).status).toBe(422);
-    expect((await request(app).get('/v1/hotels?airport=HAN')).body.total).toBeUndefined();
+    expect((await request(app).get('/api/v1/hotels?airport=HAN&priceUnder=100000')).body).toMatchObject({ items: [], total: 0 });
+    expect((await request(app).get('/api/v1/hotels?airport=HAN&family=true')).body.items.map((x: { id: string }) => x.id)).not.toContain(hotel);
+    expect((await request(app).get('/api/v1/hotels?airport=HAN&sort=bogus')).status).toBe(422);
+    expect((await request(app).get('/api/v1/hotels?airport=HAN')).body.total).toBeUndefined();
   });
 
   it('không có airport: toàn hệ thống, sort=rating, minReviews lọc theo số lượt đánh giá', async () => {
     await db.query(`UPDATE hotels SET rating = '{"avg":9.5,"count":4}'::jsonb WHERE id = $1`, [hotel]);
-    const all = await request(app).get('/v1/hotels?limit=4');
+    const all = await request(app).get('/api/v1/hotels?limit=4');
     expect(all.status).toBe(200);
     expect(all.body.total).toBeGreaterThanOrEqual(1);
     expect(all.body.items[0].id).toBe(hotel);
-    expect((await request(app).get('/v1/hotels?minReviews=4')).body.items.map((x: { id: string }) => x.id)).toContain(hotel);
-    expect((await request(app).get('/v1/hotels?minReviews=5')).body.items.map((x: { id: string }) => x.id)).not.toContain(hotel);
-    expect((await request(app).get('/v1/hotels?airport=HAN&minReviews=5')).body.items.map((x: { id: string }) => x.id)).not.toContain(hotel);
+    expect((await request(app).get('/api/v1/hotels?minReviews=4')).body.items.map((x: { id: string }) => x.id)).toContain(hotel);
+    expect((await request(app).get('/api/v1/hotels?minReviews=5')).body.items.map((x: { id: string }) => x.id)).not.toContain(hotel);
+    expect((await request(app).get('/api/v1/hotels?airport=HAN&minReviews=5')).body.items.map((x: { id: string }) => x.id)).not.toContain(hotel);
   });
 
-  it('báo giá POST /v1/bookings/quote khớp đúng giá của đơn tạo ra (phòng + phí dịch vụ + tổng)', async () => {
+  it('báo giá POST /api/v1/bookings/quote khớp đúng giá của đơn tạo ra (phòng + phí dịch vụ + tổng)', async () => {
     const from = new Date(Date.now() + 5 * DAY);
     const to = new Date(from.getTime() + 2 * DAY);
-    const q = await request(app).post('/v1/bookings/quote').send({ hotelId: hotel, roomTypeId: cheap, qty: 1, from: from.toISOString(), to: to.toISOString() });
+    const q = await request(app).post('/api/v1/bookings/quote').send({ hotelId: hotel, roomTypeId: cheap, qty: 1, from: from.toISOString(), to: to.toISOString() });
     expect(q.status).toBe(200);
     expect(q.body).toMatchObject({ nights: 2, roomVnd: 800_000, shuttleVnd: 0, legs: [] });
     expect(q.body.serviceFeeVnd).toBeGreaterThan(0);
     expect(q.body.totalVnd).toBe(q.body.roomVnd + q.body.shuttleVnd + q.body.serviceFeeVnd);
-    const book = await request(app).post('/v1/bookings').set('Idempotency-Key', `quote-${Date.now()}`)
+    const book = await request(app).post('/api/v1/bookings').set('Idempotency-Key', `quote-${Date.now()}`)
       .send({ hotelId: hotel, roomTypeId: cheap, qty: 1, from: from.toISOString(), to: to.toISOString(), guest: { fullName: 'Khách Báo Giá', phone: '0912345678' } });
     expect(book.status).toBe(201);
     expect(book.body.booking.pricing).toMatchObject({ roomVnd: q.body.roomVnd, serviceFeeVnd: q.body.serviceFeeVnd, totalVnd: q.body.totalVnd });
-    expect((await request(app).post('/v1/bookings/quote').send({ hotelId: hotel, roomTypeId: '00000000-0000-4000-8000-000000000000', from: from.toISOString(), to: to.toISOString() })).status).toBe(404);
+    expect((await request(app).post('/api/v1/bookings/quote').send({ hotelId: hotel, roomTypeId: '00000000-0000-4000-8000-000000000000', from: from.toISOString(), to: to.toISOString() })).status).toBe(404);
   });
 
   it('cửa sổ sai: to <= from hoặc quá 31 ngày -> 422', async () => {
     const a = new Date(Date.now() + DAY).toISOString();
-    expect((await request(app).get(`/v1/hotels?airport=HAN&from=${a}&to=${a}`)).status).toBe(422);
-    expect((await request(app).get(`/v1/hotels?airport=HAN&from=${a}&to=${new Date(Date.now() + 40 * DAY).toISOString()}`)).status).toBe(422);
+    expect((await request(app).get(`/api/v1/hotels?airport=HAN&from=${a}&to=${a}`)).status).toBe(422);
+    expect((await request(app).get(`/api/v1/hotels?airport=HAN&from=${a}&to=${new Date(Date.now() + 40 * DAY).toISOString()}`)).status).toBe(422);
   });
 });

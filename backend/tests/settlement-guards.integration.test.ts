@@ -55,10 +55,10 @@ run('tích hợp: điều chỉnh kết toán, đăng nhập payer tạm ngưng,
   });
 
   it('API: zod chặn vượt trần, ID không tồn tại trả 404', async () => {
-    const r1 = await request(app).post('/v1/admin/payer-statements/adjustments').set(bearer(admin)).set({ 'Idempotency-Key': `g-${randomUUID()}` }).set(ip())
+    const r1 = await request(app).post('/api/v1/admin/payer-statements/adjustments').set(bearer(admin)).set({ 'Idempotency-Key': `g-${randomUUID()}` }).set(ip())
       .send({ payerId, period: '2026-03', amountVnd: MAX_ADJUSTMENT_VND + 1, memo: 'quá lớn' });
     expect(r1.status).toBe(422);
-    const r2 = await request(app).post('/v1/admin/hotel-payouts/adjustments').set(bearer(admin)).set({ 'Idempotency-Key': `g-${randomUUID()}` }).set(ip())
+    const r2 = await request(app).post('/api/v1/admin/hotel-payouts/adjustments').set(bearer(admin)).set({ 'Idempotency-Key': `g-${randomUUID()}` }).set(ip())
       .send({ hotelId: randomUUID(), period: '2026-03', amountVnd: 1000, memo: 'không có KS' });
     expect(r2.status).toBe(404);
   });
@@ -68,7 +68,7 @@ run('tích hợp: điều chỉnh kết toán, đăng nhập payer tạm ngưng,
     const email = `nv-${randomUUID().slice(0, 8)}@chitra.mo`;
     const id = await mkAccount({ type: 'HOTEL', email, roleIds: [roleId] });
     await db.query("UPDATE accounts SET type = 'PAYER', payer_id = $2 WHERE id = $1", [id, payerId]);
-    const login = (pw = 'Pass12345678!') => request(app).post('/v1/auth/login').set(ip()).send({ email, password: pw });
+    const login = (pw = 'Pass12345678!') => request(app).post('/api/v1/auth/login').set(ip()).send({ email, password: pw });
     expect((await login()).status).toBe(200);
     await db.query("UPDATE payers SET status = 'SUSPENDED' WHERE id = $1", [payerId]);
     const r = await login();

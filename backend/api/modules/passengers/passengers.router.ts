@@ -19,7 +19,7 @@ import {
 import { addFavorite, hotelIdParams, listFavorites, listNotifications, listVouchers, markNotificationsRead, removeFavorite } from '../../../services/passengers/extras';
 import type { z } from 'zod';
 
-// /v1/auth/passenger/{register,login}: công khai, rate limit chặt.
+// /api/v1/auth/passenger/{register,login}: công khai, rate limit chặt.
 export const passengerAuthRouter = Router();
 passengerAuthRouter.post('/register', passengerAuthRateLimit, validate({ body: registerBody }), async (req, res) => {
   res.status(201).json(await registerPassenger(req.valid.body as z.infer<typeof registerBody>, String(req.id)));
@@ -28,7 +28,7 @@ passengerAuthRouter.post('/login', passengerAuthRateLimit, validate({ body: logi
   res.json(await loginPassenger(req.valid.body as z.infer<typeof loginBody>));
 });
 
-// /v1/me/*: chỉ tài khoản khách đã đăng nhập; mọi truy vấn khóa theo sub trong token.
+// /api/v1/me/*: chỉ tài khoản khách đã đăng nhập; mọi truy vấn khóa theo sub trong token.
 export const meRouter = Router();
 meRouter.use(authenticate, requirePassenger);
 meRouter.patch('/password', passengerAuthRateLimit, validate({ body: changePasswordBody }), async (req, res) => {

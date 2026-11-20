@@ -77,7 +77,7 @@ export function AppProvider({ children }) {
 
   // Token chỉ gắn khi có phiên nhân sự; máy chủ trả 401 (hết hạn/thu hồi) thì đăng xuất.
   useEffect(() => { if (!state.session && !state.booting) setAuthToken(null); }, [state.session, state.booting]);
-  useEffect(() => { // khôi phục phiên nhân sự: token trong sessionStorage + /v1/auth/me; token hỏng/hết hạn thì xóa
+  useEffect(() => { // khôi phục phiên nhân sự: token trong sessionStorage + /api/v1/auth/me; token hỏng/hết hạn thì xóa
     if (!hasStaffToken()) return undefined;
     let alive = true;
     restoreStaff().then((sess) => alive && dispatch(sess && areasOf(sess).length ? { type: 'restoreStaff', session: sess } : { type: 'bootDone' }))
@@ -86,7 +86,7 @@ export function AppProvider({ children }) {
   }, []);
   useEffect(() => { setOnUnauthorized(() => dispatch({ type: 'unauthorized' })); }, []);
 
-  // Khôi phục phiên khách sau khi tải lại trang: token trong sessionStorage + /v1/auth/me. Token hỏng/hết hạn thì xóa.
+  // Khôi phục phiên khách sau khi tải lại trang: token trong sessionStorage + /api/v1/auth/me. Token hỏng/hết hạn thì xóa.
   const restored = useRef(false);
   useEffect(() => {
     let alive = true;

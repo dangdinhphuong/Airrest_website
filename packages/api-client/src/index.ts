@@ -12,7 +12,7 @@ export type Query = Record<string, string | number | boolean | Date | null | und
 export interface RequestOptions {
   query?: Query;
   body?: unknown;
-  /** Header Idempotency-Key (bắt buộc với POST /v1/bookings, /support, /shuttle...). */
+  /** Header Idempotency-Key (bắt buộc với POST /api/v1/bookings, /support, /shuttle...). */
   idempotencyKey?: string;
   /** false: không gửi Authorization dù đang có token (API công khai). */
   auth?: boolean;

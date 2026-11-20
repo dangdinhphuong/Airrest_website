@@ -39,7 +39,7 @@ run('migration 003: loại phòng + room_blocks', () => {
 
   it('mkStaff trả token dùng được', async () => {
     const s = await mkStaff(h, [PERM.BOOKING_READ]);
-    const res = await request(createApp()).get('/v1/hotel/bookings').set('Authorization', `Bearer ${s.token}`);
+    const res = await request(createApp()).get('/api/v1/hotel/bookings').set('Authorization', `Bearer ${s.token}`);
     expect(res.status).toBe(200);
   });
 });

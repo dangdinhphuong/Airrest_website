@@ -64,12 +64,12 @@ Nguyên tắc: **allowlist GET công khai**; mọi request có `Authorization` h
 | Google Fonts | Bên thứ ba | SWR (CSS) + CacheFirst giới hạn số mục (woff2) |
 | Tile OpenStreetMap | Bên thứ ba | **NetworkOnly** (chính sách tile OSM không cho tải trước hàng loạt) [PLAT] |
 | Ảnh khách sạn trên R2 (cross-origin) | Bên thứ ba | Chỉ cache nếu có CORS (tránh opaque response phình quota) [PLAT] |
-| `GET /v1/hotels`, `/hotels/:id`, `/airports`, `/payments/methods` | Công khai nhưng đổi (giá, tồn) | SWR/NetworkFirst TTL ngắn — **chưa xác minh là công khai** |
-| `GET /v1/hotels/:id/hourly-slots`, `/v1/flights/:code` | Thời gian thực | NetworkOnly |
-| `POST /v1/bookings`, `/quote`, `/lookup`, shuttle/change/support/payments/payer | Giao dịch, PII | NetworkOnly (POST vốn không cache). **Không dùng Background Sync ghi lại đơn** — dù `data/user.js` đã có `idempotencyKey` |
-| `/v1/auth/*`, `/me`, `PATCH /me/password` | Xác thực | NetworkOnly, tuyệt đối không cache |
-| `GET /v1/me/bookings`, `/v1/track/shuttle`, `/v1/payer/*` | Theo người dùng | NetworkOnly |
-| Cổng hotel (`bookings`, `profile`, `drivers`, `vehicles`, `inventory`…), cổng admin (`roles`, `accounts`, `audit`, `payments`…), `/v1/driver/trips*` | Nhân sự, nhạy cảm | NetworkOnly |
+| `GET /api/v1/hotels`, `/hotels/:id`, `/airports`, `/payments/methods` | Công khai nhưng đổi (giá, tồn) | SWR/NetworkFirst TTL ngắn — **chưa xác minh là công khai** |
+| `GET /api/v1/hotels/:id/hourly-slots`, `/api/v1/flights/:code` | Thời gian thực | NetworkOnly |
+| `POST /api/v1/bookings`, `/quote`, `/lookup`, shuttle/change/support/payments/payer | Giao dịch, PII | NetworkOnly (POST vốn không cache). **Không dùng Background Sync ghi lại đơn** — dù `data/user.js` đã có `idempotencyKey` |
+| `/api/v1/auth/*`, `/me`, `PATCH /me/password` | Xác thực | NetworkOnly, tuyệt đối không cache |
+| `GET /api/v1/me/bookings`, `/api/v1/track/shuttle`, `/api/v1/payer/*` | Theo người dùng | NetworkOnly |
+| Cổng hotel (`bookings`, `profile`, `drivers`, `vehicles`, `inventory`…), cổng admin (`roles`, `accounts`, `audit`, `payments`…), `/api/v1/driver/trips*` | Nhân sự, nhạy cảm | NetworkOnly |
 | Socket.IO (`/socket.io/`, ws) | Realtime | Loại khỏi routing của SW |
 | `/health`, `/docs`, `/openapi.json` | Hạ tầng | NetworkOnly |
 
@@ -91,14 +91,14 @@ Chưa xác minh được toàn bộ endpoint trong các wrapper `${A}`/`${H}` c�
 |---|---|
 | App shell, trang tĩnh/ảnh; bước **đọc vé** (OCR + barcode cục bộ) *nếu* asset OCR/zxing đã nằm trong cache | Danh sách khách sạn/giá/tồn phòng, đặt phòng, thanh toán (VNPay/MoMo redirect ngoài), theo dõi xe (realtime/polling 7s), cổng hotel/admin/driver, đăng nhập |
 
-Bước tra chuyến bay (`/v1/flights/:code`) vẫn cần mạng. Socket có trạng thái `offline` và dự phòng polling (`socket.js`, `useRealtime.js`) [AGENT].
+Bước tra chuyến bay (`/api/v1/flights/:code`) vẫn cần mạng. Socket có trạng thái `offline` và dự phòng polling (`socket.js`, `useRealtime.js`) [AGENT].
 
 ## 8. Chiến lược cập nhật
 
 - Vite tạo tên file có hash → an toàn cho precache/CacheFirst.
 - `index.html` phải NetworkFirst/no-cache để không kẹt bản cũ.
 - `VITE_API_BASE_URL` được nhúng lúc build (`render.yaml`).
-- API có tiền tố `/v1` nhưng **không thấy cơ chế version/min-client** [AGENT] → cần luồng "có bản mới → tải lại" do người dùng bấm (kiểu `prompt`), **không tự reload**. Lý do: tải lại làm mất token nhân sự trong bộ nhớ và có thể ngắt giữa lúc đặt phòng/thanh toán.
+- API có tiền tố `/api/v1` nhưng **không thấy cơ chế version/min-client** [AGENT] → cần luồng "có bản mới → tải lại" do người dùng bấm (kiểu `prompt`), **không tự reload**. Lý do: tải lại làm mất token nhân sự trong bộ nhớ và có thể ngắt giữa lúc đặt phòng/thanh toán.
 
 ## 9. Android vs iOS
 

@@ -17,12 +17,12 @@ run('tích hợp: tầng / phòng / ảnh + đồng bộ tồn', () => {
   let readOnly = '';
   let n = 0;
   const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
-  const api = (m: 'post' | 'patch' | 'delete' | 'get', url: string, t = t1, b?: unknown) => request(app)[m](`/v1/hotel/${url}`).set(auth(t)).send(b as object);
+  const api = (m: 'post' | 'patch' | 'delete' | 'get', url: string, t = t1, b?: unknown) => request(app)[m](`/api/v1/hotel/${url}`).set(auth(t)).send(b as object);
   const floor = async (level: number, t = t1) => (await api('post', 'floors', t, { name: `Tầng ${level}`, level })).body.floor.id as string;
   const rtOf = async (id: string) => (await one<any>('SELECT * FROM room_types WHERE id = $1', [id]))!;
   const book = (hotelId: string, roomTypeId: string, off: number, qty = 1) =>
     request(app)
-      .post('/v1/bookings')
+      .post('/api/v1/bookings')
       .set('Idempotency-Key', `fr-${++n}-${Date.now()}`)
       .send({ hotelId, roomTypeId, qty, from: new Date(Date.now() + off * DAY).toISOString(), to: new Date(Date.now() + (off + 1) * DAY).toISOString(), guest: { fullName: 'Khách Test', phone: '0912345678' } });
 
@@ -207,7 +207,7 @@ run('tích hợp: tầng / phòng / ảnh + đồng bộ tồn', () => {
     expect((await api('delete', `floors/${fl}`, readOnly)).status).toBe(403);
     expect((await api('get', 'floors', readOnly)).status).toBe(200);
     expect((await api('get', 'rooms', readOnly)).status).toBe(200);
-    expect((await request(app).get('/v1/hotel/rooms')).status).toBe(401);
+    expect((await request(app).get('/api/v1/hotel/rooms')).status).toBe(401);
   });
 
   it('validation: số phòng ký tự lạ / trạng thái sai / body rỗng -> 422', async () => {

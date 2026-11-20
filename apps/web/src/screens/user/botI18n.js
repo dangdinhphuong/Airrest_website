@@ -1,5 +1,5 @@
 // Đa ngôn ngữ cho trợ lý chat: vi (mặc định) / en / zh / ko. Ngôn ngữ nhớ ở mem.lang.
-// - Lời khách: tin gõ bằng ngôn ngữ khác được dịch sang tiếng Việt chuẩn (backend /v1/chat/normalize) rồi chạy qua bộ phân tích tiếng Việt đã có, nên mọi luồng hiểu được.
+// - Lời khách: tin gõ bằng ngôn ngữ khác được dịch sang tiếng Việt chuẩn (backend /api/v1/chat/normalize) rồi chạy qua bộ phân tích tiếng Việt đã có, nên mọi luồng hiểu được.
 // - Lời bot: câu viết sẵn ba thứ tiếng (L/C bên dưới), KHÔNG để model tự dịch (đặc biệt phần tiền, xác nhận đặt). Nút bấm hiển thị theo ngôn ngữ khách
 //   nhưng vẫn gửi giá trị tiếng Việt chuẩn ({ label, text }) để các luồng hiện có không đổi.
 const strip = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');

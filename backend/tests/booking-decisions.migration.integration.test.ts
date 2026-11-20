@@ -18,7 +18,7 @@ run('migration 004: booking_decisions + mặc định duyệt tay', () => {
   let n = 0;
   const book = (off: number) =>
     request(app)
-      .post('/v1/bookings')
+      .post('/api/v1/bookings')
       .set('Idempotency-Key', `dm-${++n}-${Date.now()}`)
       .send({ hotelId: H, roomTypeId: RT, from: new Date(Date.now() + off * DAY).toISOString(), to: new Date(Date.now() + (off + 1) * DAY).toISOString(), guest: { fullName: 'Khách Test', phone: '0912345678' } });
   const insertBookingRow = async () => {
@@ -49,10 +49,10 @@ run('migration 004: booking_decisions + mặc định duyệt tay', () => {
     await expect(ins('CONFIRMED', null)).rejects.toMatchObject({ code: '23505' });
   });
 
-  it('khách sạn tạo qua POST /v1/admin/hotels có approval.manual true', async () => {
+  it('khách sạn tạo qua POST /api/v1/admin/hotels có approval.manual true', async () => {
     const admin = (await mkAdmin([PERM.ADMIN_HOTEL_MANAGE, PERM.ADMIN_HOTEL_READ])).token;
     const res = await request(app)
-      .post('/v1/admin/hotels')
+      .post('/api/v1/admin/hotels')
       .set(auth(admin))
       .send({
         code: 'NEW-01', name: 'KS Mới', address: { line: '1 Nội Bài', city: 'Hà Nội' }, location: { lng: 105.8, lat: 21.2 }, airports: [{ iata: 'han', km: 6, minutes: 12 }],
@@ -71,19 +71,19 @@ run('migration 004: booking_decisions + mặc định duyệt tay', () => {
     const a = await book(1);
     expect(Math.round(await minutes(a.body.booking.code))).toBe(20);
     const sys = (await mkAdmin([PERM.ADMIN_CONFIG_READ, PERM.ADMIN_CONFIG_WRITE])).token;
-    const cur = (await request(app).get('/v1/admin/configs').set(auth(sys))).body;
+    const cur = (await request(app).get('/api/v1/admin/configs').set(auth(sys))).body;
     const hold = (cur.items ?? cur.configs ?? []).find((c: any) => c.key === 'booking.hold')?.value;
     expect(hold).toBeTruthy();
-    const put = await request(app).put('/v1/admin/configs/booking.hold').set(auth(sys)).send({ value: { ...hold, approvalExpireMin: 30 }, reason: 'Thử' });
+    const put = await request(app).put('/api/v1/admin/configs/booking.hold').set(auth(sys)).send({ value: { ...hold, approvalExpireMin: 30 }, reason: 'Thử' });
     expect(put.status).toBe(201);
     const b = await book(3);
     expect(Math.round(await minutes(b.body.booking.code))).toBe(30);
   });
 
-  it('status REJECTED / EXPIRED / PENDING_PAYMENT hợp lệ ở GET /v1/hotel/bookings', async () => {
+  it('status REJECTED / EXPIRED / PENDING_PAYMENT hợp lệ ở GET /api/v1/hotel/bookings', async () => {
     const t = (await mkStaff(H, [PERM.BOOKING_READ])).token;
     for (const status of ['REJECTED', 'EXPIRED', 'PENDING_PAYMENT']) {
-      expect((await request(app).get(`/v1/hotel/bookings?status=${status}`).set(auth(t))).status, status).toBe(200);
+      expect((await request(app).get(`/api/v1/hotel/bookings?status=${status}`).set(auth(t))).status, status).toBe(200);
     }
   });
 

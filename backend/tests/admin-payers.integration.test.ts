@@ -14,9 +14,9 @@ const bearer = (t: string) => ({ Authorization: `Bearer ${t}` });
 
 run('tích hợp: API quản trị đơn vị chi trả', () => {
   // Router chưa được đăng ký trong modules/index.ts: dựng app riêng đúng đường mount dự kiến.
-  const app = express().use(express.json()).use('/v1/admin/payers', adminPayersRouter).use('/v1/payer', payerRouter).use(errorHandler);
+  const app = express().use(express.json()).use('/api/v1/admin/payers', adminPayersRouter).use('/api/v1/payer', payerRouter).use(errorHandler);
   let admin = '', reader = '', payerId = '', stationId = '', hotelId = '', roomTypeId = '', otherRoomType = '';
-  const P = (s = '') => `/v1/admin/payers${s}`;
+  const P = (s = '') => `/api/v1/admin/payers${s}`;
   const rate = (o: object = {}) => ({ hotelId, roomTypeId, nightRateVnd: 800_000, hourlyRates: [{ hours: 3, priceVnd: 300_000 }, { hours: 6, priceVnd: 500_000 }], commissionPct: 10, validFrom: '2099-01-01', validTo: '2099-06-30', ...o });
 
   beforeAll(async () => {
@@ -85,10 +85,10 @@ run('tích hợp: API quản trị đơn vị chi trả', () => {
     expect(Object.keys(list.body.items[0]).sort()).toEqual(['createdAt', 'id', 'keyPrefix', 'name']); // null (chưa dùng/chưa thu hồi) bị bỏ khóa
     expect(await count('idempotency_keys', "response::text LIKE '%pk_%'")).toBe(0);
     const flight = { flight: { code: 'VJ123', airline: 'Vietjet', origin: 'HAN', dest: 'SGN', scheduledDepartureAt: '2099-01-10T08:00:00Z', newDepartureAt: '2099-01-10T13:00:00Z', status: 'DELAYED', cause: 'AIRLINE' }, passengers: [{ pnr: 'ABC123', fullName: 'Nguyễn Văn An', age: 40, isRepresentative: true, phone: '0912345678' }] };
-    const ing = await request(app).post('/v1/payer/ingest/flights').set('x-payer-key', key).set(idem()).send(flight);
+    const ing = await request(app).post('/api/v1/payer/ingest/flights').set('x-payer-key', key).set(idem()).send(flight);
     expect([ing.status, ing.body.flightCreated]).toEqual([200, true]);
     expect((await request(app).delete(P(`/${payerId}/api-keys/${id}`)).set(bearer(admin))).status).toBe(204);
-    expect((await request(app).post('/v1/payer/ingest/flights').set('x-payer-key', key).set(idem()).send(flight)).status).toBe(401);
+    expect((await request(app).post('/api/v1/payer/ingest/flights').set('x-payer-key', key).set(idem()).send(flight)).status).toBe(401);
     expect((await request(app).get(P(`/${payerId}/api-keys`)).set(bearer(reader))).body.items[0].revokedAt).toBeTruthy();
     expect((await request(app).delete(P(`/${payerId}/api-keys/${randomUUID()}`)).set(bearer(admin))).status).toBe(404);
   });
@@ -107,15 +107,15 @@ run('tích hợp: API quản trị đơn vị chi trả', () => {
     expect((await mk({ ...good, stationId: undefined })).body.error.code).toBe('EMAIL_EXISTS');
     const sid = r.body.staff.id;
     const tok = signAccountToken({ sub: sid, accountType: 'PAYER' });
-    expect((await request(app).get('/v1/payer/flights').set(bearer(tok))).status).toBe(200);
+    expect((await request(app).get('/api/v1/payer/flights').set(bearer(tok))).status).toBe(200);
     expect((await request(app).get(P()).set(bearer(tok))).status).toBe(403);
     expect((await request(app).post(P()).set(bearer(tok)).set(idem()).send({ code: 'EVIL', name: 'Evil', kind: 'AIRLINE' })).status).toBe(403);
     expect((await request(app).patch(P(`/${payerId}/staff/${sid}`)).set(bearer(admin)).send({ status: 'LOCKED' })).body.staff.status).toBe('LOCKED');
-    expect((await request(app).get('/v1/payer/flights').set(bearer(tok))).status).toBe(401);
+    expect((await request(app).get('/api/v1/payer/flights').set(bearer(tok))).status).toBe(401);
     await request(app).patch(P(`/${payerId}/staff/${sid}`)).set(bearer(admin)).send({ status: 'ACTIVE' });
-    expect((await request(app).get('/v1/payer/flights').set(bearer(tok))).status).toBe(200);
+    expect((await request(app).get('/api/v1/payer/flights').set(bearer(tok))).status).toBe(200);
     await request(app).patch(P(`/${payerId}`)).set(bearer(admin)).send({ status: 'SUSPENDED' });
-    expect((await request(app).get('/v1/payer/flights').set(bearer(tok))).status).toBe(401);
+    expect((await request(app).get('/api/v1/payer/flights').set(bearer(tok))).status).toBe(401);
     expect((await request(app).get(P(`/${payerId}/staff`)).set(bearer(reader))).body.items).toHaveLength(1);
     expect((await request(app).patch(P(`/${other}/staff/${sid}`)).set(bearer(admin)).send({ status: 'ACTIVE' })).status).toBe(404); // sai payer
     expect(await count('audit_logs', "action LIKE 'PAYER%'")).toBeGreaterThanOrEqual(12);

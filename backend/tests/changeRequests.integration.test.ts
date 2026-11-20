@@ -19,7 +19,7 @@ run('tích hợp: yêu cầu đổi/hủy của khách', () => {
   let ip = 0;
   const nextIp = () => guestIp(++ip);
   let n = 0;
-  const post = (path: string, body: unknown, extra: Record<string, string> = {}) => request(app).post(`/v1/change-requests${path}`).set(nextIp()).set(extra).send(body as object);
+  const post = (path: string, body: unknown, extra: Record<string, string> = {}) => request(app).post(`/api/v1/change-requests${path}`).set(nextIp()).set(extra).send(body as object);
   const cancel = (b: { code: string; phone: string }, key = `cr-${++n}-${Date.now()}`, reasonCode = 'CHANGE_OF_PLAN') =>
     post('/', { ...b, type: 'CANCEL', reasonCode }, { 'Idempotency-Key': key });
   const offDay = (() => { let d = 20; return () => (d += 3); })();
@@ -151,7 +151,7 @@ run('tích hợp: yêu cầu đổi/hủy của khách', () => {
   it('rate limit 429 sau 10 lần dò', async () => {
     const same = guestIp(199);
     let last = 0;
-    for (let i = 0; i < 11; i++) last = (await request(app).post('/v1/change-requests/lookup').set(same).send({ code: 'AR-ZZZZZZZZ', phone: '0912345678' })).status;
+    for (let i = 0; i < 11; i++) last = (await request(app).post('/api/v1/change-requests/lookup').set(same).send({ code: 'AR-ZZZZZZZZ', phone: '0912345678' })).status;
     expect(last).toBe(429);
   });
 
@@ -188,16 +188,16 @@ run('tích hợp: xử lý yêu cầu hủy / đổi ngày', () => {
     return b;
   };
   const askCancel = async (b: { code: string; phone: string }) =>
-    (await request(app).post('/v1/change-requests').set(guest()).set('Idempotency-Key', `ap-${++n}-${Date.now()}`).send({ ...b, type: 'CANCEL', reasonCode: 'CHANGE_OF_PLAN' })).body.request.id as string;
+    (await request(app).post('/api/v1/change-requests').set(guest()).set('Idempotency-Key', `ap-${++n}-${Date.now()}`).send({ ...b, type: 'CANCEL', reasonCode: 'CHANGE_OF_PLAN' })).body.request.id as string;
   const askChange = async (b: { code: string; phone: string }, fromOff: number, nights = 1) => {
     const from = new Date(Date.now() + fromOff * DAY);
-    const res = await request(app).post('/v1/change-requests').set(guest()).set('Idempotency-Key', `ac-${++n}-${Date.now()}`)
+    const res = await request(app).post('/api/v1/change-requests').set(guest()).set('Idempotency-Key', `ac-${++n}-${Date.now()}`)
       .send({ ...b, type: 'CHANGE', reasonCode: 'CHANGE_OF_PLAN', newFrom: from.toISOString(), newTo: new Date(from.getTime() + nights * DAY).toISOString() });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     return res.body.request.id as string;
   };
-  const approve = (id: string, t = staff1) => request(app).post(`/v1/hotel/change-requests/${id}/approve`).set(auth(t)).send({});
-  const reject = (id: string, note: unknown = 'Không thể xử lý', t = staff1) => request(app).post(`/v1/hotel/change-requests/${id}/reject`).set(auth(t)).send({ note });
+  const approve = (id: string, t = staff1) => request(app).post(`/api/v1/hotel/change-requests/${id}/approve`).set(auth(t)).send({});
+  const reject = (id: string, note: unknown = 'Không thể xử lý', t = staff1) => request(app).post(`/api/v1/hotel/change-requests/${id}/reject`).set(auth(t)).send({ note });
   const status = async (id: string) => (await one<any>('SELECT status FROM bookings WHERE id = $1', [id]))!.status as string;
 
   beforeAll(async () => {
@@ -217,16 +217,16 @@ run('tích hợp: xử lý yêu cầu hủy / đổi ngày', () => {
   afterAll(async () => closeDb());
 
   it('quyền và phạm vi: không token 401; thiếu quyền 403; mỗi khách sạn chỉ thấy của mình, admin thấy cả hai, phân trang có nextCursor', async () => {
-    expect((await request(app).get('/v1/hotel/change-requests')).status).toBe(401);
+    expect((await request(app).get('/api/v1/hotel/change-requests')).status).toBe(401);
     const none = (await mkStaff(H1, [PERM.BOOKING_READ])).token;
-    expect((await request(app).get('/v1/hotel/change-requests').set(auth(none))).status).toBe(403);
+    expect((await request(app).get('/api/v1/hotel/change-requests').set(auth(none))).status).toBe(403);
     await askCancel(await mk(H1, RT1));
     await askCancel(await mk(H2, RT2));
-    const mine = await request(app).get('/v1/hotel/change-requests?status=PENDING').set(auth(staff1));
+    const mine = await request(app).get('/api/v1/hotel/change-requests?status=PENDING').set(auth(staff1));
     expect(mine.body.items.every((r: any) => r.hotelId === H1)).toBe(true);
-    const all = await request(app).get('/v1/hotel/change-requests?status=PENDING&limit=100').set(auth(admin));
+    const all = await request(app).get('/api/v1/hotel/change-requests?status=PENDING&limit=100').set(auth(admin));
     expect(new Set(all.body.items.map((r: any) => r.hotelId))).toEqual(new Set([H1, H2]));
-    expect((await request(app).get('/v1/hotel/change-requests?limit=1').set(auth(admin))).body.nextCursor).not.toBeNull();
+    expect((await request(app).get('/api/v1/hotel/change-requests?limit=1').set(auth(admin))).body.nextCursor).not.toBeNull();
   });
 
   it('khách sạn khác duyệt/từ chối -> 404, booking nguyên trạng', async () => {
@@ -254,7 +254,7 @@ run('tích hợp: xử lý yêu cầu hủy / đổi ngày', () => {
     expect((await one<any>('SELECT refunded_vnd FROM bookings WHERE id = $1', [b.id]))!.refundedVnd).toBe(0);
     expect(await count('audit_logs', "action IN ('CHANGE_REQUEST.APPROVE','BOOKING.CANCEL') AND booking_id = $1", [b.id])).toBe(2);
     expect(events).toContainEqual(expect.objectContaining({ code: b.code, status: 'CANCELLED', isNew: false }));
-    const look = await request(app).post('/v1/change-requests/lookup').set(guest()).send(b);
+    const look = await request(app).post('/api/v1/change-requests/lookup').set(guest()).send(b);
     expect(look.body.requests[0].refund).toMatchObject({ status: 'PENDING', amountVnd: quote.refundVnd });
   });
 
@@ -311,7 +311,7 @@ run('tích hợp: xử lý yêu cầu hủy / đổi ngày', () => {
     expect((await reject(id, 'ab')).status).toBe(422);
     expect((await reject(id, 'Đã quá sát giờ')).status).toBe(200);
     expect(await status(b.id)).toBe('CONFIRMED');
-    const look = await request(app).post('/v1/change-requests/lookup').set(guest()).send(b);
+    const look = await request(app).post('/api/v1/change-requests/lookup').set(guest()).send(b);
     expect(look.body.requests[0]).toMatchObject({ status: 'REJECTED', decisionNote: 'Đã quá sát giờ' });
     expect(JSON.stringify(look.body)).not.toContain('decidedBy');
   });

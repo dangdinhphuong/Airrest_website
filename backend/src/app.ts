@@ -32,7 +32,7 @@ export function createApp() {
   app.use(express.json({ limit: '100kb' }));
 
   app.use(healthRouter);
-  app.use('/v1', apiRateLimit, v1Router);
+  app.use('/api/v1', apiRateLimit, v1Router);
 
   app.use(notFound);
   app.use(errorHandler);

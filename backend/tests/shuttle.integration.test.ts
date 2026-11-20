@@ -21,7 +21,7 @@ run('tích hợp: xe đưa đón', () => {
   let off = 3;
   const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
   const g = () => guestIp(++ip + 120);
-  const post = (path: string, body: object, extra: Record<string, string> = {}) => request(app).post(`/v1/shuttle-requests${path}`).set(g()).set(extra).send(body);
+  const post = (path: string, body: object, extra: Record<string, string> = {}) => request(app).post(`/api/v1/shuttle-requests${path}`).set(g()).set(extra).send(body);
   const mk = async (hotel = H1, rt = RT1, status = 'CONFIRMED') => {
     const b = await createBookingVia(app, { hotelId: hotel, roomTypeId: rt, offDays: (off += 2) });
     if (status !== 'CONFIRMED') await setStatus(b.id, status);
@@ -61,10 +61,10 @@ run('tích hợp: xe đưa đón', () => {
     expect(res.body.shuttle).toMatchObject({ status: 'REQUESTED', priceVnd: 100_000 });
     expect(JSON.stringify(res.body)).not.toContain('hotelId');
     const cfgAdmin = (await mkAdmin([PERM.ADMIN_CONFIG_SHUTTLE, PERM.ADMIN_CONFIG_READ])).token;
-    expect((await request(app).put('/v1/admin/configs/pricing.shuttle').set(auth(cfgAdmin)).send({ value: { baseVnd: 90_000, baseKm: 3, perKmVnd: 10_000, nightSurchargeBps: 2000, maxKm: 25 }, reason: 'Thử' })).status).toBe(201);
+    expect((await request(app).put('/api/v1/admin/configs/pricing.shuttle').set(auth(cfgAdmin)).send({ value: { baseVnd: 90_000, baseKm: 3, perKmVnd: 10_000, nightSurchargeBps: 2000, maxKm: 25 }, reason: 'Thử' })).status).toBe(201);
     expect((await one<any>('SELECT price_vnd FROM shuttle_requests WHERE id = $1', [res.body.shuttle.id]))!.priceVnd).toBe(100_000);
     expect(await count('audit_logs', "action = 'SHUTTLE.REQUEST' AND entity_id = $1", [res.body.shuttle.id])).toBe(1);
-    await request(app).put('/v1/admin/configs/pricing.shuttle').set(auth(cfgAdmin)).send({ value: { baseVnd: 60_000, baseKm: 3, perKmVnd: 10_000, nightSurchargeBps: 2000, maxKm: 25 }, reason: 'Khôi phục' });
+    await request(app).put('/api/v1/admin/configs/pricing.shuttle').set(auth(cfgAdmin)).send({ value: { baseVnd: 60_000, baseKm: 3, perKmVnd: 10_000, nightSurchargeBps: 2000, maxKm: 25 }, reason: 'Khôi phục' });
   });
 
   it('khách sạn miễn phí xe: price_vnd = 0 (tạo yêu cầu và gọi xe ngay)', async () => {
@@ -114,8 +114,8 @@ run('tích hợp: xe đưa đón', () => {
     const q = await mk();
     const same = guestIp(250);
     const k = `idem-shuttle-${Date.now()}`;
-    const a1 = await request(app).post('/v1/shuttle-requests').set(same).set('Idempotency-Key', k).send(body(q));
-    const a2 = await request(app).post('/v1/shuttle-requests').set(same).set('Idempotency-Key', k).send(body(q));
+    const a1 = await request(app).post('/api/v1/shuttle-requests').set(same).set('Idempotency-Key', k).send(body(q));
+    const a2 = await request(app).post('/api/v1/shuttle-requests').set(same).set('Idempotency-Key', k).send(body(q));
     expect(a2.body.shuttle.id).toBe(a1.body.shuttle.id);
   });
 
@@ -132,7 +132,7 @@ run('tích hợp: xe đưa đón', () => {
     expect(JSON.stringify(look.body)).not.toContain('hotelId');
     const same = guestIp(251);
     let last = 0;
-    for (let i = 0; i < 11; i++) last = (await request(app).post('/v1/shuttle-requests/lookup').set(same).send({ code: 'AR-ZZZZZZZZ', phone: '0912345678' })).status;
+    for (let i = 0; i < 11; i++) last = (await request(app).post('/api/v1/shuttle-requests/lookup').set(same).send({ code: 'AR-ZZZZZZZZ', phone: '0912345678' })).status;
     expect(last).toBe(429);
   });
 
@@ -140,7 +140,7 @@ run('tích hợp: xe đưa đón', () => {
     let staff1 = '';
     let staff2 = '';
     let ops = '';
-    const act = (id: string, action: string, t: string, b: object = {}) => request(app).post(`/v1/hotel/shuttle-requests/${id}/${action}`).set(auth(t)).send(b);
+    const act = (id: string, action: string, t: string, b: object = {}) => request(app).post(`/api/v1/hotel/shuttle-requests/${id}/${action}`).set(auth(t)).send(b);
     const driver = { driverName: 'Nguyễn Tài Xế', driverPhone: '0988777666' };
     beforeAll(async () => {
       staff1 = (await mkStaff(H1, [PERM.SHUTTLE_HANDLE])).token;
@@ -158,13 +158,13 @@ run('tích hợp: xe đưa đón', () => {
       const x = await newShuttle(H1, RT1);
       await newShuttle(H2, RT2);
       const none = (await mkStaff(H1, [PERM.BOOKING_READ])).token;
-      expect((await request(app).get('/v1/hotel/shuttle-requests').set(auth(none))).status).toBe(403);
+      expect((await request(app).get('/api/v1/hotel/shuttle-requests').set(auth(none))).status).toBe(403);
       expect((await act(x.s, 'assign', staff2, driver)).status).toBe(404);
       expect((await act(x.s, 'complete', staff2)).status).toBe(404);
       expect((await act(x.s, 'cancel', staff2, { note: 'Thử hủy' })).status).toBe(404);
-      const hotels = new Set((await request(app).get('/v1/hotel/shuttle-requests?limit=100').set(auth(ops))).body.items.map((i: any) => i.hotelId));
+      const hotels = new Set((await request(app).get('/api/v1/hotel/shuttle-requests?limit=100').set(auth(ops))).body.items.map((i: any) => i.hotelId));
       expect(hotels).toEqual(new Set([H1, H2]));
-      const p1 = await request(app).get('/v1/hotel/shuttle-requests?status=REQUESTED&limit=1').set(auth(ops));
+      const p1 = await request(app).get('/api/v1/hotel/shuttle-requests?status=REQUESTED&limit=1').set(auth(ops));
       expect(p1.body.nextCursor).not.toBeNull();
     });
 
@@ -213,8 +213,8 @@ run('tích hợp: xe đưa đón', () => {
       const reqStaff = (await mkStaff(H1, [PERM.REQUEST_HANDLE])).token;
       const b = await mk();
       const s = (await create(b)).body.shuttle.id as string;
-      const crId = (await request(app).post('/v1/change-requests').set(g()).set('Idempotency-Key', `cx-${++n}-${Date.now()}`).send({ code: b.code, phone: b.phone, type: 'CANCEL', reasonCode: 'HEALTH' })).body.request.id;
-      expect((await request(app).post(`/v1/hotel/change-requests/${crId}/approve`).set(auth(reqStaff)).send({})).status).toBe(200);
+      const crId = (await request(app).post('/api/v1/change-requests').set(g()).set('Idempotency-Key', `cx-${++n}-${Date.now()}`).send({ code: b.code, phone: b.phone, type: 'CANCEL', reasonCode: 'HEALTH' })).body.request.id;
+      expect((await request(app).post(`/api/v1/hotel/change-requests/${crId}/approve`).set(auth(reqStaff)).send({})).status).toBe(200);
       const row = (await one<any>('SELECT status, cancelled_at FROM shuttle_requests WHERE id = $1', [s]))!;
       expect(row.status).toBe('CANCELLED');
       expect(row.cancelledAt).toBeTruthy();

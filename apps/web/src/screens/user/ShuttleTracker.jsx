@@ -1,5 +1,5 @@
 // Theo dõi xe đưa đón của một đơn: thanh trạng thái chung, thẻ xe + bản đồ, xe ngoài, gọi xe ngay, hủy xe, nhật ký.
-// Dữ liệu đầu: kết quả tra cứu (lookup). Sau đó chỉ dùng GET /v1/track/shuttle (token theo dõi) + socket 'shuttle:update'/'trip:position'.
+// Dữ liệu đầu: kết quả tra cứu (lookup). Sau đó chỉ dùng GET /api/v1/track/shuttle (token theo dõi) + socket 'shuttle:update'/'trip:position'.
 import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Car, Check, Clock3, Copy, ExternalLink, Headphones, Phone, Wifi, WifiOff, XCircle } from 'lucide-react';
 import { airportName, callShuttleNow, cancelShuttle, describeApiError, getTrackState, listAirports } from '../../data/user';

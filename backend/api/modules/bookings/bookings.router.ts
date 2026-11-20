@@ -41,7 +41,7 @@ bookingsRouter.post('/', optionalPassenger, validate({ body: createBookingBody }
   const view = { ...toGuestView(booking), hotel: await guestHotel(booking) };
   const shuttles = booking.shuttle.legCount > 0 ? { shuttles: await loadGuestShuttles(booking.id) } : {}; // xe đặt cùng đơn (giá từng chiều, passengers = guests)
   if (booking.payment.method === 'AT_HOTEL') return void res.status(201).json({ booking: view, ...shuttles });
-  // VNPay lỗi thì đơn vẫn giữ chỗ (PENDING_PAYMENT); khách lấy lại link ở POST /v1/payments/link.
+  // VNPay lỗi thì đơn vẫn giữ chỗ (PENDING_PAYMENT); khách lấy lại link ở POST /api/v1/payments/link.
   const paymentLink = await startBookingPayment(booking.id, booking.code).catch((e: { code?: string }) => ({ error: e.code ?? 'PAYMENT_UNAVAILABLE' }));
   res.status(201).json({ booking: view, ...shuttles, paymentLink });
 });

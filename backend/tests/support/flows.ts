@@ -12,7 +12,7 @@ export async function createBookingVia(app: App, o: { hotelId: string; roomTypeI
   const phone = o.phone ?? '0912345678';
   const off = o.offDays ?? 10;
   const res = await request(app)
-    .post('/v1/bookings')
+    .post('/api/v1/bookings')
     .set('Idempotency-Key', `fl-${randomUUID()}`)
     .send({
       hotelId: o.hotelId, roomTypeId: o.roomTypeId, qty: o.qty ?? 1, paymentMethod: o.paymentMethod ?? 'AT_HOTEL',
@@ -39,7 +39,7 @@ export async function setStatus(bookingId: string, status: string) {
 // Đơn SEPAY: giả lập cổng báo thành công để có paid_vnd + payment SUCCEEDED.
 export async function payBooking(app: App, code: string) {
   const p = (await one<{ txnRef: string }>('SELECT p.txn_ref FROM payments p JOIN bookings b ON b.id = p.booking_id WHERE b.code = $1 ORDER BY p.created_at DESC LIMIT 1', [code]))!;
-  const res = await request(app).post('/v1/payments/sepay/dev-simulate').send({ orderId: p.txnRef });
+  const res = await request(app).post('/api/v1/payments/sepay/dev-simulate').send({ orderId: p.txnRef });
   if (res.status !== 200) throw new Error(`payBooking ${res.status}`);
 }
 

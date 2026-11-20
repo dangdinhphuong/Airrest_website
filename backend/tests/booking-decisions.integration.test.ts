@@ -30,13 +30,13 @@ run('tích hợp: xác nhận / từ chối booking', () => {
   const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
   const book = (hotel = H1, rt = RT3, off = 10, method: 'AT_HOTEL' | 'SEPAY' = 'AT_HOTEL') =>
     request(app)
-      .post('/v1/bookings')
+      .post('/api/v1/bookings')
       .set('Idempotency-Key', `dc-${++n}-${Date.now()}`)
       .send({ hotelId: hotel, roomTypeId: rt, paymentMethod: method, from: new Date(Date.now() + off * DAY).toISOString(), to: new Date(Date.now() + (off + 1) * DAY).toISOString(), guest: { fullName: 'Khách Test', phone: PHONE } });
   const idOf = async (code: string) => (await one<{ id: string }>('SELECT id FROM bookings WHERE code = $1', [code]))!.id;
-  const confirm = (id: string, t = staff1) => request(app).post(`/v1/hotel/bookings/${id}/confirm`).set(auth(t));
-  const reject = (id: string, reason: unknown = 'Hết phòng', t = staff1) => request(app).post(`/v1/hotel/bookings/${id}/reject`).set(auth(t)).send({ reason });
-  const lookup = (code: string) => request(app).post('/v1/bookings/lookup').send({ code, phone: PHONE });
+  const confirm = (id: string, t = staff1) => request(app).post(`/api/v1/hotel/bookings/${id}/confirm`).set(auth(t));
+  const reject = (id: string, reason: unknown = 'Hết phòng', t = staff1) => request(app).post(`/api/v1/hotel/bookings/${id}/reject`).set(auth(t)).send({ reason });
+  const lookup = (code: string) => request(app).post('/api/v1/bookings/lookup').send({ code, phone: PHONE });
 
   beforeAll(async () => {
     await freshDb({ roles: true });
@@ -111,8 +111,8 @@ run('tích hợp: xác nhận / từ chối booking', () => {
     expect((await confirm(id, readOnly)).status).toBe(403);
     expect((await reject(id, 'Hết phòng', readOnly)).status).toBe(403);
     expect((await confirm(id, staff2)).status).toBe(404);
-    expect((await request(app).post(`/v1/hotel/bookings/${id}/confirm`).set(auth(signGuestToken('AR-AAAAAAAA')))).status).toBe(403);
-    expect((await request(app).post(`/v1/hotel/bookings/${id}/confirm`)).status).toBe(401);
+    expect((await request(app).post(`/api/v1/hotel/bookings/${id}/confirm`).set(auth(signGuestToken('AR-AAAAAAAA')))).status).toBe(403);
+    expect((await request(app).post(`/api/v1/hotel/bookings/${id}/confirm`)).status).toBe(401);
     expect((await confirm(id, admin)).status).toBe(200);
     expect((await one<any>("SELECT actor FROM audit_logs WHERE action = 'BOOKING.CONFIRM' AND booking_id = $1", [id]))!.actor.type).toBe('ADMIN');
   });
@@ -137,7 +137,7 @@ run('tích hợp: xác nhận / từ chối booking', () => {
     const b = await book(H1, RT3, 40, 'SEPAY');
     const id = await idOf(b.body.booking.code);
     const pay = (await one<any>('SELECT txn_ref FROM payments WHERE booking_id = $1', [id]))!;
-    expect((await request(app).post('/v1/payments/sepay/dev-simulate').send({ orderId: pay.txnRef })).status).toBe(200);
+    expect((await request(app).post('/api/v1/payments/sepay/dev-simulate').send({ orderId: pay.txnRef })).status).toBe(200);
     const paid = (await one<any>('SELECT status, payment_status, paid_vnd FROM bookings WHERE id = $1', [id]))!;
     expect(paid).toMatchObject({ status: 'CONFIRMED', paymentStatus: 'PAID' }); // SePay: xác nhận ngay, không chờ duyệt
     await asLegacyPaidPending(id);
@@ -148,7 +148,7 @@ run('tích hợp: xác nhận / từ chối booking', () => {
     expect(refunds[0]).toMatchObject({ status: 'PENDING', amountVnd: paid.paidVnd, reasonCode: 'HOTEL_REJECTED' });
     expect(await count('refunds', "id = $1 AND due_at = 'infinity'", [refunds[0].id])).toBe(1);
     const fin = (await mkAdmin([PERM.ADMIN_PAYMENT_MANAGE])).token;
-    expect((await request(app).post('/v1/admin/payments/reconcile').set(auth(fin))).status).toBe(200);
+    expect((await request(app).post('/api/v1/admin/payments/reconcile').set(auth(fin))).status).toBe(200);
     expect((await one<any>('SELECT status FROM refunds WHERE id = $1', [refunds[0].id]))!.status).toBe('PENDING');
     const plain = await idOf((await book(H1, RT3, 41)).body.booking.code);
     await reject(plain);

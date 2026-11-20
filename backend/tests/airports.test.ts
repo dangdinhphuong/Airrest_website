@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { createApp } from '../api/app';
 import { AIRPORTS } from '../data/airports';
 
-describe('GET /v1/airports', () => {
+describe('GET /api/v1/airports', () => {
   it('trả toàn bộ sân bay thương mại, công khai', async () => {
-    const res = await request(createApp()).get('/v1/airports');
+    const res = await request(createApp()).get('/api/v1/airports');
     expect(res.status).toBe(200);
     expect(res.body.items).toHaveLength(AIRPORTS.length);
     expect(res.body.items.map((a: { iata: string }) => a.iata)).toEqual(expect.arrayContaining(['HAN', 'SGN', 'DAD', 'CXR', 'PQC', 'DIN', 'VCS']));

@@ -17,7 +17,7 @@ function Msg({ m }) {
   return <p role={m.ok ? 'status' : 'alert'} className={`tw:text-xs tw:font-semibold ${m.ok ? 'tw:text-emerald-700' : 'tw:text-rose-700'}`}>{m.text}</p>;
 }
 
-// Sửa họ tên (PATCH /v1/me/profile). Không có SĐT/email: Airrest không thu thông tin liên hệ ở tài khoản (BR-002).
+// Sửa họ tên (PATCH /api/v1/me/profile). Không có SĐT/email: Airrest không thu thông tin liên hệ ở tài khoản (BR-002).
 export function EditProfile() {
   const { state, dispatch } = useApp();
   const user = state.user;

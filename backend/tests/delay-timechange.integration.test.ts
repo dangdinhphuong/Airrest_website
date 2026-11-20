@@ -20,7 +20,7 @@ const LEAD = 145 * 60_000; // 120' có mặt + 15' dự phòng + 10' xe (mkHotel
 run('tích hợp: đổi giờ bay / hủy chuyến sau khi đặt phòng (GĐ4)', () => {
   let payer = '', station = '', payerTok = '', otherPayerTok = '', hotel = '', rt = '', hotelTok = '', otherHotelTok = '', seq = 0;
   const events: DelayEvent[] = [];
-  const app = express().use(express.json()).use('/v1/payer', payerExtensionsRouter).use('/v1/hotel/delay-offers', hotelExtensionsRouter).use(errorHandler);
+  const app = express().use(express.json()).use('/api/v1/payer', payerExtensionsRouter).use('/api/v1/hotel/delay-offers', hotelExtensionsRouter).use(errorHandler);
   const bearer = (t: string) => ({ Authorization: `Bearer ${t}` });
   const alerts = (kind: string) => events.filter((e) => e.type === 'alert' && e.payload.kind === kind) as Extract<DelayEvent, { type: 'alert' }>[];
   const authOf = (h: string) => ({ sub: 'x', kind: 'ACCOUNT', accountType: 'HOTEL', hotelId: h, permissions: [PERM.BOOKING_READ, PERM.BOOKING_DECIDE] }) as any;
@@ -112,9 +112,9 @@ run('tích hợp: đổi giờ bay / hủy chuyến sau khi đặt phòng (GĐ4)
     expect(Object.keys(a[0]!.payload).sort()).toEqual(['at', 'batchId', 'groupId', 'kind', 'offerId', 'proposedLeaveAt', 'reason']);
 
     // cô lập: payer khác -> 404; KS khác chưa tới lượt -> 404
-    const url = `/v1/payer/batches/${s.batch}/extensions/request`;
+    const url = `/api/v1/payer/batches/${s.batch}/extensions/request`;
     expect((await request(app).post(url).set(bearer(otherPayerTok)).send({})).status).toBe(404);
-    expect((await request(app).post(`/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(hotelTok))).status).toBe(409); // chưa REQUESTED
+    expect((await request(app).post(`/api/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(hotelTok))).status).toBe(409); // chưa REQUESTED
     events.length = 0;
     const rq = await request(app).post(url).set(bearer(payerTok)).send({});
     expect(rq.status).toBe(200);
@@ -127,8 +127,8 @@ run('tích hợp: đổi giờ bay / hủy chuyến sau khi đặt phòng (GĐ4)
     expect(new Date(inc.proposedLeaveAt).getTime()).toBe(leave.getTime());
     expect((await listHotelOffers(authOf(hotel), 'PENDING')).some((x: any) => x.id === s.offerId)).toBe(false);
 
-    expect((await request(app).post(`/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(otherHotelTok))).status).toBe(404);
-    const ok = await request(app).post(`/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(hotelTok));
+    expect((await request(app).post(`/api/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(otherHotelTok))).status).toBe(404);
+    const ok = await request(app).post(`/api/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(hotelTok));
     expect(ok.status).toBe(200);
     expect((await stayTo(s.bookingId)).getTime()).toBe(leave.getTime());
     expect((await resEnd(s.bookingId)).getTime()).toBe(leave.getTime());
@@ -138,14 +138,14 @@ run('tích hợp: đổi giờ bay / hủy chuyến sau khi đặt phòng (GĐ4)
     expect(await count('booking_events', "booking_id = $1 AND type = 'DELAY_STAY_EXTENDED'", [s.bookingId])).toBe(1);
     expect(await count('email_outbox', "booking_id = $1 AND template = 'room-changed'", [s.bookingId])).toBe(1);
     expect((await one<any>('SELECT pricing FROM bookings WHERE id = $1', [s.bookingId]))!.pricing.roomVnd).toBe(450_000); // 1 đêm giá hợp đồng
-    expect((await request(app).post(`/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(hotelTok))).status).toBe(409);
+    expect((await request(app).post(`/api/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(hotelTok))).status).toBe(409);
   });
 
   it('hai lần accept đồng thời: chỉ một thắng', async () => {
     const s = await scenario();
     await onFlightTimeChanged({ flightId: s.flight, fromDep: s.dep, toDep: new Date(s.dep.getTime() + H), status: 'DELAYED' });
-    await request(app).post(`/v1/payer/batches/${s.batch}/extensions/request`).set(bearer(payerTok)).send({});
-    const r = await Promise.all([1, 2].map(() => request(app).post(`/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(hotelTok))));
+    await request(app).post(`/api/v1/payer/batches/${s.batch}/extensions/request`).set(bearer(payerTok)).send({});
+    const r = await Promise.all([1, 2].map(() => request(app).post(`/api/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(hotelTok))));
     expect(r.map((x) => x.status).sort()).toEqual([200, 409]);
     expect(await count('booking_events', "booking_id = $1 AND type = 'DELAY_STAY_EXTENDED'", [s.bookingId])).toBe(1);
   });
@@ -158,9 +158,9 @@ run('tích hợp: đổi giờ bay / hủy chuyến sau khi đặt phòng (GĐ4)
     const s = await scenario({ hotelId: h2, rtId: rt2 });
     await createPayerBooking({ hotelId: h2, rooms: [{ roomTypeId: rt2, qty: 1 }], from: s.to, to: new Date(s.to.getTime() + 8 * H), guest: { fullName: 'Khách khác', phone: '0912345679' }, holdMinutes: 600 });
     await onFlightTimeChanged({ flightId: s.flight, fromDep: s.dep, toDep: new Date(s.dep.getTime() + 2 * H), status: 'DELAYED' });
-    await request(app).post(`/v1/payer/batches/${s.batch}/extensions/request`).set(bearer(payerTok)).send({});
+    await request(app).post(`/api/v1/payer/batches/${s.batch}/extensions/request`).set(bearer(payerTok)).send({});
     events.length = 0;
-    const r = await request(app).post(`/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(tok2));
+    const r = await request(app).post(`/api/v1/hotel/delay-offers/${s.offerId}/extension/accept`).set(bearer(tok2));
     expect(r.status).toBe(409);
     expect(r.body.error.code).toBe('EXTENSION_NO_ROOM');
     expect((await stayTo(s.bookingId)).getTime()).toBe(s.to.getTime());
@@ -169,13 +169,13 @@ run('tích hợp: đổi giờ bay / hủy chuyến sau khi đặt phòng (GĐ4)
 
     const s2 = await scenario();
     await onFlightTimeChanged({ flightId: s2.flight, fromDep: s2.dep, toDep: new Date(s2.dep.getTime() + H), status: 'DELAYED' });
-    await request(app).post(`/v1/payer/batches/${s2.batch}/extensions/request`).set(bearer(payerTok)).send({});
+    await request(app).post(`/api/v1/payer/batches/${s2.batch}/extensions/request`).set(bearer(payerTok)).send({});
     events.length = 0;
-    expect((await request(app).post(`/v1/hotel/delay-offers/${s2.offerId}/extension/reject`).set(bearer(otherHotelTok)).send({})).status).toBe(404);
-    expect((await request(app).post(`/v1/hotel/delay-offers/${s2.offerId}/extension/reject`).set(bearer(hotelTok)).send({ reason: 'Hết phòng' })).status).toBe(200);
+    expect((await request(app).post(`/api/v1/hotel/delay-offers/${s2.offerId}/extension/reject`).set(bearer(otherHotelTok)).send({})).status).toBe(404);
+    expect((await request(app).post(`/api/v1/hotel/delay-offers/${s2.offerId}/extension/reject`).set(bearer(hotelTok)).send({ reason: 'Hết phòng' })).status).toBe(200);
     expect(alerts('EXTENSION_REJECTED')).toHaveLength(1);
     expect((await stayTo(s2.bookingId)).getTime()).toBe(s2.to.getTime());
-    expect((await request(app).post(`/v1/hotel/delay-offers/${s2.offerId}/extension/reject`).set(bearer(hotelTok)).send({})).status).toBe(409);
+    expect((await request(app).post(`/api/v1/hotel/delay-offers/${s2.offerId}/extension/reject`).set(bearer(hotelTok)).send({})).status).toBe(409);
   });
 
   it('hủy chuyến / mất giờ bay: chỉ cảnh báo + ghi sự kiện, offer giữ nguyên', async () => {

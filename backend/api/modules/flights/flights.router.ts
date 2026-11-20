@@ -8,7 +8,7 @@ import { validate } from '../../middleware/validate';
 // Công khai, chỉ đọc. Dữ liệu MÔ PHỎNG (simulated: true). Mã được chuẩn hóa chữ hoa và kiểm định dạng TRƯỚC khi chạm DB.
 export const flightsRouter = Router();
 
-// Bảng chuyến bay công khai, chỉ đọc. Đặt TRƯỚC '/:code' để 'summary' không bị coi là mã chuyến. Chỉ có apiRateLimit chung của /v1
+// Bảng chuyến bay công khai, chỉ đọc. Đặt TRƯỚC '/:code' để 'summary' không bị coi là mã chuyến. Chỉ có apiRateLimit chung của /api/v1
 // (không strict: giao diện làm mới mỗi 60 giây và đổi tab liên tục; dữ liệu không nhạy cảm, không dò được thông tin cá nhân).
 const iata = z.string().transform((s) => s.toUpperCase()).pipe(z.string().regex(/^[A-Z]{3}$/, 'Mã sân bay gồm 3 chữ cái'));
 const boardQuery = z.object({
