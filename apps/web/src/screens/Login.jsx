@@ -39,7 +39,7 @@ export default function Login() {
   const { state, dispatch } = useApp();
   const sess = state.session;
 
-  const [accountType, setAccountType] = useState('passenger'); // 'passenger' | 'admin'
+  const [accountType, setAccountType] = useState(state.loginAs === 'admin' ? 'admin' : 'passenger'); // 'passenger' | 'admin' (Nhân sự); vào từ Cổng quản trị & đối tác thì mở sẵn Nhân sự
   const [tab, setTab] = useState('login'); // 'login' | 'register'
   const [form, setForm] = useState({ username: '', password: '', regEmail: '', regUsername: '', fullName: '', regPassword: '' });
   const [errors, setErrors] = useState({});

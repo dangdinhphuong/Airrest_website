@@ -95,6 +95,22 @@ run('tích hợp: dashboard + thống kê khách sạn', () => {
     expect(trend.body.bookings.trend.find((x: any) => x.date === '2026-11-11').count).toBe(0);
   });
 
+  it('/api/v1/hotel/stats: không có hotel:finance:read thì vẫn thấy phòng/đơn nhưng KHÔNG thấy tiền', async () => {
+    const A = await mkHotel({ code: 'SR', manual: false });
+    const rt = await mkRoomType(A, 4);
+    await createBookingVia(app, { hotelId: A, roomTypeId: rt });
+    const recep = (await mkStaff(A, [PERM.BOOKING_READ, PERM.BOOKING_CHECKIN])).token;
+    const fin = (await mkStaff(A, [PERM.BOOKING_READ, PERM.HOTEL_FINANCE_READ])).token;
+    const r1 = await request(app).get('/api/v1/hotel/stats').set(auth(recep));
+    expect(r1.status).toBe(200);
+    expect(r1.body.rooms.totalSellable).toBe(4);
+    expect(r1.body.revenue.realized).toBeUndefined();
+    expect(r1.body.revenue.expected).toBeUndefined();
+    expect(Object.values(r1.body.bookings.byStatus as Record<string, any>).every((v) => v.totalVnd === undefined)).toBe(true);
+    const r2 = await request(app).get('/api/v1/hotel/stats').set(auth(fin));
+    expect(r2.body.revenue.realized).toBeDefined();
+    expect(Object.values(r2.body.bookings.byStatus as Record<string, any>).some((v) => typeof v.totalVnd === 'number')).toBe(true);
+  });
   it('/api/v1/hotel/stats: chỉ khách sạn của token; admin không có hotelId -> 422 HOTEL_REQUIRED; ?hotelId bị bỏ qua; stats khách sạn không tồn tại 404; khách sạn rỗng ổn', async () => {
     const A = await mkHotel({ code: 'SA', manual: false });
     const B = await mkHotel({ code: 'SB', manual: false });

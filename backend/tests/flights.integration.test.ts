@@ -105,6 +105,15 @@ run('tích hợp: chuyến bay mô phỏng', () => {
       expect((await request(app).get('/api/v1/admin/flights').set(auth(ops))).status).toBe(200);
     });
 
+    it('lọc theo sân bay (đi hoặc đến); mã sai định dạng -> 422', async () => {
+      const all = (await request(app).get('/api/v1/admin/flights?limit=100').set(auth(ops))).body.items as Array<{ origin: string; dest: string | null }>;
+      const han = (await request(app).get('/api/v1/admin/flights?airport=HAN&limit=100').set(auth(ops))).body.items as Array<{ origin: string; dest: string | null }>;
+      expect(han.length).toBeGreaterThan(0);
+      expect(han.length).toBeLessThanOrEqual(all.length);
+      expect(han.every((f) => f.origin === 'HAN' || f.dest === 'HAN')).toBe(true);
+      expect((await request(app).get('/api/v1/admin/flights?airport=han').set(auth(ops))).status).toBe(422);
+    });
+
     it('đổi giờ: ngày bay không đổi khi qua nửa đêm; offset khác nhau cùng thời điểm -> 409; lịch sử + lastChange công khai', async () => {
       const id = await flightId('VN123'); // chậm ban ngày
       const res = await patch(id, { status: 'DELAYED', newDepartureAt: '2026-11-12T06:00:00+07:00', reason: 'Chậm kỹ thuật' });

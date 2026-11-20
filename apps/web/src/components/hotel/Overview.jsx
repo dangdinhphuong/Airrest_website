@@ -24,13 +24,17 @@ export default function Overview() {
       {s.err && <ErrorState onRetry={s.reload}>{describeError(s.err)}</ErrorState>}
       {d && !s.loading && (
         <>
-          <p className="muted">Số liệu phòng tại {fmtDT(d.asOf)}. Đơn và doanh thu theo ngày nhận phòng: {fmtD(d.revenue.from)} đến {fmtD(d.revenue.to)}.</p>
+          <p className="muted">Số liệu phòng tại {fmtDT(d.asOf)}. Đơn{d.revenue.realized ? ' và doanh thu' : ''} theo ngày nhận phòng: {fmtD(d.revenue.from)} đến {fmtD(d.revenue.to)}.</p>
           <h2>Phòng</h2>
           <Kpi items={[['Phòng bán được', d.rooms.totalSellable, 'k-total'], ['Đang có khách', d.rooms.occupiedNow], ['Đã giữ/đặt', d.rooms.reservedNow], ['Đang khóa/bảo trì', d.rooms.blockedNow], ['Còn trống', d.rooms.availableNow, 'k-avail']]} />
-          <h2>Doanh thu (phần khách sạn nhận, theo ngày nhận phòng)</h2>
-          <Kpi items={[['Đã thực hiện (đã trả phòng)', money(d.revenue.realized.hotelShareVnd), 'k-real'], ['Dự kiến (đã xác nhận/đang ở)', money(d.revenue.expected.hotelShareVnd), 'k-exp']]} />
+          {d.revenue.realized && (
+            <>
+              <h2>Doanh thu (phần khách sạn nhận, theo ngày nhận phòng)</h2>
+              <Kpi items={[['Đã thực hiện (đã trả phòng)', money(d.revenue.realized.hotelShareVnd), 'k-real'], ['Dự kiến (đã xác nhận/đang ở)', money(d.revenue.expected.hotelShareVnd), 'k-exp']]} />
+            </>
+          )}
           <h2>Đơn đặt phòng (theo ngày nhận phòng)</h2>
-          <Kpi items={[['Tổng số đơn', d.bookings.total, 'k-bk'], ['Chờ xác nhận (hiện tại)', d.bookings.pendingApproval, 'k-pend'], ...Object.entries(d.bookings.byStatus).filter(([, v]) => v.count).map(([k, v]) => [STATUS[k]?.[0] || k, `${v.count} (${money(v.totalVnd)})`])]} />
+          <Kpi items={[['Tổng số đơn', d.bookings.total, 'k-bk'], ['Chờ xác nhận (hiện tại)', d.bookings.pendingApproval, 'k-pend'], ...Object.entries(d.bookings.byStatus).filter(([, v]) => v.count).map(([k, v]) => [STATUS[k]?.[0] || k, v.totalVnd == null ? `${v.count}` : `${v.count} (${money(v.totalVnd)})`])]} />
         </>
       )}
     </>

@@ -13,7 +13,7 @@ import { C, L, statusIn } from './botI18n';
 
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
 const dmy = (iso) => iso.split('-').reverse().join('/');
-const PHONE = /^(?:\+?84|0)\d{9,10}$/;
+const PHONE = /^(?:\+84|84|0)[2-9]\d{8}$/; // khớp lib/phone.js và toE164VN (backend)
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const CONFIRM = /^\s*xac nhan dat( phong)?\s*[.!]*\s*$/; // đúng cụm này (nút bấm hoặc gõ), không suy diễn từ "ok"
 // Khách nước ngoài gõ tự do ở các bước đặt phòng (không qua bước dịch để tên/SĐT/xác nhận không bị biến đổi): nhận đúng cụm của từng ngôn ngữ.

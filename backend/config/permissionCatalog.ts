@@ -13,6 +13,7 @@ export const PERMISSION_CATALOG: Record<Permission, { group: string; description
   [PERM.ADMIN_HOTEL_APPROVE_SENSITIVE]: { group: 'Phòng và khách sạn', description: 'Duyệt đổi tài khoản nhận tiền của khách sạn (nguyên tắc bốn mắt, quyền nhạy cảm)' },
   [PERM.BUSINESS_HOTEL_MANAGE]: { group: 'Chủ doanh nghiệp', description: 'Tạo, liệt kê, gửi hồ sơ khách sạn của doanh nghiệp mình và chuyển khách sạn đang làm việc (chỉ có tác dụng với tài khoản chủ doanh nghiệp)' },
   [PERM.BUSINESS_REPORT_READ]: { group: 'Chủ doanh nghiệp', description: 'Xem báo cáo doanh thu từng khách sạn và tổng toàn doanh nghiệp' },
+  [PERM.HOTEL_FINANCE_READ]: { group: 'Nhân viên khách sạn', description: 'Xem bảng chi trả và báo cáo doanh thu của khách sạn đang làm việc (dữ liệu tài chính, không cấp cho lễ tân)' },
   [PERM.HOTEL_STAFF_MANAGE]: { group: 'Nhân viên khách sạn', description: 'Tạo, sửa, khóa/mở khóa nhân viên và đặt lại mật khẩu cho nhân viên của khách sạn mình' },
   [PERM.HOTEL_ROLE_MANAGE]: { group: 'Nhân viên khách sạn', description: 'Tạo, sửa, xóa vai trò và phân quyền riêng của khách sạn mình' },
   [PERM.REQUEST_HANDLE]: { group: 'Hỗ trợ và vận hành', description: 'Duyệt hoặc từ chối yêu cầu đổi/hủy đơn' },

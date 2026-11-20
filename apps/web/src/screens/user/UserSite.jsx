@@ -31,7 +31,7 @@ export default function UserSite({ page, children }) {
   const go = (screen) => { dispatch({ type: 'go', screen }); window.scrollTo({ top: 0 }); };
   const goStays = () => { dispatch({ type: 'go', screen: 'stays' }); window.scrollTo({ top: 0 }); };
   const goSection = (id) => { if (page !== 'home') dispatch({ type: 'go', screen: 'home' }); scrollToId(id); };
-  const goPartner = () => go(state.session ? (areasOf(state.session)[0] ?? 'login') : 'login');
+  const goPartner = () => (state.session ? go(areasOf(state.session)[0] ?? 'login') : (dispatch({ type: 'go', screen: 'login', loginAs: 'admin' }), window.scrollTo({ top: 0 })));
 
   // Hiệu ứng vào trang: chỉ opacity/transform, bỏ qua khi người dùng yêu cầu giảm chuyển động.
   useGSAP(() => {

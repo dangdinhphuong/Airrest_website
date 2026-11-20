@@ -34,6 +34,7 @@ export const PERM = {
   ADMIN_PAYER_MANAGE: 'admin:payer:manage',
   BUSINESS_HOTEL_MANAGE: 'business:hotel:manage',
   BUSINESS_REPORT_READ: 'business:report:read',
+  HOTEL_FINANCE_READ: 'hotel:finance:read',
   HOTEL_STAFF_MANAGE: 'hotel:staff:manage',
   HOTEL_ROLE_MANAGE: 'hotel:role:manage',
 };

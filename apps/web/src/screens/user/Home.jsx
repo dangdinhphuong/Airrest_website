@@ -138,7 +138,7 @@ export default function Home() {
   return (
     <div ref={root}>
       <section id="top" className="tw:relative tw:bg-[#062253]">
-        <img src="/images/hanoi-night.jpg" alt="Hà Nội về đêm nhìn từ trên cao" fetchPriority="high" className="tw:absolute tw:inset-0 tw:size-full tw:object-cover tw:object-center tw:opacity-40" />
+        <img src="/images/hanoi-night.jpg" alt="Hà Nội về đêm nhìn từ trên cao" fetchpriority="high" className="tw:absolute tw:inset-0 tw:size-full tw:object-cover tw:object-center tw:opacity-40" />
         <div className="tw:absolute tw:inset-0 tw:bg-gradient-to-r tw:from-[#031534] tw:via-[#042e70]/90 tw:to-[#031838]/30" />
         <div className="tw:relative tw:mx-auto tw:grid tw:md:min-h-[650px] tw:max-w-[1180px] tw:items-center tw:gap-8 tw:px-5 tw:py-8 tw:md:gap-12 tw:md:py-14 tw:lg:grid-cols-[.95fr_1.05fr]">
           <div className="tw:max-w-2xl tw:text-white">

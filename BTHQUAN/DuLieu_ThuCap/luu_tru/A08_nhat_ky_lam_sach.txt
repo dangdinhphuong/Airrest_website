@@ -1,0 +1,5 @@
+LÀM SẠCH BỘ DỮ LIỆU LƯU TRÚ – 11/10/2026 11:06
+Dòng thô: 70
+Trích lại từ toàn văn trang (luu_tru/raw/): 70 cơ sở – loại cơ sở theo breadcrumb, phòng gia đình và đưa đón theo dòng tiện nghi (loại trừ FAQ và đánh giá của khách)
+Không loại dòng nào
+Dòng sạch: 70 (HAN 36, SGN 34)

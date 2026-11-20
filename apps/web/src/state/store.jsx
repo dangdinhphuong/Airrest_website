@@ -12,6 +12,7 @@ const initial = {
   browseAirport: 'HAN',  // sân bay mặc định cho trợ lý chat và khung nhân sự
   propertyId: null,      // nơi nghỉ đang xem ở trang chi tiết
   partnerTab: null,      // tab đang chọn ở cổng khách sạn/quản trị
+  loginAs: null,         // 'admin': màn đăng nhập mở sẵn tab Nhân sự (đi từ Cổng quản trị & đối tác)
   session: null,         // nhân sự: { id, name, type, permissions, hotelId, area }; token ở lib/api.js
   booting: hasStaffToken(), // đang khôi phục phiên nhân sự sau khi tải lại trang
   user: null,            // hành khách đăng nhập: { id, username, name }; token ở lib/api.js (sessionStorage)
@@ -21,7 +22,7 @@ const keepAuth = (s) => ({ session: s.session, user: s.user });
 
 function reducer(s, a) {
   switch (a.type) {
-    case 'go': return { ...s, screen: a.screen };
+    case 'go': return { ...s, screen: a.screen, loginAs: a.loginAs ?? null }; // loginAs: 'admin' = mở sẵn tab Nhân sự ở màn đăng nhập
     case 'goLookup': return { ...s, screen: 'home' };
     case 'setBrowseAirport': return { ...s, browseAirport: a.airport };
     case 'route': return { ...s, screen: a.screen, propertyId: a.propertyId ?? s.propertyId, partnerTab: a.partnerTab !== undefined ? a.partnerTab : s.partnerTab };

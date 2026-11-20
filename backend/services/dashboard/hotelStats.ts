@@ -5,6 +5,12 @@ import { AppError } from '../../lib/errors';
 import { bookingMoneyByStatus, bookingsSection, resolveRange } from './dashboard.service';
 
 // FR-ADM-08: phòng tồn/đang có khách + doanh thu theo đơn + số đơn theo trạng thái. Phần khách sạn nhận = phòng + xe (không gồm phí dịch vụ, BR-PAY-02).
+// Người không có quyền tài chính (vd lễ tân) vẫn xem được số phòng và số đơn, nhưng KHÔNG thấy tiền: bỏ doanh thu và tổng tiền theo trạng thái.
+export function redactHotelFinance<T extends { revenue: { from: Date; to: Date }; bookings: { byStatus: Record<string, { count: number; totalVnd?: number }> } }>(s: T) {
+  const byStatus = Object.fromEntries(Object.entries(s.bookings.byStatus).map(([k, v]) => [k, { count: v.count }]));
+  return { ...s, revenue: { from: s.revenue.from, to: s.revenue.to }, bookings: { ...s.bookings, byStatus } };
+}
+
 export async function getHotelStats(hotelId: string, q: { from?: Date; to?: Date }, now = new Date()) {
   const hotel = (await db.query<HotelDoc>('SELECT id FROM hotels WHERE id = $1', [hotelId])).rows[0];
   if (!hotel) throw new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');

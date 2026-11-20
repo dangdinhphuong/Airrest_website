@@ -129,6 +129,7 @@ businessReportsRouter.get('/revenue', requirePermission(PERM.BOOKING_READ), vali
   const own = auth.hotelId === q.hotelId;
   const inBusiness = !own && !!auth.businessId && auth.permissions.includes(PERM.BUSINESS_REPORT_READ) && !!(await db.query('SELECT 1 FROM hotels WHERE id = $1 AND business_id = $2', [q.hotelId, auth.businessId])).rows[0];
   if (!own && !inBusiness) throw new AppError(404, 'HOTEL_NOT_FOUND', 'Không tìm thấy khách sạn');
+  if (own && !auth.permissions.includes(PERM.HOTEL_FINANCE_READ)) throw new AppError(403, 'FORBIDDEN', 'Không đủ quyền xem dữ liệu doanh thu');
   const r = await hotelRevenue(q.hotelId, parseRange(q.from, q.to), q.groupBy);
   if (q.format === 'csv') {
     return sendCsv(res, `doanh-thu-${q.from}_${q.to}`, toCsv(['Kỳ', 'Số đơn', 'Đã thực hiện (VND)', 'Dự kiến (VND)', 'Phí dịch vụ đã thực hiện (VND)', 'Phí dịch vụ dự kiến (VND)'], [...r.items.map((i) => [i.bucket, i.bookings, i.realizedVnd, i.expectedVnd, i.serviceFeeRealizedVnd, i.serviceFeeExpectedVnd]), ['Tổng', r.totals.bookings, r.totals.realizedVnd, r.totals.expectedVnd, r.totals.serviceFeeRealizedVnd, r.totals.serviceFeeExpectedVnd]]));

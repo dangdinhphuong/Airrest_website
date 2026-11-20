@@ -84,6 +84,7 @@ export default function Flights() {
   const [q, setQ] = useState({});
   const [edit, setEdit] = useState(null);
   const [hist, setHist] = useState(null);
+  const { items: airports } = useAirports();
   const p = usePaged('/flights', q);
   return (
     <>
@@ -92,7 +93,7 @@ export default function Flights() {
       {creating && <Create onCancel={() => setCreating(false)} onDone={() => { setCreating(false); setDone('Đã tạo chuyến bay.'); p.reload(); }} />}
       {del.node}
       {done && <Notice tone="ok" onClose={() => setDone('')}><span data-testid="flight-done">{done}</span></Notice>}
-      <Filters fields={[['code', 'Mã chuyến (VN218)'], ['date', 'Ngày (YYYY-MM-DD)'], ['status', 'Trạng thái', 'text', Object.entries(ST).map(([k, [t]]) => [k, t])]]} onApply={setQ} />
+      <Filters fields={[['code', 'Mã chuyến (VN218)'], ['date', 'Ngày (YYYY-MM-DD)'], ['status', 'Trạng thái', 'text', Object.entries(ST).map(([k, [t]]) => [k, t])], ['airport', 'Sân bay (đi hoặc đến)', 'text', airports.map((a) => [a.iata, a.iata + ' – ' + a.name])]]} onApply={setQ} />
       {edit && <Edit f={edit} onDone={(ok) => { setEdit(null); if (ok === true) setDone('Đã cập nhật chuyến bay.'); p.reload(); }} />}
       {hist && <Modal open onClose={() => setHist(null)} title={`Lịch sử ${hist.code} · ${hist.flightDate}`} size="lg"><div data-testid="flight-history"><Changes id={hist.id} /></div></Modal>}
       <DataTable empty="Không có chuyến bay khớp bộ lọc." {...pagedProps(p)}

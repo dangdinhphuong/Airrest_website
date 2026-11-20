@@ -97,13 +97,14 @@ export async function flightBoardSummary(date: string | undefined, now = new Dat
 
 const changeView = (c: FlightChangeDoc) => ({ id: c.id, seq: c.seq, fromAt: iso(c.fromDep), toAt: iso(c.toDep), statusBefore: c.statusBefore, statusAfter: c.statusAfter, reason: c.reason, createdAt: iso(c.createdAt)! });
 
-export async function listFlights(q: { code?: string; date?: string; status?: string; limit: number; cursor?: number }, now = new Date()) {
+export async function listFlights(q: { code?: string; date?: string; status?: string; airport?: string; limit: number; cursor?: number }, now = new Date()) {
   const where: string[] = [];
   const params: unknown[] = [];
   const add = (sql: string, v: unknown) => where.push(sql.replace('?', `$${params.push(v)}`));
   if (q.code) add('code = ?', q.code);
   if (q.date) add('flight_date = ?::date', q.date);
   if (q.status) add('status = ?', q.status);
+  if (q.airport) { const n = params.push(q.airport); where.push('(origin = $' + n + ' OR dest = $' + n + ')'); } // sân bay đi hoặc đến
   if (q.cursor !== undefined) add('seq < ?', q.cursor);
   const rows = (await db.query<FlightDoc>(`SELECT ${FLIGHT_COLS} FROM flights ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY seq DESC LIMIT ${q.limit + 1}`, params)).rows;
   const items = rows.slice(0, q.limit);

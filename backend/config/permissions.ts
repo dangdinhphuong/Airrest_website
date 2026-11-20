@@ -35,6 +35,7 @@ export const PERM = {
   BUSINESS_REPORT_READ: 'business:report:read', // báo cáo doanh thu mọi khách sạn của doanh nghiệp + tổng
 
   // --- Cổng khách sạn: nhân viên + vai trò riêng của khách sạn (tách hẳn khỏi admin:account:manage) ---
+  HOTEL_FINANCE_READ: 'hotel:finance:read', // xem bảng chi trả + báo cáo doanh thu của CHÍNH khách sạn đang làm việc (lễ tân không có)
   HOTEL_STAFF_MANAGE: 'hotel:staff:manage', // tạo/sửa/khóa nhân viên, đặt lại mật khẩu của khách sạn đang làm việc
   HOTEL_ROLE_MANAGE: 'hotel:role:manage', // vai trò tùy chỉnh của khách sạn đang làm việc
 

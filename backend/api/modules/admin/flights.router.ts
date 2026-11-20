@@ -12,7 +12,7 @@ export const adminFlightsRouter = Router();
 const need = requirePermission(PERM.FLIGHT_MANAGE);
 const page = { limit: z.coerce.number().int().min(1).max(100).default(30), cursor: z.coerce.number().int().min(0).optional() };
 
-adminFlightsRouter.get('/flights', need, validate({ query: z.object({ code: flightCodeSchema.optional(), date: flightDateSchema.optional(), status: z.enum(['ONTIME', 'DELAYED', 'CANCELLED']).optional(), ...page }) }), async (req, res) => {
+adminFlightsRouter.get('/flights', need, validate({ query: z.object({ code: flightCodeSchema.optional(), date: flightDateSchema.optional(), status: z.enum(['ONTIME', 'DELAYED', 'CANCELLED']).optional(), airport: z.string().regex(/^[A-Z]{3}$/, 'Mã sân bay gồm 3 chữ in hoa').optional(), ...page }) }), async (req, res) => {
   res.json(await listFlights(req.valid.query as Parameters<typeof listFlights>[0]));
 });
 

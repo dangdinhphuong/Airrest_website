@@ -46,6 +46,7 @@ describe('tiện ích', () => {
     expect(toE164VN('0912 345 678')).toBe('+84912345678');
     expect(toE164VN('+84912345678')).toBe('+84912345678');
     expect(toE164VN('12345')).toBeNull();
+    for (const fake of ['0000000000', '0123456789', '0112345678']) expect(toE164VN(fake)).toBeNull(); // số đầu 0/1 không phải đầu số
   });
 
   it('mã đặt phòng đúng định dạng', () => {

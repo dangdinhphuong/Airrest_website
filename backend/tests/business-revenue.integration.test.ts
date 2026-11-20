@@ -12,7 +12,7 @@ const bearer = (t: string) => ({ Authorization: `Bearer ${t}` });
 
 run('tích hợp: báo cáo doanh thu từng khách sạn + tổng doanh nghiệp', () => {
   const app = createApp();
-  let bizA = '', bizB = '', H1 = '', H2 = '', H3 = '', HB = '', ownerTok = '', ownerBTok = '', staff1 = '', staffNoRead = '';
+  let bizA = '', bizB = '', H1 = '', H2 = '', H3 = '', HB = '', ownerTok = '', ownerBTok = '', staff1 = '', staffReception = '', staffNoRead = '';
 
   // stayFrom nhận ISO có múi giờ VN để kiểm ranh giới ngày.
   const mkBooking = async (hotelId: string, status: string, stayFrom: string, room: number, shuttle: number, fee: number) => {
@@ -41,7 +41,8 @@ run('tích hợp: báo cáo doanh thu từng khách sạn + tổng doanh nghiệ
     await db.query('UPDATE hotels SET business_id = $1 WHERE id = $2', [bizB, HB]);
     ownerTok = await mkOwner(bizA, 'owner-a@dn.vn', H1);
     ownerBTok = await mkOwner(bizB, 'owner-b@dn.vn', HB);
-    staff1 = (await mkStaff(H1, [PERM.BOOKING_READ])).token;
+    staff1 = (await mkStaff(H1, [PERM.BOOKING_READ, PERM.HOTEL_FINANCE_READ])).token;
+    staffReception = (await mkStaff(H1, [PERM.BOOKING_READ, PERM.BOOKING_CHECKIN])).token;
     staffNoRead = (await mkStaff(H1, [PERM.ROOM_MANAGE])).token;
 
     // H1: ngày 10/03 (giờ VN) và ranh giới 23:30 VN ngày 10/03 = 16:30Z; 00:10 VN 11/03 = 17:10Z ngày 10/03 -> thuộc ngày 11 theo giờ VN
@@ -97,6 +98,7 @@ run('tích hợp: báo cáo doanh thu từng khách sạn + tổng doanh nghiệ
     expect((await rev(ownerTok, `hotelId=${randomUUID()}&from=2026-03-01&to=2026-03-31`)).status).toBe(404);
     expect((await rev(ownerBTok, `hotelId=${H1}&from=2026-03-01&to=2026-03-31`)).status).toBe(404);
     expect((await rev(staffNoRead, `hotelId=${H1}&from=2026-03-01&to=2026-03-31`)).status).toBe(403);
+    expect((await rev(staffReception, `hotelId=${H1}&from=2026-03-01&to=2026-03-31`)).status).toBe(403); // lễ tân (booking:read, không có hotel:finance:read) không xem doanh thu
     expect((await request(app).get(`/api/v1/hotel/reports/revenue?hotelId=${H1}&from=2026-03-01&to=2026-03-31`)).status).toBe(401);
     expect((await rev(ownerTok, `hotelId=${H2}&from=2026-03-01&to=2026-03-31`)).status).toBe(200); // chủ xem được khách sạn khác của DN mình
   });

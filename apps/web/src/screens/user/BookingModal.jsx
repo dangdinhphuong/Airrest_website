@@ -11,6 +11,7 @@ import { copyText, setTrackPrefill, statusCopy } from './data';
 import { NR, endsAtOf, cartPlan, cartTotal, defaultGuests, planOf, dropSoldOut, hasNight, hourlySpan, isHourly, lineTotal, maxQty, perNight, qtyOf, setQty, suggestExtraRoom, toApiRooms, totalCapacity, totalRooms, roomsText, loadGuest, saveGuest, loadPay, savePay } from './cart';
 import { endLabel, hhmm, vnDay } from './HourlyPicker';
 import GuestsPicker from './GuestsPicker';
+import { isVnPhone } from '../../lib/phone';
 import ShuttleOptions, { LEG_LABEL, emptyShuttle } from './ShuttleOptions';
 
 gsap.registerPlugin(useGSAP);
@@ -136,6 +137,7 @@ export default function BookingModal({ hotel, cart, onCart, dates: initDates, pe
     if (over) { setFieldErr({ field: 'guests', text: `Các phòng đã chọn chỉ chứa tối đa ${capacity} người.` }); focusField('guests'); return; }
     if (guests < rooms) { setFieldErr({ field: 'guests', text: `Mỗi phòng cần ít nhất 1 khách (đang chọn ${rooms} phòng).` }); focusField('guests'); return; }
     setFormError(''); setFieldErr(null);
+    if (!isVnPhone(d.phone)) { setFormError('Số điện thoại chưa đúng. Hãy nhập số Việt Nam thật, ví dụ 0912345678 hoặc +84912345678.'); document.querySelector('input[name=phone]')?.focus(); return; }
     const fullName = d.passengerName.trim();
     saveGuest({ fullName, phone: d.phone.trim() });
     const legs = buildShuttle(shuttle, d.checkIn, d.checkOut, undefined, hourlyTimes, times);
@@ -252,7 +254,7 @@ export default function BookingModal({ hotel, cart, onCart, dates: initDates, pe
           <div className="tw:py-4 tw:text-center"><span className="tw:mx-auto tw:grid tw:size-16 tw:place-items-center tw:rounded-full tw:bg-emerald-50 tw:text-emerald-600"><Check size={30} /></span><span className="tw:mt-5 tw:block tw:text-[11px] tw:font-extrabold tw:uppercase tw:tracking-[.16em] tw:text-emerald-600">Đã gửi thành công</span><h2 className="tw:mt-2 tw:text-2xl tw:font-bold">Yêu cầu đã được ghi nhận</h2><p className="tw:mx-auto tw:mt-3 tw:max-w-md tw:text-xs tw:leading-6 tw:text-slate-500">Lưu mã booking và dùng đúng số điện thoại đã nhập để theo dõi trạng thái.</p>
             <div className="tw:my-6 tw:rounded-2xl tw:bg-blue-50 tw:p-5"><small className="tw:text-slate-500">Mã booking</small><p className="tw:mt-2 tw:text-2xl tw:font-extrabold tw:tracking-wider tw:text-blue-700">{bookingResult.code}</p>{bookingResult.status === 'PENDING' && bookingResult.expiresAt && <HoldTimer until={bookingResult.expiresAt} online={bookingResult.method !== 'AT_HOTEL'} />}
               <span className="tw:mt-3 tw:inline-block tw:rounded-full tw:bg-amber-100 tw:px-3 tw:py-1.5 tw:text-[11px] tw:font-bold tw:text-amber-800">{statusCopy(bookingResult.status)}</span>
-              <div className="tw:mt-4 tw:flex tw:justify-center tw:gap-2">
+              <div className="tw:mt-4 tw:flex tw:flex-wrap tw:justify-center tw:gap-2">
                 <button type="button" data-testid="copy-code" onClick={async () => { setCopied(await copyText(bookingResult.code)); window.setTimeout(() => setCopied(false), 2000); }} className="tw:min-h-11 tw:rounded-xl tw:border tw:border-blue-200 tw:bg-white tw:px-4 tw:text-xs tw:font-bold tw:text-blue-700">{copied ? 'Đã sao chép' : 'Sao chép mã'}</button>
                 {navigator.share && <button type="button" onClick={() => navigator.share({ title: `Booking ${bookingResult.code}`, text: `Mã booking ${bookingResult.code} tại ${hotel.name}` }).catch(() => {})} className="tw:min-h-11 tw:rounded-xl tw:border tw:border-blue-200 tw:bg-white tw:px-4 tw:text-xs tw:font-bold tw:text-blue-700">Chia sẻ</button>}
                 {hotel.lat != null && hotel.lng != null && <a href={`https://www.google.com/maps/dir/?api=1&destination=${hotel.lat},${hotel.lng}`} target="_blank" rel="noopener noreferrer" className="tw:grid tw:min-h-11 tw:place-items-center tw:rounded-xl tw:border tw:border-blue-200 tw:bg-white tw:px-4 tw:text-xs tw:font-bold tw:text-blue-700">Chỉ đường</a>}

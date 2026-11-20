@@ -10,7 +10,7 @@ import { validate } from '../../middleware/validate';
 
 // Bảng chi trả của CHÍNH khách sạn trong token (chỉ đọc, không nhận hotelId từ tham số). Chỉ hiện bảng đã khóa/đã trả.
 export const hotelPayoutsRouter = Router();
-const read = [authenticate, requirePermission(PERM.BOOKING_READ)];
+const read = [authenticate, requirePermission(PERM.HOTEL_FINANCE_READ)];
 const hotelOf = (req: { auth?: unknown }) => {
   const id = (req.auth as AuthContext).hotelId;
   if (!id) throw new AppError(422, 'HOTEL_REQUIRED', 'Tài khoản không gắn với khách sạn nào');
