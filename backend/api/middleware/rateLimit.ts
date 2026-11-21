@@ -15,7 +15,8 @@ export const apiRateLimit = rateLimit({
 });
 
 // Chặt hơn cho endpoint dò thông tin (đăng nhập, tra cứu đơn): chống dò mã/SĐT.
-const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+// Chỉ nới trong test. KHÔNG nới theo 'development': docker-compose chạy API với NODE_ENV=development ngay cả khi mở ra internet qua Cloudflare Tunnel (đã đo: 429 chỉ xuất hiện ở lần thứ 101).
+const isDev = process.env.NODE_ENV === 'test';
 export const strictRateLimit = rateLimit({
   windowMs: 60_000,
   limit: isDev ? 100 : 10,

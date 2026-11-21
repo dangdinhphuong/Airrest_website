@@ -302,6 +302,7 @@ export function validateRegister({ email, username, password, fullName }) {
   const errors = {};
   if (!n) errors.username = 'Nhập tên đăng nhập.';
   else if (n.length > USERNAME_MAX) errors.username = `Tên đăng nhập tối đa ${USERNAME_MAX} ký tự.`;
+  else if (/[\u0000-\u001f\u007f<>&"'`\\]/.test(n)) errors.username = 'Tên đăng nhập chứa ký tự không hợp lệ.';
   else if (LOOKS_LIKE_CONTACT.test(n)) errors.username = 'Tên đăng nhập không được chứa @ hoặc dãy số giống số điện thoại.';
   if (!EMAIL_RE.test((email || '').trim())) errors.email = 'Nhập email hợp lệ, ví dụ ban@example.com.';
   if (!(fullName || '').trim()) errors.fullName = 'Nhập họ và tên.';

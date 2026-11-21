@@ -23,7 +23,7 @@ export const usernameSchema = z
       .string()
       .min(1, 'Nhập tên đăng nhập.')
       .max(USERNAME_MAX, `Tên đăng nhập tối đa ${USERNAME_MAX} ký tự.`)
-      .refine((s) => !/[\u0000-\u001f\u007f]/.test(s), 'Tên đăng nhập chứa ký tự không hợp lệ.')
+      .refine((s) => !/[\u0000-\u001f\u007f<>&"'`\\]/.test(s), 'Tên đăng nhập chứa ký tự không hợp lệ.')
       .refine((s) => !/@|\d{6,}/.test(s), 'Không nhập email hoặc số điện thoại. Airrest không thu thông tin liên hệ (BR-002).'),
   );
 export const passengerPassword = z.string().min(PASSWORD_MIN, `Mật khẩu tối thiểu ${PASSWORD_MIN} ký tự.`).max(PASSWORD_MAX);

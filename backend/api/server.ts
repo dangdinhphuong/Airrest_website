@@ -5,6 +5,7 @@ import { closeDb, connectDb } from '../database/pg';
 import { logger } from '../lib/logger';
 import { expireOverdueBookings } from '../services/bookings/decisions';
 import { getConfig } from '../services/systemConfig';
+import { ensureSystemRoles } from '../services/systemRoles';
 import { startEmailWorker } from '../services/email/outbox';
 import { sweepCheckinSoon } from '../services/notifications';
 import { sweepExpiredOffers } from '../services/delay/offers';
@@ -20,6 +21,7 @@ import { initSocket } from './realtime/socket';
 
 async function main() {
   await connectDb();
+  await ensureSystemRoles(); // quyền vai trò hệ thống luôn đồng bộ config/roles.ts (trước đây chỉ seed mới chạy → DB cũ thiếu hotel:finance:read)
 
   const httpServer = createServer(createApp());
   const io = initSocket(httpServer);

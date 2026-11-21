@@ -13,6 +13,11 @@ describe('validateRegister', () => {
     expect(validateRegister({ ...ok, username: 'u0912345678' }).username).toMatch(/số điện thoại/);
     expect(validateRegister({ ...ok, username: 'u12345' }).username).toBeUndefined();
   });
+  it('tên đăng nhập: chặn ký tự markup, vẫn cho khoảng trắng và chữ có dấu', () => {
+    expect(validateRegister({ ...ok, username: 'a b<script>' }).username).toMatch(/không hợp lệ/);
+    expect(validateRegister({ ...ok, username: 'x"y' }).username).toMatch(/không hợp lệ/);
+    expect(validateRegister({ ...ok, username: 'Minh Ánh' }).username).toBeUndefined();
+  });
   it('mật khẩu 8-128 ký tự', () => {
     expect(validateRegister({ ...ok, password: 'short' }).password).toMatch(/8/);
     expect(validateRegister({ ...ok, password: 'a'.repeat(129) }).password).toMatch(/128/);

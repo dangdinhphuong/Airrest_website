@@ -52,4 +52,3 @@ apps/mobile/android/local.properties
 apps/mobile/android/app/src/main/assets/public/
 apps/mobile/android/app/src/main/assets/capacitor.config.json
 apps/mobile/android/app/src/main/assets/capacitor.plugins.json
-ai-local/backup-*/

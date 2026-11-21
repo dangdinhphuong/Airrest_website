@@ -1,0 +1,111 @@
+# Môi trường dev đầy đủ: docker compose up -d
+#   FE  http://localhost:5174   (Vite, hot reload)
+#   API http://localhost:3000   (tsx watch, hot reload)
+#   DB  Supabase (online): đặt DATABASE_URL trong backend/.env (API đọc file này qua env_file).
+#       Không có Supabase: docker compose --profile local up -d  (Postgres local) và đặt
+#       DATABASE_URL=postgres://postgres:postgres@db:5432/airrest trong backend/.env
+services:
+  db:
+    profiles: ["local"]
+    image: postgres:16-alpine
+    environment: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: airrest }
+    ports: ["5432:5432"]
+    volumes: ["pg-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d airrest"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # AI local cho chatbot (Qwen2.5 3B). KHÔNG mở cổng ra host/LAN: chỉ API gọi được qua mạng compose (http://ollama:11434).
+  # Model nằm ở ./ai-local/models (đã tải sẵn, dùng lại); máy mới thì tự kéo ở lần chạy đầu. Khởi động cùng web, tự làm nóng model để câu chat đầu không bị chậm.
+  ollama:
+    image: ollama/ollama:0.40.16
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_NUM_PARALLEL: "3" # 3 ô nhớ đệm: mỗi loại prompt (hiểu ý / viết câu / dịch lời khách nước ngoài) giữ ô riêng, không đọc lại prompt mỗi lần đổi loại
+      OLLAMA_KEEP_ALIVE: 30m
+      OLLAMA_CONTEXT_LENGTH: "2048" # khớp num_ctx mà API gửi: lệch thì lần gọi đầu phải nạp lại model (chậm 10 giây trở lên)
+    volumes:
+      - ./ai-local/models:/root/.ollama/models
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama pull qwen2.5:3b-instruct || true
+        ollama run qwen2.5:3b-instruct "hi" >/dev/null 2>&1 || true
+        wait
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  api:
+    image: node:22-alpine
+    working_dir: /app
+    # Env truyền qua compose nên gọi tsx trực tiếp (script npm đòi file .env). Chỉ áp migration rồi bật API ngay: seed dữ liệu mẫu
+    # (khoảng 160 khách sạn, chuyến bay, đơn...) nặng và chạy tay một lần: npm run db:seed -w @airrest/backend
+    command: sh -c "npm install && cd backend && npx tsx database/scripts/migrate.ts && npx tsx watch api/server.ts"
+    env_file: ./backend/.env
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      JWT_SECRET: dev-only-change-me-please-0123456789
+      DATA_ENC_KEY: dev-only-data-key-change-me-0123456789
+      CORS_ORIGINS: http://localhost:5174,https://airrest.dpdns.org # thêm tên miền công khai (Cloudflare Tunnel), phân cách bằng dấu phẩy
+      SEED_PASSWORD: ChangeMe123!
+      OLLAMA_URL: http://ollama:11434 # AI local chạy trong compose (service ollama), không cần Ollama trên máy host
+    depends_on:
+      - ollama # chỉ thứ tự khởi động; Ollama chưa sẵn sàng thì chatbot tạm dùng bản từ khóa
+    ports: ["3000:3000"]
+    volumes:
+      - .:/app # monorepo: API cần cả packages/*
+      - api-node-modules:/app/node_modules
+
+  web:
+    # Domain backend: VITE_API_BASE_URL trong apps/web/.env (thư mục được mount nên Vite đọc được), ví dụ http://localhost:3000.
+    # CORS_ORIGINS của api (ở trên) phải chứa http://localhost:5174. Đổi .env thì: docker compose restart web
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -w @airrest/web -- --host 0.0.0.0 --port 5173"
+    environment:
+      VITE_PROXY_TARGET: http://api:3000 # web chuyển tiếp /api/v1 và /socket.io sang API (dùng khi VITE_API_BASE_URL=/)
+    ports: ["5174:5173"]
+    volumes:
+      - .:/app
+      - web-node-modules:/app/node_modules
+
+  web-prod:
+    image: node:22-alpine
+    restart: unless-stopped
+    working_dir: /app
+    # Build một lần lúc khởi động rồi phục vụ bản đã build. Đổi code hay .env thì: docker compose restart web-prod
+    command: sh -c "npm install && npm run build -w @airrest/web && cd apps/web && npx vite preview --host 0.0.0.0 --port 5173"
+    environment:
+      VITE_PROXY_TARGET: http://api:3000
+    depends_on: [api]
+    ports: ["5175:5173"]
+    volumes:
+      - .:/app
+      - web-prod-node-modules:/app/node_modules
+
+  cloudflared:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run
+    depends_on:
+      - web
+
+volumes:
+  pg-data:
+  api-node-modules:
+  web-node-modules:
+  web-prod-node-modules:
