@@ -56,6 +56,9 @@ export default function ScanTicket({ onResult, onClose }) {
   const [msg, setMsg] = useState('');
   const [denied, setDenied] = useState(false); // chỉ trong app APK: chưa cấp quyền camera -> popup dẫn tới cài đặt
   const [busyMsg, setBusyMsg] = useState('Đang đọc ảnh…');
+  const [shot, setShot] = useState(null); // ảnh vừa chụp/tải lên: giữ trên màn hình (chỉ trong bộ nhớ trình duyệt, không gửi đi) và xử lý trên đúng ảnh này
+  const runId = useRef(0); // đổi số này khi Quét lại: kết quả của lần xử lý cũ bị bỏ
+  const frozen = useRef(false); // true khi đang giữ ảnh: tạm dừng quét video để không tranh kết quả với ảnh đã chụp
 
   const stop = () => { stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null; };
   const done = (text) => {
@@ -80,7 +83,7 @@ export default function ScanTicket({ onResult, onClose }) {
         let seen = '';
         while (alive && stream.current) {
           const v = video.current;
-          if (v && v.videoWidth) {
+          if (v && v.videoWidth && !frozen.current) {
             const k = Math.min(1, 1280 / v.videoWidth);
             canvas.width = Math.round(v.videoWidth * k); canvas.height = Math.round(v.videoHeight * k);
             ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
@@ -102,27 +105,36 @@ export default function ScanTicket({ onResult, onClose }) {
         setMsg(e?.name === 'NotAllowedError' ? 'Bạn chưa cho phép dùng camera. Hãy cấp quyền hoặc tải ảnh thẻ lên tàu.' : 'Không mở được camera trên thiết bị này. Hãy tải ảnh thẻ lên tàu.');
       }
     })();
-    return () => { alive = false; window.removeEventListener('keydown', onKey); stop(); terminateOcr(); };
+    return () => { alive = false; window.removeEventListener('keydown', onKey); stop(); terminateOcr(); setShot((u) => { if (u) URL.revokeObjectURL(u); return null; }); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ảnh tải lên hoặc ảnh vừa chụp: mã vạch -> OCR + bộ regex -> nhờ AI đọc giúp (chỉ gửi chữ đã bỏ tên/mã đặt chỗ, không gửi ảnh).
   const processImage = async (file) => {
+    frozen.current = true; const my = ++runId.current; const stale = () => my !== runId.current;
+    setShot((u) => { if (u) URL.revokeObjectURL(u); return URL.createObjectURL(file); });
     setState('busy'); setMsg(''); setBusyMsg('Đang đọc mã vạch…');
     try {
       const readBarcodes = await loadReader();
       const text = await decodeFile(file, readBarcodes);
+      if (stale()) return;
       if (text && done(text)) return;
       setBusyMsg('Không thấy mã vạch, đang đọc chữ in trên ảnh (vài giây)…');
       const ocrText = await ocrImage(file);
+      if (stale()) return;
       const parsed = parseTicketText(ocrText);
       if (parsed) { stop(); onResult({ ...parsed, source: 'ocr' }); return; }
       setBusyMsg('Đang nhờ AI đọc giúp chữ trên ảnh…');
       const ai = await extractTicket(redactTicketText(ocrText));
+      if (stale()) return;
       if (ai) { stop(); onResult({ ...ai, source: 'ai' }); return; }
       setMsg(NOT_FOUND);
-    } catch { setMsg('Không xử lý được ảnh này. Hãy thử ảnh khác.'); }
+    } catch { if (stale()) return; setMsg('Không xử lý được ảnh này. Hãy thử ảnh khác.'); }
+    if (stale()) return;
     setState(stream.current ? 'scanning' : 'nocam');
   };
+
+  // Bỏ ảnh đang giữ để chụp lại (quay về xem camera trực tiếp nếu còn).
+  const retake = () => { runId.current += 1; frozen.current = false; setState(stream.current ? 'scanning' : 'nocam'); setShot((u) => { if (u) URL.revokeObjectURL(u); return null; }); setMsg(''); };
 
   const fromFile = async (e) => {
     const file = e.target.files?.[0]; e.target.value = '';
@@ -150,15 +162,22 @@ export default function ScanTicket({ onResult, onClose }) {
           <button type="button" onClick={onClose} aria-label="Đóng" className="tw:grid tw:size-9 tw:place-items-center tw:rounded-full tw:bg-slate-100 tw:text-slate-600 tw:hover:bg-slate-200"><X size={16} /></button>
         </header>
         <div className="tw:p-5">
-          {state !== 'nocam' && (
+          {(state !== 'nocam' || shot) && (
             <div className="tw:relative tw:aspect-[4/3] tw:overflow-hidden tw:rounded-2xl tw:bg-slate-900">
-              <video ref={video} muted playsInline className="tw:size-full tw:object-cover" />
+              <video ref={video} muted playsInline className={`tw:size-full tw:object-cover ${shot ? 'tw:hidden' : ''}`} />
+              {shot && <img src={shot} alt="Ảnh thẻ lên tàu vừa chụp" data-testid="scan-shot" className="tw:size-full tw:object-contain" />}
               <div className="tw:pointer-events-none tw:absolute tw:inset-6 tw:rounded-xl tw:border-2 tw:border-white/80" />
               {state === 'starting' && <p className="tw:absolute tw:inset-0 tw:grid tw:place-items-center tw:text-sm tw:font-semibold tw:text-white">Đang mở camera…</p>}
-              {state === 'busy' && <p className="tw:absolute tw:inset-0 tw:grid tw:place-items-center tw:bg-slate-900/60 tw:px-6 tw:text-center tw:text-sm tw:font-semibold tw:text-white">{busyMsg}</p>}
+              {state === 'busy' && <p className="tw:absolute tw:inset-0 tw:grid tw:place-content-center tw:gap-1 tw:bg-slate-900/60 tw:px-6 tw:text-center tw:text-sm tw:font-semibold tw:text-white"><span className="tw:text-base tw:font-extrabold">Đang tìm chuyến bay…</span><span className="tw:text-xs tw:font-medium tw:text-white/80">{busyMsg}</span></p>}
             </div>
           )}
-          {state === 'scanning' && <button type="button" onClick={capture} data-testid="scan-capture" className="tw:mt-3 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-blue-600 tw:px-4 tw:text-sm tw:font-bold tw:text-white tw:hover:bg-blue-700"><Camera size={17} /> Chụp và đọc thẻ</button>}
+          {shot && (
+            <div className="tw:mt-3 tw:flex tw:items-center tw:justify-between tw:gap-3">
+              <span className="tw:text-sm tw:font-semibold tw:text-slate-700">{state === 'busy' ? 'Đang tìm chuyến bay…' : 'Chưa tìm thấy chuyến bay'}</span>
+              <button type="button" onClick={retake} data-testid="scan-retake" className="tw:flex tw:min-h-11 tw:items-center tw:gap-2 tw:rounded-xl tw:border tw:border-blue-300 tw:px-4 tw:text-sm tw:font-bold tw:text-blue-700 tw:hover:bg-blue-50"><Camera size={17} /> Quét lại</button>
+            </div>
+          )}
+          {state === 'scanning' && !shot && <button type="button" onClick={capture} data-testid="scan-capture" className="tw:mt-3 tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-center tw:gap-2 tw:rounded-xl tw:bg-blue-600 tw:px-4 tw:text-sm tw:font-bold tw:text-white tw:hover:bg-blue-700"><Camera size={17} /> Chụp và đọc thẻ</button>}
           <p className="tw:mt-3 tw:text-xs tw:leading-5 tw:text-slate-500">
             {state === 'nocam' ? <Camera size={14} className="tw:mr-1 tw:inline" /> : null}
             {msg || 'Đưa mã vạch/QR trên thẻ lên tàu vào khung, hoặc bấm Chụp để đọc chữ in trên thẻ. Chỉ số hiệu chuyến bay, ngày bay, sân bay và giờ được dùng. Tên và mã đặt chỗ được loại bỏ ngay trên máy bạn, không lưu; nếu cần, chữ còn lại được gửi tới AI chạy trong hệ thống AIRREST để đọc giúp, ảnh không bao giờ rời khỏi máy.'}

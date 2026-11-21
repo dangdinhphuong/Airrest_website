@@ -13,6 +13,9 @@ describe('parseTicketText', () => {
   it('không lẫn "PM 21G" thành số hiệu chuyến bay', () => {
     expect(parseTicketText('Departure 8:05 PM 21G E\n16 AUG 15 VJ 456', now)?.flight).toBe('VJ456');
   });
+  it('OCR đọc "VN" thành "WN" thì sửa lại thành VN272', () => {
+    expect(parseTicketText('VIETNAM AIRLINES TRAN/HOANG ANH WN272 N 24APR 19:50', new Date('2026-11-21'))).toMatchObject({ flight: 'VN272', date: '2027-04-24' });
+  });
   it('ngày dạng số và giờ 24h', () => {
     expect(parseTicketText('Flight QH 1234  Date 05/12/2026  Departure 06:40  (HAN) (SGN)', now))
       .toEqual({ flight: 'QH1234', date: '2026-12-05', from: 'HAN', to: 'SGN', time: '06:40' });

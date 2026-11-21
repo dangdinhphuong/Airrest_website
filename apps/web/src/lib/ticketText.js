@@ -18,7 +18,7 @@ function nearestYear(month, day, now) {
 }
 
 function findDate(text, now) {
-  const re = new RegExp(`([0-9OolI|€!]{1,2})\\s*[-/ ]?\\s*(${MONTHS.join('|')})[A-Z]*\\.?\\s*[-/ ,]?\\s*([0-9OolI|€!]{4}|[0-9OolI|€!]{2})?(?![0-9])`, 'gi');
+  const re = new RegExp(`([0-9OolI|€!]{1,2})\\s*[-/ ]?\\s*(${MONTHS.join('|')})[A-Z]*\\.?\\s*[-/ ,]?\\s*([0-9OolI|€!]{4}|[0-9OolI|€!]{2})?(?![0-9]|\\s?[:.][0-9])`, 'gi');
   for (const m of text.matchAll(re)) {
     const day = Number(digitsOf(m[1]));
     const month = MONTHS.indexOf(m[2].toUpperCase());
@@ -43,7 +43,11 @@ function findFlight(text) {
   const up = text.toUpperCase();
   const cands = [...up.matchAll(/(?<![A-Z0-9])([A-Z]{2}|[A-Z]\d|\d[A-Z])\s?(\d{3,4}[A-Z]?)(?![A-Z0-9])/g)]
     .filter((m) => m[1] !== 'AM' && m[1] !== 'PM')
-    .map((m) => ({ code: `${m[1]}${m[2].replace(/^0+(?=\d)/, '')}`, at: m.index, carrier: m[1] }));
+    .map((m) => {
+      // shortcut: OCR hay tách "V" thành "W" (VN272 -> WN272); chỉ sửa khi bản sửa là hãng quen thuộc, hãng thật bắt đầu bằng W (WN, W6...) không có ở các sân bay này.
+      const carrier = !CARRIERS.has(m[1]) && CARRIERS.has(m[1].replace(/W/g, 'V')) ? m[1].replace(/W/g, 'V') : m[1];
+      return { code: `${carrier}${m[2].replace(/^0+(?=\d)/, '')}`, at: m.index, carrier };
+    });
   const known = cands.find((c) => CARRIERS.has(c.carrier));
   if (known) return known.code;
   const label = up.search(/FLIGHT/);
