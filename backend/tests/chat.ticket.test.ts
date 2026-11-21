@@ -31,9 +31,10 @@ describe('safeTicket: mọi trường phải có căn cứ trong chữ OCR', () 
     expect(r).toEqual({ flight: 'VN7132', date: '2026-12-05' });
     expect(safeTicket(SRC, { ...full, from: 'SGN', to: 'SGN' }, now)).toEqual({ flight: 'VN7132', date: '2026-12-05', time: '20:05' });
   });
-  it('năm không có trong chữ: chỉ nhận ngày sắp tới, không nhận ngày quá khứ xa', () => {
-    expect(safeTicket('VN 7132 05 DEC Dep 20:05', { ...full, date: '2024-12-05' }, now)).toBeNull();
-    expect(safeTicket('VN 7132 05 DEC Dep 20:05', { ...full, date: '2026-12-05' }, now)?.date).toBe('2026-12-05');
+  it('năm không có trong chữ: bỏ năm do model bịa, lấy lần gần nhất ngày/tháng đó tới', () => {
+    expect(safeTicket('VN 7132 05 DEC Dep 20:05', { ...full, date: '2023-12-05' }, now)?.date).toBe('2026-12-05'); // model bịa 2023
+    expect(safeTicket('VN 7132 05 DEC Dep 20:05', { ...full, date: '2020-12-05' }, now)?.date).toBe('2026-12-05'); // "20" của giờ 20:05 không phải năm
+    expect(safeTicket('VN 7132 05 JAN Dep 20:05', { ...full, date: '2023-01-05' }, now)?.date).toBe('2027-01-05'); // ngày đã qua trong năm thì sang năm sau
   });
   it('đầu ra không phải đối tượng hợp lệ thì null', () => {
     expect(safeTicket(SRC, 'xin chào', now)).toBeNull();

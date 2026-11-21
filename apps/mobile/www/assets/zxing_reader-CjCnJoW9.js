@@ -1,1 +1,0 @@
-const e="/assets/zxing_reader-BCjuyud6.wasm";export{e as default};

@@ -494,8 +494,8 @@ export function Account() {
   const ITEM = 'tw:flex tw:min-h-11 tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-xl tw:border tw:px-3 tw:text-sm tw:font-semibold';
   return (
     <div className="tw:min-h-screen tw:bg-slate-50 tw:px-4 tw:py-6 tw:sm:py-10">
-      <div className="tw:mx-auto tw:grid tw:max-w-[1080px] tw:items-start tw:gap-5 tw:md:grid-cols-[240px_1fr]">
-        <aside aria-label="Menu tài khoản" className="tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:p-3 tw:shadow-sm tw:md:sticky tw:md:top-24">
+      <div className="tw:mx-auto tw:grid tw:max-w-[1080px] tw:grid-cols-[minmax(0,1fr)] tw:items-start tw:gap-5 tw:md:grid-cols-[240px_minmax(0,1fr)]">
+        <aside aria-label="Menu tài khoản" className="tw:min-w-0 tw:rounded-3xl tw:border tw:border-slate-200 tw:bg-white tw:p-3 tw:shadow-sm tw:md:sticky tw:md:top-24">
           <div className="tw:hidden tw:items-center tw:gap-3 tw:border-b tw:border-slate-100 tw:px-2 tw:pb-3 tw:pt-1 tw:md:flex">
             <span className="tw:grid tw:size-10 tw:shrink-0 tw:place-items-center tw:rounded-full tw:bg-blue-600 tw:font-extrabold tw:text-white">{initial}</span>
             <strong className="tw:min-w-0 tw:truncate tw:text-sm">{user.name}</strong>

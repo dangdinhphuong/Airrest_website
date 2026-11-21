@@ -46,11 +46,20 @@ export function safeTicket(src: string, out: unknown, now = new Date()): TicketF
   const [y, m, d] = date.split('-').map(Number) as [number, number, number];
   const hasMonth = new RegExp(num(m)).test(up) || up.includes(MONTHS[m - 1]!) || new RegExp(`THÁNG\\s*0?${m}(?!\\d)`).test(up);
   if (!new RegExp(num(d)).test(up) || !hasMonth) return null;
-  const yearInText = up.includes(String(y)) || new RegExp(`(?<!\\d)${String(y).slice(2)}(?!\\d)`).test(up);
-  const t = Date.parse(`${date}T00:00:00Z`);
-  if (!yearInText && (t < now.getTime() - 2 * DAY_MS || t > now.getTime() + 370 * DAY_MS)) return null; // năm không có trong chữ: chỉ nhận ngày sắp tới
+  // Năm: chỉ tin khi chính chữ OCR có (2026, hoặc 15 đứng ngay sau tên tháng/dấu phân cách ngày như "AUG 15", "/26"). Model hay bịa năm (vd 2023):
+  // không có căn cứ thì bỏ năm của model, lấy lần gần nhất ngày/tháng đó tới (như bộ regex ở trình duyệt). Vì "20" của giờ 20:05 không phải năm nên không dò số 2 chữ số trơ trọi.
+  const yy = String(y).slice(2);
+  const yearInText = up.includes(String(y)) || new RegExp(`(?:${MONTHS.join('|')}|[/.-])\\s*'?${yy}(?!\\d)`).test(up);
+  let isoDate = date;
+  if (!yearInText) {
+    const cut = now.getTime() - 2 * DAY_MS; // thẻ vừa bay hôm qua vẫn nhận
+    const at = (yr: number) => Date.UTC(yr, m - 1, d);
+    const yr = at(now.getUTCFullYear()) >= cut ? now.getUTCFullYear() : now.getUTCFullYear() + 1;
+    isoDate = new Date(at(yr)).toISOString().slice(0, 10);
+    if (!validDate(isoDate)) return null; // vd 29/02 không có ở năm đó
+  }
 
-  const res: TicketFields = { flight, date };
+  const res: TicketFields = { flight, date: isoDate };
   const code = (v: string | null) => (v && /^[A-Z]{3}$/.test(v.toUpperCase()) && new RegExp(`(?<![A-Z])${v.toUpperCase()}(?![A-Z])`).test(up) ? v.toUpperCase() : null);
   const from = code(p.data.from); const to = code(p.data.to);
   if (from && to && from !== to) { res.from = from; res.to = to; }
@@ -58,6 +67,12 @@ export function safeTicket(src: string, out: unknown, now = new Date()): TicketF
   if (tm && Number(tm[1]) < 24 && Number(tm[2]) < 60 && new RegExp(`(?<!\\d)${tm[2]}(?!\\d)`).test(up) && (new RegExp(num(Number(tm[1]))).test(up) || new RegExp(num(Number(tm[1]) % 12)).test(up))) res.time = `${tm[1]}:${tm[2]}`;
   return res;
 }
+
+export const ticketRequest = (src: string) => ({
+  model: env.OLLAMA_MODEL, stream: false, keep_alive: '30m', format: FORMAT,
+  options: { temperature: 0, num_ctx: 2048, num_predict: 120 },
+  messages: [{ role: 'system', content: SYSTEM }, ...SHOTS.flatMap(([a, b]) => [{ role: 'user', content: a }, { role: 'assistant', content: JSON.stringify(b) }]), { role: 'user', content: src }],
+});
 
 const MAX_PENDING = 2;
 let pending = 0;
@@ -74,11 +89,7 @@ export async function extractTicket(text: string, fetchImpl: typeof fetch = fetc
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       signal: AbortSignal.timeout(env.AI_CHAT_TIMEOUT_MS),
-      body: JSON.stringify({
-        model: env.OLLAMA_MODEL, stream: false, keep_alive: '30m', format: FORMAT,
-        options: { temperature: 0, num_ctx: 2048, num_predict: 120 },
-        messages: [{ role: 'system', content: SYSTEM }, ...SHOTS.flatMap(([a, b]) => [{ role: 'user', content: a }, { role: 'assistant', content: JSON.stringify(b) }]), { role: 'user', content: src }],
-      }),
+      body: JSON.stringify(ticketRequest(src)),
     });
     if (!res.ok) throw new Error(`ollama ${res.status}`);
     const data = (await res.json()) as { message?: { content?: string } };

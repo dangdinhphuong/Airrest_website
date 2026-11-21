@@ -8,7 +8,7 @@
 .airrest-user[data-cart-bar] [data-chat-fab] { margin-bottom: 4.5rem; }
 /* Mobile, trang có dòng phòng (/noi-nghi): nút chat dời sang trái, bỏ bong bóng chào, thu nhỏ robot để không che nút − / + ở mép phải của dòng phòng khi cuộn. */
 @media (max-width: 47.99rem) {
-  .airrest-user:has([data-testid="room-row"]) [data-chat-fab] { right: auto; left: 0.75rem; }
+  .airrest-user:has([data-testid="room-row"]) [data-chat-fab]:not([data-native]) { right: auto; left: 0.75rem; } /* app: luôn bên phải */
   .airrest-user:has([data-testid="room-row"]) [data-chat-fab] [data-greet] { display: none; }
   .airrest-user:has([data-testid="room-row"]) [data-chat-fab] [data-robot] { width: 3.5rem; height: 3.5rem; }
 }

@@ -44,7 +44,7 @@ export default function UserSite({ page, children }) {
 
   return (
     <div ref={root} className="airrest-user tw:min-h-screen tw:bg-white tw:pb-16 tw:text-[#10203a] tw:md:pb-0">
-      <header className="tw:sticky tw:top-0 tw:z-50 tw:border-b tw:border-slate-200/80 tw:bg-white/95 tw:backdrop-blur-xl">
+      <header className="tw:sticky tw:top-0 tw:z-50 tw:pt-[env(safe-area-inset-top)] tw:border-b tw:border-slate-200/80 tw:bg-white/95 tw:backdrop-blur-xl">
         <nav className="tw:mx-auto tw:flex tw:h-[72px] tw:max-w-[1480px] tw:items-center tw:justify-between tw:px-5" aria-label="Điều hướng chính">
           <button type="button" onClick={() => go('home')} aria-label="AIRREST, về trang chủ"><Logo /></button>
           <div className="tw:hidden tw:md:flex tw:md:flex-row tw:md:gap-1">

@@ -45,6 +45,7 @@ export default function Stays() {
   const [tick, setTick] = useState(0);
   const [chips, setChips] = useState(intent?.chips ?? []);
   const [maxKm, setMaxKm] = useState('');
+  const [fOpen, setFOpen] = useState(false); // bộ lọc thu gọn trên màn nhỏ (từ lg luôn mở)
   const [sort, setSort] = useState(intent?.sort && SORTS[intent.sort] ? intent.sort : 'distance');
   const [price, setPrice] = useState(null); // null = cả khoảng; { min, max } (VND/đêm)
   const [bounds, setBounds] = useState(null); // biên thanh kéo giá của sân bay hiện tại
@@ -136,13 +137,20 @@ export default function Stays() {
       </div>
       <div className="tw:mx-auto tw:grid tw:max-w-[1180px] tw:gap-6 tw:px-5 tw:py-6 tw:lg:grid-cols-[250px_minmax(0,1fr)]">
         <aside aria-label="Bộ lọc" className="tw:self-start">
+          <button type="button" onClick={() => setFOpen((o) => !o)} aria-expanded={fOpen} aria-controls="stays-filters" className="tw:flex tw:min-h-11 tw:w-full tw:items-center tw:justify-between tw:rounded-xl tw:border tw:border-slate-200 tw:bg-white tw:px-4 tw:text-sm tw:font-bold tw:text-slate-800 tw:lg:hidden">
+            <span>Bộ lọc{(chips.length + (maxKm ? 1 : 0) + (price ? 1 : 0)) > 0 && <span className="tw:ml-2 tw:rounded-full tw:bg-blue-600 tw:px-2 tw:py-0.5 tw:text-[11px] tw:text-white">{chips.length + (maxKm ? 1 : 0) + (price ? 1 : 0)}</span>}</span>
+            <ChevronDown size={18} aria-hidden="true" className={`tw:text-slate-500 tw:transition-transform ${fOpen ? 'tw:rotate-180' : ''}`} />
+          </button>
+          <div id="stays-filters" className={`tw:mt-4 tw:lg:mt-0 tw:lg:block ${fOpen ? '' : 'tw:hidden'}`}>
           {bounds && bounds.max > bounds.min && <div className="tw:mb-6"><h2 className="tw:mb-4 tw:text-sm tw:font-bold">Giá mỗi đêm</h2><PriceRange bounds={bounds} value={price} onChange={setPrice} /></div>}
           <h2 className="tw:text-sm tw:font-bold">Bộ lọc phổ biến</h2>
           <div className="tw:mt-3 tw:grid tw:gap-2.5">
             {CHIPS.map((c) => <label key={c.id} className="tw:flex tw:cursor-pointer tw:items-center tw:gap-2 tw:text-sm tw:text-slate-700"><input type="checkbox" checked={chips.includes(c.id)} onChange={() => toggleChip(c.id)} className="tw:size-4" />{c.label}</label>)}
           </div>
-          <Select aria-label="Khoảng cách tới sân bay" value={maxKm} onChange={(e) => setMaxKm(e.target.value)} className="tw:mt-4 tw:w-full"><option value="">Mọi khoảng cách</option>{DISTANCES.map((km) => <option key={km} value={km}>Trong {km} km</option>)}</Select>
+          <label className="tw:mt-4 tw:block"><span className="tw:mb-1 tw:block tw:text-xs tw:font-semibold tw:text-slate-500">Khoảng cách tới sân bay</span>
+          <Select aria-label="Khoảng cách tới sân bay" value={maxKm} onChange={(e) => setMaxKm(e.target.value)} className="tw:w-full"><option value="">Mọi khoảng cách</option>{DISTANCES.map((km) => <option key={km} value={km}>Trong {km} km</option>)}</Select></label>
           {filtering && <button type="button" onClick={() => { setChips([]); setMaxKm(''); setPrice(null); }} className="tw:mt-3 tw:text-xs tw:font-bold tw:text-blue-600 tw:underline">Xóa bộ lọc</button>}
+          </div>
         </aside>
 
         <section className="tw:min-w-0">

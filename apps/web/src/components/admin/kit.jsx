@@ -139,9 +139,14 @@ export function Filters({ fields, onApply, testid = 'filters' }) {
   const apply = () => { const o = {}; for (const [k, , t] of fields) if (v[k]) o[k] = t === 'date' ? (k === 'to' ? endOfDayIso(v[k]) : vnDayStart(v[k]).toISOString()) : v[k].trim(); onApply(o); };
   return (
     <FilterBar onApply={apply} onReset={() => { setV({}); onApply({}); }} testid={testid}>
-      {fields.map(([k, label, t, opts]) => opts
-        ? <Select key={k} aria-label={label} value={v[k] || ''} onChange={(e) => setV({ ...v, [k]: e.target.value })}><option value="">{label}: tất cả</option>{opts.map(([val, txt]) => <option key={val} value={val}>{txt}</option>)}</Select>
-        : <input key={k} aria-label={label} placeholder={label} type={t === 'date' ? 'date' : 'text'} title={label} value={v[k] || ''} onChange={(e) => setV({ ...v, [k]: e.target.value })} data-testid={`f-${k}`} />)}
+      {fields.map(([k, label, t, opts]) => (
+        <label key={k} className="ui-filterfield">
+          <span className="ui-filterlabel">{label}</span>
+          {opts
+            ? <Select aria-label={label} value={v[k] || ''} onChange={(e) => setV({ ...v, [k]: e.target.value })}><option value="">Tất cả</option>{opts.map(([val, txt]) => <option key={val} value={val}>{txt}</option>)}</Select>
+            : <input aria-label={label} placeholder={label} type={t === 'date' ? 'date' : 'text'} title={label} value={v[k] || ''} onChange={(e) => setV({ ...v, [k]: e.target.value })} data-testid={`f-${k}`} />}
+        </label>
+      ))}
     </FilterBar>
   );
 }

@@ -54,6 +54,7 @@ export default function ScanTicket({ onResult, onClose }) {
   const stream = useRef(null);
   const [state, setState] = useState('starting'); // starting | scanning | busy | nocam
   const [msg, setMsg] = useState('');
+  const [denied, setDenied] = useState(false); // chỉ trong app APK: chưa cấp quyền camera -> popup dẫn tới cài đặt
   const [busyMsg, setBusyMsg] = useState('Đang đọc ảnh…');
 
   const stop = () => { stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null; };
@@ -97,6 +98,7 @@ export default function ScanTicket({ onResult, onClose }) {
       } catch (e) {
         if (!alive) return;
         setState('nocam');
+        if (e?.name === 'NotAllowedError' && window.Capacitor?.isNativePlatform?.()) setDenied(true);
         setMsg(e?.name === 'NotAllowedError' ? 'Bạn chưa cho phép dùng camera. Hãy cấp quyền hoặc tải ảnh thẻ lên tàu.' : 'Không mở được camera trên thiết bị này. Hãy tải ảnh thẻ lên tàu.');
       }
     })();
@@ -168,6 +170,17 @@ export default function ScanTicket({ onResult, onClose }) {
           </label>
         </div>
       </section>
+      {denied && (
+        <div role="alertdialog" aria-modal="true" aria-label="Cần quyền camera" onClick={(e) => e.stopPropagation()} className="tw:fixed tw:inset-0 tw:z-[80] tw:grid tw:place-items-center tw:bg-slate-900/60 tw:p-6">
+          <div className="tw:w-full tw:max-w-xs tw:rounded-2xl tw:bg-white tw:p-5 tw:text-center tw:shadow-2xl">
+            <Camera size={28} className="tw:mx-auto tw:text-blue-600" />
+            <h3 className="tw:mt-2 tw:text-base tw:font-extrabold tw:text-[#062253]">Cần quyền dùng camera</h3>
+            <p className="tw:mt-2 tw:text-sm tw:leading-5 tw:text-slate-600">Ứng dụng chưa được cấp quyền camera. Mở Cài đặt, chọn Quyền, bật Camera, rồi quay lại và quét lại.</p>
+            <button type="button" onClick={() => window.Capacitor?.Plugins?.AppSettings?.open?.()} className="tw:mt-4 tw:min-h-11 tw:w-full tw:rounded-xl tw:bg-blue-600 tw:px-4 tw:text-sm tw:font-bold tw:text-white tw:hover:bg-blue-700">Mở cài đặt</button>
+            <button type="button" onClick={() => setDenied(false)} className="tw:mt-2 tw:min-h-11 tw:w-full tw:rounded-xl tw:text-sm tw:font-bold tw:text-slate-600 tw:hover:bg-slate-50">Để sau</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

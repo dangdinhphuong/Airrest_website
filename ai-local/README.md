@@ -86,3 +86,11 @@ Web chạy bằng Vite dev server và **chuyển tiếp `/v1` và `/socket.io` s
 - `server.allowedHosts` trong `vite.config.js` phải có tên miền (host lạ nhận 403 "Blocked request"). Đổi tên miền thì sửa chỗ này.
 - **Không bật `xfwd` ở proxy Vite:** backend dùng `trust proxy 1` và lấy IP khách từ `X-Forwarded-For` do Cloudflare đặt; `xfwd` nối thêm IP của proxy làm mọi khách dùng chung một IP (giới hạn tần suất sai).
 - Cách khác không đụng mã: hai route trên Cloudflare cùng tên miền, một có Path `^/(v1|socket\.io)` → `http://localhost:3000` đặt TRƯỚC route còn lại → `http://localhost:5174`, và `VITE_API_BASE_URL=https://airrest.dpdns.org`.
+
+## Quét thẻ lên tàu có AI đọc giúp (2026-11-20)
+
+- Luồng ở `apps/web/src/screens/user/ScanTicket.jsx`: bấm **Chụp và đọc thẻ** (hoặc tải ảnh) -> mã vạch/QR -> OCR trong trình duyệt + bộ regex (`lib/ticketText.js`) -> **nếu regex không ra số hiệu + ngày** thì gửi CHỮ OCR (không gửi ảnh) tới `POST /api/v1/chat/ticket`, Qwen 3B trích `{flight, date, from?, to?, time?}`.
+- Riêng tư: trình duyệt bỏ họ tên, mã đặt chỗ, số vé, SĐT, email trước khi gửi (`redactTicketText`); backend che thêm (`mask`) và chặn lệnh tiêm (`isBlocked`). Chữ OCR không được ghi log.
+- Chống bịa (`services/chat/ticket.ts`, `safeTicket`): số hiệu phải có trong chữ; ngày/tháng phải có trong chữ; mã sân bay phải là chữ in hoa đứng riêng trong chữ; giờ phải có trong chữ. Model hay bịa NĂM (ví dụ 2023): năm không có trong chữ thì bỏ, lấy lần gần nhất ngày/tháng đó tới. Không đạt thì trả `{ticket: null}` (trình duyệt báo không đọc được và mời nhập tay). Kết quả của AI hiện nhãn "AI đọc từ chữ in trên ảnh nên có thể sai".
+- Docker: không cần dịch vụ mới (chạy trong `api`). `OLLAMA_NUM_PARALLEL` tăng 3 -> 4 (thêm một ô nhớ đệm cho loại prompt thứ tư) và `warmup.ts` làm nóng thêm prompt này lúc API khởi động. Đổi biến môi trường của Ollama phải `docker compose up -d ollama` (tạo lại container, model nạp lại vài chục giây).
+- Đo thật (máy này, CPU): 2–4,5 giây mỗi thẻ khi đã nóng; thẻ không có thông tin vé và câu tiêm lệnh đều trả null. Chưa thử trên ảnh thẻ thật qua camera (chỉ thử bằng chữ OCR mẫu).

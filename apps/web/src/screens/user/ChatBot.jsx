@@ -15,6 +15,8 @@ gsap.registerPlugin(useGSAP);
 
 const ROBOT = '/images/ai-robot.png';
 const MINI = 'airrest-bot-mini';
+const NATIVE = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.(); // chỉ trong app APK: bong bóng kéo thả được, luôn ở bên phải
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 // Lời chào đầu theo ngôn ngữ trình duyệt, chỉ với tiếng Trung/Hàn (nhiều người Việt dùng trình duyệt tiếng Anh nên en vẫn mặc định tiếng Việt; bot tự đổi khi khách gõ tiếng Anh).
 const initLang = () => { try { const l = (navigator.language || '').slice(0, 2); return l === 'zh' || l === 'ko' ? l : 'vi'; } catch { return 'vi'; } };
 const CHIP = 'tw:shrink-0 tw:rounded-full tw:border tw:border-blue-200 tw:bg-white tw:px-3 tw:py-2 tw:text-[11px] tw:font-bold tw:text-blue-700 tw:hover:bg-blue-50';
@@ -34,6 +36,21 @@ export default function ChatBot() {
   const [text, setText] = useState('');
   const [typing, setTyping] = useState(false);
   const root = useRef(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 }); // độ lệch so với góc phải dưới (chỉ app), không lưu sau khi tải lại
+  const drag = useRef(null);
+  const moved = useRef(false);
+  const onDown = (e) => { if (NATIVE && !open) { drag.current = { sx: e.clientX, sy: e.clientY, px: pos.x, py: pos.y, r: root.current.getBoundingClientRect() }; moved.current = false; } };
+  const onMove = (e) => {
+    const d = drag.current;
+    if (!d) return;
+    const dx = e.clientX - d.sx; const dy = e.clientY - d.sy;
+    if (!moved.current && Math.hypot(dx, dy) < 6) return; // dưới 6px vẫn là chạm để mở chat
+    if (!moved.current) root.current.setPointerCapture?.(e.pointerId);
+    moved.current = true;
+    setPos({ x: d.px + clamp(dx, -d.r.left, window.innerWidth - d.r.right), y: d.py + clamp(dy, -d.r.top, window.innerHeight - d.r.bottom) });
+  };
+  const onUp = () => { drag.current = null; };
+  const onClickCapture = (e) => { if (moved.current) { e.stopPropagation(); e.preventDefault(); moved.current = false; } }; // vừa kéo xong thì không mở chat
   const log = useRef(null);
   const input = useRef(null);
   const seq = useRef((restored.current?.messages.reduce((mx, m) => Math.max(mx, m.id ?? 0), 0) ?? 0) + 1);
@@ -150,7 +167,7 @@ export default function ChatBot() {
   }, { scope: root, dependencies: [messages.length] });
 
   return (
-    <div ref={root} data-chat-fab className="tw:fixed tw:bottom-20 tw:right-3 tw:z-[60] tw:md:bottom-6 tw:md:right-6">
+    <div ref={root} data-chat-fab {...(NATIVE ? { 'data-native': '', onPointerDown: onDown, onPointerMove: onMove, onPointerUp: onUp, onPointerCancel: onUp, onClickCapture, style: open ? undefined : { transform: `translate(${pos.x}px, ${pos.y}px)`, touchAction: 'none' } } : {})} className="tw:fixed tw:bottom-20 tw:right-3 tw:z-[60] tw:md:bottom-6 tw:md:right-6">
       {!open && mini && (
         <button type="button" onClick={openChat} aria-label="Mở trợ lý chat AIRREST" className="tw:grid tw:size-12 tw:cursor-pointer tw:place-items-center tw:rounded-full tw:bg-[#1262e8] tw:text-white tw:shadow-xl tw:hover:bg-[#0b45c6]"><MessageCircle size={22} /></button>
       )}
