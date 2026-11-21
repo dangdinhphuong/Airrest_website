@@ -78,7 +78,7 @@ export async function hourlySlots(hotelId: string, q: { roomTypeId: string; date
 export type HotelSort = 'distance' | 'price' | 'rating';
 export type HotelSearch = {
   sort: HotelSort; guests?: number; rooms: number; maxKm?: number; priceUnder?: number; minPrice?: number; maxPrice?: number; minRating?: number; minReviews?: number;
-  shuttle?: boolean; freeCancel?: boolean; hourly?: boolean; family?: boolean; reception24?: boolean; limit: number;
+  shuttle?: boolean; freeCancel?: boolean; hourly?: boolean; family?: boolean; reception24?: boolean; limit: number; offset?: number;
 };
 type SearchHotel = Pick<HotelDoc, 'airports' | 'rating' | 'amenities' | 'policy'> & { rooms: PublicRoom[] };
 
@@ -110,5 +110,5 @@ export function searchHotels<T extends SearchHotel>(hotels: T[], iata: string, f
     price: (a: T, b: T) => best(a)!.baseNightVnd - best(b)!.baseNightVnd,
     rating: (a: T, b: T) => (score(b) ?? -1) - (score(a) ?? -1) || byDist(a, b),
   }[f.sort];
-  return { items: kept.sort(cmp).slice(0, f.limit), total: kept.length, priceRange };
+  return { items: kept.sort(cmp).slice(f.offset ?? 0, (f.offset ?? 0) + f.limit), total: kept.length, priceRange };
 }

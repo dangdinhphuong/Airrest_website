@@ -17,13 +17,15 @@ import { lookupBody } from '@airrest/validation';
 export const hotelsRouter = Router();
 
 const flag = z.enum(['true', 'false']).transform((v) => v === 'true').optional();
-const SEARCH_KEYS = ['sort', 'guests', 'rooms', 'maxKm', 'priceUnder', 'minPrice', 'maxPrice', 'minRating', 'minReviews', 'shuttle', 'freeCancel', 'hourly', 'family', 'reception24'] as const;
+const SEARCH_KEYS = ['q', 'offset', 'sort', 'guests', 'rooms', 'maxKm', 'priceUnder', 'minPrice', 'maxPrice', 'minRating', 'minReviews', 'shuttle', 'freeCancel', 'hourly', 'family', 'reception24'] as const;
 const SEARCH_POOL = 200; // số khách sạn tối đa của một sân bay được đem lọc
 
 const listQuery = z.object({
   airport: z.string().length(3).transform((s) => s.toUpperCase()).optional(), // bỏ trống = toàn hệ thống (luôn ở chế độ tìm kiếm)
   limit: z.coerce.number().int().min(1).max(50).default(20),
-  cursor: seqCursor.optional(), // seq của phần tử cuối trang trước
+  cursor: seqCursor.optional(), // seq của phần tử cuối trang trước (chỉ chế độ có airport, không lọc)
+  offset: z.coerce.number().int().min(0).max(10_000).optional(), // chế độ tìm kiếm: bỏ qua N khách sạn đầu để lấy trang kế (dùng với `total`)
+  q: z.string().trim().min(1).max(100).optional(), // lọc theo tên khách sạn
   // Cửa sổ tính số phòng còn; mặc định từ bây giờ tới 24 giờ sau, tối đa 31 ngày.
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
@@ -68,10 +70,10 @@ hotelsRouter.get('/', validate({ query: listQuery }), async (req, res) => {
   const window = windowOf({ from, to });
   if (!airport || SEARCH_KEYS.some((k) => q[k] !== undefined)) { // chế độ tìm kiếm: lọc + sắp xếp + cắt top `limit` ở backend
     // shortcut: không có airport thì pool là SEARCH_POOL khách sạn đầu theo seq, nâng lên lọc/sắp ở SQL khi hệ thống vượt SEARCH_POOL khách sạn.
-    const pool = (await db.query<HotelDoc>(`SELECT ${PUBLIC_COLS} FROM hotels WHERE ${openHotel()} AND ($1::jsonb IS NULL OR airports @> $1::jsonb) ORDER BY seq LIMIT ${SEARCH_POOL}`, [airport ? JSON.stringify([{ iata: airport }]) : null])).rows;
+    const pool = (await db.query<HotelDoc>(`SELECT ${PUBLIC_COLS} FROM hotels WHERE ${openHotel()} AND ($1::jsonb IS NULL OR airports @> $1::jsonb) AND ($2::text IS NULL OR name ILIKE '%' || $2 || '%') ORDER BY seq LIMIT ${SEARCH_POOL}`, [airport ? JSON.stringify([{ iata: airport }]) : null, q.q?.replace(/[\\%_]/g, '\\$&') ?? null])).rows;
     const rooms = await publicRooms(pool.map((h) => h.id), window);
     const withRooms = pool.map((h) => ({ ...h, rooms: rooms.get(h.id) ?? [] }));
-    const { items: found, total, priceRange } = searchHotels(withRooms, airport ?? '', { ...q, sort: q.sort ?? (airport ? 'distance' : 'rating'), rooms: q.rooms ?? 1, limit });
+    const { items: found, total, priceRange } = searchHotels(withRooms, airport ?? '', { ...q, sort: q.sort ?? (airport ? 'distance' : 'rating'), rooms: q.rooms ?? 1, limit, offset: q.offset });
     res.json({ items: found.map(({ rooms: r, ...h }) => ({ ...toPublic(h), rooms: r })), nextCursor: null, total, priceRange, window });
     return;
   }
